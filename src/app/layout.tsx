@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import Script from "next/script";
@@ -64,6 +65,7 @@ export default async function RootLayout({
 						<SiteFooter m={m} />
 					</div>
 				</I18nProvider>
+				<Analytics />
 			</body>
 		</html>
 	);

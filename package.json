@@ -20,6 +20,7 @@
 		"@phosphor-icons/react": "^2.1.10",
 		"@takumi-rs/core": "2.13.2",
 		"@takumi-rs/helpers": "2.13.2",
+		"@vercel/analytics": "^2.0.1",
 		"art-template": "^4.13.4",
 		"jszip": "^3.10.1",
 		"motion": "^13.1.1",
