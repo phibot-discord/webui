@@ -1,0 +1,11 @@
+.next
+out
+node_modules
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+data
+src/phi/art-compiled.ts
+.wrangler
+.vercel

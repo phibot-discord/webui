@@ -1,0 +1,6 @@
+data
+.wrangler
+.env
+.env.local
+.env.*.local
+phi-assets/html/common/font/NotoColorEmoji-Regular.ttf
