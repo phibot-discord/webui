@@ -1,6 +1,6 @@
 import { type PhiLocale, resolvePhiLocale } from "@/phi/lib/card-i18n";
 import type { Save } from "@/phi/lib/save";
-import { type BoundErr, loadBound, saveRevision } from "./bound";
+import { type BoundErr, getCardEpoch, loadBound, saveRevision } from "./bound";
 import {
 	cacheKey,
 	cardEtag,
@@ -23,7 +23,7 @@ export {
 	type PublicKind,
 } from "./card-kinds";
 
-const RENDER_VERSION = "v2";
+const RENDER_VERSION = "v6";
 
 export {
 	type BoundErr,
@@ -48,12 +48,14 @@ export async function renderCard(
 	if ("error" in bound) return bound;
 	const { save, token } = bound;
 	const notes = await host.lib.getNotes(host.db, userId);
-	const locale = resolvePhiLocale(notes.locale, opts.locale);
+	const locale = resolvePhiLocale(opts.locale, notes.locale);
 	const nnum = clampCount(opts.count != null ? String(opts.count) : "33");
+	const epoch = await getCardEpoch(host.store, userId);
 	const etag = cardEtag([
 		kind,
 		userId,
 		saveRevision(save),
+		epoch,
 		notes.theme,
 		String(nnum),
 		locale,
@@ -109,7 +111,7 @@ async function buildCardData(
 		return {
 			templateId: "phi/b19/b19",
 			data,
-			heightKey: `phi/b19/b19|n${nnum}|${locale}|${themeKey}`,
+			heightKey: `phi/b19/b19|${kind}|n${nnum}|${locale}|${themeKey}`,
 		};
 	}
 	if (kind === "info") {

@@ -12,7 +12,6 @@ import type {
 } from "../sdk";
 import { exists } from "../vfs";
 import { readAssetCached } from "./asset-cache";
-import { PHI_FONT_FAMILIES } from "./fonts";
 import {
 	collectRootVars,
 	collectStylesheets,
@@ -20,6 +19,7 @@ import {
 	stripScripts,
 	stripUnsupportedCss,
 } from "./css";
+import { PHI_FONT_FAMILIES } from "./fonts";
 import {
 	collectLocalAssetPaths,
 	type ImageAsset,
@@ -237,10 +237,8 @@ export class RenderEngine {
 			});
 			const boxH = measured.height || 0;
 			const extent = Math.max(1, Math.ceil(contentExtent(measured)));
-			if (boxH < 64) height = extent;
-			else if (boxH >= 400 && extent > boxH * 2.5)
-				height = Math.max(1, Math.ceil(boxH));
-			else height = extent;
+			const raw = Math.max(boxH, extent);
+			height = Math.min(16_000, Math.max(1, Math.ceil(raw) + 24));
 			logger.info(
 				`measured box ${measured.width}x${measured.height} content ${extent} using ${height}`,
 			);

@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { auth } from "@/auth";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SkipLink } from "@/components/SkipLink";
 import { localeTag } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/provider";
 import { getMessages } from "@/i18n/server";
@@ -51,18 +52,15 @@ export default async function RootLayout({
 					{THEME_BOOT}
 				</Script>
 				<I18nProvider locale={locale} m={m}>
-					<a className="skip" href="#content">
-						{m.skip}
-					</a>
+					<SkipLink />
 					<div className="shell">
 						<SiteHeader
 							signedIn={Boolean(session?.user?.id)}
 							name={session?.user?.name}
 							image={session?.user?.image}
-							m={m}
 						/>
 						{children}
-						<SiteFooter m={m} />
+						<SiteFooter />
 					</div>
 				</I18nProvider>
 				<Analytics />

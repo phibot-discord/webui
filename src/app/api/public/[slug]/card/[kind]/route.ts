@@ -1,3 +1,4 @@
+import { resolvePhiLocale } from "@/phi/lib/card-i18n";
 import { isPublicKind, renderCard } from "@/server/cards";
 import { getDataHost } from "@/server/data-host";
 import { pngResponse } from "@/server/http";
@@ -30,7 +31,12 @@ export async function GET(
 	});
 	if (!limited.ok) return localizedRetryAfter(limited.retryAfter, "rate_limit");
 
-	const result = await renderCard(userId, kind);
+	const url = new URL(request.url);
+	const locale = resolvePhiLocale(
+		url.searchParams.get("locale"),
+		request.headers.get("accept-language"),
+	);
+	const result = await renderCard(userId, kind, { locale });
 	if ("error" in result) return localizedRenderError(result);
 	return pngResponse(result.bytes, {
 		etag: result.etag,

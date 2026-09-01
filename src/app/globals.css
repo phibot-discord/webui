@@ -638,6 +638,9 @@ label.field input {
 	width: 100%;
 	height: auto;
 }
+.frame[aria-busy="true"] img {
+	opacity: 0.55;
+}
 
 .frame .placeholder,
 .frame .error {

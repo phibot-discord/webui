@@ -5,35 +5,18 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SteadyButton } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 import {
-	CARD_RELOAD_KEY,
-	REFRESH_COOLDOWN_MS,
-	REFRESH_UNTIL_KEY,
-	SAVE_REFRESHED_EVENT,
+	getRefreshUntil,
+	persistCardReload,
+	persistCooldown,
+	subscribeSaveRefresh,
 } from "@/lib/save-refresh";
 
-function subscribeSaveRefresh(onStoreChange: () => void) {
-	window.addEventListener(SAVE_REFRESHED_EVENT, onStoreChange);
-	return () => window.removeEventListener(SAVE_REFRESHED_EVENT, onStoreChange);
-}
-
 function storedUntilSnapshot(): number {
-	const n = Number(sessionStorage.getItem(REFRESH_UNTIL_KEY) || 0);
-	return Number.isFinite(n) ? n : 0;
+	return getRefreshUntil();
 }
 
 function storedUntilServer(): number {
 	return 0;
-}
-
-function persistCooldown() {
-	const next = Date.now() + REFRESH_COOLDOWN_MS;
-	sessionStorage.setItem(REFRESH_UNTIL_KEY, String(next));
-	window.dispatchEvent(new CustomEvent(SAVE_REFRESHED_EVENT));
-}
-
-function persistRefresh() {
-	sessionStorage.setItem(CARD_RELOAD_KEY, String(Date.now()));
-	persistCooldown();
 }
 
 export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
@@ -91,14 +74,17 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 		setMessage(undefined);
 		try {
 			const res = await fetch("/api/refresh", { method: "POST" });
-			const data = (await res.json().catch(() => ({}))) as { error?: string };
+			const data = (await res.json().catch(() => ({}))) as {
+				error?: string;
+				lastSynced?: string;
+			};
 			if (!res.ok) {
 				if (res.status === 429) persistCooldown();
 				showError(data.error || m.refresh.failed);
 				return;
 			}
-			persistRefresh();
-			router.refresh();
+			persistCardReload(data.lastSynced);
+			window.setTimeout(() => router.refresh(), 0);
 		} catch {
 			showError(m.refresh.failed);
 		} finally {

@@ -50,6 +50,14 @@ export function lastSyncedIso(save: Save): string | undefined {
 	return Number.isFinite(d.getTime()) ? d.toISOString() : String(iso);
 }
 
+export async function getCardEpoch(
+	store: { get: (key: string) => Promise<unknown> },
+	userId: string,
+): Promise<string> {
+	const raw = await store.get(kvKey("webCardEpoch", userId));
+	return raw == null ? "" : String(raw);
+}
+
 export async function loadBound(
 	host: DataHost,
 	userId: string,
@@ -94,6 +102,7 @@ export async function refreshSave(
 	try {
 		await ensureSongInfo();
 		const save = await host.lib.updateSave(host.rt, host.db, userId);
+		await host.store.set(kvKey("webCardEpoch", userId), String(Date.now()));
 		return { ok: true, lastSynced: lastSyncedIso(save) };
 	} catch (err) {
 		await host.store.del(coolKey);

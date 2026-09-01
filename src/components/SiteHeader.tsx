@@ -1,19 +1,20 @@
-import { signOut } from "@/auth";
+"use client";
+
+import { signOutAction } from "@/auth-actions";
 import { LocaleSwitch } from "@/components/LocaleSwitch";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
-import type { Messages } from "@/i18n/messages";
+import { useI18n } from "@/i18n/provider";
 
 export function SiteHeader({
 	signedIn,
 	name,
 	image,
-	m,
 }: {
 	signedIn: boolean;
 	name?: string | null;
 	image?: string | null;
-	m: Messages;
 }) {
+	const { m } = useI18n();
 	return (
 		<header className="topbar">
 			<a className="wordmark" href={signedIn ? "/me" : "/"}>
@@ -28,12 +29,7 @@ export function SiteHeader({
 							{image ? <img src={image} alt="" width={28} height={28} /> : null}
 							<span>{name || m.signedIn}</span>
 						</div>
-						<form
-							action={async () => {
-								"use server";
-								await signOut({ redirectTo: "/" });
-							}}
-						>
+						<form action={signOutAction}>
 							<button className="btn btn-ghost" type="submit">
 								{m.signOut}
 							</button>

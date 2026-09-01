@@ -1,24 +1,16 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { RefreshButton } from "@/components/RefreshButton";
 import { UnbindButton } from "@/components/UnbindButton";
-import { getMessages } from "@/i18n/server";
-
-export function displayPlayerId(raw: unknown): string {
-	return String(raw || "player")
-		.replace(/<[^>]+>/g, "")
-		.trim();
-}
-
-export function displayRks(rks: unknown): string {
-	return typeof rks === "number" ? rks.toFixed(4) : "-";
-}
+import { formatDateTime } from "@/i18n/datetime";
+import { useI18n } from "@/i18n/provider";
 
 export function Desk({
 	title,
 	rks,
-	rksLabel,
-	synced,
-	syncedLabel,
+	lastSyncedIso,
+	publicHint,
 	note,
 	tools,
 	nav,
@@ -27,16 +19,20 @@ export function Desk({
 }: {
 	title: string;
 	rks?: string;
-	rksLabel?: string;
-	synced?: string;
-	syncedLabel?: string;
+	lastSyncedIso?: string;
+	publicHint?: boolean;
 	note?: string;
 	tools?: ReactNode;
 	nav?: ReactNode;
 	toolbar?: ReactNode;
 	children?: ReactNode;
 }) {
-	const hasMeta = rks != null || synced != null;
+	const { locale, m } = useI18n();
+	const hasMeta = rks != null;
+	const syncedText = lastSyncedIso
+		? formatDateTime(lastSyncedIso, locale)
+		: m.me.cachedSave;
+	const hint = publicHint ? m.public.hint : note;
 	return (
 		<main id="content" className="page desk">
 			<header className="desk-mast">
@@ -44,24 +40,20 @@ export function Desk({
 					<h1>{title}</h1>
 					{hasMeta ? (
 						<p className="desk-meta">
-							{rks != null ? (
-								<span>
-									<span className="meta-label">{rksLabel}</span>
-									<span className="meta-value">{rks}</span>
-								</span>
-							) : null}
-							{synced != null ? (
-								<span>
-									<span className="meta-label">{syncedLabel}</span>
-									<span className="meta-value">{synced}</span>
-								</span>
-							) : null}
+							<span>
+								<span className="meta-label">{m.me.rks}</span>
+								<span className="meta-value">{rks}</span>
+							</span>
+							<span>
+								<span className="meta-label">{m.me.lastSynced}</span>
+								<span className="meta-value">{syncedText}</span>
+							</span>
 						</p>
 					) : null}
 				</div>
 				{tools ? <div className="desk-tools">{tools}</div> : null}
 			</header>
-			{note ? <p className="desk-note">{note}</p> : null}
+			{hint ? <p className="desk-note">{hint}</p> : null}
 			{nav}
 			{toolbar}
 			{children}
@@ -69,14 +61,14 @@ export function Desk({
 	);
 }
 
-export async function MeGate({
+export function MeGate({
 	reason,
 	cooldown,
 }: {
 	reason: "banned" | "no_save";
 	cooldown: number;
 }) {
-	const { m } = await getMessages();
+	const { m } = useI18n();
 	if (reason === "banned") {
 		return (
 			<main id="content" className="page desk">

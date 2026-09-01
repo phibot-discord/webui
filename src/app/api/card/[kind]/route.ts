@@ -1,5 +1,6 @@
 import { sessionUserId } from "@/auth";
 import { getMessages } from "@/i18n/server";
+import { resolvePhiLocale } from "@/phi/lib/card-i18n";
 import { clampCount, isCardKind, renderCard } from "@/server/cards";
 import { getDataHost } from "@/server/data-host";
 import { pngResponse } from "@/server/http";
@@ -34,7 +35,14 @@ export async function GET(
 
 	const url = new URL(request.url);
 	const count = clampCount(url.searchParams.get("count"));
-	const { locale } = await getMessages();
+	const qLocale = url.searchParams.get("locale");
+	const locale = qLocale
+		? resolvePhiLocale(qLocale)
+		: resolvePhiLocale(
+				qLocale,
+				request.headers.get("accept-language"),
+				(await getMessages()).locale,
+			);
 	const result = await renderCard(userId, kind, { count, locale });
 	if ("error" in result) return localizedRenderError(result);
 	return pngResponse(result.bytes, {

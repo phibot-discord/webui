@@ -2,9 +2,10 @@ import { join } from "node:path";
 import type { Kv } from "@/server/sdk";
 import { exists, readFile } from "@/server/vfs";
 import { cardCopy, fill, resolvePhiLocale } from "./card-i18n";
-import { kvKey } from "./const";
 import type { Catalog } from "./catalog";
 import type { LineSeg } from "./charts";
+import { kvKey } from "./const";
+import { fCompute } from "./fcompute";
 import type { UserNotes } from "./notes";
 import type { PhiRuntime } from "./runtime";
 import type { Save } from "./save";
@@ -131,9 +132,7 @@ function rangePct(value: number, span: number[]) {
 }
 
 function fmtLineDate(t: number) {
-	const d = new Date(t);
-	const p = (n: number) => String(n).padStart(2, "0");
-	return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+	return fCompute.formatDate(t);
 }
 
 export function rksLineFromRecords(

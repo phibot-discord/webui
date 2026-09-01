@@ -17,7 +17,8 @@ export function cardImageResponse(
 	const mime = opts.mime ?? "image/png";
 	const inm = opts.request.headers.get("if-none-match");
 	const tag = `"${opts.etag}"`;
-	if (inm && inm.replace(/W\//, "") === tag) {
+	const cacheable = !opts.cacheControl.includes("no-store");
+	if (cacheable && inm && inm.replace(/W\//, "") === tag) {
 		return new NextResponse(null, {
 			status: 304,
 			headers: {

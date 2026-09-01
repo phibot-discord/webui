@@ -9,8 +9,8 @@ import { readdir, stat } from "@/server/vfs";
 import { blurCardBackgrounds, contrastOverBackground } from "./lib/blur";
 import { cardCopy, resolvePhiLocale } from "./lib/card-i18n";
 import { Catalog } from "./lib/catalog";
-import { kvKey } from "./lib/const";
 import { layoutChartBars, polishSvgCharts } from "./lib/charts";
+import { kvKey } from "./lib/const";
 import { fCompute } from "./lib/fcompute";
 import { knobNum } from "./lib/knobs";
 import { bootPhiRuntime } from "./lib/runtime";
@@ -88,7 +88,7 @@ function escapeHtml(s: string): string {
 
 function ensureTipFooter(html: string, tip: string): string {
 	if (!tip.trim() || /class="[^"]*\btips\b/.test(html)) return html;
-	const block = `<div class="tips tips-abs"><p>Tip:${escapeHtml(tip)}</p></div>`;
+	const block = `<div class="tips"><p>Tip:${escapeHtml(tip)}</p></div>`;
 	return /<\/body>/i.test(html)
 		? html.replace(/<\/body>/i, `${block}</body>`)
 		: html + block;
@@ -453,10 +453,19 @@ function layoutSignCard(html: string) {
 	return out;
 }
 
+function wrapInfoRow(html: string) {
+	const leftStart = html.indexOf('<div class="left">');
+	const rightStart = html.indexOf('<div class="right">');
+	if (leftStart < 0 || rightStart < 0 || rightStart < leftStart) return html;
+	const rightEnd = closeDiv(html, rightStart);
+	if (rightEnd <= rightStart) return html;
+	return `${html.slice(0, leftStart)}<div class="info-row">${html.slice(leftStart, rightEnd)}</div>${html.slice(rightEnd)}`;
+}
+
 function layoutInfoPanels(html: string) {
 	if (!html.includes("Player_Info") || !html.includes('<div class="right">'))
 		return html;
-	let out = html;
+	let out = wrapInfoRow(html);
 	out = out.replace(
 		'<div class="left">',
 		`<div class="left" style="position:relative;left:auto;top:auto;width:680px;min-height:1100px;flex:none;z-index:2;">`,

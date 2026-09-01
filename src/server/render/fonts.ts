@@ -72,10 +72,10 @@ const BUNDLED_FONT_URLS: Record<string, URL> = {
 	),
 };
 
-/** Default Takumi fallback after CSS `font-family`. PHI first so CJK is covered. */
+/** Default Takumi fallback after CSS `font-family`. NotoSansSC before PHI so CJK never tofus. */
 export const PHI_FONT_FAMILIES = [
-	"PHI",
 	"NotoSansSC",
+	"PHI",
 	"Aldrich",
 	"NotoSansJP",
 	"NOTO",

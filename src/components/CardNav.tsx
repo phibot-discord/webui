@@ -1,15 +1,17 @@
+"use client";
+
 import Link from "next/link";
-import { getMessages } from "@/i18n/server";
+import { useI18n } from "@/i18n/provider";
 import type { CardKind } from "@/server/card-kinds";
 
-export async function CardNav({
+export function CardNav({
 	current,
 	base = "/me",
 }: {
 	current?: string;
 	base?: string;
 }) {
-	const { m } = await getMessages();
+	const { m } = useI18n();
 	const items: { kind: CardKind; label: string }[] = [
 		{ kind: "b30", label: m.nav.b30 },
 		{ kind: "hisb30", label: m.nav.hisb30 },

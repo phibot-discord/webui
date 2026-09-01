@@ -61,7 +61,8 @@ export async function blurCardBackgrounds(html: string): Promise<string> {
 	return out + html.slice(last);
 }
 
-const LIGHT_LUMA = 0.62;
+/** Blurred ills are darkened ~0.62; 0.48 still treats navy as dark. */
+const LIGHT_LUMA = 0.48;
 const lumaCache = new Map<string, { top: number; bottom: number }>();
 const LUMA_CACHE_MAX = 256;
 

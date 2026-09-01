@@ -1,9 +1,12 @@
-import { Heart } from "@phosphor-icons/react/ssr";
-import type { Messages } from "@/i18n/messages";
+"use client";
+
+import { Heart } from "@phosphor-icons/react";
+import { useI18n } from "@/i18n/provider";
 
 const GITHUB = "https://github.com/YueMiyuki";
 
-export function SiteFooter({ m }: { m: Messages }) {
+export function SiteFooter() {
+	const { m } = useI18n();
 	return (
 		<footer className="site-foot">
 			<p>
