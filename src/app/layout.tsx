@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import Script from "next/script";
 import type { ReactNode } from "react";
 import { auth } from "@/auth";
@@ -10,6 +11,18 @@ import { getMessages } from "@/i18n/server";
 import { THEME_BOOT } from "@/theme/config";
 import { getRequestTheme } from "@/theme/server";
 import "./globals.css";
+
+const cjk = localFont({
+	src: [
+		{ path: "../fonts/noto-sans-sc-400.woff2", weight: "400" },
+		{ path: "../fonts/noto-sans-sc-500.woff2", weight: "500" },
+		{ path: "../fonts/noto-sans-sc-600.woff2", weight: "600" },
+	],
+	display: "swap",
+	preload: false,
+	variable: "--font-cjk",
+	adjustFontFallback: false,
+});
 
 export async function generateMetadata(): Promise<Metadata> {
 	const { m } = await getMessages();
@@ -27,6 +40,7 @@ export default async function RootLayout({
 	return (
 		<html
 			lang={localeTag(locale)}
+			className={cjk.variable}
 			data-theme={theme ?? undefined}
 			style={theme ? { colorScheme: theme } : undefined}
 			suppressHydrationWarning

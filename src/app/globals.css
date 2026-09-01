@@ -75,7 +75,7 @@ body {
 body {
 	font-family:
 		ui-sans-serif, system-ui, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
-		"Noto Sans SC", "Microsoft YaHei", sans-serif;
+		"Noto Sans SC", "Microsoft YaHei", var(--font-cjk), sans-serif;
 	font-size: 16px;
 	line-height: 1.5;
 }
@@ -83,7 +83,7 @@ body {
 html[lang="zh-CN"] body {
 	font-family:
 		"PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei",
-		ui-sans-serif, system-ui, sans-serif;
+		var(--font-cjk), ui-sans-serif, system-ui, sans-serif;
 }
 
 html[lang="zh-CN"] h1,

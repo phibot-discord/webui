@@ -137,6 +137,7 @@ export type FontEntry = {
 	data: Buffer;
 	weight?: number;
 	style?: "normal" | "italic";
+	generic?: "sans-serif" | "serif" | "monospace" | "system-ui";
 };
 
 export type AppConfig = {

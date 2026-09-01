@@ -6,14 +6,20 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 
 const phiRenderAssets = ["./phi-assets/html/**/*", "./phi-assets/info/**/*"];
 const phiInfoOnly = ["./phi-assets/info/**/*"];
+const phiFonts = ["./phi-assets/html/common/font/**/*", "./src/fonts/**/*"];
 
 const nextConfig: NextConfig = {
 	agentRules: false,
 	poweredByHeader: false,
 	outputFileTracingRoot: dir,
 	outputFileTracingIncludes: {
+		"/*": phiFonts,
 		"/api/card/*": phiRenderAssets,
+		"/api/card/[kind]": phiRenderAssets,
+		"/api/card/[kind]/route": phiRenderAssets,
 		"/api/public/*/card/*": phiRenderAssets,
+		"/api/public/[slug]/card/[kind]": phiRenderAssets,
+		"/api/public/[slug]/card/[kind]/route": phiRenderAssets,
 		"/api/refresh": phiInfoOnly,
 		"/api/bind/poll": phiInfoOnly,
 		"/api/bind/token": phiInfoOnly,

@@ -12,6 +12,7 @@ import type {
 } from "../sdk";
 import { exists } from "../vfs";
 import { readAssetCached } from "./asset-cache";
+import { PHI_FONT_FAMILIES } from "./fonts";
 import {
 	collectRootVars,
 	collectStylesheets,
@@ -147,6 +148,7 @@ export class RenderEngine {
 				data: f.data,
 				weight: f.weight ?? 400,
 				style: f.style ?? "normal",
+				generic: f.generic,
 			});
 		}
 		this.fontsRegistered = true;
@@ -230,6 +232,8 @@ export class RenderEngine {
 				height: 16_000,
 				stylesheets,
 				images,
+				fontFamilies: [...PHI_FONT_FAMILIES],
+				lang: "zh-CN",
 			});
 			const boxH = measured.height || 0;
 			const extent = Math.max(1, Math.ceil(contentExtent(measured)));
@@ -282,6 +286,8 @@ export class RenderEngine {
 					stylesheets: opts.stylesheets,
 					images: opts.images,
 					emoji: "noto",
+					fontFamilies: [...PHI_FONT_FAMILIES],
+					lang: "zh-CN",
 				} as Parameters<typeof render>[1],
 			),
 		);
