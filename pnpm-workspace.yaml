@@ -1,0 +1,15 @@
+allowBuilds:
+  esbuild: true
+minimumReleaseAge: 0
+onlyBuiltDependencies:
+  - sharp
+  - esbuild
+  - "@takumi-rs/core"
+supportedArchitectures:
+  os:
+    - current
+    - linux
+  cpu:
+    - current
+    - x64
+    - arm64

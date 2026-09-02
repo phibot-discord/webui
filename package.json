@@ -18,48 +18,28 @@
 	},
 	"dependencies": {
 		"@phosphor-icons/react": "^2.1.10",
-		"@takumi-rs/core": "2.13.2",
-		"@takumi-rs/helpers": "2.13.2",
+		"@takumi-rs/core": "2.13.4",
+		"@takumi-rs/helpers": "2.13.4",
 		"@vercel/analytics": "^2.0.1",
 		"art-template": "^4.13.4",
 		"jszip": "^3.10.1",
-		"motion": "^13.1.1",
+		"motion": "^13.2.0",
 		"nanoid": "^6.0.1",
-		"next": "^16.3.3",
+		"next": "^16.3.4",
 		"next-auth": "5.0.0-beta.32",
 		"qrcode": "^1.5.4",
 		"react": "^19.2.8",
 		"react-dom": "^19.2.8",
 		"sharp": "^0.35.4",
-		"takumi-js": "^2.13.2",
+		"takumi-js": "^2.13.4",
 		"tsx": "^4.23.13",
 		"yaml": "^2.9.0"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.11",
-		"@types/node": "^26.4.0",
+		"@types/node": "^26.4.1",
 		"@types/react": "^19.2.18",
 		"@types/react-dom": "^19.2.5",
-		"eslint": "^9.39.5",
-		"eslint-config-next": "^16.3.3",
-		"typescript": "^5.9.3"
-	},
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"sharp",
-			"esbuild",
-			"@takumi-rs/core"
-		],
-		"supportedArchitectures": {
-			"os": [
-				"current",
-				"linux"
-			],
-			"cpu": [
-				"current",
-				"x64",
-				"arm64"
-			]
-		}
+		"typescript": "^7.0.2"
 	}
 }
