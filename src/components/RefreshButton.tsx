@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SteadyButton } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
+import { apiErrorText } from "@/lib/api-error";
 import {
 	getRefreshUntil,
 	persistCardReload,
@@ -76,11 +77,19 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 			const res = await fetch("/api/refresh", { method: "POST" });
 			const data = (await res.json().catch(() => ({}))) as {
 				error?: string;
+				code?: string;
 				lastSynced?: string;
 			};
 			if (!res.ok) {
 				if (res.status === 429) persistCooldown();
-				showError(data.error || m.refresh.failed);
+				showError(
+					apiErrorText(
+						res,
+						data,
+						m.errors.tapapi_unavailable,
+						m.refresh.failed,
+					),
+				);
 				return;
 			}
 			persistCardReload(data.lastSynced);

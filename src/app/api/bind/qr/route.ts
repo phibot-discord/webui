@@ -1,7 +1,7 @@
 import { sessionUserId } from "@/auth";
 import { startQrBind } from "@/server/bind";
 import { getDataHost } from "@/server/data-host";
-import { localizedError } from "@/server/i18n-http";
+import { localizedBindError, localizedError } from "@/server/i18n-http";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 
 export const runtime = "nodejs";
@@ -20,6 +20,6 @@ export async function POST(request: Request) {
 
 	const body = (await request.json().catch(() => ({}))) as { server?: string };
 	const result = await startQrBind(userId, body.server);
-	if ("error" in result) return localizedError(result.status, result.error);
+	if ("error" in result) return localizedBindError(result);
 	return Response.json(result);
 }

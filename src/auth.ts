@@ -1,7 +1,10 @@
 import NextAuth from "next-auth";
 import Discord from "next-auth/providers/discord";
+import { stripCanonicalAuthUrlIfMany } from "@/lib/auth-url";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+stripCanonicalAuthUrlIfMany();
+
+const nextAuth = NextAuth({
 	trustHost: true,
 	session: { strategy: "jwt" },
 	providers: [
@@ -23,6 +26,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 		},
 	},
 });
+
+export const { handlers, auth, signIn, signOut } = nextAuth;
 
 export async function sessionUserId(): Promise<string | null> {
 	const session = await auth();

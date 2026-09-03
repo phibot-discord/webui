@@ -17,9 +17,16 @@ export function SiteHeader({
 	const { m } = useI18n();
 	return (
 		<header className="topbar">
-			<a className="wordmark" href={signedIn ? "/me" : "/"}>
-				{m.brand}
-			</a>
+			<div className="topbar-brand">
+				<a className="wordmark" href={signedIn ? "/home" : "/"}>
+					{m.brand}
+				</a>
+				{signedIn ? (
+					<a className="topbar-cards" href="/me">
+						{m.nav.cards}
+					</a>
+				) : null}
+			</div>
 			<div className="topbar-end">
 				<LocaleSwitch />
 				<ThemeSwitch />

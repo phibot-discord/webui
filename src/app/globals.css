@@ -17,6 +17,7 @@
 	--ease: cubic-bezier(0.22, 1, 0.36, 1);
 	--z-sticky: 20;
 	--z-dropdown: 15;
+	--z-modal: 40;
 	--radius: 4px;
 	--space: 4px;
 	--nav-h: 64px;
@@ -152,6 +153,41 @@ a:hover {
 	flex: none;
 }
 
+.version-notice {
+	width: min(32rem, calc(100vw - 32px));
+	max-width: 72ch;
+	padding: 22px 22px 18px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--ink);
+	box-shadow: var(--shadow);
+	z-index: var(--z-modal);
+}
+
+.version-notice::backdrop {
+	background: color-mix(in oklch, var(--bg) 40%, oklch(0 0 0 / 0.58));
+}
+
+.version-notice-body {
+	margin: 0 0 18px;
+	font-size: 0.975rem;
+	line-height: 1.55;
+}
+
+.version-notice-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.version-notice-actions .btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
 .topbar {
 	position: sticky;
 	top: 0;
@@ -167,6 +203,13 @@ a:hover {
 	flex-wrap: nowrap;
 }
 
+.topbar-brand {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	min-width: 0;
+}
+
 .wordmark {
 	color: var(--ink);
 	text-decoration: none;
@@ -175,6 +218,18 @@ a:hover {
 	font-size: 1.125rem;
 	white-space: nowrap;
 	flex: none;
+}
+
+.topbar-cards {
+	color: var(--muted);
+	text-decoration: none;
+	font-size: 0.875rem;
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+.topbar-cards:hover {
+	color: var(--ink);
 }
 
 .wordmark:hover {
@@ -1185,6 +1240,10 @@ label.field input {
 @media (prefers-reduced-motion: no-preference) {
 	.tool-pop {
 		animation: tool-pop-in 180ms var(--ease) both;
+	}
+
+	.version-notice[open] {
+		animation: tool-pop-in 200ms var(--ease) both;
 	}
 
 	.stage-copy {

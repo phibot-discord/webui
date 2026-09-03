@@ -1,6 +1,7 @@
 import { REFRESH_COOLDOWN_MS } from "@/lib/save-refresh";
 import { kvKey } from "@/phi/lib/const";
 import type { Save } from "@/phi/lib/save";
+import { isTapApiFailure } from "@/phi/lib/tapapi";
 import type { DataHost } from "./data-host";
 import { getDataHost } from "./data-host";
 import { ensureSongInfo } from "./song-info";
@@ -14,6 +15,7 @@ export type ErrorCode =
 	| "hisb30_empty"
 	| "refresh_cooldown"
 	| "refresh_failed"
+	| "tapapi_unavailable"
 	| "unauthorized"
 	| "unknown_card"
 	| "rate_limit"
@@ -106,6 +108,13 @@ export async function refreshSave(
 		return { ok: true, lastSynced: lastSyncedIso(save) };
 	} catch (err) {
 		await host.store.del(coolKey);
+		if (isTapApiFailure(err)) {
+			return {
+				error: "tapapi_unavailable",
+				status: 502,
+				reason: "tapapi_unavailable",
+			};
+		}
 		const detail = err instanceof Error ? err.message : undefined;
 		return {
 			error: "refresh_failed",

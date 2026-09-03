@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv } from "node:crypto";
 import JSZip from "jszip";
 import { logger } from "@/server/logger";
+import { TAPAPI_SAVE_TIMEOUT_MS, tapFetch } from "./tapapi";
 
 const KEY = Buffer.from(
 	"6Jaa0qVAJZuXkZCLiOa/Ax5tIZVu+taKUN1V1nqwkks=",
@@ -326,7 +327,7 @@ async function jsonGet<T>(
 	url: string,
 	headers: Record<string, string>,
 ): Promise<T> {
-	const res = await fetch(url, { headers });
+	const res = await tapFetch(url, { headers });
 	if (!res.ok) throw new Error(`Phigros cloud ${res.status} ${res.statusText}`);
 	return res.json() as Promise<T>;
 }
@@ -439,7 +440,7 @@ export class PhigrosUser {
 		}
 		if (saveInfo.summary.saveVersion === 1)
 			throw new Error("存档版本过低，请更新Phigros！");
-		const save = await fetch(saveUrl);
+		const save = await tapFetch(saveUrl, {}, TAPAPI_SAVE_TIMEOUT_MS);
 		if (!save.ok) throw new Error(`下载存档失败 ${save.status}`);
 		let savezip: JSZip;
 		try {

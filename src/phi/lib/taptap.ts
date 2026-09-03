@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import QRCode from "qrcode";
+import { tapFetch } from "./tapapi";
 
 type PartialQR = {
 	deviceId?: string;
@@ -78,7 +79,7 @@ async function requestLoginQrCode(
 	const endpoint = useGlobal
 		? `${WebHost}/oauth2/v1/device/code`
 		: `${ChinaWebHost}/oauth2/v1/device/code`;
-	const response = await fetch(endpoint, { method: "POST", body: params });
+	const response = await tapFetch(endpoint, { method: "POST", body: params });
 	const data = (await response.json()) as Record<string, unknown>;
 	const nested =
 		data.data && typeof data.data === "object"
@@ -101,7 +102,7 @@ async function checkQRCodeResult(data: PartialQR, useGlobal = false) {
 		? `${WebHost}/oauth2/v1/token`
 		: `${ChinaWebHost}/oauth2/v1/token`;
 	try {
-		const response = await fetch(endpoint, { method: "POST", body: params });
+		const response = await tapFetch(endpoint, { method: "POST", body: params });
 		const data = (await response.json()) as Record<string, unknown>;
 		if (data?.kid && data?.access_token && !data.data)
 			return {
@@ -126,7 +127,7 @@ async function getProfile(
 	const url = useGlobal
 		? `${ApiHost}/account/profile/v1?client_id=${ClientId}`
 		: `${ChinaApiHost}/account/profile/v1?client_id=${ClientId}`;
-	const response = await fetch(url, {
+	const response = await tapFetch(url, {
 		method: "GET",
 		headers: {
 			Authorization: authorization(url, "GET", token.kid, token.mac_key),
@@ -142,7 +143,7 @@ async function loginAndGetToken(
 	const url = `${withGlobal ? UrlLcBaseGB : UrlLcBase}/users`;
 	const timestamp = Math.floor(Date.now() / 1000);
 	const sign = `${createHash("md5").update(`${timestamp}${AppKey}`).digest("hex")},${timestamp}`;
-	const response = await fetch(url, {
+	const response = await tapFetch(url, {
 		method: "POST",
 		headers: {
 			"X-LC-Id": ClientId,

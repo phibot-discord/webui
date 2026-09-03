@@ -7,7 +7,13 @@ import { useI18n } from "@/i18n/provider";
 const BOT_INVITE =
 	"https://discord.com/oauth2/authorize?client_id=1543272274952724590&permissions=8584986789675007&scope=bot+applications.commands";
 
-export function LandingView({ next }: { next: string }) {
+export function LandingView({
+	next,
+	signedIn = false,
+}: {
+	next: string;
+	signedIn?: boolean;
+}) {
 	const { m } = useI18n();
 	return (
 		<main id="content" className="landing">
@@ -17,12 +23,18 @@ export function LandingView({ next }: { next: string }) {
 					<h1>{m.home.title}</h1>
 					<p className="lede">{m.home.lede}</p>
 					<div className="stage-actions">
-						<form action={signInDiscord}>
-							<input type="hidden" name="next" value={next} />
-							<button className="btn btn-primary" type="submit">
-								{m.signIn}
-							</button>
-						</form>
+						{signedIn ? (
+							<a className="btn btn-primary" href="/me">
+								{m.home.openDesk}
+							</a>
+						) : (
+							<form action={signInDiscord}>
+								<input type="hidden" name="next" value={next} />
+								<button className="btn btn-primary" type="submit">
+									{m.signIn}
+								</button>
+							</form>
+						)}
 						<a
 							className="btn btn-ghost"
 							href={BOT_INVITE}

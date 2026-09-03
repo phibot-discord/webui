@@ -17,6 +17,12 @@ export type Messages = {
 		lookups: { name: string; blurb: string }[];
 		footer: string;
 		scoreboard: string;
+		openDesk: string;
+	};
+	notice: {
+		body: string;
+		coffee: string;
+		dismiss: string;
 	};
 	nav: {
 		cards: string;
@@ -106,6 +112,7 @@ export type Messages = {
 		qr_missing: string;
 		bind_failed: string;
 		unbind_failed: string;
+		tapapi_unavailable: string;
 	};
 };
 
@@ -144,6 +151,12 @@ export const en: Messages = {
 		footer:
 			"PhiBot draws Phigros cards from a save bound to your Discord login.",
 		scoreboard: "B30",
+		openDesk: "Open your cards",
+	},
+	notice: {
+		body: "Image generation and loading is sped up by the Vercel Pro plan, as we can select multiple function regions. Consider buying me a cup of coffee.",
+		coffee: "Buy me a coffee",
+		dismiss: "Got it",
 	},
 	nav: {
 		cards: "Cards",
@@ -246,6 +259,8 @@ export const en: Messages = {
 		qr_missing: "No QR session. Scan again.",
 		bind_failed: "Bind failed.",
 		unbind_failed: "Could not unbind.",
+		tapapi_unavailable:
+			"TapTap's cloud (TapAPI) timed out. This is TapTap's problem, not PhiBot. Try again in a few minutes.",
 	},
 };
 
@@ -278,6 +293,12 @@ export const zh: Messages = {
 		],
 		footer: "PhiBot 用绑定到你 Discord 登录的存档出 Phigros 成绩图。",
 		scoreboard: "B30",
+		openDesk: "查看成绩图",
+	},
+	notice: {
+		body: "Image 生成和加载因 Vercel Pro 变得更快了。请考虑支持我一下😭",
+		coffee: "请我喝杯咖啡",
+		dismiss: "知道了",
 	},
 	nav: {
 		cards: "成绩图",
@@ -378,5 +399,7 @@ export const zh: Messages = {
 		qr_missing: "没有进行中的扫码，请重新扫。",
 		bind_failed: "绑定失败。",
 		unbind_failed: "无法解绑。",
+		tapapi_unavailable:
+			"TapTap 云端（TapAPI）超时了。这是 TapTap 的问题，不是本站故障。请稍后再试。",
 	},
 };

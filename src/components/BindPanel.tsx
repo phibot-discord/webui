@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/i18n/provider";
+import { apiErrorText } from "@/lib/api-error";
 
 type ServerKind = "cn" | "gb";
 type Phase = "idle" | "qr" | "scanned" | "working";
@@ -48,6 +49,7 @@ export function BindPanel() {
 				const data = (await res.json().catch(() => ({}))) as {
 					status?: string;
 					error?: string;
+					code?: string;
 					playerId?: string;
 				};
 				if (dead) return;
@@ -57,7 +59,9 @@ export function BindPanel() {
 				}
 				if (data.status === "scanned") setPhase("scanned");
 				if (!res.ok) {
-					setError(data.error || m.bind.failed);
+					setError(
+						apiErrorText(res, data, m.errors.tapapi_unavailable, m.bind.failed),
+					);
 					setPhase("idle");
 				}
 			} catch {
@@ -73,7 +77,7 @@ export function BindPanel() {
 			dead = true;
 			window.clearInterval(id);
 		};
-	}, [phase, router, m.bind.failed]);
+	}, [phase, router, m.bind.failed, m.errors.tapapi_unavailable]);
 
 	async function startQr() {
 		setError(undefined);
@@ -86,12 +90,15 @@ export function BindPanel() {
 			});
 			const data = (await res.json().catch(() => ({}))) as {
 				error?: string;
+				code?: string;
 				expiresIn?: number;
 				intervalMs?: number;
 				openUrl?: string;
 			};
 			if (!res.ok) {
-				setError(data.error || m.bind.failed);
+				setError(
+					apiErrorText(res, data, m.errors.tapapi_unavailable, m.bind.failed),
+				);
 				setPhase("idle");
 				return;
 			}
@@ -124,9 +131,14 @@ export function BindPanel() {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ token, server }),
 			});
-			const data = (await res.json().catch(() => ({}))) as { error?: string };
+			const data = (await res.json().catch(() => ({}))) as {
+				error?: string;
+				code?: string;
+			};
 			if (!res.ok) {
-				setError(data.error || m.bind.failed);
+				setError(
+					apiErrorText(res, data, m.errors.tapapi_unavailable, m.bind.failed),
+				);
 				setPhase("idle");
 				return;
 			}

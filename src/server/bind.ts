@@ -1,6 +1,7 @@
 import { kvKey } from "@/phi/lib/const";
 import type { Save } from "@/phi/lib/save";
 import { clearUser, getToken, updateSave } from "@/phi/lib/saves";
+import { isTapApiFailure } from "@/phi/lib/tapapi";
 import { lastSyncedIso } from "./bound";
 import { getDataHost } from "./data-host";
 import { ensureSongInfo } from "./song-info";
@@ -33,6 +34,7 @@ export type BindErr = {
 		| "qr_missing"
 		| "bind_failed"
 		| "unbind_failed"
+		| "tapapi_unavailable"
 		| "not_bound";
 	status: number;
 	detail?: string;
@@ -40,6 +42,17 @@ export type BindErr = {
 
 function asServer(raw: unknown): BindServer {
 	return raw === "gb" ? "gb" : "cn";
+}
+
+function failBind(err: unknown): BindErr {
+	if (isTapApiFailure(err)) {
+		return { error: "tapapi_unavailable", status: 502 };
+	}
+	const msg = err instanceof Error ? err.message : "";
+	if (/banned/i.test(msg)) return { error: "banned", status: 403 };
+	if (/already bound/i.test(msg))
+		return { error: "already_bound", status: 409 };
+	return { error: "bind_failed", status: 502, detail: msg || undefined };
 }
 
 function qrFields(request: {
@@ -134,11 +147,7 @@ export async function startQrBind(
 		return { expiresIn, intervalMs, openUrl: fields.url };
 	} catch (err) {
 		await clearQr(userId);
-		return {
-			error: "bind_failed",
-			status: 502,
-			detail: err instanceof Error ? err.message : undefined,
-		};
+		return failBind(err);
 	}
 }
 
@@ -197,11 +206,7 @@ export async function pollQrBind(
 		).replace(/\s/g, "");
 	} catch (err) {
 		await clearQr(userId);
-		return {
-			error: "bind_failed",
-			status: 502,
-			detail: err instanceof Error ? err.message : undefined,
-		};
+		return failBind(err);
 	}
 	if (!/[a-z0-9A-Z]{25}/.test(token)) {
 		await clearQr(userId);
@@ -217,11 +222,7 @@ export async function pollQrBind(
 		return playerFromSave(save);
 	} catch (err) {
 		await clearQr(userId);
-		const msg = err instanceof Error ? err.message : "";
-		if (/banned/i.test(msg)) return { error: "banned", status: 403 };
-		if (/already bound/i.test(msg))
-			return { error: "already_bound", status: 409 };
-		return { error: "bind_failed", status: 502, detail: msg || undefined };
+		return failBind(err);
 	}
 }
 
@@ -245,11 +246,7 @@ export async function bindWithToken(
 		await clearQr(userId);
 		return playerFromSave(save);
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : "";
-		if (/banned/i.test(msg)) return { error: "banned", status: 403 };
-		if (/already bound/i.test(msg))
-			return { error: "already_bound", status: 409 };
-		return { error: "bind_failed", status: 502, detail: msg || undefined };
+		return failBind(err);
 	}
 }
 

@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SkipLink } from "@/components/SkipLink";
+import { VersionNotice } from "@/components/VersionNotice";
 import { localeTag } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/provider";
 import { getMessages } from "@/i18n/server";
@@ -53,6 +54,7 @@ export default async function RootLayout({
 				</Script>
 				<I18nProvider locale={locale} m={m}>
 					<SkipLink />
+					<VersionNotice />
 					<div className="shell">
 						<SiteHeader
 							signedIn={Boolean(session?.user?.id)}

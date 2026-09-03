@@ -1,8 +1,7 @@
 import { sessionUserId } from "@/auth";
-import { catalogs, getRequestLocale } from "@/i18n/server";
 import { bindWithToken } from "@/server/bind";
 import { getDataHost } from "@/server/data-host";
-import { localizedError } from "@/server/i18n-http";
+import { localizedBindError, localizedError } from "@/server/i18n-http";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 
 export const runtime = "nodejs";
@@ -24,16 +23,6 @@ export async function POST(request: Request) {
 		server?: string;
 	};
 	const result = await bindWithToken(userId, body.token, body.server);
-	if ("error" in result) {
-		if (result.detail) {
-			const locale = await getRequestLocale();
-			const message = catalogs[locale].errors[result.error];
-			return Response.json(
-				{ error: `${message} ${result.detail}`, code: result.error },
-				{ status: result.status },
-			);
-		}
-		return localizedError(result.status, result.error);
-	}
+	if ("error" in result) return localizedBindError(result);
 	return Response.json({ status: "bound", ...result });
 }
