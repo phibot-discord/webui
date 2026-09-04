@@ -266,11 +266,9 @@ test("tag ranking sits right of English radar labels and is vertically centered"
 	assert.match(b19Css, /\.tag-radar-column \{\n\twidth: 280px;/);
 	assert.match(takumiCss, /width: 280px !important;/);
 	assert.match(takumiCss, /padding-top: 4px !important;/);
-	assert.match(takumiCss, /left: -36px !important;/);
-	assert.doesNotMatch(
-		takumiCss,
-		/\.histogram-slot-label \{[^}]*writing-mode: horizontal-tb/,
-	);
+	assert.match(takumiCss, /\.histogram-y-ticks \{/);
+	assert.doesNotMatch(takumiCss, /left: -36px/);
+	assert.doesNotMatch(takumiCss, /rotate\(-90deg\)/);
 
 	const radar = buildTagRadar([
 		{ name: "读谱", rks: 16.28, votes: 10, hasVotes: true },
