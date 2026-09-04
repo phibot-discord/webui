@@ -8,13 +8,15 @@ import {
 	resolvePhiLocale,
 } from "./card-i18n";
 import type { Catalog } from "./catalog";
+import { tagAnalysisFor } from "./chart-tags-api";
+import { tagRadarHtml } from "./charts";
 import {
 	accRksLines,
 	loadHisb30Snaps,
 	loadSaveHistory,
 	rksLineFor,
 } from "./history";
-import { getNotes, type UserNotes } from "./notes";
+import { getNotes, tagAnalysisEnabled, type UserNotes } from "./notes";
 import type { PhiRuntime } from "./runtime";
 import type { Save } from "./save";
 import { getToken, moneyText } from "./saves";
@@ -27,11 +29,23 @@ async function b30AnalysisFor(
 	if (notes.showB30Analysis === false || nnum !== 33) return null;
 	const records = getB30AnalysisRecords(save_b19);
 	const histogram = buildRksHistogram(records);
+	const showTags = tagAnalysisEnabled(notes);
+	let tagAnalysis = null;
+	if (showTags && records.length) {
+		try {
+			tagAnalysis = await tagAnalysisFor(records);
+		} catch {
+			tagAnalysis = null;
+		}
+	}
 	return {
 		histogram,
-		tagAnalysis: null,
-		showTags: false,
-		histogramWide: true,
+		tagAnalysis,
+		radarHtml: tagAnalysis?.radar.categories.length
+			? await tagRadarHtml(tagAnalysis.radar)
+			: "",
+		showTags,
+		histogramWide: !showTags,
 	};
 }
 

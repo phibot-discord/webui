@@ -7,6 +7,7 @@ import { RefreshButton } from "@/components/RefreshButton";
 import { ShareToggle } from "@/components/ShareToggle";
 import { UnbindButton } from "@/components/UnbindButton";
 import { displayPlayerId, displayRks } from "@/lib/player-display";
+import { getNotes } from "@/phi/lib/notes";
 import {
 	lastSyncedIso,
 	loadBound,
@@ -50,6 +51,7 @@ export default async function KindPage({
 	const counted = kind === "b30" || kind === "x30" || kind === "fc30";
 	const srcBase = `/api/card/${kind}`;
 	const synced = lastSyncedIso(got.save);
+	const notes = await getNotes(host.db, userId);
 
 	return (
 		<Desk
@@ -70,6 +72,9 @@ export default async function KindPage({
 				srcBase={srcBase}
 				counted={counted}
 				initialCount={count}
+				tagProfile={
+					counted ? { on: notes.showTagAnalysis !== false } : undefined
+				}
 			/>
 		</Desk>
 	);

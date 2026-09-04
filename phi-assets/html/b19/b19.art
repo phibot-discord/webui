@@ -332,7 +332,7 @@
         <div class="flow_line"></div>
         <div class="flow_line"></div>
     </div>
-    <p><i>B30 数据分析</i></p>
+    <p><i>{{t.analysisTitle}}</i></p>
     <div class="flow_line_box_r">
         <div class="flow_line"></div>
         <div class="flow_line"></div>
@@ -349,36 +349,21 @@
         <div class="analysis-panel-head">
             <div>
                 <p class="analysis-kicker">CHART PROFILE</p>
-                <p class="analysis-title">谱面标签能力</p>
+                <p class="analysis-title">{{t.tagAbility}}</p>
             </div>
-            <p class="analysis-meta">有效票 {{b30Analysis.tagAnalysis ? b30Analysis.tagAnalysis.totalVotes : 0}}</p>
+            <p class="analysis-meta">{{t.validVotes}} {{b30Analysis.tagAnalysis ? b30Analysis.tagAnalysis.totalVotes : 0}}</p>
         </div>
         <div class="tag-analysis-body {{if !b30Analysis.tagAnalysis || b30Analysis.tagAnalysis.insufficient}}is-insufficient{{/if}}">
             <div class="tag-analysis-content">
                 <div class="tag-radar-column">
-                    <div class="tag-radar-title"><span></span><p>分类汇总</p></div>
-                    {{if b30Analysis.tagAnalysis && b30Analysis.tagAnalysis.radar.categories.length}}
-                    <svg class="tag-radar" viewBox="0 0 200 184" aria-label="分类标签能力雷达图">
-                        {{each b30Analysis.tagAnalysis.radar.grids grid}}
-                        <polygon class="tag-radar-grid" points="{{grid}}"></polygon>
-                        {{/each}}
-                        {{each b30Analysis.tagAnalysis.radar.axes axis}}
-                        <line class="tag-radar-axis" x1="100" y1="92" x2="{{axis.x}}" y2="{{axis.y}}"></line>
-                        {{/each}}
-                        <polygon class="tag-radar-shape" points="{{b30Analysis.tagAnalysis.radar.points}}"></polygon>
-                        {{each b30Analysis.tagAnalysis.radar.categories category}}
-                        <circle class="tag-radar-point" cx="{{category.pointX}}" cy="{{category.pointY}}" r="2.3"></circle>
-                        <text class="tag-radar-label" x="{{category.labelX}}" y="{{category.labelY}}" text-anchor="{{category.anchor}}">
-                            <tspan x="{{category.labelX}}">{{category.name}}</tspan>
-                            <tspan class="tag-radar-score" x="{{category.labelX}}" dy="10">{{category.displayRks}}</tspan>
-                        </text>
-                        {{/each}}
-                    </svg>
+                    <div class="tag-radar-title"><span></span><p>{{t.categorySummary}}</p></div>
+                    {{if b30Analysis.radarHtml}}
+                    {{@ b30Analysis.radarHtml}}
                     {{/if}}
                 </div>
                 <div class="tag-ranking-column">
                     <div class="tag-ranking-group strong-tags">
-                        <div class="tag-column-title"><span></span><p>擅长词条</p></div>
+                        <div class="tag-column-title"><span></span><p>{{t.strongTags}}</p></div>
                         {{if b30Analysis.tagAnalysis}}
                         {{each b30Analysis.tagAnalysis.strong tag}}
                         <div class="tag-result-row">
@@ -390,7 +375,7 @@
                         {{/if}}
                     </div>
                     <div class="tag-ranking-group weak-tags">
-                        <div class="tag-column-title"><span></span><p>薄弱词条</p></div>
+                        <div class="tag-column-title"><span></span><p>{{t.weakTags}}</p></div>
                         {{if b30Analysis.tagAnalysis}}
                         {{each b30Analysis.tagAnalysis.weak tag}}
                         <div class="tag-result-row">
@@ -405,13 +390,13 @@
             </div>
             {{if !b30Analysis.tagAnalysis || b30Analysis.tagAnalysis.insufficient}}
             <div class="tag-insufficient-message">
-                <p>可用谱面标签统计量不足，请前往 https://www.phib19.top 或使用 /settag 进行谱面标签投票</p>
+                <p>{{t.tagInsufficient}}</p>
             </div>
             {{/if}}
         </div>
         {{if b30Analysis.tagAnalysis && !b30Analysis.tagAnalysis.insufficient}}
         <div class="tag-analysis-tip">
-            <p>当前谱面标签统计量较小，可以前往 https://www.phib19.top 或使用 /settag 指令进行投票哦！</p>
+            <p>{{t.tagTip}}</p>
         </div>
         {{/if}}
     </section>
@@ -421,15 +406,15 @@
         <div class="analysis-panel-head">
             <div>
                 <p class="analysis-kicker">RKS DISTRIBUTION</p>
-                <p class="analysis-title">等效 RKS 直方图</p>
+                <p class="analysis-title">{{t.histTitle}}</p>
             </div>
             <div class="histogram-summary">
-                <p>平均 RKS</p>
+                <p class="histogram-avg-label">{{t.avgRks}}</p>
                 <p>{{b30Analysis.histogram.average.toFixed(4)}}</p>
             </div>
         </div>
         <div class="histogram-chart">
-            <div class="histogram-y-label">等效单曲 RKS</div>
+            <div class="histogram-y-label">{{t.histY}}</div>
             <div class="histogram-plot">
                 <div class="histogram-scale">
                     {{each b30Analysis.histogram.ticks tick}}
@@ -452,7 +437,7 @@
         <div class="histogram-legend">
             <p><span class="legend-dot phi-dot"></span>P1-P3</p>
             <p><span class="legend-dot best-dot"></span>B1-B27</p>
-            <p>{{b30Analysis.histogram.count}} 个有效槽位</p>
+            <p>{{b30Analysis.histogram.count}}{{t.histSlotsUnit}}</p>
         </div>
     </section>
 </div>

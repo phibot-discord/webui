@@ -28,7 +28,13 @@ const HTML_FILES = [
 	"historyB30/historyB30.css",
 	"common/common.css",
 ];
-const HTML_DIRS = ["avatar", "otherimg", "common/layout", "common/css", "common/theme"];
+const HTML_DIRS = [
+	"avatar",
+	"otherimg",
+	"common/layout",
+	"common/css",
+	"common/theme",
+];
 const INFO_FILES = [
 	"avatar.txt",
 	"info.csv",
@@ -41,7 +47,11 @@ const INFO_FILES = [
 const INFO_DIRS = [];
 
 function run(cmd, args, opts = {}) {
-	const r = spawnSync(cmd, args, { encoding: "utf8", stdio: "inherit", ...opts });
+	const r = spawnSync(cmd, args, {
+		encoding: "utf8",
+		stdio: "inherit",
+		...opts,
+	});
 	if (r.status !== 0) {
 		const err = typeof r.stderr === "string" ? r.stderr.trim() : "";
 		throw new Error(`${cmd} ${args.join(" ")} failed${err ? `: ${err}` : ""}`);
@@ -128,7 +138,9 @@ function walkCss(dir, out = []) {
 function main() {
 	const probe = spawnSync("woff2_compress", ["-h"], { stdio: "pipe" });
 	if (probe.error?.code === "ENOENT") {
-		throw new Error("woff2_compress not found — install with `brew install woff2`");
+		throw new Error(
+			"woff2_compress not found — install with `brew install woff2`",
+		);
 	}
 
 	const plugin = pluginRoot();

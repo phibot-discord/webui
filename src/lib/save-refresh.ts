@@ -74,6 +74,13 @@ export function persistCardReload(lastSynced?: string) {
 	persistCooldown();
 }
 
+export function bumpCardReload() {
+	hydrateFromSession();
+	reloadToken = String(Date.now());
+	writeSession(CARD_RELOAD_KEY, reloadToken);
+	emit();
+}
+
 export function withCardReload(src: string, token: string): string {
 	return cardFetchUrl(src, { _: token || undefined });
 }

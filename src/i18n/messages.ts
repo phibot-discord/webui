@@ -70,6 +70,7 @@ export type Messages = {
 	card: {
 		charts: string;
 		download: string;
+		tagProfile: string;
 		rendering: string;
 		renderFailed: string;
 		unreachable: string;
@@ -206,6 +207,7 @@ export const en: Messages = {
 	card: {
 		charts: "Charts",
 		download: "Download PNG",
+		tagProfile: "Tag profile",
 		rendering: "Rendering card…",
 		renderFailed: "Could not render this card.",
 		unreachable: "Could not reach the render server.",
@@ -348,6 +350,7 @@ export const zh: Messages = {
 	card: {
 		charts: "谱面数",
 		download: "下载 PNG",
+		tagProfile: "谱面标签",
 		rendering: "正在出图…",
 		renderFailed: "无法生成这张成绩图。",
 		unreachable: "无法连接到出图服务。",

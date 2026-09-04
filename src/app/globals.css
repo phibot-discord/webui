@@ -662,6 +662,10 @@ p {
 	margin: 0 0 12px;
 }
 
+.toolbar button[aria-pressed="true"] {
+	border-color: var(--primary);
+}
+
 label.field {
 	display: flex;
 	align-items: center;

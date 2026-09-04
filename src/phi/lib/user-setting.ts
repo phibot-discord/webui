@@ -80,6 +80,13 @@ export function userSettingCard(notes: UserNotes, locale: PhiLocale) {
 				String(notes.showB30Analysis !== false),
 				t.onOff,
 			),
+			item(
+				"showTagAnalysis",
+				t.tagSettingTitle,
+				t.tagSettingDesc,
+				String(notes.showTagAnalysis !== false),
+				t.onOff,
+			),
 		],
 	};
 }

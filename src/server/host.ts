@@ -44,7 +44,7 @@ type GlobalHost = typeof globalThis & {
 	__phiWebHost?: Promise<WebHost>;
 };
 
-export function getHost(): Promise<WebHost> {
+export async function getHost(): Promise<WebHost> {
 	const g = globalThis as GlobalHost;
 	if (!g.__phiWebHost) {
 		g.__phiWebHost = bootRender().catch((err) => {
@@ -52,7 +52,13 @@ export function getHost(): Promise<WebHost> {
 			throw err;
 		});
 	}
-	return g.__phiWebHost;
+	const host = await g.__phiWebHost;
+	const [{ hydrateCss }, { PHI_CSS }] = await Promise.all([
+		import("./vfs"),
+		import("@/phi/css/bundle"),
+	]);
+	hydrateCss(PHI_CSS);
+	return host;
 }
 
 async function bootRender(): Promise<WebHost> {

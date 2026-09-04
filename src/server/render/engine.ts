@@ -29,8 +29,29 @@ import {
 
 setGlyphCacheMaxBytes(64 * 1024 * 1024);
 const RENDERER_CACHE_BYTES = 256 * 1024 * 1024;
+const PIXEL_RATIO = 2;
 const heightCache = new Map<string, number>();
 const HEIGHT_CACHE_MAX = 200;
+
+function wrapPixelRoot(html: string, cssWidth: number, ratio: number) {
+	const root = `<div class="phi-pixel-root" style="width:${cssWidth}px;transform:scale(${ratio});transform-origin:0 0;">`;
+	if (/<body\b/i.test(html)) {
+		const opened = html.replace(/<body\b([^>]*)>/i, `<body$1>${root}`);
+		return /<\/body>/i.test(opened)
+			? opened.replace(/<\/body>/i, "</div></body>")
+			: `${opened}</div>`;
+	}
+	return `${root}${html}</div>`;
+}
+
+function rootBoxCss(cssWidth: number) {
+	return `html, body { position: relative !important; width: ${cssWidth}px !important; height: auto !important; min-height: min-content !important; overflow: visible !important; transform: none !important; }`;
+}
+
+function pixelRootCss(cssWidth: number, transform?: string) {
+	const reset = transform ? `transform: ${transform} !important; ` : "";
+	return `.phi-pixel-root { width: ${cssWidth}px !important; ${reset}transform-origin: 0 0 !important; overflow: visible !important; }`;
+}
 
 function rememberHeight(key: string, height: number) {
 	if (heightCache.size >= HEIGHT_CACHE_MAX) {
@@ -193,11 +214,11 @@ export class RenderEngine {
 			},
 		);
 
+		html = wrapPixelRoot(html, width, PIXEL_RATIO);
 		const parsed = fromHtml(html);
 		const rawSheets = [
 			...sheets.sheets,
 			...(parsed.stylesheets || []),
-			`html, body { position: relative !important; width: ${width}px !important; height: auto !important; min-height: min-content !important; overflow: visible !important; transform: none !important; }`,
 			`.help_box, .line { overflow: visible !important; max-height: none !important; }`,
 			...inline,
 		];
@@ -206,10 +227,16 @@ export class RenderEngine {
 		const varsKey = createHash("sha1")
 			.update([...vars].flat().join("\0"))
 			.digest("hex");
-		const stylesheets = rawSheets.map((s) => transformSheet(s, vars, varsKey));
+		const sharedSheets = rawSheets.map((s) => transformSheet(s, vars, varsKey));
+		const layoutCss = [
+			...sharedSheets,
+			rootBoxCss(width),
+			pixelRootCss(width, "none"),
+		];
+		const paintCss = [...sharedSheets, rootBoxCss(width), pixelRootCss(width)];
 		const images = [
 			...rewritten.images,
-			...stylesheets.flatMap(collectCssImages),
+			...layoutCss.flatMap(collectCssImages),
 		].map((i) => ({
 			src: i.src,
 			data: i.data instanceof Uint8Array ? i.data : new Uint8Array(i.data),
@@ -230,7 +257,7 @@ export class RenderEngine {
 			const measured = await renderer.measure(parsed.node, {
 				width,
 				height: 16_000,
-				stylesheets,
+				stylesheets: layoutCss,
 				images,
 				fontFamilies: [...PHI_FONT_FAMILIES],
 				lang: "zh-CN",
@@ -246,17 +273,17 @@ export class RenderEngine {
 		}
 
 		const encoded = await this.encodeNode(parsed.node, {
-			width,
-			height,
+			width: width * PIXEL_RATIO,
+			height: height * PIXEL_RATIO,
 			format,
 			quality,
-			stylesheets,
+			stylesheets: paintCss,
 			images,
 		});
 
 		const ms = performance.now() - started;
 		logger.ok(
-			`card ${id} ${width}x${height} ${encoded.ext} ${encoded.bytes.length}B in ${Math.round(ms)}ms`,
+			`card ${id} ${width}x${height} @${PIXEL_RATIO}x ${encoded.ext} ${encoded.bytes.length}B in ${Math.round(ms)}ms`,
 		);
 		return { ...encoded, width, height };
 	}

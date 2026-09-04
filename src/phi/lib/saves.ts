@@ -2,8 +2,10 @@ import type { Kv } from "@/server/sdk";
 import { kvKey } from "./const";
 import type { PhiRuntime } from "./runtime";
 import type { Save, SavePayload } from "./save";
+import { isTapApiFailure } from "./tapapi";
 
 const SAVE = (token: string) => kvKey("save", token);
+const sessionRegion = new Map<string, boolean>();
 
 export async function getToken(
 	rt: PhiRuntime,
@@ -23,6 +25,7 @@ export async function setToken(rt: PhiRuntime, userId: string, token: string) {
 }
 
 export async function clearUser(rt: PhiRuntime, db: Kv, userId: string) {
+	sessionRegion.delete(userId);
 	const token = await getToken(rt, userId);
 	await rt.store.clearLocalCredentials(userId);
 	if (!token) return false;
@@ -61,6 +64,12 @@ function saveRev(
 	return `${url}|${stamp}`;
 }
 
+async function fetchSaveInfo(rt: PhiRuntime, token: string, global: boolean) {
+	const user = new rt.PhigrosUser(token, global);
+	await user.getSaveInfo();
+	return user;
+}
+
 export async function updateSave(
 	rt: PhiRuntime,
 	db: Kv,
@@ -75,11 +84,17 @@ export async function updateSave(
 		throw new Error("SessionToken format is invalid (need 25 alphanumerics).");
 	if (await rt.store.isSessionTokenBanned(token))
 		throw new Error("This sessionToken is banned.");
+	const preferred = opts.global ?? sessionRegion.get(userId) ?? false;
+	let user: InstanceType<PhiRuntime["PhigrosUser"]>;
+	try {
+		user = await fetchSaveInfo(rt, token, preferred);
+	} catch (err) {
+		if (opts.global != null || isTapApiFailure(err)) throw err;
+		user = await fetchSaveInfo(rt, token, !preferred);
+	}
+	sessionRegion.set(userId, user.global);
 	const cachedRaw = await db.get(SAVE(token));
 	const cached = cachedRaw ? JSON.parse(cachedRaw) : undefined;
-	const global = opts.global ?? !!cached?.global;
-	const user = new rt.PhigrosUser(token, global);
-	await user.getSaveInfo();
 	const rev = saveRev(user.saveInfo);
 	if (cached?.gameRecord && rev && rev === saveRev(cached.saveInfo)) {
 		await setToken(rt, userId, token);

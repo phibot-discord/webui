@@ -1,7 +1,12 @@
 import { sessionUserId } from "@/auth";
 import { getMessages } from "@/i18n/server";
 import { resolvePhiLocale } from "@/phi/lib/card-i18n";
-import { clampCount, isCardKind, renderCard } from "@/server/cards";
+import {
+	clampCount,
+	isCardKind,
+	RENDER_VERSION,
+	renderCard,
+} from "@/server/cards";
 import { getDataHost } from "@/server/data-host";
 import { pngResponse } from "@/server/http";
 import {
@@ -45,9 +50,11 @@ export async function GET(
 			);
 	const result = await renderCard(userId, kind, { count, locale });
 	if ("error" in result) return localizedRenderError(result);
-	return pngResponse(result.bytes, {
+	const res = pngResponse(result.bytes, {
 		etag: result.etag,
 		cacheControl: PRIVATE_CACHE,
 		request,
 	});
+	res.headers.set("X-Phi-Render", RENDER_VERSION);
+	return res;
 }
