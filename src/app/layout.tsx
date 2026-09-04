@@ -27,6 +27,17 @@ const cjk = localFont({
 	adjustFontFallback: false,
 });
 
+const display = localFont({
+	src: [
+		{ path: "../fonts/outfit-latin-400.woff2", weight: "400" },
+		{ path: "../fonts/outfit-latin-500.woff2", weight: "500" },
+		{ path: "../fonts/outfit-latin-600.woff2", weight: "600" },
+		{ path: "../fonts/outfit-latin-700.woff2", weight: "700" },
+	],
+	display: "swap",
+	variable: "--font-display",
+});
+
 export async function generateMetadata(): Promise<Metadata> {
 	const { m } = await getMessages();
 	return { title: m.meta.title, description: m.meta.description };
@@ -43,7 +54,7 @@ export default async function RootLayout({
 	return (
 		<html
 			lang={localeTag(locale)}
-			className={cjk.variable}
+			className={`${cjk.variable} ${display.variable}`}
 			data-theme={theme ?? undefined}
 			style={theme ? { colorScheme: theme } : undefined}
 			suppressHydrationWarning

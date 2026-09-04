@@ -17,6 +17,9 @@ export type Messages = {
 		lookups: { name: string; blurb: string }[];
 		footer: string;
 		scoreboard: string;
+		boardTitle: string;
+		boardLede: string;
+		showFull: string;
 		openDesk: string;
 	};
 	notice: {
@@ -152,6 +155,10 @@ export const en: Messages = {
 		footer:
 			"PhiBot draws Phigros cards from a save bound to your Discord login.",
 		scoreboard: "B30",
+		boardTitle: "Your B30, drawn for you",
+		boardLede:
+			"Player card, best 30 with overflow, and an RKS breakdown in one image. Run /b30 in Discord or open it here.",
+		showFull: "See the full render",
 		openDesk: "Open your cards",
 	},
 	notice: {
@@ -295,6 +302,10 @@ export const zh: Messages = {
 		],
 		footer: "PhiBot 用绑定到你 Discord 登录的存档出 Phigros 成绩图。",
 		scoreboard: "B30",
+		boardTitle: "一张图看完你的 B30",
+		boardLede:
+			"玩家信息、Best 30 与溢出曲目、RKS 分析全在一张图里。在 Discord 里发 /b30，或直接在这里查看。",
+		showFull: "查看完整成绩图",
 		openDesk: "查看成绩图",
 	},
 	notice: {
@@ -329,7 +340,7 @@ export const zh: Messages = {
 		scan: "请用 TapTap 扫码。",
 		scanned: "已扫码。请在手机上确认。",
 		openPhone: "在这台手机上打开",
-		expires: "{seconds} 秒后失效",
+		expires: "{seconds} 秒���失效",
 		qrAlt: "TapTap 登录二维码",
 		tokenLabel: "sessionToken",
 		tokenPlaceholder: "25 位",

@@ -1,6 +1,7 @@
 "use client";
 
 import { signInDiscord } from "@/auth-actions";
+import { PlayStage } from "@/components/landing/PlayStage";
 import { LandingScoreboard } from "@/components/landing/Scoreboard";
 import { useI18n } from "@/i18n/provider";
 
@@ -17,47 +18,53 @@ export function LandingView({
 	const { m } = useI18n();
 	return (
 		<main id="content" className="landing">
-			<section className="landing-stage">
-				<div className="stage-copy">
-					<p className="stage-kicker">{m.home.kicker}</p>
-					<h1>{m.home.title}</h1>
-					<p className="lede">{m.home.lede}</p>
-					<div className="stage-actions">
+			<section className="hero">
+				<div className="hero-copy">
+					<p className="hero-kicker">{m.home.kicker}</p>
+					<h1 className="hero-title">{m.home.title}</h1>
+					<p className="hero-lede">{m.home.lede}</p>
+					<div className="hero-actions">
 						{signedIn ? (
-							<a className="btn btn-primary" href="/me">
-								{m.home.openDesk}
+							<a className="btn btn-primary btn-skew" href="/me">
+								<span>{m.home.openDesk}</span>
 							</a>
 						) : (
 							<form action={signInDiscord}>
 								<input type="hidden" name="next" value={next} />
-								<button className="btn btn-primary" type="submit">
-									{m.signIn}
+								<button className="btn btn-primary btn-skew" type="submit">
+									<span>{m.signIn}</span>
 								</button>
 							</form>
 						)}
 						<a
-							className="btn btn-ghost"
+							className="btn btn-ghost btn-skew"
 							href={BOT_INVITE}
 							rel="noopener noreferrer"
 							target="_blank"
 						>
-							{m.invite}
+							<span>{m.invite}</span>
 						</a>
 					</div>
 				</div>
-				<LandingScoreboard caption={m.home.scoreboard} rksLabel={m.me.rks} />
+				<PlayStage />
 			</section>
 
-			<section className="landing-lookups">
-				<h2>{m.home.lookupsTitle}</h2>
-				<dl className="lookup-defs">
-					{m.home.lookups.map((item) => (
-						<div key={item.name}>
-							<dt>{item.name}</dt>
-							<dd>{item.blurb}</dd>
-						</div>
+			<LandingScoreboard
+				title={m.home.boardTitle}
+				lede={m.home.boardLede}
+				linkLabel={m.home.showFull}
+			/>
+
+			<section className="lookups" aria-labelledby="lookups-title">
+				<h2 id="lookups-title">{m.home.lookupsTitle}</h2>
+				<ul className="lookup-grid">
+					{m.home.lookups.map((item, i) => (
+						<li key={item.name} style={{ ["--i" as string]: i }}>
+							<span className="lookup-name">{item.name}</span>
+							<p className="lookup-blurb">{item.blurb}</p>
+						</li>
 					))}
-				</dl>
+				</ul>
 			</section>
 
 			<footer className="landing-foot">
