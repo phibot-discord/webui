@@ -270,7 +270,7 @@ const CHART_TAG_EN: Record<string, string> = {
 	硬抗: "Stamina",
 	拆谱: "Pattern",
 	定位: "Aim",
-	多指: "Multi-fingers",
+	多指: "Multi-Finger",
 	差速: "Mixed speed",
 	脑裂: "Split-brain",
 	多面下落: "Multi-side",

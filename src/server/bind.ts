@@ -2,6 +2,7 @@ import { kvKey } from "@/phi/lib/const";
 import type { Save } from "@/phi/lib/save";
 import { clearUser, getToken, updateSave } from "@/phi/lib/saves";
 import { isTapApiFailure } from "@/phi/lib/tapapi";
+import { isGlobalTapLogin } from "@/phi/lib/taptap";
 import { lastSyncedIso } from "./bound";
 import { getDataHost } from "./data-host";
 import { ensureSongInfo } from "./song-info";
@@ -40,8 +41,9 @@ export type BindErr = {
 	detail?: string;
 };
 
-function asServer(raw: unknown): BindServer {
-	return raw === "gb" ? "gb" : "cn";
+function asServer(raw: unknown, globalFlag?: unknown): BindServer {
+	if (raw === "gb" || raw === "global" || globalFlag === true) return "gb";
+	return "cn";
 }
 
 function failBind(err: unknown): BindErr {
@@ -105,6 +107,7 @@ function playerFromSave(save: Save): BindOk {
 export async function startQrBind(
 	userId: string,
 	server: unknown,
+	globalFlag?: unknown,
 ): Promise<
 	{ expiresIn: number; intervalMs: number; openUrl: string } | BindErr
 > {
@@ -118,7 +121,7 @@ export async function startQrBind(
 	});
 	if (locked !== "OK") return { error: "qr_busy", status: 409 };
 
-	const global = asServer(server) === "gb";
+	const global = asServer(server, globalFlag) === "gb";
 	try {
 		const request = await host.rt.getQRcode.getRequest(global);
 		const fields = qrFields(request);
@@ -189,10 +192,8 @@ export async function pollQrBind(
 		return { error: "qr_expired", status: 410 };
 	}
 
-	const result = await host.rt.getQRcode.checkQRCodeResult(
-		stored,
-		stored.global,
-	);
+	const useGlobal = isGlobalTapLogin(stored, stored.global);
+	const result = await host.rt.getQRcode.checkQRCodeResult(stored, useGlobal);
 	if (!qrSucceeded(result)) {
 		const err = result?.data?.error;
 		if (err === "authorization_waiting") return { status: "scanned" };
@@ -202,7 +203,7 @@ export async function pollQrBind(
 	let token: string;
 	try {
 		token = String(
-			(await host.rt.getQRcode.getSessionToken(result, stored.global)) || "",
+			(await host.rt.getQRcode.getSessionToken(result, useGlobal)) || "",
 		).replace(/\s/g, "");
 	} catch (err) {
 		await clearQr(userId);
@@ -216,7 +217,7 @@ export async function pollQrBind(
 		await ensureSongInfo();
 		const save = await updateSave(host.rt, host.db, userId, {
 			token,
-			global: stored.global,
+			global: useGlobal,
 		});
 		await clearQr(userId);
 		return playerFromSave(save);
@@ -230,6 +231,7 @@ export async function bindWithToken(
 	userId: string,
 	rawToken: unknown,
 	server: unknown,
+	globalFlag?: unknown,
 ): Promise<BindOk | BindErr> {
 	const host = await getDataHost();
 	if (await getToken(host.rt, userId))
@@ -241,7 +243,7 @@ export async function bindWithToken(
 		await ensureSongInfo();
 		const save = await updateSave(host.rt, host.db, userId, {
 			token,
-			global: asServer(server) === "gb",
+			global: asServer(server, globalFlag) === "gb",
 		});
 		await clearQr(userId);
 		return playerFromSave(save);

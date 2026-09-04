@@ -161,10 +161,13 @@ test("radar plot is a white PNG, not a black Takumi SVG/clip-path fill", async (
 	);
 	assert.match(enHtml, /Reading/);
 	assert.match(enHtml, /Stamina/);
-	assert.match(enHtml, /Fingers/);
+	assert.match(enHtml, /Multi-/);
+	assert.match(enHtml, />Finger</);
+	assert.doesNotMatch(enHtml, /Multi-Finger/);
 	assert.doesNotMatch(enHtml, /读谱/);
 	assert.equal(localizeChartTagName("读谱", "zh"), "读谱");
-	assert.equal(localizeChartTagName("快交互", "en"), "Fast trills");
+	assert.equal(localizeChartTagName("多指", "en"), "Multi-Finger");
+	assert.equal(localizeChartTagName("快交互", "en"), "Fast interaction");
 	assert.doesNotMatch(html, /<svg\b/i);
 	assert.doesNotMatch(html, /clip-path/);
 	assert.doesNotMatch(html, /data:image\/png;base64,/);
@@ -263,6 +266,11 @@ test("tag ranking sits right of English radar labels and is vertically centered"
 	assert.match(b19Css, /\.tag-radar-column \{\n\twidth: 280px;/);
 	assert.match(takumiCss, /width: 280px !important;/);
 	assert.match(takumiCss, /padding-top: 4px !important;/);
+	assert.match(takumiCss, /left: -36px !important;/);
+	assert.doesNotMatch(
+		takumiCss,
+		/\.histogram-slot-label \{[^}]*writing-mode: horizontal-tb/,
+	);
 
 	const radar = buildTagRadar([
 		{ name: "读谱", rks: 16.28, votes: 10, hasVotes: true },

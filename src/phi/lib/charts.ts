@@ -232,13 +232,39 @@ function labelShift(anchor: "start" | "middle" | "end") {
 	return "translate(-50%, -10px)";
 }
 
+function radarNameAlign(anchor: "start" | "middle" | "end") {
+	if (anchor === "end") return "right";
+	if (anchor === "start") return "left";
+	return "center";
+}
+
+/** Keep the hyphen on the first line so "Multi-Finger" stacks as Multi- / Finger. */
+function splitRadarName(name: string): string[] {
+	const cut = name.indexOf("-");
+	if (cut <= 0 || cut >= name.length - 1) return [name];
+	return [name.slice(0, cut + 1), name.slice(cut + 1)];
+}
+
+function radarNameHtml(
+	name: string,
+	anchor: "start" | "middle" | "end",
+): string {
+	const align = radarNameAlign(anchor);
+	return splitRadarName(name)
+		.map(
+			(line) =>
+				`<p class="tag-radar-html-name" style="margin:0;color:#ffffff;font-size:10px;line-height:1.15;white-space:nowrap;text-align:${align};">${esc(line)}</p>`,
+		)
+		.join("");
+}
+
 function radarLabels(radar: TagRadarPlot) {
 	return radar.categories
 		.map((category) => {
 			const score = esc(category.displayRks);
 			return (
-				`<div class="tag-radar-html-label is-${category.anchor}" style="position:absolute;left:${category.labelX}px;top:${category.labelY}px;transform:${labelShift(category.anchor)};">` +
-				`<p class="tag-radar-html-name" style="margin:0;color:#ffffff;font-size:10px;line-height:1.15;white-space:nowrap;">${esc(category.name)}</p>` +
+				`<div class="tag-radar-html-label is-${category.anchor}" style="position:absolute;left:${category.labelX}px;top:${category.labelY}px;transform:${labelShift(category.anchor)};text-align:${radarNameAlign(category.anchor)};">` +
+				radarNameHtml(category.name, category.anchor) +
 				`<p class="tag-radar-html-score" style="margin:2px 0 0;color:#00b7f0;font-size:8px;line-height:1;white-space:nowrap;">${score}</p>` +
 				`</div>`
 			);

@@ -86,7 +86,7 @@ export function BindPanel() {
 			const res = await fetch("/api/bind/qr", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ server }),
+				body: JSON.stringify({ server, global: server === "gb" }),
 			});
 			const data = (await res.json().catch(() => ({}))) as {
 				error?: string;
@@ -129,7 +129,11 @@ export function BindPanel() {
 			const res = await fetch("/api/bind/token", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ token, server }),
+				body: JSON.stringify({
+					token,
+					server,
+					global: server === "gb",
+				}),
 			});
 			const data = (await res.json().catch(() => ({}))) as {
 				error?: string;

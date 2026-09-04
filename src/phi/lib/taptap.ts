@@ -10,6 +10,7 @@ type PartialQR = {
 		qrcode_url?: string;
 		interval?: number;
 	};
+	global?: boolean;
 };
 
 class CompleteQRCodeData {
@@ -29,20 +30,45 @@ class CompleteQRCodeData {
 }
 
 const TapSDKVersion = "2.1";
-const WebHost = "https://accounts.tapapis.com";
-const ChinaWebHost = "https://accounts.tapapis.cn";
-const ApiHost = "https://open.tapapis.com";
-const ChinaApiHost = "https://open.tapapis.cn";
-/**
- * The CN OAuth app id/key are used for BOTH regions throughout the login flow
- * (matching the reference phi-plugin TapTapHelper/LCHelper): only the endpoint
- * hosts switch for global. The GB app id/key pair exists only for save
- * fetching (see region() in phigros.ts).
- */
-const ClientId = "rAK3FfdieFob2Nn8Am";
-const AppKey = "Qr9AEqtuoSVS3zeD6iVbM4ZC0AtkJcQ89tywVyi0";
-const UrlLcBase = "https://rak3ffdi.cloud.tds1.tapapis.cn/1.1";
-const UrlLcBaseGB = "https://kviehlel.cloud.ap-sg.tapapis.com/1.1";
+
+type TapLoginRegion = {
+	clientId: string;
+	appKey: string;
+	webHost: string;
+	apiHost: string;
+	lcBase: string;
+};
+
+const CN_LOGIN: TapLoginRegion = {
+	clientId: "rAK3FfdieFob2Nn8Am",
+	appKey: "Qr9AEqtuoSVS3zeD6iVbM4ZC0AtkJcQ89tywVyi0",
+	webHost: "https://accounts.tapapis.cn",
+	apiHost: "https://open.tapapis.cn",
+	lcBase: "https://rak3ffdi.cloud.tds1.tapapis.cn/1.1",
+};
+
+const GB_LOGIN: TapLoginRegion = {
+	clientId: "kviehleldgxsagpozb",
+	appKey: "tG9CTm0LDD736k9HMM9lBZrbeBGRmUkjSfNLDNib",
+	webHost: "https://accounts.tapapis.com",
+	apiHost: "https://open.tapapis.com",
+	lcBase: "https://kviehlel.cloud.ap-sg.tapapis.com/1.1",
+};
+
+export function isGlobalTapLogin(
+	request?: PartialQR,
+	useGlobal = false,
+): boolean {
+	const url = request?.data?.qrcode_url || "";
+	if (/taptap\.io|tapapis\.com/i.test(url)) return true;
+	if (/taptap\.cn|tapapis\.cn/i.test(url)) return false;
+	if (typeof request?.global === "boolean") return request.global;
+	return useGlobal;
+}
+
+function tapLogin(useGlobal: boolean): TapLoginRegion {
+	return useGlobal ? GB_LOGIN : CN_LOGIN;
+}
 
 function authorization(
 	requestUrl: string,
@@ -68,17 +94,16 @@ async function requestLoginQrCode(
 	permissions = ["public_profile"],
 	useGlobal = false,
 ) {
+	const tap = tapLogin(useGlobal);
 	const deviceId = randomUUID().replace(/-/g, "");
 	const params = new FormData();
-	params.append("client_id", ClientId);
+	params.append("client_id", tap.clientId);
 	params.append("response_type", "device_code");
 	params.append("scope", permissions.join(","));
 	params.append("version", TapSDKVersion);
 	params.append("platform", "unity");
 	params.append("info", JSON.stringify({ device_id: deviceId }));
-	const endpoint = useGlobal
-		? `${WebHost}/oauth2/v1/device/code`
-		: `${ChinaWebHost}/oauth2/v1/device/code`;
+	const endpoint = `${tap.webHost}/oauth2/v1/device/code`;
 	const response = await tapFetch(endpoint, { method: "POST", body: params });
 	const data = (await response.json()) as Record<string, unknown>;
 	const nested =
@@ -89,18 +114,17 @@ async function requestLoginQrCode(
 }
 
 async function checkQRCodeResult(data: PartialQR, useGlobal = false) {
+	const tap = tapLogin(isGlobalTapLogin(data, useGlobal));
 	const qr = new CompleteQRCodeData(data);
 	const params = new FormData();
 	params.append("grant_type", "device_token");
-	params.append("client_id", ClientId);
+	params.append("client_id", tap.clientId);
 	params.append("secret_type", "hmac-sha-1");
 	params.append("code", qr.deviceCode);
 	params.append("version", "1.0");
 	params.append("platform", "unity");
 	params.append("info", JSON.stringify({ device_id: qr.deviceID }));
-	const endpoint = useGlobal
-		? `${WebHost}/oauth2/v1/token`
-		: `${ChinaWebHost}/oauth2/v1/token`;
+	const endpoint = `${tap.webHost}/oauth2/v1/token`;
 	try {
 		const response = await tapFetch(endpoint, { method: "POST", body: params });
 		const data = (await response.json()) as Record<string, unknown>;
@@ -124,9 +148,8 @@ async function getProfile(
 ) {
 	if (!token.scope?.includes("public_profile"))
 		throw new Error("Public profile permission is required.");
-	const url = useGlobal
-		? `${ApiHost}/account/profile/v1?client_id=${ClientId}`
-		: `${ChinaApiHost}/account/profile/v1?client_id=${ClientId}`;
+	const tap = tapLogin(useGlobal);
+	const url = `${tap.apiHost}/account/profile/v1?client_id=${tap.clientId}`;
 	const response = await tapFetch(url, {
 		method: "GET",
 		headers: {
@@ -140,13 +163,14 @@ async function loginAndGetToken(
 	data: Record<string, unknown>,
 	withGlobal = false,
 ) {
-	const url = `${withGlobal ? UrlLcBaseGB : UrlLcBase}/users`;
+	const tap = tapLogin(withGlobal);
+	const url = `${tap.lcBase}/users`;
 	const timestamp = Math.floor(Date.now() / 1000);
-	const sign = `${createHash("md5").update(`${timestamp}${AppKey}`).digest("hex")},${timestamp}`;
+	const sign = `${createHash("md5").update(`${timestamp}${tap.appKey}`).digest("hex")},${timestamp}`;
 	const response = await tapFetch(url, {
 		method: "POST",
 		headers: {
-			"X-LC-Id": ClientId,
+			"X-LC-Id": tap.clientId,
 			"Content-Type": "application/json",
 			"X-LC-Sign": sign,
 		},

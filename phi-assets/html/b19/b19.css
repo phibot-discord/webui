@@ -1102,15 +1102,18 @@ img.tag-radar-plot,
 }
 
 .histogram-chart {
-	height: 178px;
+	height: 186px;
 	display: flex;
 	padding-top: 12px;
 	width: calc(100% + 50px);
 	margin-left: -40px;
+	overflow: visible;
 }
 
 .histogram-y-label {
-	width: 18px;
+	width: 14px;
+	flex: none;
+	overflow: hidden;
 	color: rgba(255, 255, 255, 0.52);
 	font-size: 10px;
 	writing-mode: vertical-rl;
@@ -1121,18 +1124,21 @@ img.tag-radar-plot,
 }
 
 .histogram-plot {
-	height: 160px;
+	height: 164px;
 	flex: 1;
 	position: relative;
+	margin-left: 42px;
+	overflow: visible;
 	border-left: 1px solid rgba(255, 255, 255, 0.32);
 	border-bottom: 1px solid rgba(255, 255, 255, 0.32);
 }
 
 .histogram-scale {
 	position: absolute;
-	inset: 0 0 24px;
+	inset: 0 0 28px;
 	z-index: 3;
 	pointer-events: none;
+	overflow: visible;
 }
 
 .histogram-grid-line {
@@ -1144,18 +1150,23 @@ img.tag-radar-plot,
 
 .histogram-grid-line p {
 	position: absolute;
-	left: 2px;
-	top: -7px;
-	padding-right: 3px;
+	left: -36px;
+	width: 32px;
+	right: auto;
+	top: -8px;
+	margin: 0;
+	padding: 0;
 	color: rgba(255, 255, 255, 0.5);
-	background: rgba(0, 0, 0, 0.7);
+	background: none;
 	font-size: 8px;
 	line-height: 12px;
+	text-align: right;
+	white-space: nowrap;
 }
 
 .histogram-bars {
 	position: absolute;
-	inset: 0 3px 0 29px;
+	inset: 0 3px 0 2px;
 	display: flex;
 	align-items: stretch;
 	gap: 1px;
@@ -1193,22 +1204,23 @@ img.tag-radar-plot,
 }
 
 .histogram-slot-label {
-	width: 100%;
-	height: 24px;
+	width: 12px;
+	height: 28px;
 	color: rgba(255, 255, 255, 0.56);
-	font-size: 7px;
-
-	padding-top: 3px;
+	font-size: 8px;
+	padding: 0;
+	margin: 0;
 	box-sizing: border-box;
-	writing-mode: vertical-rl;
-	text-align: left;
-	transform: translate(4px, -2px) rotate(315deg);
+	text-align: center;
+	white-space: nowrap;
+	transform: rotate(-90deg);
+	transform-origin: center center;
 }
 
 .average-marker {
 	position: absolute;
 	z-index: 4;
-	left: 29px;
+	left: 0;
 	right: 0;
 	height: 2px;
 	background: #fff;

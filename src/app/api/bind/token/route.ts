@@ -21,8 +21,14 @@ export async function POST(request: Request) {
 	const body = (await request.json().catch(() => ({}))) as {
 		token?: string;
 		server?: string;
+		global?: boolean;
 	};
-	const result = await bindWithToken(userId, body.token, body.server);
+	const result = await bindWithToken(
+		userId,
+		body.token,
+		body.server,
+		body.global,
+	);
 	if ("error" in result) return localizedBindError(result);
 	return Response.json({ status: "bound", ...result });
 }

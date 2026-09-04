@@ -61,21 +61,20 @@ export async function blurCardBackgrounds(html: string): Promise<string> {
 	return out + html.slice(last);
 }
 
-/** Blurred ills are darkened ~0.62; 0.48 still treats navy as dark. */
-const LIGHT_LUMA = 0.48;
+/** Blurred ills are darkened ~0.62; 0.40 still treats navy as dark. */
+const LIGHT_LUMA = 0.4;
 const lumaCache = new Map<string, { top: number; bottom: number }>();
 const LUMA_CACHE_MAX = 256;
 
 function ink(lightBg: boolean) {
 	return lightBg
 		? {
-				color: "#141414",
-				shadow:
-					"0 1px 2px rgba(255,255,255,0.9), 0 0 10px rgba(255,255,255,0.55)",
+				color: "#000000",
+				shadow: "0 0 6px rgba(255,255,255,0.85)",
 			}
 		: {
-				color: "#f4f4f4",
-				shadow: "0 1px 2px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.55)",
+				color: "#ffffff",
+				shadow: "0 0 6px rgba(0,0,0,0.75)",
 			};
 }
 
@@ -107,20 +106,33 @@ async function sampleBandMedian(file: string, y0: number, y1: number) {
 }
 
 function backgroundSrc(html: string) {
-	const ill = /<div class="ill">\s*<img\b[^>]*\bsrc="([^"]+)"/i.exec(html)?.[1];
-	if (ill) return ill;
 	const star = /<img class="star-base"[^>]*src="([^"]+)"/i.exec(html)?.[1];
 	if (star) return star;
 	const block =
 		/<div\b[^>]*class="[^"]*\bbackground\b[^"]*"[^>]*>[\s\S]*?<\/div>/i.exec(
 			html,
 		)?.[0];
-	return block ? /<img\b[^>]*\bsrc="([^"]+)"/i.exec(block)?.[1] : undefined;
+	const bg = block
+		? /<img\b[^>]*\bsrc="([^"]+)"/i.exec(block)?.[1]
+		: undefined;
+	if (bg) return bg;
+	return /<div class="ill">\s*<img\b[^>]*\bsrc="([^"]+)"/i.exec(html)?.[1];
 }
 
 function inkCss(sel: string, lightBg: boolean) {
 	const { color, shadow } = ink(lightBg);
 	return `${sel} { color: ${color} !important; text-shadow: ${shadow} !important; }`;
+}
+
+function stampInk(html: string, re: RegExp, light: boolean) {
+	const { color, shadow } = ink(light);
+	const extra = `color:${color};text-shadow:${shadow};`;
+	return html.replace(re, (_full, open: string, rest: string) => {
+		if (/\sstyle="/i.test(rest)) {
+			return `${open}${rest.replace(/style="/i, `style="${extra}`)}`;
+		}
+		return `${open}${rest.replace(/>$/, ` style="${extra}">`)}`;
+	});
 }
 
 export async function contrastOverBackground(html: string): Promise<string> {
@@ -151,10 +163,17 @@ export async function contrastOverBackground(html: string): Promise<string> {
 			bottomLight = false;
 		}
 	}
+	let out = html;
+	out = stampInk(out, /(<div class="date">\s*<p)([^>]*>)/i, topLight);
+	out = stampInk(
+		out,
+		/(<div class="tips(?:-abs)?"[^>]*>\s*<p)([^>]*>)/gi,
+		bottomLight,
+	);
 	const css = `<style>
-    ${inkCss(".playerInfo .date p, .row-date p, .descTip p", topLight)}
-    ${inkCss(".tips p", bottomLight)}
+    ${inkCss(".playerInfo .date p, .date p, .row-date p, .descTip p", topLight)}
+    ${inkCss(".tips p, .tips-abs p", bottomLight)}
   </style>`;
-	if (html.includes("</head>")) return html.replace("</head>", `${css}</head>`);
-	return css + html;
+	if (out.includes("</head>")) return out.replace("</head>", `${css}</head>`);
+	return css + out;
 }

@@ -18,8 +18,11 @@ export async function POST(request: Request) {
 	});
 	if (!limited.ok) return localizedError(429, "rate_limit");
 
-	const body = (await request.json().catch(() => ({}))) as { server?: string };
-	const result = await startQrBind(userId, body.server);
+	const body = (await request.json().catch(() => ({}))) as {
+		server?: string;
+		global?: boolean;
+	};
+	const result = await startQrBind(userId, body.server, body.global);
 	if ("error" in result) return localizedBindError(result);
 	return Response.json(result);
 }

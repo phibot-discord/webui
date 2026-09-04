@@ -268,18 +268,29 @@ function layoutHistogram(html: string) {
 		},
 	);
 	out = out.replace(
-		/class="histogram-grid-line" style="bottom:\s*([0-9.]+)%;?"/g,
-		(_m, pct: string) => {
+		/<div class="histogram-grid-line" style="bottom:\s*([0-9.]+)%;?">\s*<p>([^<]*)<\/p>/g,
+		(_m, pct: string, label: string) => {
 			const bottom = Math.round((Number(pct) / 100) * plot);
-			return `class="histogram-grid-line" style="position:absolute;left:0;right:0;bottom:${bottom}px;border-top:1px dashed rgba(255,255,255,0.28);"`;
+			return (
+				`<div class="histogram-grid-line" style="position:absolute;left:0;right:0;bottom:${bottom}px;border-top:1px dashed rgba(255,255,255,0.28);">` +
+				`<p style="position:absolute;left:-36px;width:32px;top:-8px;right:auto;margin:0;padding:0;text-align:right;white-space:nowrap;color:rgba(255,255,255,0.7);font-size:10px;line-height:1;background:none;">${label}</p></div>`
+			);
 		},
 	);
 	out = out.replace(
 		/class="average-marker" style="bottom:\s*([0-9.]+)%;?"/g,
 		(_m, pct: string) => {
 			const bottom = Math.round((Number(pct) / 100) * plot);
-			return `class="average-marker" style="position:absolute;left:29px;right:0;bottom:${bottom}px;height:2px;background:#ffffff;"`;
+			return `class="average-marker" style="position:absolute;left:0;right:0;bottom:${bottom}px;height:2px;background:#ffffff;"`;
 		},
+	);
+	out = out.replace(
+		/<div class="histogram-plot">/g,
+		`<div class="histogram-plot" style="overflow:visible;margin-left:42px;">`,
+	);
+	out = out.replace(
+		/<p class="histogram-slot-label">/g,
+		`<p class="histogram-slot-label" style="transform:rotate(-90deg);transform-origin:center center;font-size:7px;line-height:1;white-space:nowrap;height:28px;width:10px;text-align:center;padding:0;margin:0;">`,
 	);
 	return out;
 }
