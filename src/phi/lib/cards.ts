@@ -3,6 +3,7 @@ import { buildRksHistogram, getB30AnalysisRecords } from "./b30-analysis";
 import {
 	cardCopy,
 	fill,
+	localizeChartTagLabels,
 	localizeSuggestFields,
 	type PhiLocale,
 	resolvePhiLocale,
@@ -25,6 +26,7 @@ async function b30AnalysisFor(
 	save_b19: { phi?: unknown[]; b19_list?: unknown[] },
 	notes: UserNotes,
 	nnum: number,
+	locale: PhiLocale,
 ) {
 	if (notes.showB30Analysis === false || nnum !== 33) return null;
 	const records = getB30AnalysisRecords(save_b19);
@@ -33,7 +35,10 @@ async function b30AnalysisFor(
 	let tagAnalysis = null;
 	if (showTags && records.length) {
 		try {
-			tagAnalysis = await tagAnalysisFor(records);
+			tagAnalysis = localizeChartTagLabels(
+				await tagAnalysisFor(records),
+				locale,
+			);
 		} catch {
 			tagAnalysis = null;
 		}
@@ -150,7 +155,7 @@ export async function b19Card(
 		stats,
 		spInfo,
 		locale,
-		b30Analysis: await b30AnalysisFor(save_b19, notes, nnum),
+		b30Analysis: await b30AnalysisFor(save_b19, notes, nnum, locale),
 		BSIllPath: rt.getInfo.getill("BANGINGSTRIKE.DewPleiades.0", "common"),
 	};
 }

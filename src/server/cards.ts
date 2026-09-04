@@ -31,7 +31,7 @@ export {
 	type PublicKind,
 } from "./card-kinds";
 
-export const RENDER_VERSION = "v19";
+export const RENDER_VERSION = "v21";
 
 export {
 	type BoundErr,

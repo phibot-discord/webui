@@ -893,13 +893,15 @@ body p {
 .tag-analysis-body {
 	height: 216px;
 	position: relative;
-	padding-top: 10px;
+	padding-top: 0;
+	overflow: visible;
 }
 
 .tag-analysis-content {
 	height: 100%;
 	display: flex;
-	gap: 10px;
+	align-items: center;
+	gap: 24px;
 }
 
 .tag-analysis-body.is-insufficient .tag-analysis-content {
@@ -921,13 +923,20 @@ body p {
 }
 
 .tag-radar-column {
-	width: 200px;
-	min-width: 0;
+	width: 280px;
+	min-width: 280px;
+	flex: none;
+	overflow: visible;
 }
 
 .tag-ranking-column {
 	flex: 1;
 	min-width: 0;
+	align-self: center;
+	padding-top: 4px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
 }
 
 .tag-radar-title,
@@ -964,6 +973,7 @@ body p {
 	flex: none;
 	display: block;
 	overflow: visible;
+	margin-left: 16px;
 }
 
 img.tag-radar-plot,

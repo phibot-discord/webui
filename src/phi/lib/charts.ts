@@ -296,7 +296,7 @@ export async function tagRadarHtml(radar: TagRadarPlot) {
 	const png = await tagRadarPlotPng(radar);
 	const src = radarPlotFileSrc(png);
 	return (
-		`<div class="tag-radar" style="width:200px;height:184px;position:relative;flex:none;overflow:visible;">` +
+		`<div class="tag-radar" style="width:200px;height:184px;position:relative;flex:none;overflow:visible;margin-left:16px;">` +
 		`<img class="tag-radar-plot" width="200" height="184" src="${src}" style="width:200px;height:184px;max-width:200px;max-height:184px;display:block;flex:none;padding:0;margin:0;object-fit:fill;position:relative;z-index:2;top:auto;right:auto;bottom:auto;left:auto;transform:none;min-width:200px;min-height:184px;"/>` +
 		radarLabels(radar) +
 		`</div>`
