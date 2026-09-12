@@ -456,9 +456,11 @@ p {
 		filter 180ms var(--ease);
 }
 
-.btn:disabled {
+.btn:disabled,
+.btn[aria-disabled="true"] {
 	opacity: 0.5;
 	cursor: not-allowed;
+	pointer-events: none;
 }
 
 .btn:active:not(:disabled) {
@@ -696,6 +698,118 @@ p {
 
 .toolbar button[aria-pressed="true"] {
 	border-color: var(--primary);
+}
+
+.stats-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-variant-numeric: tabular-nums;
+}
+
+.stats-chip[aria-busy="true"] {
+	color: var(--muted);
+	pointer-events: none;
+}
+
+.stats-source {
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	padding: 4px 8px;
+	font-size: 0.75rem;
+	font-weight: 500;
+	line-height: 1;
+	color: var(--muted);
+}
+
+.stats-chip[data-source="r2"] .stats-source,
+.stats-chip[data-source="kv"] .stats-source {
+	color: var(--primary);
+	background: var(--surface-2);
+}
+
+.stats-chip[data-source="render"] .stats-source {
+	color: var(--accent);
+	background: var(--surface-2);
+}
+
+.stats-time {
+	color: var(--muted);
+	font-size: 0.8125rem;
+}
+
+.stats-chip[data-source="render"] .stats-time {
+	color: var(--accent);
+}
+
+.stats-pops {
+	display: none;
+	position: absolute;
+	top: calc(100% + 6px);
+	right: 0;
+	z-index: var(--z-dropdown);
+	flex-direction: row-reverse;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.stats-tool:is(:hover, :focus-within) .stats-pops {
+	display: flex;
+}
+
+.stats-pops::before {
+	content: "";
+	position: absolute;
+	top: -8px;
+	right: 0;
+	left: 0;
+	height: 8px;
+}
+
+.stats-tool .stats-pop,
+.stats-tool .stats-hint-pop {
+	position: static;
+}
+
+.stats-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+}
+
+.stats-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 2px 20px;
+}
+
+.stats-row[data-active] dt,
+.stats-row:is(:hover, :focus-visible) dt {
+	color: var(--ink);
+}
+
+.stats-rows dt {
+	margin: 0;
+	color: var(--muted);
+	cursor: help;
+	font-size: 0.8125rem;
+}
+
+.stats-rows dd {
+	margin: 0;
+	color: var(--ink);
+	font-size: 0.8125rem;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.stats-hint-pop {
+	max-width: min(16rem, calc(100vw - 32px));
+	margin: 0;
+	color: var(--muted);
+	font-size: 0.75rem;
+	line-height: 1.4;
 }
 
 label.field {
@@ -1349,6 +1463,11 @@ label.field input {
 	.desk-mast .desk-tools {
 		width: 100%;
 		justify-content: flex-start;
+	}
+
+	.stats-pops {
+		flex-direction: column;
+		max-width: min(22rem, calc(100vw - 32px));
 	}
 
 	.card-nav {

@@ -84,6 +84,8 @@ export class Catalog {
 	originalIll: string;
 	otherIll: string;
 	fallbackIll: string;
+	loadedRevision?: string;
+	private extraNicks: Record<string, string[]> = {};
 
 	constructor(resources: string) {
 		this.resources = resources;
@@ -93,6 +95,14 @@ export class Catalog {
 	}
 
 	load() {
+		this.songs = new Map();
+		this.songsid = new Map();
+		this.idssong = new Map();
+		this.illlist = [];
+		this.songnick = new Map();
+		this.word = { good: [], bad: [], common: [] };
+		this.sentences = [];
+		this.tips = [];
 		const info = join(this.resources, "info");
 		const csv = readTsv<CsvRow>(join(info, "info.csv"));
 		const json = readJson<
@@ -219,6 +229,7 @@ export class Catalog {
 			}
 		}
 
+		this.applyNickMap(this.extraNicks);
 		return this;
 	}
 
@@ -280,6 +291,15 @@ export class Catalog {
 
 	loadExtraNicks(nicks: Record<string, string[]>) {
 		for (const [alias, ids] of Object.entries(nicks)) {
+			const list = this.extraNicks[alias] || [];
+			for (const id of ids) if (!list.includes(id)) list.push(id);
+			this.extraNicks[alias] = list;
+		}
+		this.applyNickMap(nicks);
+	}
+
+	private applyNickMap(nicks: Record<string, string[]>) {
+		for (const [alias, ids] of Object.entries(nicks)) {
 			const list = this.songnick.get(alias) || [];
 			for (const id of ids) if (!list.includes(id)) list.push(id);
 			this.songnick.set(alias, list);
@@ -303,4 +323,18 @@ export class Catalog {
 		for (const [k, v] of this.songnick) out[k] = v;
 		return out;
 	}
+}
+
+let activeCatalog: Catalog | undefined;
+
+export function attachCatalog(catalog: Catalog) {
+	activeCatalog = catalog;
+}
+
+export function reloadAttachedCatalog(revision: string) {
+	if (!activeCatalog) return;
+	if (activeCatalog.songs.size && activeCatalog.loadedRevision === revision)
+		return;
+	activeCatalog.load();
+	activeCatalog.loadedRevision = revision;
 }

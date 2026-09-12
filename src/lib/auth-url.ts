@@ -16,16 +16,23 @@ function toOrigin(raw: string): string | undefined {
 
 type AuthOriginStore = { __phiAuthOrigins?: string[] };
 
+function envOrigins(): string[] {
+	return [
+		...splitOrigins(process.env.AUTH_URLS),
+		...splitOrigins(process.env.AUTH_URL),
+		...splitOrigins(process.env.NEXTAUTH_URL),
+		...splitOrigins(process.env.VERCEL_PROJECT_PRODUCTION_URL),
+		...splitOrigins(process.env.VERCEL_BRANCH_URL),
+		...splitOrigins(process.env.VERCEL_URL),
+	];
+}
+
 function parseAuthOrigins(): string[] {
 	const g = globalThis as AuthOriginStore;
 	if (g.__phiAuthOrigins) return g.__phiAuthOrigins;
 	const seen = new Set<string>();
 	const out: string[] = [];
-	for (const raw of [
-		...splitOrigins(process.env.AUTH_URLS),
-		...splitOrigins(process.env.AUTH_URL),
-		...splitOrigins(process.env.NEXTAUTH_URL),
-	]) {
+	for (const raw of envOrigins()) {
 		const origin = toOrigin(raw);
 		if (!origin) continue;
 		const key = origin.toLowerCase();
@@ -37,15 +44,32 @@ function parseAuthOrigins(): string[] {
 	return out;
 }
 
-const AUTH_ORIGINS = parseAuthOrigins();
+export function resetAuthOriginsForTest(
+	env: Record<string, string | undefined> = {},
+) {
+	const keys = [
+		"AUTH_URLS",
+		"AUTH_URL",
+		"NEXTAUTH_URL",
+		"VERCEL_PROJECT_PRODUCTION_URL",
+		"VERCEL_BRANCH_URL",
+		"VERCEL_URL",
+	] as const;
+	for (const key of keys) {
+		const value = env[key];
+		if (value) process.env[key] = value;
+		else delete process.env[key];
+	}
+	delete (globalThis as AuthOriginStore).__phiAuthOrigins;
+}
 
 export function configuredAuthOrigins(): readonly string[] {
-	return AUTH_ORIGINS;
+	return parseAuthOrigins();
 }
 
 /** Auth.js parses AUTH_URL as a single origin. Drop it when several are set. */
 export function stripCanonicalAuthUrlIfMany() {
-	if (AUTH_ORIGINS.length > 1) {
+	if (parseAuthOrigins().length > 1) {
 		delete process.env.AUTH_URL;
 		delete process.env.NEXTAUTH_URL;
 	}
@@ -72,13 +96,14 @@ export function resolveAuthOrigin(headers: Headers): string | undefined {
 		}
 	}
 	if (requestOrigin) {
-		const match = AUTH_ORIGINS.find(
+		const origins = parseAuthOrigins();
+		const match = origins.find(
 			(origin) => origin.toLowerCase() === requestOrigin.toLowerCase(),
 		);
 		if (match) return match;
-		if (!AUTH_ORIGINS.length) return requestOrigin;
+		if (!origins.length) return requestOrigin;
 	}
-	return AUTH_ORIGINS[0];
+	return parseAuthOrigins()[0];
 }
 
 function restoreEnv(

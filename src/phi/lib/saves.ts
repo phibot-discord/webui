@@ -50,18 +50,38 @@ export async function loadSave(rt: PhiRuntime, db: Kv, userId: string) {
 	return save;
 }
 
+export function saveIdentity(
+	saveInfo:
+		| {
+				gameFile?: { url?: string };
+				modifiedAt?: { iso?: Date | string };
+				summary?: { updatedAt?: string | Date };
+		  }
+		| undefined,
+): string {
+	const raw = String(saveInfo?.gameFile?.url || "");
+	let file = raw;
+	if (raw) {
+		try {
+			const u = new URL(raw.includes("://") ? raw : `https://${raw}`);
+			file = `${u.host}${u.pathname}`;
+		} catch {
+			file = raw.split("?")[0] || raw;
+		}
+	}
+	const iso = saveInfo?.modifiedAt?.iso ?? saveInfo?.summary?.updatedAt;
+	const ms =
+		iso instanceof Date ? iso.getTime() : Date.parse(String(iso || ""));
+	const stamp = Number.isFinite(ms) ? String(ms) : "";
+	return file || stamp ? `${file}|${stamp}` : "";
+}
+
 function saveRev(
 	saveInfo:
 		| { gameFile?: { url?: string }; modifiedAt?: { iso?: Date | string } }
 		| undefined,
 ): string | undefined {
-	const url = String(saveInfo?.gameFile?.url || "");
-	const iso = saveInfo?.modifiedAt?.iso;
-	const ms =
-		iso instanceof Date ? iso.getTime() : Date.parse(String(iso || ""));
-	const stamp = Number.isFinite(ms) ? String(ms) : "";
-	if (!url && !stamp) return undefined;
-	return `${url}|${stamp}`;
+	return saveIdentity(saveInfo) || undefined;
 }
 
 async function fetchSaveInfo(rt: PhiRuntime, token: string, global: boolean) {

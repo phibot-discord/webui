@@ -135,7 +135,7 @@ test("Takumi paints a single histogram with a left RKS gutter", async () => {
 			height: 340,
 			format: "png",
 			fontFamilies: fonts.map((f) => f.name),
-			stylesheets: [
+			css: [
 				readFileSync(
 					new URL("../../../phi-assets/html/b19/b19.css", import.meta.url),
 					"utf8",

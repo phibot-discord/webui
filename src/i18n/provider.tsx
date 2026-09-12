@@ -7,6 +7,7 @@ import {
 	useContext,
 	useState,
 } from "react";
+import { bumpCardReload } from "@/lib/save-refresh";
 import { LOCALE_COOKIE, type Locale, localeTag } from "./config";
 import { en, type Messages, zh } from "./messages";
 
@@ -42,6 +43,7 @@ export function I18nProvider({
 			setLocaleState(next);
 			document.documentElement.lang = localeTag(next);
 			writeLocaleCookie(next);
+			bumpCardReload();
 			void fetch("/api/locale", {
 				method: "POST",
 				headers: { "content-type": "application/json" },

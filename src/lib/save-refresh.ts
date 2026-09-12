@@ -1,8 +1,7 @@
-export const REFRESH_COOLDOWN_MS = 120_000;
+import { clearCardBlobs } from "./card-fetch";
 
 export const REFRESH_UNTIL_KEY = "phi.web.refreshUntil";
-export const CARD_RELOAD_KEY = "phi.web.cardReload";
-export const CARD_REVISION_KEY = "phi.web.cardRevision";
+export const BYPASS_UNTIL_KEY = "phi.web.bypassUntil";
 export const SAVE_REFRESHED_EVENT = "phi-save-refreshed";
 
 type Listener = () => void;
@@ -11,14 +10,19 @@ const listeners = new Set<Listener>();
 let hydrated = false;
 let reloadToken = "";
 let refreshUntil = 0;
+let bypassUntil = 0;
+
+function readUntil(key: string) {
+	const n = Number(sessionStorage.getItem(key) || 0);
+	return Number.isFinite(n) ? n : 0;
+}
 
 function hydrateFromSession() {
 	if (hydrated || typeof window === "undefined") return;
 	hydrated = true;
 	try {
-		reloadToken = sessionStorage.getItem(CARD_RELOAD_KEY) || reloadToken;
-		const n = Number(sessionStorage.getItem(REFRESH_UNTIL_KEY) || 0);
-		if (Number.isFinite(n) && n > refreshUntil) refreshUntil = n;
+		refreshUntil = Math.max(refreshUntil, readUntil(REFRESH_UNTIL_KEY));
+		bypassUntil = Math.max(bypassUntil, readUntil(BYPASS_UNTIL_KEY));
 	} catch {
 		/* private mode */
 	}
@@ -56,33 +60,75 @@ export function getRefreshUntil(): number {
 	return refreshUntil;
 }
 
-export function persistCooldown() {
+export function cooldownMsFromServer(
+	data: unknown,
+	headers?: Headers | null,
+): number {
+	const obj =
+		data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+	if (
+		typeof obj.cooldownMs === "number" &&
+		Number.isFinite(obj.cooldownMs) &&
+		obj.cooldownMs > 0
+	) {
+		return Math.round(obj.cooldownMs);
+	}
+	const raw = obj.retryAfter ?? headers?.get("retry-after");
+	const sec = typeof raw === "number" ? raw : Number(raw);
+	if (Number.isFinite(sec) && sec > 0) return Math.round(sec * 1000);
+	return 0;
+}
+
+function persistUntil(
+	key: string,
+	setUntil: (n: number) => void,
+	remainMs: number,
+) {
 	hydrateFromSession();
-	refreshUntil = Date.now() + REFRESH_COOLDOWN_MS;
-	writeSession(REFRESH_UNTIL_KEY, String(refreshUntil));
+	if (!(remainMs > 0)) return;
+	const until = Date.now() + remainMs;
+	setUntil(until);
+	writeSession(key, String(until));
 	emit();
 }
 
-export function persistCardReload(lastSynced?: string) {
+export function persistCooldown(remainMs: number) {
+	persistUntil(
+		REFRESH_UNTIL_KEY,
+		(n) => {
+			refreshUntil = n;
+		},
+		remainMs,
+	);
+}
+
+export function getBypassUntil(): number {
+	hydrateFromSession();
+	return bypassUntil;
+}
+
+export function persistBypassCooldown(remainMs: number) {
+	persistUntil(
+		BYPASS_UNTIL_KEY,
+		(n) => {
+			bypassUntil = n;
+		},
+		remainMs,
+	);
+}
+
+export function persistCardReload(_lastSynced?: string) {
 	hydrateFromSession();
 	reloadToken = String(Date.now());
-	writeSession(CARD_RELOAD_KEY, reloadToken);
-	writeSession(
-		CARD_REVISION_KEY,
-		lastSynced ? `${lastSynced}:${reloadToken}` : reloadToken,
-	);
-	persistCooldown();
+	clearCardBlobs();
+	emit();
 }
 
 export function bumpCardReload() {
 	hydrateFromSession();
 	reloadToken = String(Date.now());
-	writeSession(CARD_RELOAD_KEY, reloadToken);
+	clearCardBlobs();
 	emit();
-}
-
-export function withCardReload(src: string, token: string): string {
-	return cardFetchUrl(src, { _: token || undefined });
 }
 
 export function cardFetchUrl(

@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
 import { Renderer } from "@takumi-rs/core";
+import sharp from "sharp";
 import { render, setGlyphCacheMaxBytes } from "takumi-js";
 import { fromHtml } from "takumi-js/helpers/html";
 import { applyIllPaths, hydrateIlls } from "../ill";
 import { logger } from "../logger";
+import { renderLock } from "../render-lock";
 import type {
 	FontEntry,
 	RenderedImage,
@@ -26,15 +28,19 @@ import {
 	rewriteLegacyPhiPluginPaths,
 	rewriteLocalUrls,
 } from "./html";
+import { fitPaint, type PaintQuality, PIXEL_RATIO } from "./paint-budget";
+import { fitPaintImages } from "./paint-images";
 
 setGlyphCacheMaxBytes(64 * 1024 * 1024);
-const RENDERER_CACHE_BYTES = 256 * 1024 * 1024;
-const PIXEL_RATIO = 2;
+const RENDERER_CACHE_BYTES = 512 * 1024 * 1024;
+const MEASURE_VIEWPORT_H = 16_000;
 const heightCache = new Map<string, number>();
 const HEIGHT_CACHE_MAX = 200;
 
 function wrapPixelRoot(html: string, cssWidth: number, ratio: number) {
-	const root = `<div class="phi-pixel-root" style="width:${cssWidth}px;transform:scale(${ratio});transform-origin:0 0;">`;
+	const scale =
+		ratio === 1 ? "" : `transform:scale(${ratio});transform-origin:0 0;`;
+	const root = `<div class="phi-pixel-root" style="width:${cssWidth}px;${scale}">`;
 	if (/<body\b/i.test(html)) {
 		const opened = html.replace(/<body\b([^>]*)>/i, `<body$1>${root}`);
 		return /<\/body>/i.test(opened)
@@ -92,6 +98,10 @@ function transformSheet(
 function fmtMs(ms: number) {
 	if (ms < 1000) return `${Math.round(ms)}ms`;
 	return `${(ms / 1000).toFixed(2)}s`;
+}
+
+function withHtmlMs(img: RenderedImage, htmlMs: number): RenderedImage {
+	return { ...img, timings: { ...img.timings, htmlMs } };
 }
 
 function mime(format: RenderFormat) {
@@ -186,6 +196,7 @@ export class RenderEngine {
 			baseDir?: string;
 			id?: string;
 			heightKey?: string;
+			paintQuality?: PaintQuality;
 		} = {},
 	): Promise<RenderedImage> {
 		const started = performance.now();
@@ -214,11 +225,11 @@ export class RenderEngine {
 			},
 		);
 
-		html = wrapPixelRoot(html, width, PIXEL_RATIO);
-		const parsed = fromHtml(html);
+		const prepared = html;
+		const layoutTree = fromHtml(wrapPixelRoot(prepared, width, 1));
 		const rawSheets = [
 			...sheets.sheets,
-			...(parsed.stylesheets || []),
+			...(layoutTree.css || []),
 			`.help_box, .line { overflow: visible !important; max-height: none !important; }`,
 			...inline,
 		];
@@ -233,59 +244,125 @@ export class RenderEngine {
 			rootBoxCss(width),
 			pixelRootCss(width, "none"),
 		];
-		const paintCss = [...sharedSheets, rootBoxCss(width), pixelRootCss(width)];
-		const images = [
-			...rewritten.images,
-			...layoutCss.flatMap(collectCssImages),
-		].map((i) => ({
-			src: i.src,
-			data: i.data instanceof Uint8Array ? i.data : new Uint8Array(i.data),
-		}));
+		const tAssets = performance.now();
+		const images = await fitPaintImages(
+			[...rewritten.images, ...layoutCss.flatMap(collectCssImages)].map(
+				(i) => ({
+					src: i.src,
+					data: i.data instanceof Uint8Array ? i.data : new Uint8Array(i.data),
+					cache: "auto" as const,
+				}),
+			),
+		);
+		const assetsMs = performance.now() - tAssets;
 
-		let height = opts.height;
-		const heightKey = opts.heightKey
-			? `${opts.heightKey}|w${width}`
-			: undefined;
-		if (!height && heightKey) {
-			const cached = heightCache.get(heightKey);
-			if (cached && cached > 64) {
-				height = cached;
-				logger.info(`height cache hit ${heightKey} → ${cached}`);
-			}
-		}
-		if (!height) {
-			const measured = await renderer.measure(parsed.node, {
-				width,
-				height: 16_000,
-				stylesheets: layoutCss,
-				images,
-				fontFamilies: [...PHI_FONT_FAMILIES],
-				lang: "zh-CN",
+		const paintQuality = opts.paintQuality ?? "fast";
+		const { encoded, height, ratio, heightCached, measureMs } =
+			await renderLock.run(async () => {
+				let height = opts.height;
+				const heightKey = opts.heightKey
+					? `${opts.heightKey}|w${width}`
+					: undefined;
+				let heightCached: "hit" | "miss" | undefined;
+				let measureMs: number | undefined;
+				if (height && height > 64 && heightKey) {
+					heightCached = "hit";
+					rememberHeight(heightKey, height);
+					logger.info(`height cache hit ${heightKey} → ${height}`);
+				} else if (!height && heightKey) {
+					const cached = heightCache.get(heightKey);
+					if (cached && cached > 64) {
+						height = cached;
+						heightCached = "hit";
+						logger.info(`height cache hit ${heightKey} → ${cached}`);
+					}
+				}
+				if (!height) {
+					const tMeasure = performance.now();
+					const measured = await renderer.measure(layoutTree.node, {
+						width,
+						height: MEASURE_VIEWPORT_H,
+						css: layoutCss,
+						images,
+						fontFamilies: [...PHI_FONT_FAMILIES],
+						lang: "zh-CN",
+					});
+					const boxH = measured.height || 0;
+					const extent = Math.max(1, Math.ceil(contentExtent(measured)));
+					let raw = Math.max(boxH, extent);
+					if (
+						extent >= MEASURE_VIEWPORT_H - 1 &&
+						boxH > 64 &&
+						boxH + 24 < extent
+					) {
+						raw = boxH;
+					}
+					height = Math.min(
+						MEASURE_VIEWPORT_H,
+						Math.max(1, Math.ceil(raw) + 24),
+					);
+					measureMs = performance.now() - tMeasure;
+					if (heightKey) heightCached = "miss";
+					logger.info(
+						`measured box ${measured.width}x${measured.height} content ${extent} using ${height}`,
+					);
+					if (heightKey && height > 64) rememberHeight(heightKey, height);
+				}
+
+				const paint = fitPaint(width, height, PIXEL_RATIO, paintQuality);
+				if (paint.ratio < PIXEL_RATIO) {
+					logger.warn(
+						`paint ${id} ${width}x${height} ratio ${paint.ratio.toFixed(3)} (Takumi ${paint.width}x${paint.height})`,
+					);
+				}
+				const paintTree = fromHtml(wrapPixelRoot(prepared, width, paint.ratio));
+				const paintCss = [
+					...sharedSheets,
+					rootBoxCss(width),
+					pixelRootCss(width),
+				];
+				const encoded = await this.encodeNode(paintTree.node, {
+					width: paint.width,
+					height: paint.height,
+					format,
+					quality,
+					css: paintCss,
+					images,
+				});
+				return {
+					encoded,
+					height,
+					ratio: paint.ratio,
+					heightCached,
+					measureMs,
+				};
 			});
-			const boxH = measured.height || 0;
-			const extent = Math.max(1, Math.ceil(contentExtent(measured)));
-			const raw = Math.max(boxH, extent);
-			height = Math.min(16_000, Math.max(1, Math.ceil(raw) + 24));
-			logger.info(
-				`measured box ${measured.width}x${measured.height} content ${extent} using ${height}`,
-			);
-			if (heightKey && height > 64) rememberHeight(heightKey, height);
-		}
-
-		const encoded = await this.encodeNode(parsed.node, {
-			width: width * PIXEL_RATIO,
-			height: height * PIXEL_RATIO,
-			format,
-			quality,
-			stylesheets: paintCss,
-			images,
-		});
 
 		const ms = performance.now() - started;
+		const ratioLabel =
+			ratio === PIXEL_RATIO ? String(PIXEL_RATIO) : ratio.toFixed(3);
+		const split =
+			encoded.rasterMs != null && encoded.encodeMs != null
+				? ` (raster ${fmtMs(encoded.rasterMs)} ${encoded.ext} ${fmtMs(encoded.encodeMs)})`
+				: "";
 		logger.ok(
-			`card ${id} ${width}x${height} @${PIXEL_RATIO}x ${encoded.ext} ${encoded.bytes.length}B in ${Math.round(ms)}ms`,
+			`card ${id} ${width}x${height} @${ratioLabel}x ${paintQuality} ${encoded.ext} ${encoded.bytes.length}B in ${Math.round(ms)}ms${split}`,
 		);
-		return { ...encoded, width, height };
+		return {
+			bytes: encoded.bytes,
+			mime: encoded.mime,
+			ext: encoded.ext,
+			width,
+			height,
+			timings: {
+				assetsMs,
+				measureMs,
+				rasterMs: encoded.rasterMs,
+				encodeMs: encoded.encodeMs,
+				paintMs: ms,
+				heightCache: heightCached,
+			},
+		};
 	}
 
 	private async encodeNode(
@@ -295,28 +372,60 @@ export class RenderEngine {
 			height: number;
 			format: RenderFormat;
 			quality: number;
-			stylesheets?: string[];
+			css?: string[];
 			images?: { src: string; data: Uint8Array }[];
 		},
-	): Promise<{ bytes: Buffer; mime: string; ext: string }> {
-		const bytes = Buffer.from(
+	): Promise<{
+		bytes: Buffer;
+		mime: string;
+		ext: string;
+		rasterMs?: number;
+		encodeMs?: number;
+	}> {
+		const base = {
+			renderer: this.renderer,
+			width: opts.width,
+			height: opts.height,
+			css: opts.css,
+			images: opts.images,
+			emoji: "noto" as const,
+			fontFamilies: [...PHI_FONT_FAMILIES],
+			lang: "zh-CN",
+		};
+		const t0 = performance.now();
+		const raw = Buffer.from(
 			await render(
 				node as never,
 				{
-					renderer: this.renderer,
-					width: opts.width,
-					height: opts.height,
-					format: opts.format,
-					quality: opts.quality,
-					stylesheets: opts.stylesheets,
-					images: opts.images,
-					emoji: "noto",
-					fontFamilies: [...PHI_FONT_FAMILIES],
-					lang: "zh-CN",
+					...base,
+					format: "raw",
 				} as Parameters<typeof render>[1],
 			),
 		);
-		return { bytes, mime: mime(opts.format), ext: ext(opts.format) };
+		const rasterMs = performance.now() - t0;
+		const expected = opts.width * opts.height * 4;
+		if (raw.byteLength !== expected) {
+			throw new Error(
+				`raw pixmap ${raw.byteLength}B != ${opts.width}x${opts.height}x4 (${expected}B)`,
+			);
+		}
+		const t1 = performance.now();
+		const pipeline = sharp(raw, {
+			raw: { width: opts.width, height: opts.height, channels: 4 },
+		});
+		const bytes =
+			opts.format === "jpeg"
+				? await pipeline.jpeg({ quality: opts.quality }).toBuffer()
+				: opts.format === "webp"
+					? await pipeline.webp({ quality: opts.quality }).toBuffer()
+					: await pipeline.png({ compressionLevel: 1 }).toBuffer();
+		return {
+			bytes,
+			mime: mime(opts.format),
+			ext: ext(opts.format),
+			rasterMs,
+			encodeMs: performance.now() - t1,
+		};
 	}
 
 	async renderTemplate(
@@ -326,51 +435,61 @@ export class RenderEngine {
 			compileArt: (page: string, data: Record<string, unknown>) => string;
 			resources: string;
 		},
-		opts: { heightKey?: string } = {},
+		opts: {
+			heightKey?: string;
+			height?: number;
+			paintQuality?: PaintQuality;
+		} = {},
 	): Promise<RenderedImage> {
 		const started = performance.now();
 		let img: RenderedImage;
 		if (typeof def.render === "function") {
+			const tHtml = performance.now();
 			const node = await def.render(data, helpers);
+			const htmlMs = performance.now() - tHtml;
 			if (node && typeof node !== "string") {
 				img = await this.renderJsx(node, def);
 				logger.info(
 					`renderTemplate ${def.id} total ${fmtMs(performance.now() - started)}`,
 				);
-				return img;
+				return withHtmlMs(img, htmlMs);
 			}
 			if (typeof node === "string") {
 				img = await this.renderHtml(node, {
 					width: def.width,
-					height: def.height,
+					height: opts.height ?? def.height,
 					format: def.format,
 					quality: def.quality,
 					baseDir: helpers.resources,
 					id: def.id,
 					heightKey: opts.heightKey,
+					paintQuality: opts.paintQuality,
 				});
 				logger.info(
 					`renderTemplate ${def.id} total ${fmtMs(performance.now() - started)}`,
 				);
-				return img;
+				return withHtmlMs(img, htmlMs);
 			}
 		}
 		if (!def.html)
 			throw new Error(`template ${def.id} has neither html() nor render()`);
+		const tHtml = performance.now();
 		const html = await def.html(data, helpers);
+		const htmlMs = performance.now() - tHtml;
 		img = await this.renderHtml(html, {
 			width: def.width,
-			height: def.height,
+			height: opts.height ?? def.height,
 			format: def.format,
 			quality: def.quality,
 			baseDir: helpers.resources,
 			id: def.id,
 			heightKey: opts.heightKey,
+			paintQuality: opts.paintQuality,
 		});
 		logger.info(
 			`renderTemplate ${def.id} total ${fmtMs(performance.now() - started)}`,
 		);
-		return img;
+		return withHtmlMs(img, htmlMs);
 	}
 
 	private async renderJsx(
@@ -383,16 +502,29 @@ export class RenderEngine {
 		const height = def.height ?? 1800;
 		const format = def.format ?? "png";
 		const quality = def.quality ?? 90;
-		const encoded = await this.encodeNode(node, {
-			width,
-			height,
-			format,
-			quality,
-		});
+		const encoded = await renderLock.run(() =>
+			this.encodeNode(node, {
+				width,
+				height,
+				format,
+				quality,
+			}),
+		);
 		logger.ok(
 			`card ${def.id} ${width}x${height} ${encoded.ext} ${encoded.bytes.length}B in ${Math.round(performance.now() - started)}ms`,
 		);
-		return { ...encoded, width, height };
+		return {
+			bytes: encoded.bytes,
+			mime: encoded.mime,
+			ext: encoded.ext,
+			width,
+			height,
+			timings: {
+				rasterMs: encoded.rasterMs,
+				encodeMs: encoded.encodeMs,
+				paintMs: performance.now() - started,
+			},
+		};
 	}
 
 	async close() {

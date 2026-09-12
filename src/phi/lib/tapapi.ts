@@ -1,5 +1,8 @@
-export const TAPAPI_TIMEOUT_MS = 15_000;
-export const TAPAPI_SAVE_TIMEOUT_MS = 25_000;
+import { AsyncLocalStorage } from "node:async_hooks";
+
+export const TAPAPI_TIMEOUT_MS = 30_000;
+export const TAPAPI_SAVE_TIMEOUT_MS = 45_000;
+export const TAPAPI_QR_POLL_TIMEOUT_MS = 15_000;
 
 export class TapApiError extends Error {
 	readonly timeout: boolean;
@@ -28,6 +31,17 @@ export function isTapApiFailure(err: unknown): boolean {
 	return err instanceof TapApiError || isTimeoutError(err);
 }
 
+type TapWaitStore = { notify: () => void; sent: boolean };
+
+const tapWait = new AsyncLocalStorage<TapWaitStore>();
+
+export function withTapWait<T>(
+	notify: () => void,
+	fn: () => Promise<T>,
+): Promise<T> {
+	return tapWait.run({ notify, sent: false }, fn);
+}
+
 function withTimeout(
 	signal: AbortSignal | null | undefined,
 	timeoutMs: number,
@@ -41,6 +55,14 @@ export async function tapFetch(
 	init: RequestInit = {},
 	timeoutMs = TAPAPI_TIMEOUT_MS,
 ): Promise<Response> {
+	const ctx = tapWait.getStore();
+	if (ctx && !ctx.sent) {
+		ctx.sent = true;
+		try {
+			ctx.notify();
+		} catch {}
+		await new Promise<void>((resolve) => setImmediate(resolve));
+	}
 	try {
 		const res = await fetch(url, {
 			...init,

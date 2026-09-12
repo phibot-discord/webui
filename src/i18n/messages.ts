@@ -16,7 +16,6 @@ export type Messages = {
 		lookupsTitle: string;
 		lookups: { name: string; blurb: string }[];
 		footer: string;
-		scoreboard: string;
 		boardTitle: string;
 		boardLede: string;
 		showFull: string;
@@ -51,6 +50,7 @@ export type Messages = {
 		qr: string;
 		cancel: string;
 		starting: string;
+		waitingTap: string;
 		scan: string;
 		scanned: string;
 		openPhone: string;
@@ -72,6 +72,9 @@ export type Messages = {
 	public: { hint: string };
 	card: {
 		charts: string;
+		quality: string;
+		qualityFast: string;
+		qualityHigh: string;
 		download: string;
 		tagProfile: string;
 		rendering: string;
@@ -79,16 +82,52 @@ export type Messages = {
 		unreachable: string;
 		alt: string;
 		titles: Record<"b30" | "x30" | "fc30" | "hisb30" | "info", string>;
+		stats: string;
+		statsHit: string;
+		statsMiss: string;
+		statsCache: string;
+		statsStoreR2: string;
+		statsStoreKv: string;
+		statsRender: string;
+		statsHeight: string;
+		statsLookup: string;
+		statsData: string;
+		statsHtml: string;
+		statsAssets: string;
+		statsMeasure: string;
+		statsRaster: string;
+		statsEncode: string;
+		statsPaint: string;
+		statsServer: string;
+		statsWait: string;
+		statsHintCache: string;
+		statsHintHeight: string;
+		statsHintLookup: string;
+		statsHintData: string;
+		statsHintHtml: string;
+		statsHintAssets: string;
+		statsHintMeasure: string;
+		statsHintRaster: string;
+		statsHintEncode: string;
+		statsHintPaint: string;
+		statsHintServer: string;
+		statsHintWait: string;
+		statsHintStoreR2: string;
+		statsHintStoreKv: string;
+		statsHintRender: string;
 	};
 	refresh: {
 		save: string;
 		pending: string;
+		waitingTap: string;
 		wait: string;
 		failed: string;
+		bypass: string;
+		bypassPending: string;
+		bypassFailed: string;
 	};
 	share: {
 		menu: string;
-		create: string;
 		creating: string;
 		link: string;
 		copy: string;
@@ -104,6 +143,7 @@ export type Messages = {
 		no_save: string;
 		hisb30_empty: string;
 		refresh_cooldown: string;
+		cache_bypass_cooldown: string;
 		refresh_failed: string;
 		rate_limit: string;
 		share_not_found: string;
@@ -154,7 +194,6 @@ export const en: Messages = {
 		],
 		footer:
 			"PhiBot draws Phigros cards from a save bound to your Discord login.",
-		scoreboard: "B30",
 		boardTitle: "Your B30, drawn for you",
 		boardLede:
 			"Player card, best 30 with overflow, and an RKS breakdown in one image. Run /b30 in Discord or open it here.",
@@ -190,6 +229,7 @@ export const en: Messages = {
 		qr: "Scan TapTap",
 		cancel: "Cancel",
 		starting: "Getting QR…",
+		waitingTap: "Waiting for TapTap…",
 		scan: "Scan with TapTap.",
 		scanned: "QR scanned. Confirm on your phone.",
 		openPhone: "Open on this phone",
@@ -213,7 +253,10 @@ export const en: Messages = {
 	},
 	card: {
 		charts: "Charts",
-		download: "Download PNG",
+		quality: "Quality",
+		qualityFast: "Faster · normal",
+		qualityHigh: "High quality · slower",
+		download: "Download JPEG",
 		tagProfile: "Tag profile",
 		rendering: "Rendering card…",
 		renderFailed: "Could not render this card.",
@@ -226,16 +269,55 @@ export const en: Messages = {
 			hisb30: "Historical B30",
 			info: "Player info",
 		},
+		stats: "Timing",
+		statsHit: "Hit",
+		statsMiss: "Miss",
+		statsCache: "JPEG",
+		statsStoreR2: "R2",
+		statsStoreKv: "KV",
+		statsRender: "Render",
+		statsHeight: "Height",
+		statsLookup: "Cache lookup",
+		statsData: "Data",
+		statsHtml: "HTML",
+		statsAssets: "Assets",
+		statsMeasure: "Measure",
+		statsRaster: "Raster",
+		statsEncode: "Encode",
+		statsPaint: "Paint",
+		statsServer: "Server",
+		statsWait: "Request",
+		statsHintCache:
+			"Finished JPEG. Hit returns the stored image. Miss paints it this request. Same save, language, and quality reuse it.",
+		statsHintHeight:
+			"Pixel height of this layout. Hit skips measuring. Same save, language, and quality reuse it.",
+		statsHintLookup: "Time spent looking up the stored JPEG.",
+		statsHintData: "Loading save data, catalog, and chart tags.",
+		statsHintHtml: "Building the card HTML.",
+		statsHintAssets: "Loading jackets, fonts, and other images.",
+		statsHintMeasure:
+			"Measuring how tall the card is. Skipped when height cache hits.",
+		statsHintRaster: "Painting the card into pixels.",
+		statsHintEncode: "Encoding the JPEG.",
+		statsHintPaint: "Measure, raster, and encode together.",
+		statsHintServer: "Server time for this request.",
+		statsHintWait: "Your wait, including download.",
+		statsHintStoreR2: "Served from R2 object storage.",
+		statsHintStoreKv: "Served from KV.",
+		statsHintRender: "Cache miss — this JPEG was painted now.",
 	},
 	refresh: {
 		save: "Refresh save",
 		pending: "Refreshing…",
+		waitingTap: "Waiting for TapTap…",
 		wait: "Wait {seconds}s",
 		failed: "Refresh failed.",
+		bypass: "Bypass cache",
+		bypassPending: "Bypassing…",
+		bypassFailed: "Could not bypass cache.",
 	},
 	share: {
 		menu: "Share",
-		create: "Create public link",
 		creating: "Creating…",
 		link: "Public link",
 		copy: "Copy",
@@ -256,6 +338,8 @@ export const en: Messages = {
 			"Need score history or at least two save updates to show B30 changes.",
 		refresh_cooldown:
 			"Refresh is on cooldown. Try again in a couple of minutes.",
+		cache_bypass_cooldown:
+			"Cache bypass is on cooldown. Try again in a few minutes.",
 		refresh_failed: "Refresh failed.",
 		rate_limit: "Too many requests. Wait a minute.",
 		share_not_found: "share link not found",
@@ -301,7 +385,6 @@ export const zh: Messages = {
 			{ name: "fc30", blurb: "Full Combo 最好的谱" },
 		],
 		footer: "PhiBot 用绑定到你 Discord 登录的存档出 Phigros 成绩图",
-		scoreboard: "B30",
 		boardTitle: "一张图看完你的 B30",
 		boardLede:
 			"玩家信息、Best 30 与溢出曲目、RKS 分析全在一张图里。在 Discord 里发 /b30，或直接在这里查看",
@@ -337,6 +420,7 @@ export const zh: Messages = {
 		qr: "扫 TapTap",
 		cancel: "取消",
 		starting: "正在取码…",
+		waitingTap: "正在等待 TapTap…",
 		scan: "请用 TapTap 扫码。",
 		scanned: "已扫码。请在手机上确认。",
 		openPhone: "在这台手机上打开",
@@ -360,7 +444,10 @@ export const zh: Messages = {
 	},
 	card: {
 		charts: "谱面数",
-		download: "下载 PNG",
+		quality: "画质",
+		qualityFast: "更快 · 普通",
+		qualityHigh: "高画质 · 较慢",
+		download: "下载 JPEG",
 		tagProfile: "谱面标签",
 		rendering: "正在出图…",
 		renderFailed: "无法生成这张成绩图",
@@ -373,16 +460,54 @@ export const zh: Messages = {
 			hisb30: "历史 B30",
 			info: "玩家信息",
 		},
+		stats: "耗时",
+		statsHit: "命中",
+		statsMiss: "未命中",
+		statsCache: "JPEG",
+		statsStoreR2: "R2",
+		statsStoreKv: "KV",
+		statsRender: "渲染",
+		statsHeight: "高度",
+		statsLookup: "缓存查找",
+		statsData: "数据",
+		statsHtml: "HTML",
+		statsAssets: "资源",
+		statsMeasure: "测量",
+		statsRaster: "栅格",
+		statsEncode: "编码",
+		statsPaint: "绘制",
+		statsServer: "服务端",
+		statsWait: "请求",
+		statsHintCache:
+			"成品 JPEG。命中直接返回已存图片；未命中则当场绘制。存档、语言、画质不变即可复用。",
+		statsHintHeight:
+			"这张图的像素高度。命中可跳过测量。存档、语言、画质不变即可复用。",
+		statsHintLookup: "查找已存 JPEG 的耗时。",
+		statsHintData: "加载存档、曲目目录和谱面标签。",
+		statsHintHtml: "生成卡片 HTML。",
+		statsHintAssets: "加载曲绘、字体和其他图片。",
+		statsHintMeasure: "测量卡片高度。高度缓存命中时可跳过。",
+		statsHintRaster: "把卡片画成像素。",
+		statsHintEncode: "编码 JPEG。",
+		statsHintPaint: "测量、栅格和编码合计。",
+		statsHintServer: "本次请求的服务端耗时。",
+		statsHintWait: "等到图片的总时间，含下载。",
+		statsHintStoreR2: "从 R2 对象存储读取。",
+		statsHintStoreKv: "从 KV 读取。",
+		statsHintRender: "缓存未命中，这次当场绘制。",
 	},
 	refresh: {
 		save: "刷新存档",
 		pending: "正在刷新…",
+		waitingTap: "正在等待 TapTap…",
 		wait: "请等待 {seconds} 秒",
 		failed: "刷新失败",
+		bypass: "绕过缓存",
+		bypassPending: "正在重绘…",
+		bypassFailed: "无法绕过缓存",
 	},
 	share: {
 		menu: "分享",
-		create: "生成公开链接",
 		creating: "正在生成…",
 		link: "公开链接",
 		copy: "复制",
@@ -401,6 +526,7 @@ export const zh: Messages = {
 		no_save: "还没有缓存存档。请在本页刷新",
 		hisb30_empty: "需要成绩历史，或至少两次存档更新，才能显示 B30 变化",
 		refresh_cooldown: "刷新仍在冷却中 请稍后再试",
+		cache_bypass_cooldown: "绕过缓存仍在冷却中 请稍后再试",
 		refresh_failed: "刷新失败",
 		rate_limit: "请求过于频繁，请稍等一分钟",
 		share_not_found: "分享链接不存在",

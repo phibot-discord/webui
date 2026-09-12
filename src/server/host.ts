@@ -12,6 +12,7 @@ import type { PhiRuntime } from "@/phi/lib/runtime";
 import { loadWebConfig } from "./config";
 import { type DataHost, getDataHost } from "./data-host";
 import { appRoot, assetsDir } from "./paths";
+import type { PaintQuality } from "./render/paint-budget";
 import type { App, FontEntry, RenderedImage, TemplateDefinition } from "./sdk";
 
 export type { DataHost };
@@ -27,7 +28,11 @@ export type WebHost = DataHost & {
 	render: (
 		id: string,
 		data?: Record<string, unknown>,
-		opts?: { heightKey?: string },
+		opts?: {
+			heightKey?: string;
+			height?: number;
+			paintQuality?: PaintQuality;
+		},
 	) => Promise<RenderedImage>;
 	lib: DataHost["lib"] & {
 		b19Card: typeof b19Card;
@@ -52,13 +57,7 @@ export async function getHost(): Promise<WebHost> {
 			throw err;
 		});
 	}
-	const host = await g.__phiWebHost;
-	const [{ hydrateCss }, { PHI_CSS }] = await Promise.all([
-		import("./vfs"),
-		import("@/phi/css/bundle"),
-	]);
-	hydrateCss(PHI_CSS);
-	return host;
+	return g.__phiWebHost;
 }
 
 async function bootRender(): Promise<WebHost> {
@@ -125,7 +124,11 @@ async function bootRender(): Promise<WebHost> {
 	const renderId = async (
 		id: string,
 		data: Record<string, unknown> = {},
-		opts: { heightKey?: string } = {},
+		opts: {
+			heightKey?: string;
+			height?: number;
+			paintQuality?: PaintQuality;
+		} = {},
 	) => {
 		const def = templates.get(id);
 		if (!def) throw new Error(`unknown template: ${id}`);

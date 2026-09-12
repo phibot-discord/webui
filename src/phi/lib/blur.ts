@@ -34,7 +34,7 @@ export async function blurredFile(
 		.resize({ width: 1800, height: 1800, fit: "cover" })
 		.blur(sigma)
 		.modulate({ brightness: 0.62 })
-		.png()
+		.png({ compressionLevel: 1 })
 		.toFile(out);
 	return out;
 }
@@ -42,6 +42,18 @@ export async function blurredFile(
 export async function blurCardBackgrounds(html: string): Promise<string> {
 	const blockRe =
 		/<div\b[^>]*class="[^"]*\bbackground\b[^"]*"[^>]*>[\s\S]*?<\/div>/gi;
+	const srcs = new Set<string>();
+	for (const m of html.matchAll(blockRe)) {
+		for (const im of m[0].matchAll(/(<img\b[^>]*\bsrc=")([^"]+)(")/gi)) {
+			if (im[2]) srcs.add(im[2]);
+		}
+	}
+	const blurred = new Map<string, string>();
+	await Promise.all(
+		[...srcs].map(async (src) => {
+			blurred.set(src, await blurredFile(src));
+		}),
+	);
 	let out = "";
 	let last = 0;
 	for (const m of html.matchAll(blockRe)) {
@@ -52,8 +64,8 @@ export async function blurCardBackgrounds(html: string): Promise<string> {
 		for (let i = imgs.length - 1; i >= 0; i--) {
 			const im = imgs[i]!;
 			const at = im.index ?? 0;
-			const blurred = await blurredFile(im[2]!);
-			block = `${block.slice(0, at)}${im[1]}${blurred}${im[3]}${block.slice(at + im[0].length)}`;
+			const next = blurred.get(im[2]!) ?? im[2]!;
+			block = `${block.slice(0, at)}${im[1]}${next}${im[3]}${block.slice(at + im[0].length)}`;
 		}
 		out += block;
 		last = start + m[0].length;
@@ -112,9 +124,7 @@ function backgroundSrc(html: string) {
 		/<div\b[^>]*class="[^"]*\bbackground\b[^"]*"[^>]*>[\s\S]*?<\/div>/i.exec(
 			html,
 		)?.[0];
-	const bg = block
-		? /<img\b[^>]*\bsrc="([^"]+)"/i.exec(block)?.[1]
-		: undefined;
+	const bg = block ? /<img\b[^>]*\bsrc="([^"]+)"/i.exec(block)?.[1] : undefined;
 	if (bg) return bg;
 	return /<div class="ill">\s*<img\b[^>]*\bsrc="([^"]+)"/i.exec(html)?.[1];
 }
@@ -146,10 +156,11 @@ export async function contrastOverBackground(html: string): Promise<string> {
 			const key = `${file}|${st.mtimeMs}|${st.size}`;
 			let luma = lumaCache.get(key);
 			if (!luma) {
-				luma = {
-					top: await sampleBandMedian(file, 0, 0.12),
-					bottom: await sampleBandMedian(file, 0.88, 1),
-				};
+				const [top, bottom] = await Promise.all([
+					sampleBandMedian(file, 0, 0.12),
+					sampleBandMedian(file, 0.88, 1),
+				]);
+				luma = { top, bottom };
 				if (lumaCache.size >= LUMA_CACHE_MAX) {
 					const oldest = lumaCache.keys().next().value;
 					if (oldest !== undefined) lumaCache.delete(oldest);

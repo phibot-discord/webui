@@ -1,3 +1,4 @@
+import { cfFetch } from "./cf-fetch";
 import { logger } from "./logger";
 import type { Kv } from "./sdk";
 
@@ -129,23 +130,10 @@ function restRemote(cfg: KvConfig): RemoteKv {
 	const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${namespaceId}`;
 	const headers = { Authorization: `Bearer ${apiToken}` };
 
-	const kvFetch = async (
-		url: string,
-		init?: RequestInit,
-		attempt = 0,
-	): Promise<Response> => {
-		const res = await fetch(url, init);
-		if (res.status === 429 && attempt < 4) {
-			await new Promise((resolve) => setTimeout(resolve, 1100 * (attempt + 1)));
-			return kvFetch(url, init, attempt + 1);
-		}
-		return res;
-	};
-
 	return {
 		label: namespaceId,
 		getRaw: async (key) => {
-			const res = await kvFetch(`${base}/values/${encodeURIComponent(key)}`, {
+			const res = await cfFetch(`${base}/values/${encodeURIComponent(key)}`, {
 				headers,
 			});
 			if (res.status === 404) return undefined;
@@ -161,7 +149,7 @@ function restRemote(cfg: KvConfig): RemoteKv {
 			const url = ttlSec
 				? `${base}/values/${encodeURIComponent(key)}?expiration_ttl=${ttlSec}`
 				: `${base}/values/${encodeURIComponent(key)}`;
-			const res = await kvFetch(url, {
+			const res = await cfFetch(url, {
 				method: "PUT",
 				headers: { ...headers, "Content-Type": "text/plain; charset=utf-8" },
 				body: value,
@@ -174,7 +162,7 @@ function restRemote(cfg: KvConfig): RemoteKv {
 			}
 		},
 		delRaw: async (key) => {
-			const res = await kvFetch(`${base}/values/${encodeURIComponent(key)}`, {
+			const res = await cfFetch(`${base}/values/${encodeURIComponent(key)}`, {
 				method: "DELETE",
 				headers,
 			});
@@ -192,7 +180,7 @@ function restRemote(cfg: KvConfig): RemoteKv {
 				const params = new URLSearchParams({ limit: "1000" });
 				if (prefix) params.set("prefix", prefix);
 				if (cursor) params.set("cursor", cursor);
-				const res = await kvFetch(`${base}/keys?${params}`, { headers });
+				const res = await cfFetch(`${base}/keys?${params}`, { headers });
 				if (!res.ok) {
 					const text = await res.text().catch(() => "");
 					throw new Error(
@@ -213,7 +201,7 @@ function restRemote(cfg: KvConfig): RemoteKv {
 			return names;
 		},
 		ping: async () => {
-			const res = await kvFetch(`${base}/keys?limit=10`, { headers });
+			const res = await cfFetch(`${base}/keys?limit=10`, { headers });
 			if (!res.ok) {
 				const text = await res.text().catch(() => "");
 				throw new Error(`KV ping failed: ${res.status} ${text}`.slice(0, 400));
@@ -225,7 +213,9 @@ function restRemote(cfg: KvConfig): RemoteKv {
 export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 	const remote = restRemote(cfg);
 	const overlay = new Map<string, Envelope>();
+	const knownMissing = new Set<string>();
 	const writeTail = new Map<string, Promise<unknown>>();
+	const readInflight = new Map<string, Promise<Envelope | undefined>>();
 
 	const enqueue = <T>(key: string, fn: () => Promise<T>): Promise<T> => {
 		const prev = writeTail.get(key) ?? Promise.resolve();
@@ -251,25 +241,36 @@ export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 	const delRemote = (key: string) => remote.delRaw(key);
 
 	const getRemote = async (key: string): Promise<Envelope | undefined> => {
-		const raw = await remote.getRaw(key);
-		if (!raw) return undefined;
-		const envl = parseEnvelope(raw);
-		if (!alive(envl)) {
-			overlay.delete(key);
-			void delRemote(key);
-			return undefined;
-		}
-		overlay.set(key, envl);
-		return envl;
+		const pending = readInflight.get(key);
+		if (pending) return pending;
+		const job = (async () => {
+			const raw = await remote.getRaw(key);
+			if (!raw) return undefined;
+			const envl = parseEnvelope(raw);
+			if (!alive(envl)) {
+				overlay.delete(key);
+				knownMissing.add(key);
+				void delRemote(key);
+				return undefined;
+			}
+			knownMissing.delete(key);
+			overlay.set(key, envl);
+			return envl;
+		})().finally(() => readInflight.delete(key));
+		readInflight.set(key, job);
+		return job;
 	};
 
 	const listRemote = (prefix: string) => remote.listRaw(prefix);
 
 	const read = async (key: string): Promise<Envelope | undefined> => {
+		if (knownMissing.has(key)) return undefined;
 		const local = overlay.get(key);
 		if (alive(local)) return local;
 		if (local) overlay.delete(key);
-		return getRemote(key);
+		const env = await getRemote(key);
+		if (!env) knownMissing.add(key);
+		return env;
 	};
 
 	const write = async (
@@ -288,6 +289,7 @@ export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 				if (existing) return null;
 			}
 			overlay.set(key, env);
+			knownMissing.delete(key);
 			await putRemote(key, env);
 			return "OK";
 		});
@@ -303,6 +305,7 @@ export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 		let n = 0;
 		for (const key of flat) {
 			overlay.delete(key);
+			knownMissing.add(key);
 			await enqueue(key, () => delRemote(key));
 			n += 1;
 		}
@@ -341,6 +344,7 @@ export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 				const n = Number(env?.d || 0) + 1;
 				const next: Envelope = { d: String(n), e: env?.e };
 				overlay.set(key, next);
+				knownMissing.delete(key);
 				await putRemote(key, next);
 				return n;
 			});

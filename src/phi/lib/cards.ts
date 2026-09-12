@@ -1,12 +1,14 @@
+import { saveRevision } from "@/server/bound";
+import { logger } from "@/server/logger";
 import type { Kv } from "@/server/sdk";
 import { buildRksHistogram, getB30AnalysisRecords } from "./b30-analysis";
 import {
 	cardCopy,
 	fill,
+	resolvePhiLocale,
 	localizeChartTagLabels,
 	localizeSuggestFields,
 	type PhiLocale,
-	resolvePhiLocale,
 } from "./card-i18n";
 import type { Catalog } from "./catalog";
 import { tagAnalysisFor } from "./chart-tags-api";
@@ -27,20 +29,30 @@ async function b30AnalysisFor(
 	notes: UserNotes,
 	nnum: number,
 	locale: PhiLocale,
+	db: Kv,
+	save: Save,
 ) {
 	if (notes.showB30Analysis === false || nnum !== 33) return null;
 	const records = getB30AnalysisRecords(save_b19);
 	const histogram = buildRksHistogram(records);
 	const showTags = tagAnalysisEnabled(notes);
 	let tagAnalysis = null;
+	let tagLookupFailed = false;
 	if (showTags && records.length) {
 		try {
 			tagAnalysis = localizeChartTagLabels(
-				await tagAnalysisFor(records),
+				await tagAnalysisFor(records, {
+					saveRevision: saveRevision(save),
+					db,
+				}),
 				locale,
 			);
-		} catch {
+		} catch (err) {
 			tagAnalysis = null;
+			tagLookupFailed = true;
+			logger.warn(
+				`tag lookup failed: ${err instanceof Error ? `${err.name} ${err.message}` : err}`,
+			);
 		}
 	}
 	return {
@@ -51,6 +63,7 @@ async function b30AnalysisFor(
 			: "",
 		showTags,
 		histogramWide: !showTags,
+		tagLookupFailed,
 	};
 }
 
@@ -66,10 +79,14 @@ export async function b19Card(
 		mode?: "b30" | "x30" | "fc30" | "p30";
 		accMin?: number;
 		locale?: PhiLocale | string;
+		showTagAnalysis?: boolean;
 	} = {},
 ) {
 	const notes = await getNotes(db, userId);
-	const locale = resolvePhiLocale(notes.locale, extra.locale);
+	if (extra.showTagAnalysis != null) {
+		notes.showTagAnalysis = extra.showTagAnalysis;
+	}
+	const locale = resolvePhiLocale(extra.locale, notes.locale);
 	const t = cardCopy(locale);
 	const nnum = extra.nnum ?? 33;
 	let save_b19: { phi?: unknown[]; b19_list?: unknown[] };
@@ -155,7 +172,7 @@ export async function b19Card(
 		stats,
 		spInfo,
 		locale,
-		b30Analysis: await b30AnalysisFor(save_b19, notes, nnum, locale),
+		b30Analysis: await b30AnalysisFor(save_b19, notes, nnum, locale, db, save),
 		BSIllPath: rt.getInfo.getill("BANGINGSTRIKE.DewPleiades.0", "common"),
 	};
 }
@@ -169,7 +186,7 @@ export async function infoCard(
 	extra: { locale?: PhiLocale | string } = {},
 ) {
 	const notes = await getNotes(db, userId);
-	const locale = resolvePhiLocale(notes.locale, extra.locale);
+	const locale = resolvePhiLocale(extra.locale, notes.locale);
 	const stats = await save.getStats();
 	const money = save.gameProgress?.money || [0, 0, 0, 0, 0];
 	let backgroundurl = "";

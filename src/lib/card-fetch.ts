@@ -1,0 +1,129 @@
+import {
+	CARD_STATS_HEADER,
+	type CardStats,
+	parseCardStats,
+} from "@/lib/card-stats";
+
+export const CARD_FETCH_REUSE_MS = 2_500;
+const CARD_FETCH_MAX = 8;
+const CARD_FETCH_TIMEOUT_MS = 55_000;
+
+export type CardBlob = {
+	url: string;
+	stats?: CardStats;
+};
+
+type Slot = {
+	promise: Promise<CardBlob>;
+	at: number;
+	value?: CardBlob;
+};
+
+const slots = new Map<string, Slot>();
+
+export function clearCardBlobs() {
+	for (const slot of slots.values()) {
+		if (slot.value) forgetUrl(slot.value.url);
+	}
+	slots.clear();
+}
+
+export const resetCardFetchCacheForTest = clearCardBlobs;
+
+export function peekCardBlob(src: string): CardBlob | undefined {
+	const slot = slots.get(src);
+	if (!slot?.value) return undefined;
+	if (Date.now() - slot.at > CARD_FETCH_REUSE_MS) return undefined;
+	return slot.value;
+}
+
+export function loadCardBlob(src: string): Promise<CardBlob> {
+	const now = Date.now();
+	const hit = slots.get(src);
+	if (hit?.value && now - hit.at <= CARD_FETCH_REUSE_MS) {
+		return Promise.resolve(hit.value);
+	}
+	if (hit?.promise) return hit.promise;
+	const promise = fetchCard(src);
+	const slot: Slot = { promise, at: now };
+	slots.set(src, slot);
+	trimSlots();
+	promise.then(
+		(value) => {
+			if (slots.get(src) !== slot) {
+				forgetUrl(value.url);
+				return;
+			}
+			slot.value = value;
+			slot.at = Date.now();
+		},
+		() => {
+			if (slots.get(src) === slot) slots.delete(src);
+		},
+	);
+	return promise;
+}
+
+async function fetchCard(src: string): Promise<CardBlob> {
+	const ctrl = new AbortController();
+	const timer = setTimeout(() => ctrl.abort(), CARD_FETCH_TIMEOUT_MS);
+	const t0 = performance.now();
+	try {
+		const res = await fetch(src, { cache: "reload", signal: ctrl.signal });
+		if (!res.ok) {
+			const data = (await res
+				.json()
+				.catch(() => ({ error: res.statusText }))) as {
+				error?: string;
+			};
+			const err = new Error(data.error || res.statusText);
+			err.name = "http";
+			throw err;
+		}
+		const parsed = parseCardStats(res.headers.get(CARD_STATS_HEADER));
+		const blob = await res.blob();
+		const waitMs = Math.round(performance.now() - t0);
+		const stats = parsed
+			? { ...parsed, waitMs }
+			: { cache: "miss" as const, cacheMs: 0, totalMs: waitMs, waitMs };
+		return { url: objectUrl(blob), stats };
+	} catch (err) {
+		if (err instanceof Error && err.name === "http") throw err;
+		const abort =
+			(err instanceof DOMException && err.name === "AbortError") ||
+			(err instanceof Error &&
+				(err.name === "AbortError" || err.name === "TimeoutError"));
+		const fail = new Error(abort ? "abort" : "network");
+		fail.name = abort ? "abort" : "network";
+		throw fail;
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+function objectUrl(blob: Blob) {
+	if (typeof URL.createObjectURL === "function") {
+		return URL.createObjectURL(blob);
+	}
+	return `blob:card:${Math.random().toString(36).slice(2)}`;
+}
+
+function forgetUrl(url: string) {
+	if (!url.startsWith("blob:")) return;
+	if (typeof URL.revokeObjectURL !== "function") return;
+	try {
+		URL.revokeObjectURL(url);
+	} catch {
+		/* node / fake blob urls */
+	}
+}
+
+function trimSlots() {
+	while (slots.size > CARD_FETCH_MAX) {
+		const oldest = slots.keys().next().value;
+		if (oldest === undefined) return;
+		const slot = slots.get(oldest);
+		slots.delete(oldest);
+		if (slot?.value) forgetUrl(slot.value.url);
+	}
+}

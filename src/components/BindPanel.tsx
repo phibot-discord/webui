@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/i18n/provider";
 import { apiErrorText } from "@/lib/api-error";
+import { readJsonWithTapWait, tapWaitFailed } from "@/lib/tap-wait";
 
 type ServerKind = "cn" | "gb";
 type Phase = "idle" | "qr" | "scanned" | "working";
@@ -18,6 +19,7 @@ export function BindPanel() {
 	const [qrSrc, setQrSrc] = useState<string>();
 	const [remain, setRemain] = useState(0);
 	const [token, setToken] = useState("");
+	const [waitingTap, setWaitingTap] = useState(false);
 	const expiresAt = useRef(0);
 	const intervalMs = useRef(2500);
 
@@ -31,6 +33,7 @@ export function BindPanel() {
 			setRemain(left);
 			if (left === 0) {
 				setError(m.errors.qr_expired);
+				setWaitingTap(false);
 				setPhase("idle");
 				void fetch("/api/bind/cancel", { method: "POST" }).catch(
 					() => undefined,
@@ -46,27 +49,31 @@ export function BindPanel() {
 		const poll = async () => {
 			try {
 				const res = await fetch("/api/bind/poll", { method: "POST" });
-				const data = (await res.json().catch(() => ({}))) as {
-					status?: string;
-					error?: string;
-					code?: string;
-					playerId?: string;
-				};
+				const { httpStatus, data } = await readJsonWithTapWait(res, () =>
+					setWaitingTap(true),
+				);
 				if (dead) return;
 				if (data.status === "bound") {
 					router.refresh();
 					return;
 				}
 				if (data.status === "scanned") setPhase("scanned");
-				if (!res.ok) {
+				if (tapWaitFailed(res, data)) {
 					setError(
-						apiErrorText(res, data, m.errors.tapapi_unavailable, m.bind.failed),
+						apiErrorText(
+							{ status: httpStatus },
+							data,
+							m.errors.tapapi_unavailable,
+							m.bind.failed,
+						),
 					);
+					setWaitingTap(false);
 					setPhase("idle");
 				}
 			} catch {
 				if (!dead) {
 					setError(m.bind.failed);
+					setWaitingTap(false);
 					setPhase("idle");
 				}
 			}
@@ -81,6 +88,7 @@ export function BindPanel() {
 
 	async function startQr() {
 		setError(undefined);
+		setWaitingTap(false);
 		setPhase("working");
 		try {
 			const res = await fetch("/api/bind/qr", {
@@ -88,34 +96,39 @@ export function BindPanel() {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ server, global: server === "gb" }),
 			});
-			const data = (await res.json().catch(() => ({}))) as {
-				error?: string;
-				code?: string;
-				expiresIn?: number;
-				intervalMs?: number;
-				openUrl?: string;
-			};
-			if (!res.ok) {
+			const { httpStatus, data } = await readJsonWithTapWait(res, () =>
+				setWaitingTap(true),
+			);
+			if (tapWaitFailed(res, data)) {
 				setError(
-					apiErrorText(res, data, m.errors.tapapi_unavailable, m.bind.failed),
+					apiErrorText(
+						{ status: httpStatus },
+						data,
+						m.errors.tapapi_unavailable,
+						m.bind.failed,
+					),
 				);
+				setWaitingTap(false);
 				setPhase("idle");
 				return;
 			}
-			expiresAt.current = Date.now() + (data.expiresIn || 300) * 1000;
-			intervalMs.current = data.intervalMs || 2500;
-			setRemain(data.expiresIn || 300);
-			setOpenUrl(data.openUrl);
+			expiresAt.current = Date.now() + (Number(data.expiresIn) || 300) * 1000;
+			intervalMs.current = Number(data.intervalMs) || 2500;
+			setRemain(Number(data.expiresIn) || 300);
+			setOpenUrl(typeof data.openUrl === "string" ? data.openUrl : undefined);
 			setQrSrc(`/api/bind/qr/image?t=${Date.now()}`);
+			setWaitingTap(false);
 			setPhase("qr");
 		} catch {
 			setError(m.bind.failed);
+			setWaitingTap(false);
 			setPhase("idle");
 		}
 	}
 
 	async function cancelQr() {
 		setPhase("idle");
+		setWaitingTap(false);
 		setQrSrc(undefined);
 		setOpenUrl(undefined);
 		await fetch("/api/bind/cancel", { method: "POST" }).catch(() => undefined);
@@ -124,6 +137,7 @@ export function BindPanel() {
 	async function submitToken(e: FormEvent) {
 		e.preventDefault();
 		setError(undefined);
+		setWaitingTap(false);
 		setPhase("working");
 		try {
 			const res = await fetch("/api/bind/token", {
@@ -135,14 +149,19 @@ export function BindPanel() {
 					global: server === "gb",
 				}),
 			});
-			const data = (await res.json().catch(() => ({}))) as {
-				error?: string;
-				code?: string;
-			};
-			if (!res.ok) {
+			const { httpStatus, data } = await readJsonWithTapWait(res, () =>
+				setWaitingTap(true),
+			);
+			if (tapWaitFailed(res, data)) {
 				setError(
-					apiErrorText(res, data, m.errors.tapapi_unavailable, m.bind.failed),
+					apiErrorText(
+						{ status: httpStatus },
+						data,
+						m.errors.tapapi_unavailable,
+						m.bind.failed,
+					),
 				);
+				setWaitingTap(false);
 				setPhase("idle");
 				return;
 			}
@@ -150,11 +169,12 @@ export function BindPanel() {
 			router.refresh();
 		} catch {
 			setError(m.bind.failed);
+			setWaitingTap(false);
 			setPhase("idle");
 		}
 	}
 
-	const busy = phase === "working";
+	const busy = phase === "working" || waitingTap;
 	const tokenOk = /^[a-z0-9A-Z]{25}$/.test(token.trim());
 
 	return (
@@ -193,7 +213,11 @@ export function BindPanel() {
 								<img src={qrSrc} width={220} height={220} alt={m.bind.qrAlt} />
 							) : null}
 							<p className="lede">
-								{phase === "scanned" ? m.bind.scanned : m.bind.scan}
+								{waitingTap
+									? m.bind.waitingTap
+									: phase === "scanned"
+										? m.bind.scanned
+										: m.bind.scan}
 							</p>
 							{openUrl ? (
 								<p>
@@ -220,7 +244,11 @@ export function BindPanel() {
 							disabled={busy}
 							onClick={() => void startQr()}
 						>
-							{busy ? m.bind.starting : m.bind.qr}
+							{busy
+								? waitingTap
+									? m.bind.waitingTap
+									: m.bind.starting
+								: m.bind.qr}
 						</button>
 					)}
 				</div>
@@ -248,7 +276,7 @@ export function BindPanel() {
 							type="submit"
 							disabled={busy || !tokenOk}
 						>
-							{m.bind.tokenSubmit}
+							{busy && waitingTap ? m.bind.waitingTap : m.bind.tokenSubmit}
 						</button>
 					</form>
 				</div>

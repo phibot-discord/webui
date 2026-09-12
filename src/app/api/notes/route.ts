@@ -1,7 +1,8 @@
 import { sessionUserId } from "@/auth";
-import { getNotes, setShowTagAnalysis } from "@/phi/lib/notes";
+import { getNotes, setCardQuality, setShowTagAnalysis } from "@/phi/lib/notes";
 import { getDataHost } from "@/server/data-host";
 import { localizedError } from "@/server/i18n-http";
+import { parsePaintQuality } from "@/server/render/paint-budget";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,23 +16,39 @@ export async function GET() {
 		showTagAnalysis: notes.showTagAnalysis !== false,
 		showB30Analysis: notes.showB30Analysis !== false,
 		allowApiUsage: notes.allowApiUsage !== false,
+		cardQuality: parsePaintQuality(notes.cardQuality),
 	});
 }
 
 export async function POST(request: Request) {
 	const userId = await sessionUserId();
 	if (!userId) return localizedError(401, "unauthorized");
-	let showTagAnalysis: unknown;
+	let body: { showTagAnalysis?: unknown; cardQuality?: unknown };
 	try {
-		const body = (await request.json()) as { showTagAnalysis?: unknown };
-		showTagAnalysis = body.showTagAnalysis;
+		body = (await request.json()) as {
+			showTagAnalysis?: unknown;
+			cardQuality?: unknown;
+		};
 	} catch {
 		return Response.json({ error: "bad_request" }, { status: 400 });
 	}
-	if (typeof showTagAnalysis !== "boolean") {
-		return Response.json({ error: "bad_request" }, { status: 400 });
-	}
 	const host = await getDataHost();
-	await setShowTagAnalysis(host.db, userId, showTagAnalysis);
-	return Response.json({ ok: true, showTagAnalysis });
+	const out: {
+		ok: true;
+		showTagAnalysis?: boolean;
+		cardQuality?: "high" | "fast";
+	} = { ok: true };
+	let wrote = false;
+	if (typeof body.showTagAnalysis === "boolean") {
+		await setShowTagAnalysis(host.db, userId, body.showTagAnalysis);
+		out.showTagAnalysis = body.showTagAnalysis;
+		wrote = true;
+	}
+	if (body.cardQuality === "high" || body.cardQuality === "fast") {
+		await setCardQuality(host.db, userId, body.cardQuality);
+		out.cardQuality = body.cardQuality;
+		wrote = true;
+	}
+	if (!wrote) return Response.json({ error: "bad_request" }, { status: 400 });
+	return Response.json(out);
 }

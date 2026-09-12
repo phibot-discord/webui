@@ -1,12 +1,13 @@
 import { sessionUserId } from "@/auth";
 import { startQrBind } from "@/server/bind";
 import { getDataHost } from "@/server/data-host";
-import { localizedBindError, localizedError } from "@/server/i18n-http";
+import { localizedError, localizedErrorBody } from "@/server/i18n-http";
 import { clientIp, rateLimit } from "@/server/rate-limit";
+import { tapWaitNdjson } from "@/server/tap-stream";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
 	const userId = await sessionUserId();
@@ -22,7 +23,12 @@ export async function POST(request: Request) {
 		server?: string;
 		global?: boolean;
 	};
-	const result = await startQrBind(userId, body.server, body.global);
-	if ("error" in result) return localizedBindError(result);
-	return Response.json(result);
+	return tapWaitNdjson(
+		async () => {
+			const result = await startQrBind(userId, body.server, body.global);
+			if ("error" in result) return localizedErrorBody(result);
+			return result;
+		},
+		{ error: "bind_failed", code: "bind_failed", status: 502 },
+	);
 }

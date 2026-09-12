@@ -169,9 +169,31 @@ export async function qrPng(userId: string): Promise<Buffer | BindErr> {
 	return host.rt.getQRcode.getQRcode(url, stored.global);
 }
 
-export async function pollQrBind(
+export type QrResume = {
+	resume: {
+		result: {
+			success?: boolean;
+			data?: {
+				kid?: string;
+				access_token?: string;
+				mac_key?: string;
+				scope?: string;
+				error?: string;
+			};
+		};
+		useGlobal: boolean;
+	};
+};
+
+export function isQrResume(
+	value: { status: "waiting" | "scanned" } | BindOk | BindErr | QrResume,
+): value is QrResume {
+	return "resume" in value;
+}
+
+export async function peekQrBind(
 	userId: string,
-): Promise<{ status: "waiting" | "scanned" } | BindOk | BindErr> {
+): Promise<{ status: "waiting" | "scanned" } | BindOk | BindErr | QrResume> {
 	const host = await getDataHost();
 	if (await getToken(host.rt, userId)) {
 		await clearQr(userId);
@@ -194,16 +216,26 @@ export async function pollQrBind(
 
 	const useGlobal = isGlobalTapLogin(stored, stored.global);
 	const result = await host.rt.getQRcode.checkQRCodeResult(stored, useGlobal);
-	if (!qrSucceeded(result)) {
+	if (!qrSucceeded(result) || !result) {
 		const err = result?.data?.error;
 		if (err === "authorization_waiting") return { status: "scanned" };
 		return { status: "waiting" };
 	}
+	return { resume: { result, useGlobal } };
+}
 
+export async function finishQrBind(
+	userId: string,
+	resume: QrResume["resume"],
+): Promise<BindOk | BindErr> {
+	const host = await getDataHost();
 	let token: string;
 	try {
 		token = String(
-			(await host.rt.getQRcode.getSessionToken(result, useGlobal)) || "",
+			(await host.rt.getQRcode.getSessionToken(
+				resume.result,
+				resume.useGlobal,
+			)) || "",
 		).replace(/\s/g, "");
 	} catch (err) {
 		await clearQr(userId);
@@ -217,7 +249,7 @@ export async function pollQrBind(
 		await ensureSongInfo();
 		const save = await updateSave(host.rt, host.db, userId, {
 			token,
-			global: useGlobal,
+			global: resume.useGlobal,
 		});
 		await clearQr(userId);
 		return playerFromSave(save);
@@ -225,6 +257,14 @@ export async function pollQrBind(
 		await clearQr(userId);
 		return failBind(err);
 	}
+}
+
+export async function pollQrBind(
+	userId: string,
+): Promise<{ status: "waiting" | "scanned" } | BindOk | BindErr> {
+	const peeked = await peekQrBind(userId);
+	if (isQrResume(peeked)) return finishQrBind(userId, peeked.resume);
+	return peeked;
 }
 
 export async function bindWithToken(

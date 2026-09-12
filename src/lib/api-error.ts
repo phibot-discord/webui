@@ -1,5 +1,5 @@
 export function apiErrorText(
-	res: Response,
+	res: { status: number },
 	data: { error?: string; code?: string },
 	tapapi: string,
 	fallback: string,

@@ -30,13 +30,14 @@ function cachedSave() {
 function mockRt(opts: {
 	token?: string | null;
 	log: string[];
+	saveUrl?: string;
 	getSaveInfo: (global: boolean) => Promise<void>;
 }) {
 	class FakeUser {
 		session: string;
 		global: boolean;
 		saveInfo = {
-			gameFile: { url: SAVE_URL },
+			gameFile: { url: opts.saveUrl ?? SAVE_URL },
 			modifiedAt: { iso: new Date(SAVE_ISO) },
 			summary: { rankingScore: 14.5 },
 			PlayerId: "p",
@@ -158,4 +159,16 @@ test("bind with an explicit region does not retry the other TapTap host", async 
 		updateSave(rt, db, "bind-cn", { token: TOKEN, global: false }),
 	);
 	assert.deepEqual(log, ["user:false", "taptap"]);
+});
+
+test("re-signed save URL with the same modified time does not re-download", async () => {
+	const log: string[] = [];
+	const rt = mockRt({
+		log,
+		saveUrl: `${SAVE_URL}?sign=rotated`,
+		getSaveInfo: async () => undefined,
+	});
+	const db = mockDb({ log, save: cachedSave() });
+	await updateSave(rt, db, "same-file");
+	assert.equal(log.includes("download"), false);
 });

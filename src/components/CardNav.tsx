@@ -32,7 +32,11 @@ export function CardNav({
 					const active = current === item.kind;
 					return (
 						<li key={item.kind}>
-							<Link href={href} aria-current={active ? "page" : undefined}>
+							<Link
+								href={href}
+								prefetch={false}
+								aria-current={active ? "page" : undefined}
+							>
 								{item.label}
 							</Link>
 						</li>

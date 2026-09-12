@@ -1,9 +1,5 @@
-import {
-	existsSync as fsExists,
-	mkdirSync,
-	readFileSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync as fsExists } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { logger } from "./logger";
 import { illDir } from "./paths";
@@ -12,6 +8,25 @@ import { exists, mountBytes } from "./vfs";
 
 const GH_ILL = "https://raw.githubusercontent.com/Catrong/phi-plugin-ill/main";
 const CACHE_ROOT = process.env.PHI_ILL_CACHE?.trim() || "/tmp/phi-web-ill";
+const ILL_FETCH_CONCURRENCY = 48;
+
+async function poolAll<T>(
+	items: T[],
+	limit: number,
+	fn: (item: T) => Promise<void>,
+) {
+	if (!items.length) return;
+	let next = 0;
+	await Promise.all(
+		Array.from({ length: Math.min(limit, items.length) }, async () => {
+			for (;;) {
+				const i = next++;
+				if (i >= items.length) return;
+				await fn(items[i]!);
+			}
+		}),
+	);
+}
 
 function pngName(id: string): string {
 	return id.replace(/\.0$/, ".png");
@@ -80,13 +95,27 @@ function ghPath(rel: string): string {
 	return `${GH_ILL}/${rel.split("/").map(encodeURIComponent).join("/")}`;
 }
 
+export function illFetchPlan(rel: string): {
+	r2Key?: string;
+	githubUrl?: string;
+} {
+	if (r2Ready()) return { r2Key: r2KeyFor(rel) };
+	return { githubUrl: ghPath(rel) };
+}
+
 async function fetchBytes(rel: string): Promise<Buffer | undefined> {
-	if (r2Ready()) {
-		const buf = await fetchR2Object(r2KeyFor(rel));
+	const plan = illFetchPlan(rel);
+	if (plan.r2Key) {
+		const buf = await fetchR2Object(plan.r2Key, { revalidate: 86_400 });
 		if (buf?.byteLength) return buf;
+		logger.warn(`ill r2 miss ${rel} key ${plan.r2Key}`);
+		return undefined;
 	}
+	if (!plan.githubUrl) return undefined;
 	try {
-		const res = await fetch(ghPath(rel));
+		const res = await fetch(plan.githubUrl, {
+			next: { revalidate: 86_400 },
+		} as RequestInit);
 		if (res.ok) return Buffer.from(await res.arrayBuffer());
 	} catch (err) {
 		logger.warn(
@@ -96,10 +125,14 @@ async function fetchBytes(rel: string): Promise<Buffer | undefined> {
 	return undefined;
 }
 
-function persist(wanted: string, rel: string, buf: Buffer): string {
+async function persist(
+	wanted: string,
+	rel: string,
+	buf: Buffer,
+): Promise<string> {
 	const dest = join(/*turbopackIgnore: true*/ CACHE_ROOT, rel);
-	mkdirSync(/*turbopackIgnore: true*/ dirname(dest), { recursive: true });
-	writeFileSync(/*turbopackIgnore: true*/ dest, buf);
+	await mkdir(/*turbopackIgnore: true*/ dirname(dest), { recursive: true });
+	await writeFile(/*turbopackIgnore: true*/ dest, buf);
 	mountBytes(wanted, buf);
 	mountBytes(dest, buf);
 	return dest;
@@ -123,33 +156,30 @@ export async function hydrateIlls(
 		return underIllTree(p) != null;
 	});
 	if (!missing.length) return mapped;
-	const batch = 8;
+	const started = performance.now();
 	let hits = 0;
-	for (let i = 0; i < missing.length; i += batch) {
-		const slice = missing.slice(i, i + batch);
-		await Promise.all(
-			slice.map(async (wanted) => {
-				const rel = underIllTree(wanted);
-				if (!rel) return;
-				const cached = join(/*turbopackIgnore: true*/ CACHE_ROOT, rel);
-				if (fsExists(/*turbopackIgnore: true*/ cached)) {
-					mountBytes(wanted, readFileSync(/*turbopackIgnore: true*/ cached));
-					mapped.set(wanted, cached);
-					hits += 1;
-					return;
-				}
-				const buf = await fetchBytes(rel);
-				if (!buf) return;
-				mapped.set(wanted, persist(wanted, rel, buf));
-				hits += 1;
-			}),
+	await poolAll(missing, ILL_FETCH_CONCURRENCY, async (wanted) => {
+		const rel = underIllTree(wanted);
+		if (!rel) return;
+		const cached = join(/*turbopackIgnore: true*/ CACHE_ROOT, rel);
+		if (fsExists(/*turbopackIgnore: true*/ cached)) {
+			mountBytes(wanted, await readFile(/*turbopackIgnore: true*/ cached));
+			mapped.set(wanted, cached);
+			hits += 1;
+			return;
+		}
+		const buf = await fetchBytes(rel);
+		if (!buf) return;
+		mapped.set(wanted, await persist(wanted, rel, buf));
+		hits += 1;
+	});
+	const ms = Math.round(performance.now() - started);
+	const via = r2Ready() ? "r2" : "gh";
+	if (hits)
+		logger.ok(
+			`ills ${hits}/${missing.length} in ${ms}ms (${via} → ${CACHE_ROOT})`,
 		);
-	}
-	if (hits) logger.ok(`ills ${hits}/${missing.length} (r2/gh → ${CACHE_ROOT})`);
-	else
-		logger.warn(
-			`ills miss ${missing.length} — R2 empty or GitHub fetch failed`,
-		);
+	else logger.warn(`ills miss ${missing.length}`);
 	return mapped;
 }
 

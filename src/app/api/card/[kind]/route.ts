@@ -1,6 +1,7 @@
 import { sessionUserId } from "@/auth";
 import { getMessages } from "@/i18n/server";
 import { resolvePhiLocale } from "@/phi/lib/card-i18n";
+import { cardDownloadFilename } from "@/server/cache";
 import {
 	clampCount,
 	isCardKind,
@@ -8,13 +9,14 @@ import {
 	renderCard,
 } from "@/server/cards";
 import { getDataHost } from "@/server/data-host";
-import { pngResponse } from "@/server/http";
+import { cardResultResponse } from "@/server/http";
 import {
 	localizedError,
 	localizedRenderError,
 	localizedRetryAfter,
 } from "@/server/i18n-http";
 import { clientIp, rateLimit } from "@/server/rate-limit";
+import { parsePaintQuality } from "@/server/render/paint-budget";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,21 +42,28 @@ export async function GET(
 
 	const url = new URL(request.url);
 	const count = clampCount(url.searchParams.get("count"));
-	const qLocale = url.searchParams.get("locale");
-	const locale = qLocale
-		? resolvePhiLocale(qLocale)
-		: resolvePhiLocale(
-				qLocale,
-				request.headers.get("accept-language"),
-				(await getMessages()).locale,
-			);
-	const result = await renderCard(userId, kind, { count, locale });
+	const tags = url.searchParams.get("tags");
+	const qualityParam = url.searchParams.get("quality");
+	const download = url.searchParams.get("download") === "1";
+	const locale = resolvePhiLocale(
+		url.searchParams.get("locale"),
+		request.headers.get("accept-language"),
+		(await getMessages()).locale,
+	);
+	const result = await renderCard(userId, kind, {
+		count,
+		locale,
+		ifNoneMatch: download ? null : request.headers.get("if-none-match"),
+		paintQuality:
+			qualityParam == null ? undefined : parsePaintQuality(qualityParam),
+		showTagAnalysis: tags === "1" ? true : tags === "0" ? false : undefined,
+		download,
+	});
 	if ("error" in result) return localizedRenderError(result);
-	const res = pngResponse(result.bytes, {
-		etag: result.etag,
+	return cardResultResponse(result, {
 		cacheControl: PRIVATE_CACHE,
 		request,
+		filename: download ? cardDownloadFilename(kind) : undefined,
+		renderVersion: RENDER_VERSION,
 	});
-	res.headers.set("X-Phi-Render", RENDER_VERSION);
-	return res;
 }

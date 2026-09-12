@@ -33,6 +33,7 @@
 		"sharp": "^0.35.4",
 		"takumi-js": "^2.13.4",
 		"tsx": "^4.23.13",
+		"undici": "^8.10.2",
 		"yaml": "^2.9.0"
 	},
 	"devDependencies": {

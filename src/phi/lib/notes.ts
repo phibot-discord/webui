@@ -20,6 +20,7 @@ export type UserNotes = {
 	allowApiUsage: boolean;
 	showB30Analysis: boolean;
 	showTagAnalysis: boolean;
+	cardQuality: "high" | "fast";
 	locale?: PhiLocale;
 };
 
@@ -36,6 +37,7 @@ function defaults(): UserNotes {
 		allowApiUsage: true,
 		showB30Analysis: true,
 		showTagAnalysis: true,
+		cardQuality: "fast",
 	};
 }
 
@@ -52,6 +54,7 @@ export async function getNotes(db: Kv, userId: string): Promise<UserNotes> {
 			sign_history: Array.isArray(rest.sign_history) ? rest.sign_history : [],
 			task: Array.isArray(rest.task) ? rest.task : [],
 			locale: isPhiLocale(rest.locale) ? rest.locale : undefined,
+			cardQuality: rest.cardQuality === "high" ? "high" : "fast",
 		};
 	} catch {
 		return base;
@@ -76,5 +79,15 @@ export function tagAnalysisEnabled(notes: UserNotes) {
 export async function setShowTagAnalysis(db: Kv, userId: string, on: boolean) {
 	const notes = await getNotes(db, userId);
 	notes.showTagAnalysis = on;
+	await setNotes(db, userId, notes);
+}
+
+export async function setCardQuality(
+	db: Kv,
+	userId: string,
+	cardQuality: "high" | "fast",
+) {
+	const notes = await getNotes(db, userId);
+	notes.cardQuality = cardQuality;
 	await setNotes(db, userId, notes);
 }

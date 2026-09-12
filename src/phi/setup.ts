@@ -5,14 +5,15 @@ import { phiCssHref } from "@/server/paths";
 import { PHI_FONT_FILES } from "@/server/render/fonts";
 import { collectLocalAssetPaths } from "@/server/render/html";
 import { type App, defineTemplate } from "@/server/sdk";
+import { ensureSongInfo } from "@/server/song-info";
 import { readdir, stat } from "@/server/vfs";
 import { blurCardBackgrounds, contrastOverBackground } from "./lib/blur";
 import { cardCopy, resolvePhiLocale } from "./lib/card-i18n";
-import { Catalog } from "./lib/catalog";
+import { attachCatalog, Catalog } from "./lib/catalog";
 import { layoutChartBars, polishSvgCharts } from "./lib/charts";
-import { layoutHistogram } from "./lib/histogram";
 import { kvKey } from "./lib/const";
 import { fCompute } from "./lib/fcompute";
+import { layoutHistogram } from "./lib/histogram";
 import { knobNum } from "./lib/knobs";
 import { bootPhiRuntime } from "./lib/runtime";
 import { readPhiVersion } from "./lib/version";
@@ -820,7 +821,9 @@ export async function setupPhi(app: App) {
 	const fontDir = join(resources, "html/common/font");
 	await app.fonts.fromDir(fontDir, PHI_FONT_FILES);
 
-	const catalog = new Catalog(resources).load();
+	const catalog = new Catalog(resources);
+	attachCatalog(catalog);
+	await ensureSongInfo();
 	const extraNicks = await app.db.get(kvKey("nicklist"));
 	if (extraNicks) {
 		try {
@@ -843,7 +846,6 @@ export async function setupPhi(app: App) {
 		);
 	}
 
-	const Version = readPhiVersion();
 	const scale = app.config.render.scale || 1;
 	const pages = artPages(join(resources, "html"));
 	const format = app.config.render.format;
@@ -865,7 +867,7 @@ export async function setupPhi(app: App) {
 					"userinfo",
 					"score",
 				].includes(kind)
-					? "png"
+					? "jpeg"
 					: format,
 				quality,
 				html: async (data, helpers) => {
@@ -882,7 +884,7 @@ export async function setupPhi(app: App) {
 							isMaster: false,
 							cmdHead: "phi",
 							_plugin: "phi",
-							Version,
+							Version: readPhiVersion(),
 							sys: {
 								scale: `style="transform:scale(${scale})"`,
 								copyright: "",

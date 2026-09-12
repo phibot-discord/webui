@@ -302,7 +302,7 @@ export function tagRadarPlotSvg(radar: TagRadarPlot, scale = 1) {
 
 export async function tagRadarPlotPng(radar: TagRadarPlot) {
 	return sharp(Buffer.from(tagRadarPlotSvg(radar, 2)))
-		.png()
+		.png({ compressionLevel: 1 })
 		.toBuffer();
 }
 

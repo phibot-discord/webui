@@ -1,90 +1,58 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useState } from "react";
+import { useActionCooldown } from "@/components/useActionCooldown";
 import { SteadyButton } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 import { apiErrorText } from "@/lib/api-error";
 import {
+	cooldownMsFromServer,
 	getRefreshUntil,
 	persistCardReload,
 	persistCooldown,
-	subscribeSaveRefresh,
 } from "@/lib/save-refresh";
-
-function storedUntilSnapshot(): number {
-	return getRefreshUntil();
-}
-
-function storedUntilServer(): number {
-	return 0;
-}
+import { readJsonWithTapWait, tapWaitFailed } from "@/lib/tap-wait";
 
 export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 	const { m } = useI18n();
 	const router = useRouter();
 	const [pending, setPending] = useState(false);
-	const [message, setMessage] = useState<string>();
-	const [now, setNow] = useState(0);
-	const [prevCooldown, setPrevCooldown] = useState<number | null>(null);
-	const [serverUntil, setServerUntil] = useState(0);
-	const storedUntil = useSyncExternalStore(
-		subscribeSaveRefresh,
-		storedUntilSnapshot,
-		storedUntilServer,
+	const [waitingTap, setWaitingTap] = useState(false);
+	const { remaining, cooling, message, showError } = useActionCooldown(
+		cooldownMs,
+		getRefreshUntil,
 	);
-	const hideError = useRef<number | undefined>(undefined);
-
-	if (prevCooldown !== cooldownMs) {
-		setPrevCooldown(cooldownMs);
-		if (cooldownMs > 0)
-			setServerUntil((t) => Math.max(t, Date.now() + cooldownMs));
-	}
-
-	const until = Math.max(serverUntil, storedUntil);
-	const remaining = now ? Math.max(0, until - now) : Math.max(0, cooldownMs);
-	const cooling = remaining > 0;
-
-	useEffect(() => {
-		const tick = () => setNow(Date.now());
-		const id = window.setInterval(tick, 250);
-		queueMicrotask(tick);
-		return () => window.clearInterval(id);
-	}, []);
-
-	useEffect(() => {
-		return () => window.clearTimeout(hideError.current);
-	}, []);
 
 	const wait = m.refresh.wait.replaceAll(
 		"{seconds}",
 		String(Math.max(1, Math.ceil(remaining / 1000))),
 	);
 	const waitWide = m.refresh.wait.replaceAll("{seconds}", "120");
-	const live = pending ? m.refresh.pending : cooling ? wait : m.refresh.save;
-
-	function showError(text: string) {
-		setMessage(text);
-		window.clearTimeout(hideError.current);
-		hideError.current = window.setTimeout(() => setMessage(undefined), 4000);
-	}
+	const live = pending
+		? waitingTap
+			? m.refresh.waitingTap
+			: m.refresh.pending
+		: cooling
+			? wait
+			: m.refresh.save;
 
 	async function onRefresh() {
 		if (pending || cooling) return;
 		setPending(true);
-		setMessage(undefined);
+		setWaitingTap(false);
 		try {
 			const res = await fetch("/api/refresh", { method: "POST" });
-			const data = (await res.json().catch(() => ({}))) as {
-				error?: string;
-				code?: string;
-				lastSynced?: string;
-			};
-			if (!res.ok) {
-				if (res.status === 429) persistCooldown();
+			const { httpStatus, data } = await readJsonWithTapWait(res, () =>
+				setWaitingTap(true),
+			);
+			if (tapWaitFailed(res, data)) {
+				if (httpStatus === 429 || data.code === "refresh_cooldown") {
+					persistCooldown(cooldownMsFromServer(data, res.headers));
+				}
 				showError(
 					apiErrorText(
-						res,
+						{ status: httpStatus },
 						data,
 						m.errors.tapapi_unavailable,
 						m.refresh.failed,
@@ -92,12 +60,16 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 				);
 				return;
 			}
-			persistCardReload(data.lastSynced);
+			persistCardReload(
+				typeof data.lastSynced === "string" ? data.lastSynced : undefined,
+			);
+			persistCooldown(cooldownMsFromServer(data, res.headers));
 			window.setTimeout(() => router.refresh(), 0);
 		} catch {
 			showError(m.refresh.failed);
 		} finally {
 			setPending(false);
+			setWaitingTap(false);
 		}
 	}
 
@@ -107,7 +79,12 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 				className="btn-ghost"
 				type="button"
 				disabled={pending || cooling}
-				labels={[m.refresh.save, m.refresh.pending, waitWide]}
+				labels={[
+					m.refresh.save,
+					m.refresh.pending,
+					m.refresh.waitingTap,
+					waitWide,
+				]}
 				onClick={() => void onRefresh()}
 			>
 				{live}

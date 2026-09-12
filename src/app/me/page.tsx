@@ -12,8 +12,10 @@ export default async function MePage() {
 	if (!session?.user?.id) redirect("/");
 	const userId = session.user.id;
 	const host = await getDataHost();
-	const got = await loadBound(host, userId);
-	const cooldown = await refreshCooldownRemaining(userId);
+	const [got, cooldown] = await Promise.all([
+		loadBound(host, userId),
+		refreshCooldownRemaining(userId),
+	]);
 
 	if ("error" in got) {
 		if (got.reason === "not_bound") {

@@ -299,7 +299,7 @@ export async function buildUpdateCard(
 	snaps: HisSnap[],
 	extra: { fixture?: boolean; locale?: string } = {},
 ) {
-	const t = cardCopy(resolvePhiLocale(notes.locale, extra.locale));
+	const t = cardCopy(resolvePhiLocale(extra.locale, notes.locale));
 	const SH = scoreHistoryMod(rt);
 	const timeVis: Record<string, number> = {};
 	const tot: {

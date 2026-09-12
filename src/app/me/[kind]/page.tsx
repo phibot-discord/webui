@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { BypassCacheButton } from "@/components/BypassCacheButton";
 import { CardNav } from "@/components/CardNav";
 import { CardStage } from "@/components/CardStage";
 import { Desk, MeGate } from "@/components/Desk";
@@ -9,12 +10,14 @@ import { UnbindButton } from "@/components/UnbindButton";
 import { displayPlayerId, displayRks } from "@/lib/player-display";
 import { getNotes } from "@/phi/lib/notes";
 import {
+	bypassCacheCooldownRemaining,
 	lastSyncedIso,
 	loadBound,
 	refreshCooldownRemaining,
 } from "@/server/bound";
 import { clampCount, isCardKind } from "@/server/card-kinds";
 import { getDataHost } from "@/server/data-host";
+import { parsePaintQuality } from "@/server/render/paint-budget";
 import { getShareSlug } from "@/server/share";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +27,7 @@ export default async function KindPage({
 	searchParams,
 }: {
 	params: Promise<{ kind: string }>;
-	searchParams: Promise<{ count?: string }>;
+	searchParams: Promise<{ count?: string; quality?: string }>;
 }) {
 	const session = await auth();
 	if (!session?.user?.id) redirect("/");
@@ -32,9 +35,13 @@ export default async function KindPage({
 	const { kind } = await params;
 	if (!isCardKind(kind)) notFound();
 	const host = await getDataHost();
-	const got = await loadBound(host, userId);
-	const shareSlug = await getShareSlug(userId);
-	const cooldown = await refreshCooldownRemaining(userId);
+	const [got, shareSlug, cooldown, bypassCooldown, notes] = await Promise.all([
+		loadBound(host, userId),
+		getShareSlug(userId),
+		refreshCooldownRemaining(userId),
+		bypassCacheCooldownRemaining(userId),
+		getNotes(host.db, userId),
+	]);
 
 	if ("error" in got) {
 		if (got.reason === "not_bound") redirect("/me");
@@ -51,7 +58,6 @@ export default async function KindPage({
 	const counted = kind === "b30" || kind === "x30" || kind === "fc30";
 	const srcBase = `/api/card/${kind}`;
 	const synced = lastSyncedIso(got.save);
-	const notes = await getNotes(host.db, userId);
 
 	return (
 		<Desk
@@ -61,6 +67,7 @@ export default async function KindPage({
 			tools={
 				<>
 					<RefreshButton cooldownMs={cooldown} />
+					<BypassCacheButton cooldownMs={bypassCooldown} />
 					<ShareToggle slug={shareSlug} />
 					<UnbindButton />
 				</>
@@ -72,6 +79,8 @@ export default async function KindPage({
 				srcBase={srcBase}
 				counted={counted}
 				initialCount={count}
+				initialQuality={parsePaintQuality(q.quality ?? notes.cardQuality)}
+				persistQuality
 				tagProfile={
 					counted ? { on: notes.showTagAnalysis !== false } : undefined
 				}

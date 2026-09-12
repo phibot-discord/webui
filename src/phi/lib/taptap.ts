@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import QRCode from "qrcode";
-import { tapFetch } from "./tapapi";
+import { TAPAPI_QR_POLL_TIMEOUT_MS, tapFetch } from "./tapapi";
 
 type PartialQR = {
 	deviceId?: string;
@@ -126,7 +126,11 @@ async function checkQRCodeResult(data: PartialQR, useGlobal = false) {
 	params.append("info", JSON.stringify({ device_id: qr.deviceID }));
 	const endpoint = `${tap.webHost}/oauth2/v1/token`;
 	try {
-		const response = await tapFetch(endpoint, { method: "POST", body: params });
+		const response = await tapFetch(
+			endpoint,
+			{ method: "POST", body: params },
+			TAPAPI_QR_POLL_TIMEOUT_MS,
+		);
 		const data = (await response.json()) as Record<string, unknown>;
 		if (data?.kid && data?.access_token && !data.data)
 			return {

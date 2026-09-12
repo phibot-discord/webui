@@ -1,6 +1,6 @@
 import { readFile, stat } from "../vfs";
 
-const MAX_BYTES = 192 * 1024 * 1024;
+const MAX_BYTES = 256 * 1024 * 1024;
 
 const cache = new Map<string, { stamp: string; data: Buffer }>();
 let totalBytes = 0;

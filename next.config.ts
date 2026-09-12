@@ -33,6 +33,7 @@ const nextConfig: NextConfig = {
 		],
 	},
 	serverExternalPackages: [
+		"undici",
 		"takumi-js",
 		"takumi-js/helpers/html",
 		"@takumi-rs/core",

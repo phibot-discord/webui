@@ -9,6 +9,27 @@ function asErrorKey(code: string): ErrorKey | undefined {
 	return code in catalogs.en.errors ? (code as ErrorKey) : undefined;
 }
 
+export async function localizedErrorBody(err: {
+	error: string;
+	status: number;
+	retryAfter?: number;
+	detail?: string;
+}): Promise<Record<string, unknown>> {
+	const locale = await getRequestLocale();
+	const key = asErrorKey(err.error);
+	const message = key ? catalogs[locale].errors[key] : err.error;
+	const body =
+		err.detail && (key === "refresh_failed" || key === "bind_failed")
+			? `${message} ${err.detail}`
+			: message;
+	return {
+		error: body,
+		code: err.error,
+		status: err.status,
+		retryAfter: err.retryAfter,
+	};
+}
+
 export async function localizedError(status: number, key: ErrorKey) {
 	const locale = await getRequestLocale();
 	return jsonError(status, catalogs[locale].errors[key], key);
@@ -19,12 +40,8 @@ export async function localizedBindError(err: {
 	status: number;
 	detail?: string;
 }) {
-	const locale = await getRequestLocale();
-	const key = asErrorKey(err.error);
-	const message = key ? catalogs[locale].errors[key] : err.error;
-	const body =
-		err.detail && key === "bind_failed" ? `${message} ${err.detail}` : message;
-	return jsonError(err.status, body, err.error);
+	const body = await localizedErrorBody(err);
+	return jsonError(err.status, String(body.error), err.error);
 }
 
 export async function localizedRetryAfter(seconds: number, key: ErrorKey) {
@@ -38,14 +55,9 @@ export async function localizedRenderError(err: {
 	retryAfter?: number;
 	detail?: string;
 }) {
-	const locale = await getRequestLocale();
-	const key = asErrorKey(err.error);
-	const message = key ? catalogs[locale].errors[key] : err.error;
-	const body =
-		err.detail && key === "refresh_failed"
-			? `${message} ${err.detail}`
-			: message;
-	if (err.status === 429)
-		return retryAfter(err.retryAfter || 120, body, err.error);
-	return jsonError(err.status, body, err.error);
+	const body = await localizedErrorBody(err);
+	if (err.status === 429) {
+		return retryAfter(err.retryAfter || 120, String(body.error), err.error);
+	}
+	return jsonError(err.status, String(body.error), err.error);
 }

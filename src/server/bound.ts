@@ -1,12 +1,19 @@
-import { REFRESH_COOLDOWN_MS } from "@/lib/save-refresh";
 import { kvKey } from "@/phi/lib/const";
 import type { Save } from "@/phi/lib/save";
+import { saveIdentity } from "@/phi/lib/saves";
 import { isTapApiFailure } from "@/phi/lib/tapapi";
+import {
+	BYPASS_CACHE_COOLDOWN_MS,
+	claimCooldown,
+	cooldownRemaining,
+	REFRESH_COOLDOWN_MS,
+	retryAfterSec,
+} from "./cooldown";
 import type { DataHost } from "./data-host";
 import { getDataHost } from "./data-host";
 import { ensureSongInfo } from "./song-info";
 
-export { REFRESH_COOLDOWN_MS };
+export { BYPASS_CACHE_COOLDOWN_MS, REFRESH_COOLDOWN_MS };
 
 export type ErrorCode =
 	| "not_bound"
@@ -14,6 +21,7 @@ export type ErrorCode =
 	| "no_save"
 	| "hisb30_empty"
 	| "refresh_cooldown"
+	| "cache_bypass_cooldown"
 	| "refresh_failed"
 	| "tapapi_unavailable"
 	| "unauthorized"
@@ -32,16 +40,7 @@ export type BoundErr = {
 };
 
 export function saveRevision(save: Save): string {
-	const iso = save.saveInfo?.modifiedAt?.iso;
-	const ms =
-		iso instanceof Date
-			? iso.getTime()
-			: Date.parse(String(iso || save.saveInfo?.summary?.updatedAt || ""));
-	const url = String(
-		(save.saveInfo as { gameFile?: { url?: string } } | undefined)?.gameFile
-			?.url || "",
-	);
-	return `${url}|${Number.isFinite(ms) ? ms : ""}`;
+	return saveIdentity(save.saveInfo);
 }
 
 export function lastSyncedIso(save: Save): string | undefined {
@@ -68,19 +67,34 @@ export async function loadBound(
 	if (!token) {
 		return { error: "not_bound", status: 409, reason: "not_bound" };
 	}
-	if (await host.rt.store.isSessionTokenBanned(token)) {
+	const [banned, save] = await Promise.all([
+		host.rt.store.isSessionTokenBanned(token),
+		host.lib.loadSave(host.rt, host.db, userId),
+	]);
+	if (banned) {
 		return { error: "banned", status: 403, reason: "banned" };
 	}
-	const save = await host.lib.loadSave(host.rt, host.db, userId);
 	if (!save) {
 		return { error: "no_save", status: 409, reason: "no_save" };
 	}
 	return { save, token };
 }
 
+async function bumpCardEpoch(
+	store: { set: (key: string, value: string) => Promise<unknown> },
+	userId: string,
+) {
+	const epoch = String(Date.now());
+	await store.set(kvKey("webCardEpoch", userId), epoch);
+	return epoch;
+}
+
 export async function refreshSave(
 	userId: string,
-): Promise<{ ok: true; lastSynced?: string } | BoundErr> {
+): Promise<
+	| { ok: true; lastSynced?: string; epoch: string; cooldownMs: number }
+	| BoundErr
+> {
 	const host = await getDataHost();
 	const token = await host.rt.store.getSessionToken(userId);
 	if (!token) return { error: "not_bound", status: 409, reason: "not_bound" };
@@ -88,24 +102,25 @@ export async function refreshSave(
 		return { error: "banned", status: 403, reason: "banned" };
 	}
 	const coolKey = kvKey("webRefresh", userId);
-	const locked = await host.store.set(coolKey, "1", {
-		nx: true,
-		ttlMs: REFRESH_COOLDOWN_MS,
-	});
-	if (locked !== "OK") {
-		const remain = await refreshCooldownRemaining(userId);
+	const claimed = await claimCooldown(host.store, coolKey, REFRESH_COOLDOWN_MS);
+	if (!claimed.ok) {
 		return {
 			error: "refresh_cooldown",
 			status: 429,
 			reason: "refresh_cooldown",
-			retryAfter: Math.max(1, Math.ceil(remain / 1000)),
+			retryAfter: retryAfterSec(claimed.remainMs),
 		};
 	}
 	try {
 		await ensureSongInfo();
 		const save = await host.lib.updateSave(host.rt, host.db, userId);
-		await host.store.set(kvKey("webCardEpoch", userId), String(Date.now()));
-		return { ok: true, lastSynced: lastSyncedIso(save) };
+		const epoch = await getCardEpoch(host.store, userId);
+		return {
+			ok: true,
+			lastSynced: lastSyncedIso(save),
+			epoch,
+			cooldownMs: claimed.remainMs,
+		};
 	} catch (err) {
 		await host.store.del(coolKey);
 		if (isTapApiFailure(err)) {
@@ -125,10 +140,40 @@ export async function refreshSave(
 	}
 }
 
+export async function bypassCardCache(
+	userId: string,
+): Promise<{ ok: true; epoch: string; cooldownMs: number } | BoundErr> {
+	const host = await getDataHost();
+	const bound = await loadBound(host, userId);
+	if ("error" in bound) return bound;
+	const coolKey = kvKey("webCardBust", userId);
+	const claimed = await claimCooldown(
+		host.store,
+		coolKey,
+		BYPASS_CACHE_COOLDOWN_MS,
+	);
+	if (!claimed.ok) {
+		return {
+			error: "cache_bypass_cooldown",
+			status: 429,
+			reason: "cache_bypass_cooldown",
+			retryAfter: retryAfterSec(claimed.remainMs),
+		};
+	}
+	const epoch = await bumpCardEpoch(host.store, userId);
+	return { ok: true, epoch, cooldownMs: claimed.remainMs };
+}
+
 export async function refreshCooldownRemaining(
 	userId: string,
 ): Promise<number> {
 	const host = await getDataHost();
-	const n = await host.store.ttlMs(kvKey("webRefresh", userId));
-	return n > 0 ? n : 0;
+	return cooldownRemaining(host.store, kvKey("webRefresh", userId));
+}
+
+export async function bypassCacheCooldownRemaining(
+	userId: string,
+): Promise<number> {
+	const host = await getDataHost();
+	return cooldownRemaining(host.store, kvKey("webCardBust", userId));
 }

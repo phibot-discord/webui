@@ -15,9 +15,11 @@ export async function GET() {
 	const userId = await sessionUserId();
 	if (!userId) return localizedError(401, "unauthorized");
 	const host = await getDataHost();
-	const shareSlug = await getShareSlug(userId);
-	const refreshCooldownMs = await refreshCooldownRemaining(userId);
-	const got = await loadBound(host, userId);
+	const [shareSlug, refreshCooldownMs, got] = await Promise.all([
+		getShareSlug(userId),
+		refreshCooldownRemaining(userId),
+		loadBound(host, userId),
+	]);
 	if ("error" in got) {
 		return Response.json({
 			bound: got.reason === "no_save",

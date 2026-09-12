@@ -33,6 +33,15 @@ export type RenderedImage = {
 	ext: string;
 	width: number;
 	height: number;
+	timings?: {
+		htmlMs?: number;
+		assetsMs?: number;
+		measureMs?: number;
+		rasterMs?: number;
+		encodeMs?: number;
+		paintMs?: number;
+		heightCache?: "hit" | "miss";
+	};
 };
 
 export type RenderFormat = "png" | "jpeg" | "webp";

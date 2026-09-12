@@ -222,7 +222,7 @@ test("radar plot is a white PNG, not a black Takumi SVG/clip-path fill", async (
 			width: 560,
 			height: 340,
 			format: "png",
-			stylesheets: sheets,
+			css: sheets,
 			images: rewritten.images.map((image) => ({
 				src: image.src,
 				data: new Uint8Array(image.data),
@@ -314,7 +314,7 @@ test("tag ranking sits right of English radar labels and is vertically centered"
 			width: 430,
 			height: 216,
 			format: "png",
-			stylesheets: [
+			css: [
 				readFileSync(
 					new URL("../../../phi-assets/html/b19/b19.css", import.meta.url),
 					"utf8",
