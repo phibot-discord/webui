@@ -58,6 +58,7 @@ export async function GET(
 			qualityParam == null ? undefined : parsePaintQuality(qualityParam),
 		showTagAnalysis: tags === "1" ? true : tags === "0" ? false : undefined,
 		download,
+		epoch: url.searchParams.get("epoch") ?? undefined,
 	});
 	if ("error" in result) return localizedRenderError(result);
 	return cardResultResponse(result, {

@@ -51,6 +51,15 @@ export function lastSyncedIso(save: Save): string | undefined {
 	return Number.isFinite(d.getTime()) ? d.toISOString() : String(iso);
 }
 
+export function resolveCardEpoch(
+	requested: string | undefined,
+	stored: string,
+): string {
+	const q = requested?.trim() ?? "";
+	if (/^\d{10,16}$/.test(q)) return q;
+	return stored;
+}
+
 export async function getCardEpoch(
 	store: { get: (key: string) => Promise<unknown> },
 	userId: string,

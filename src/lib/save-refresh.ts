@@ -2,6 +2,7 @@ import { clearCardBlobs } from "./card-fetch";
 
 export const REFRESH_UNTIL_KEY = "phi.web.refreshUntil";
 export const BYPASS_UNTIL_KEY = "phi.web.bypassUntil";
+export const BUST_EPOCH_KEY = "phi.web.cardEpoch";
 export const SAVE_REFRESHED_EVENT = "phi-save-refreshed";
 
 type Listener = () => void;
@@ -11,6 +12,7 @@ let hydrated = false;
 let reloadToken = "";
 let refreshUntil = 0;
 let bypassUntil = 0;
+let bustEpoch = "";
 
 function readUntil(key: string) {
 	const n = Number(sessionStorage.getItem(key) || 0);
@@ -23,6 +25,7 @@ function hydrateFromSession() {
 	try {
 		refreshUntil = Math.max(refreshUntil, readUntil(REFRESH_UNTIL_KEY));
 		bypassUntil = Math.max(bypassUntil, readUntil(BYPASS_UNTIL_KEY));
+		if (!bustEpoch) bustEpoch = sessionStorage.getItem(BUST_EPOCH_KEY) || "";
 	} catch {
 		/* private mode */
 	}
@@ -115,6 +118,18 @@ export function persistBypassCooldown(remainMs: number) {
 		},
 		remainMs,
 	);
+}
+
+export function persistBustEpoch(epoch: string) {
+	hydrateFromSession();
+	if (!/^\d{10,16}$/.test(epoch)) return;
+	bustEpoch = epoch;
+	writeSession(BUST_EPOCH_KEY, epoch);
+}
+
+export function getBustEpoch(): string {
+	hydrateFromSession();
+	return bustEpoch;
 }
 
 export function persistCardReload(_lastSynced?: string) {

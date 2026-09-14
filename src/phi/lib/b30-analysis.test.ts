@@ -8,6 +8,7 @@ import { fromHtml } from "takumi-js/helpers/html";
 import { applyIllPaths } from "../../server/ill";
 import { rewriteLocalUrls } from "../../server/render/html";
 import {
+	buildRksHistogram,
 	buildTagAnalysis,
 	buildTagRadar,
 	type ChartTagTreeNode,
@@ -33,6 +34,16 @@ const tree: ChartTagTreeNode[] = [
 		children: [{ name: "快交互" }],
 	},
 ];
+
+test("histogram reports population stddev of song equivalent rks", () => {
+	const hist = buildRksHistogram([
+		rec("a", "IN", 10),
+		rec("b", "IN", 12),
+		rec("c", "IN", 14),
+	]);
+	assert.equal(hist.average, 12);
+	assert.ok(Math.abs(hist.stddev - Math.sqrt(8 / 3)) < 1e-9);
+});
 
 test("radar uses a top-starting pentagon matching the B30 panel viewBox", () => {
 	const radar = buildTagRadar([

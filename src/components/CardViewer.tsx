@@ -6,6 +6,7 @@ import { loadCardBlob, peekCardBlob } from "@/lib/card-fetch";
 import type { CardStats } from "@/lib/card-stats";
 import {
 	cardFetchUrl,
+	getBustEpoch,
 	getReloadToken,
 	subscribeSaveRefresh,
 } from "@/lib/save-refresh";
@@ -35,7 +36,10 @@ export function CardViewer({
 		reloadSnapshot,
 		reloadServerSnapshot,
 	);
-	const fetchSrc = cardFetchUrl(src, { locale });
+	const fetchSrc = cardFetchUrl(src, {
+		locale,
+		epoch: getBustEpoch() || undefined,
+	});
 	return (
 		<CardFrame
 			key={`${fetchSrc}:${reload}`}

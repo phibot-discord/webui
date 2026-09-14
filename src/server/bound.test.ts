@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { saveRevision } from "./bound";
+import { resolveCardEpoch, saveRevision } from "./bound";
 import type { Save } from "@/phi/lib/save";
 
 function save(over: {
@@ -44,4 +44,11 @@ test("saveRevision changes only when the file or modified time changes", () => {
 			}),
 		),
 	);
+});
+
+test("bypass epoch from the client wins over a stale KV read", () => {
+	assert.equal(resolveCardEpoch("1710000000000", ""), "1710000000000");
+	assert.equal(resolveCardEpoch("1710000000000", "1"), "1710000000000");
+	assert.equal(resolveCardEpoch(undefined, "1"), "1");
+	assert.equal(resolveCardEpoch("nope", "1"), "1");
 });

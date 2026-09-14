@@ -24,7 +24,7 @@ function sample(over: Partial<CardImageCacheInput> = {}): CardImageCacheInput {
 		theme: "default",
 		analysisFlag: "a1",
 		tagFlag: "t1",
-		renderVersion: "v31",
+		renderVersion: "v32",
 		...over,
 	};
 }

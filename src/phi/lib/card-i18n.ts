@@ -305,11 +305,66 @@ const CHART_TAG_EN: Record<string, string> = {
 	拍砖: "Bricks",
 	对拍: "Alternating",
 	对切: "Split cut",
+	"3k": "3K",
+	"4k": "4K",
+	"5k": "5K",
+	"6k": "6K",
+};
+
+const CHART_TAG_DESC_EN: Record<string, string> = {
+	读谱: "Reading-related difficulty",
+	差速: "Notes at the same time drop at different speeds (e.g. Temporal Shifting)",
+	脑裂: "Multiple judgment lines, or patterns that split attention (e.g. FULI AUTO SHOOTER)",
+	"变速/闪现": "Notes change speed while falling, or flash in",
+	面海: "All or almost all holds (e.g. ぱぴぷぴぷぴぱ)",
+	扫线: "Cytus-like scan-line patterns",
+	长条藏键: "Notes sit inside holds, hiding them or forcing a large move",
+	非线性下落:
+		"Notes do not fall in a straight constant-speed line (e.g. 樱树街道)",
+	判定线干扰:
+		"Judgment-line shake or move that interferes with sight-reading (e.g. IL-Artifact ending)",
+	复杂节奏: "BPM changes or odd meters (e.g. Aleph-0, Opia)",
+	硬抗: "Stamina-related difficulty",
+	快交互: "Interaction difficulty",
+	双押海: "Continuous double-tap streams",
+	宽排键: "Notes spread across most of the screen",
+	连点爆发: "Burst streams",
+	拆谱: "Pattern-reading difficulty",
+	全换: "A section that can be fully split into interactions",
+	反手: "Hitting across the other hand",
+	锁手: "One hand locked by a hold or stream and cannot handle the rest",
+	锚键: "Notes fall continuously on a fixed lane (e.g. G.V.N)",
+	刹车: "Must stop tapping in time or you will overhit (e.g. jacks into a hold)",
+	频繁切轨: "Not fixed-lane; frequent moves or 4-5-6k lane switches",
+	浮现式:
+		"Patterns that appear on screen and judge when they merge (e.g. delayed stars)",
+	多指: "Multi-finger difficulty",
+	叠: "Overlapping multi-taps in a short window",
+	乱: "Dense stacked stairs that keep changing direction",
+	切: "One hand switches fingers; stairs plus multi-taps",
+	楼梯: "Taps arranged like stairs",
+	拍砖: "Repeated multi-taps on a fixed beat",
+	对拍: "Hands alternate fast multi-taps",
+	对切: "Both hands mirror or sync finger rolls",
+	"3k": "Three-lane patterns",
+	"4k": "Four-lane patterns",
+	"5k": "Five-lane patterns",
 };
 
 export function localizeChartTagName(name: string, locale: PhiLocale): string {
 	if (locale !== "en" || !name) return name;
 	return CHART_TAG_EN[name] ?? name;
+}
+
+export function localizeChartTagDescription(
+	name: string,
+	description: string | undefined,
+	locale: PhiLocale,
+): string {
+	const src = description?.trim() ?? "";
+	if (!src) return "";
+	if (locale !== "en") return src;
+	return CHART_TAG_DESC_EN[name] ?? src;
 }
 
 function withLocalizedName<T extends { name: string }>(

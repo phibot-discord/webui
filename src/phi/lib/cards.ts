@@ -1,7 +1,11 @@
 import { saveRevision } from "@/server/bound";
 import { logger } from "@/server/logger";
 import type { Kv } from "@/server/sdk";
-import { buildRksHistogram, getB30AnalysisRecords } from "./b30-analysis";
+import {
+	buildRksHistogram,
+	equivRksStddev,
+	getB30AnalysisRecords,
+} from "./b30-analysis";
 import {
 	cardCopy,
 	fill,
@@ -172,6 +176,11 @@ export async function b19Card(
 		stats,
 		spInfo,
 		locale,
+		rksStddev: equivRksStddev(
+			[...(save_b19.phi || []), ...(save_b19.b19_list || [])]
+				.map((row) => Number((row as { rks?: number } | undefined)?.rks))
+				.filter((n) => Number.isFinite(n)),
+		),
 		b30Analysis: await b30AnalysisFor(save_b19, notes, nnum, locale, db, save),
 		BSIllPath: rt.getInfo.getill("BANGINGSTRIKE.DewPleiades.0", "common"),
 	};

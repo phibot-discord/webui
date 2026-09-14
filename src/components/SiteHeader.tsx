@@ -21,11 +21,16 @@ export function SiteHeader({
 				<a className="wordmark" href={signedIn ? "/home" : "/"}>
 					{m.brand}
 				</a>
-				{signedIn ? (
-					<a className="topbar-cards" href="/me">
-						{m.nav.cards}
+				<nav className="topbar-links">
+					<a className="topbar-cards" href="/tags">
+						{m.nav.tags}
 					</a>
-				) : null}
+					{signedIn ? (
+						<a className="topbar-cards" href="/me">
+							{m.nav.cards}
+						</a>
+					) : null}
+				</nav>
 			</div>
 			<div className="topbar-end">
 				<LocaleSwitch />

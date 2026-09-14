@@ -4,9 +4,13 @@ import {
 	CHART_TAG_TIMEOUT_MS,
 	ChartTagTimeoutError,
 	chartTagCacheId,
+	chartTagTreeR2Key,
 	chartTagUrl,
 	isChartTagTimeout,
+	loadChartTagTree,
 	loadChartTagVotes,
+	parseChartTagTree,
+	resetChartTagTreeMemForTest,
 	resetChartTagVoteMemForTest,
 } from "./chart-tags-api";
 import { kvKey, PHI_CHART_TAG_API } from "./const";
@@ -103,6 +107,76 @@ test("chart tag votes are reused until the save revision changes", async () => {
 		db,
 	});
 	assert.equal(fetches, 2);
+});
+
+test("chart tag tree r2 key sits with the other info files", () => {
+	assert.equal(chartTagTreeR2Key("info"), "info/tagTree.json");
+});
+
+test("parseChartTagTree keeps descriptions from phib19", () => {
+	const tree = parseChartTagTree({
+		data: [
+			{
+				name: "读谱",
+				description: "读谱相关难点",
+				children: [
+					{
+						name: "差速",
+						description: "同一时刻的Note的下落速度不同",
+						children: [],
+					},
+				],
+			},
+		],
+	});
+	assert.deepEqual(tree, [
+		{
+			name: "读谱",
+			description: "读谱相关难点",
+			voteCount: undefined,
+			children: [
+				{
+					name: "差速",
+					description: "同一时刻的Note的下落速度不同",
+					voteCount: undefined,
+					children: [],
+				},
+			],
+		},
+	]);
+});
+
+test("loadChartTagTree prefers the R2 snapshot and skips phib19", async () => {
+	resetChartTagTreeMemForTest();
+	let live = 0;
+	const tree = await loadChartTagTree({
+		getCached: async () => [{ name: "读谱", description: "读谱相关难点" }],
+		fetchJson: async () => {
+			live += 1;
+			throw new TypeError("fetch failed");
+		},
+	});
+	assert.equal(live, 0);
+	assert.deepEqual(tree, [
+		{
+			name: "读谱",
+			description: "读谱相关难点",
+			voteCount: undefined,
+			children: [],
+		},
+	]);
+});
+
+test("loadChartTagTree uses phib19 only when R2 is empty", async () => {
+	resetChartTagTreeMemForTest();
+	const tree = await loadChartTagTree({
+		getCached: async () => undefined,
+		fetchJson: async () => ({
+			data: [{ name: "硬抗", description: "硬抗相关难点" }],
+		}),
+	});
+	assert.equal(tree[0]?.name, "硬抗");
+	assert.equal(tree[0]?.description, "硬抗相关难点");
 });
 
 test("failed chart tag fetch is not stored as a save cache hit", async () => {

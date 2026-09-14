@@ -28,11 +28,17 @@ export type Messages = {
 	};
 	nav: {
 		cards: string;
+		tags: string;
 		b30: string;
 		hisb30: string;
 		info: string;
 		x30: string;
 		fc30: string;
+	};
+	tags: {
+		title: string;
+		lede: string;
+		empty: string;
 	};
 	me: {
 		title: string;
@@ -207,11 +213,17 @@ export const en: Messages = {
 	},
 	nav: {
 		cards: "Cards",
+		tags: "Tags",
 		b30: "B30",
 		hisb30: "hisB30",
 		info: "Info",
 		x30: "x30",
 		fc30: "fc30",
+	},
+	tags: {
+		title: "Chart tags",
+		lede: "Labels on the B30 tag profile. Descriptions come from phib19.",
+		empty: "The tag list is not available right now.",
 	},
 	me: {
 		title: "Your cards",
@@ -398,11 +410,17 @@ export const zh: Messages = {
 	},
 	nav: {
 		cards: "成绩图",
+		tags: "标签",
 		b30: "B30",
 		hisb30: "历史B30",
 		info: "信息",
 		x30: "x30",
 		fc30: "fc30",
+	},
+	tags: {
+		title: "谱面标签",
+		lede: "B30 标签画像用的分类。说明来自 phib19。",
+		empty: "暂时无法加载标签列表。",
 	},
 	me: {
 		title: "你的成绩",

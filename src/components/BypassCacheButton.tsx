@@ -8,6 +8,7 @@ import { useI18n } from "@/i18n/provider";
 import {
 	cooldownMsFromServer,
 	getBypassUntil,
+	persistBustEpoch,
 	persistBypassCooldown,
 	persistCardReload,
 } from "@/lib/save-refresh";
@@ -41,6 +42,7 @@ export function BypassCacheButton({ cooldownMs }: { cooldownMs: number }) {
 				error?: string;
 				code?: string;
 				ok?: boolean;
+				epoch?: string;
 				cooldownMs?: number;
 				retryAfter?: number;
 			};
@@ -51,6 +53,7 @@ export function BypassCacheButton({ cooldownMs }: { cooldownMs: number }) {
 				showError(data.error || m.refresh.bypassFailed);
 				return;
 			}
+			if (data.epoch) persistBustEpoch(data.epoch);
 			persistCardReload();
 			persistBypassCooldown(cooldownMsFromServer(data, res.headers));
 			window.setTimeout(() => router.refresh(), 0);

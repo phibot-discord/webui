@@ -248,6 +248,13 @@ a:hover {
 	transform: skewX(-24deg);
 }
 
+.topbar-links {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+}
+
 .topbar-cards {
 	color: var(--muted);
 	text-decoration: none;
@@ -1287,6 +1294,56 @@ label.field input {
 	.board-window img {
 		border-radius: 8px 8px 0 0;
 	}
+}
+
+/* ---------------------------------- tags ---------------------------------- */
+
+.tag-glossary {
+	display: flex;
+	flex-direction: column;
+	gap: 28px;
+}
+
+.tag-cat {
+	margin: 0;
+	padding: 0 0 24px;
+	border-bottom: 1px solid var(--line);
+}
+
+.tag-cat:last-child {
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+.tag-cat h2 {
+	margin: 0 0 6px;
+}
+
+.tag-cat-desc {
+	color: var(--muted);
+	margin: 0 0 14px;
+	max-width: 68ch;
+}
+
+.tag-list {
+	margin: 0;
+	display: grid;
+	gap: 12px;
+}
+
+.tag-list div {
+	display: grid;
+	gap: 4px;
+}
+
+.tag-list dt {
+	font-weight: 600;
+}
+
+.tag-list dd {
+	margin: 0;
+	color: var(--muted);
+	max-width: 68ch;
 }
 
 /* ---------------------------------- bind ---------------------------------- */

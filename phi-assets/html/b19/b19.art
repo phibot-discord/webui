@@ -20,7 +20,7 @@
             <p name="pvis">{{#gameuser.PlayerId}}</p>
         </div>
         <div class="rks clip-box">
-            <p>{{gameuser.rks.toFixed(4)}}</p>
+            <p>{{gameuser.rks.toFixed(4)}}{{if rksStddev > 0}} <span class="rks-sd">±{{rksStddev.toFixed(2)}}</span>{{/if}}</p>
         </div>
         <div class="clgBox">
             <div class="Challenge">

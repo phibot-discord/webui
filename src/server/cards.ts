@@ -9,7 +9,13 @@ import {
 } from "@/phi/lib/history";
 import { getNotes } from "@/phi/lib/notes";
 import type { Save } from "@/phi/lib/save";
-import { type BoundErr, getCardEpoch, loadBound, saveRevision } from "./bound";
+import {
+	type BoundErr,
+	getCardEpoch,
+	loadBound,
+	resolveCardEpoch,
+	saveRevision,
+} from "./bound";
 import {
 	cacheKey,
 	cardEtag,
@@ -39,7 +45,7 @@ export {
 	type PublicKind,
 } from "./card-kinds";
 
-export const RENDER_VERSION = "v31";
+export const RENDER_VERSION = "v32";
 
 export {
 	type BoundErr,
@@ -66,6 +72,7 @@ type CardRenderOpts = {
 	paintQuality?: PaintQuality;
 	showTagAnalysis?: boolean;
 	download?: boolean;
+	epoch?: string;
 };
 
 type CardPrep = {
@@ -111,7 +118,7 @@ async function prepareCardCache(
 		saveRevision: saveRevision(save),
 		locale: `locale:${locale}`,
 		quality: paintQuality,
-		epoch,
+		epoch: resolveCardEpoch(opts.epoch, epoch),
 		count: String(nnum),
 		theme: notes.theme,
 		renderVersion: RENDER_VERSION,

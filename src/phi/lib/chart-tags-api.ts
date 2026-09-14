@@ -28,6 +28,12 @@ const agent = new Agent({
 const TREE_TTL_MS = 6 * 60 * 60 * 1000;
 let treeCache: { at: number; value: Promise<ChartTagTreeNode[]> } | null = null;
 
+export function chartTagTreeR2Key(
+	prefix = process.env.CLOUDFLARE_R2_INFO_PREFIX ?? "info",
+) {
+	return `${prefix.replace(/\/+$/, "")}/tagTree.json`;
+}
+
 export class ChartTagTimeoutError extends Error {
 	constructor(message = "chart-tag timed out") {
 		super(message);
@@ -174,6 +180,7 @@ function asTree(raw: unknown): ChartTagTreeNode[] {
 		if (!item || typeof item !== "object") return [];
 		const node = item as {
 			name?: unknown;
+			description?: unknown;
 			voteCount?: unknown;
 			children?: unknown;
 		};
@@ -181,6 +188,10 @@ function asTree(raw: unknown): ChartTagTreeNode[] {
 		return [
 			{
 				name: node.name,
+				description:
+					typeof node.description === "string" && node.description
+						? node.description
+						: undefined,
 				voteCount:
 					typeof node.voteCount === "number" ? node.voteCount : undefined,
 				children: asTree(node.children),
@@ -189,20 +200,56 @@ function asTree(raw: unknown): ChartTagTreeNode[] {
 	});
 }
 
-export async function loadChartTagTree(): Promise<ChartTagTreeNode[]> {
+export function parseChartTagTree(raw: unknown): ChartTagTreeNode[] {
+	const body = raw as TreeBody | unknown[] | undefined;
+	if (Array.isArray(body)) return asTree(body);
+	if (body && typeof body === "object") return asTree((body as TreeBody).data);
+	return [];
+}
+
+export function resetChartTagTreeMemForTest() {
+	treeCache = null;
+}
+
+async function readR2TreeRaw(): Promise<unknown> {
+	try {
+		const { fetchR2Object } = await import("@/server/r2");
+		const buf = await fetchR2Object(chartTagTreeR2Key());
+		if (!buf?.byteLength) return;
+		return JSON.parse(buf.toString("utf8")) as unknown;
+	} catch {
+		return;
+	}
+}
+
+export async function loadChartTagTree(
+	opts: {
+		getCached?: () => Promise<unknown>;
+		fetchJson?: ChartTagJsonFetch;
+	} = {},
+): Promise<ChartTagTreeNode[]> {
 	const now = Date.now();
 	if (treeCache && now - treeCache.at < TREE_TTL_MS) return treeCache.value;
-	const value = jsonFetch("/chartsTag/get/tagTree")
-		.then((raw) => {
-			const body = raw as TreeBody;
-			const tree = asTree(body?.data ?? body);
-			if (!tree.length) throw new Error("empty chart-tag tree");
-			return tree;
-		})
-		.catch((err) => {
-			if (treeCache?.value === value) treeCache = null;
-			throw err;
-		});
+	const getCached = opts.getCached ?? readR2TreeRaw;
+	const fetchJson = opts.fetchJson ?? jsonFetch;
+	const value = (async () => {
+		let cached: ChartTagTreeNode[] = [];
+		try {
+			cached = parseChartTagTree(await getCached());
+		} catch {
+			cached = [];
+		}
+		if (cached.length) {
+			logger.info("chart-tag tree r2");
+			return cached;
+		}
+		const tree = parseChartTagTree(await fetchJson("/chartsTag/get/tagTree"));
+		if (!tree.length) throw new Error("empty chart-tag tree");
+		return tree;
+	})().catch((err) => {
+		if (treeCache?.value === value) treeCache = null;
+		throw err;
+	});
 	treeCache = { at: now, value };
 	return value;
 }

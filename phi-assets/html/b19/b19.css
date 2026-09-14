@@ -97,6 +97,11 @@ body p {
 	color: black;
 }
 
+.rks-sd {
+	font-size: 0.72em;
+	opacity: 0.72;
+}
+
 .clgBox {
 	width: 4rem;
 	height: 1rem;

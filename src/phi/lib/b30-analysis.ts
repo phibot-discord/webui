@@ -46,6 +46,15 @@ export function getB30AnalysisRecords(b30: {
 	});
 }
 
+export function equivRksStddev(values: number[]): number {
+	if (values.length < 2) return 0;
+	const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+	return Math.sqrt(
+		values.reduce((sum, value) => sum + (value - average) ** 2, 0) /
+			values.length,
+	);
+}
+
 function niceAxisStep(value: number) {
 	const candidates = [0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1];
 	return candidates.find((candidate) => candidate >= value) || Math.ceil(value);
@@ -54,7 +63,14 @@ function niceAxisStep(value: number) {
 export function buildRksHistogram(records: B30Record[], targetTickCount = 4) {
 	const valid = records.filter((record) => Number.isFinite(record.rks));
 	if (!valid.length)
-		return { slots: [], ticks: [], average: 0, averagePosition: 0, count: 0 };
+		return {
+			slots: [],
+			ticks: [],
+			average: 0,
+			stddev: 0,
+			averagePosition: 0,
+			count: 0,
+		};
 
 	const values = valid.map((record) => record.rks);
 	const minimum = Math.min(...values);
@@ -93,10 +109,12 @@ export function buildRksHistogram(records: B30Record[], targetTickCount = 4) {
 	});
 
 	const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+	const stddev = equivRksStddev(values);
 	return {
 		slots,
 		ticks,
 		average,
+		stddev,
 		averagePosition: Math.min(
 			100,
 			Math.max(0, ((average - domainMin) / domainRange) * 100),
@@ -109,6 +127,7 @@ export function buildRksHistogram(records: B30Record[], targetTickCount = 4) {
 
 export type ChartTagTreeNode = {
 	name: string;
+	description?: string;
 	voteCount?: number;
 	children?: ChartTagTreeNode[];
 };

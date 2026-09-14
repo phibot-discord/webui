@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cardFetchUrl, cooldownMsFromServer } from "./save-refresh";
+import {
+	cardFetchUrl,
+	cooldownMsFromServer,
+	getBustEpoch,
+	persistBustEpoch,
+} from "./save-refresh";
 
 test("cooldownMsFromServer prefers JSON cooldownMs from the backend", () => {
 	assert.equal(cooldownMsFromServer({ cooldownMs: 12_500 }), 12_500);
@@ -33,5 +38,17 @@ test("card fetch URL includes locale and reload so a switch is not a cache hit",
 	assert.notEqual(
 		cardFetchUrl("/api/card/b30?count=33", { tags: "1" }),
 		cardFetchUrl("/api/card/b30?count=33", { tags: "0" }),
+	);
+});
+
+test("bypass puts the new epoch on the card URL so the refetch cannot reuse the old JPEG", () => {
+	persistBustEpoch("1710000000000");
+	assert.equal(getBustEpoch(), "1710000000000");
+	assert.equal(
+		cardFetchUrl("/api/card/b30?locale=zh", {
+			locale: "zh",
+			epoch: getBustEpoch(),
+		}),
+		"/api/card/b30?locale=zh&epoch=1710000000000",
 	);
 });

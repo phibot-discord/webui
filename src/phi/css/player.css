@@ -77,6 +77,11 @@
 	text-align: center !important;
 	margin: 0 !important;
 	width: 100% !important;
+	white-space: nowrap !important;
+}
+.playerInfo .rks-sd {
+	font-size: 0.72em !important;
+	opacity: 0.72 !important;
 }
 .playerInfo .playerId {
 	position: absolute !important;
