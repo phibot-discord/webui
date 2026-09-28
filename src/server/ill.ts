@@ -1,12 +1,10 @@
 import { existsSync as fsExists } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { logger } from "./logger";
 import { illDir } from "./paths";
-import { fetchR2Object, r2Config, r2Ready } from "./r2";
-import { exists, mountBytes } from "./vfs";
+import { fetchR2Object, r2Config } from "./r2";
 
-const GH_ILL = "https://raw.githubusercontent.com/Catrong/phi-plugin-ill/main";
 const CACHE_ROOT = process.env.PHI_ILL_CACHE?.trim() || "/tmp/phi-web-ill";
 const ILL_FETCH_CONCURRENCY = 48;
 
@@ -36,38 +34,13 @@ export function songIllPath(
 	originalIll: string,
 	id: string,
 	kind: "common" | "blur" | "low" = "common",
-	extra?: { otherIll?: string; illustration?: string; fallback?: string },
+	sp = false,
 ): string {
 	const png = pngName(id);
-	const local: string[] = [];
-	if (kind === "blur") local.push(join(originalIll, "illBlur", png));
-	else if (kind === "low") local.push(join(originalIll, "illLow", png));
-	else {
-		local.push(join(originalIll, "ill", png));
-		local.push(join(originalIll, "illLow", png));
-	}
-	local.push(join(originalIll, png), join(originalIll, "SP", png));
-	if (
-		extra?.illustration &&
-		!/^(?:https?|ftp):\/\//i.test(extra.illustration) &&
-		extra.otherIll
-	) {
-		local.push(join(extra.otherIll, extra.illustration));
-	}
-	for (const p of local) {
-		if (p && exists(p)) return p;
-	}
+	if (sp) return join(originalIll, "SP", png);
 	if (kind === "blur") return join(originalIll, "illBlur", png);
-	return join(originalIll, "illLow", png);
-}
-
-export function chartImgPath(
-	originalIll: string,
-	songId: string,
-	dif: string,
-): string {
-	const id = songId.replace(/\.0$/, "");
-	return join(originalIll, "chartimg", dif, `${id}.png`);
+	if (kind === "low") return join(originalIll, "illLow", png);
+	return join(originalIll, "ill", png);
 }
 
 export function chapIllPath(originalIll: string, name: string): string {
@@ -85,104 +58,151 @@ function underIllTree(absPath: string): string | undefined {
 	return undefined;
 }
 
-function r2KeyFor(rel: string): string {
-	const prefix = r2Config().prefix;
-	const rest = rel.replace(/^\//, "");
-	return prefix ? `${prefix}/${rest}` : rest;
+const HTML_IMAGE_RE = /\/html\/((?:avatar|otherimg)\/[^/]+)$/;
+
+function decodeEntities(s: string): string {
+	return s.replace(
+		/&(amp|#38|#x26|#39|#x27|quot|#34|lt|gt);/gi,
+		(_m, e: string) =>
+			(
+				({
+					amp: "&",
+					"#38": "&",
+					"#x26": "&",
+					"#39": "'",
+					"#x27": "'",
+					quot: '"',
+					"#34": '"',
+					lt: "<",
+					gt: ">",
+				}) as Record<string, string>
+			)[e.toLowerCase()] ?? _m,
+	);
 }
 
-function ghPath(rel: string): string {
-	return `${GH_ILL}/${rel.split("/").map(encodeURIComponent).join("/")}`;
-}
-
-export function illFetchPlan(rel: string): {
-	r2Key?: string;
-	githubUrl?: string;
-} {
-	if (r2Ready()) return { r2Key: r2KeyFor(rel) };
-	return { githubUrl: ghPath(rel) };
-}
-
-async function fetchBytes(rel: string): Promise<Buffer | undefined> {
-	const plan = illFetchPlan(rel);
-	if (plan.r2Key) {
-		const buf = await fetchR2Object(plan.r2Key, { revalidate: 86_400 });
-		if (buf?.byteLength) return buf;
-		logger.warn(`ill r2 miss ${rel} key ${plan.r2Key}`);
-		return undefined;
+export function assetKeyOf(rawPath: string): string | undefined {
+	const absPath = decodeEntities(rawPath);
+	const ill = underIllTree(absPath);
+	if (ill) {
+		const prefix = r2Config().prefix;
+		return prefix ? `${prefix}/${ill}` : ill;
 	}
-	if (!plan.githubUrl) return undefined;
-	try {
-		const res = await fetch(plan.githubUrl, {
-			next: { revalidate: 86_400 },
-		} as RequestInit);
-		if (res.ok) return Buffer.from(await res.arrayBuffer());
-	} catch (err) {
-		logger.warn(
-			`ill fetch ${rel}: ${err instanceof Error ? err.message : err}`,
-		);
-	}
+	const html = HTML_IMAGE_RE.exec(absPath.replace(/\\/g, "/"))?.[1];
+	if (html) return `${r2Config().htmlPrefix}/${html}`;
 	return undefined;
 }
 
-async function persist(
-	wanted: string,
-	rel: string,
-	buf: Buffer,
-): Promise<string> {
-	const dest = join(/*turbopackIgnore: true*/ CACHE_ROOT, rel);
-	await mkdir(/*turbopackIgnore: true*/ dirname(dest), { recursive: true });
-	await writeFile(/*turbopackIgnore: true*/ dest, buf);
-	mountBytes(wanted, buf);
-	mountBytes(dest, buf);
-	return dest;
-}
-
-export function applyIllPaths(html: string, map: Map<string, string>): string {
-	let out = html;
-	for (const [from, to] of map) {
-		if (from === to) continue;
-		out = out.split(from).join(to);
+export function fallbackKeyOf(key: string): string | undefined {
+	const { prefix, htmlPrefix } = r2Config();
+	const illBase = prefix ? `${prefix}/ill/` : "ill/";
+	if (key.startsWith(illBase)) {
+		return `${prefix ? `${prefix}/` : ""}illLow/${key.slice(illBase.length)}`;
 	}
-	return out;
+	const avatarBase = `${htmlPrefix}/avatar/`;
+	const defaultAvatar = `${avatarBase}Introduction.png`;
+	if (key.startsWith(avatarBase) && key !== defaultAvatar) return defaultAvatar;
+	return undefined;
 }
 
+async function fetchBytes(key: string): Promise<Buffer | undefined> {
+	const buf = await fetchR2Object(key, { cache: "no-store" });
+	if (buf?.byteLength) return buf;
+	return undefined;
+}
+
+function diskPath(key: string) {
+	return join(/*turbopackIgnore: true*/ CACHE_ROOT, key);
+}
+
+type Located = { dest: string; fetched: boolean };
+const locating = new Map<string, Promise<Located | undefined>>();
+
+/** Write via a temp name + rename so a concurrent reader never sees a partial file. */
+async function writeAtomic(dest: string, buf: Buffer) {
+	await mkdir(/*turbopackIgnore: true*/ dirname(dest), { recursive: true });
+	const tmp = `${dest}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+	await writeFile(/*turbopackIgnore: true*/ tmp, buf);
+	await rename(/*turbopackIgnore: true*/ tmp, dest);
+}
+
+/** Path of the cached file for R2 `key`, downloading it once (then its fallback). */
+function locateAsset(key: string): Promise<Located | undefined> {
+	const pending = locating.get(key);
+	if (pending) return pending;
+	const job = (async () => {
+		const candidates = [key, fallbackKeyOf(key)].filter((k): k is string =>
+			Boolean(k),
+		);
+		for (const candidate of candidates) {
+			const dest = diskPath(candidate);
+			if (fsExists(/*turbopackIgnore: true*/ dest))
+				return { dest, fetched: false };
+			const buf = await fetchBytes(candidate);
+			if (!buf) continue;
+			await writeAtomic(dest, buf);
+			return { dest, fetched: true };
+		}
+		logger.warn(`asset r2 miss ${key}`);
+		return undefined;
+	})().finally(() => locating.delete(key));
+	locating.set(key, job);
+	return job;
+}
+
+/** One pass over the HTML for all path rewrites (instead of one split/join per jacket). */
+export function applyIllPaths(html: string, map: Map<string, string>): string {
+	const froms = [...map.keys()].filter((from) => from !== map.get(from));
+	if (!froms.length) return html;
+	const re = new RegExp(
+		froms
+			.sort((a, b) => b.length - a.length)
+			.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+			.join("|"),
+		"g",
+	);
+	return html.replace(re, (hit) => map.get(hit) ?? hit);
+}
+
+/** Start downloading images before they are needed (runs while other card data is fetched). */
+export function prefetchIlls(paths: Array<string | undefined>): void {
+	const wanted = paths.filter((p): p is string => Boolean(p));
+	if (!wanted.length) return;
+	void hydrateIlls(wanted).catch(() => undefined);
+}
+
+/** Template image path → local disk path, pulling jackets / avatars / icons from R2 on first use. */
 export async function hydrateIlls(
 	paths: string[],
+	concurrency = ILL_FETCH_CONCURRENCY,
 ): Promise<Map<string, string>> {
 	const mapped = new Map<string, string>();
-	const missing = [...new Set(paths)].filter((p) => {
-		if (!p || fsExists(/*turbopackIgnore: true*/ p)) return false;
-		return underIllTree(p) != null;
-	});
-	if (!missing.length) return mapped;
+	const wanted: Array<[path: string, key: string]> = [];
+	for (const p of new Set(paths)) {
+		const key = p ? assetKeyOf(p) : undefined;
+		if (!key) continue;
+		// A local copy (git clone of the jackets, bundled icons) wins; R2 only fills what is missing.
+		const local = decodeEntities(p);
+		if (fsExists(local)) {
+			if (local !== p) mapped.set(p, local);
+			continue;
+		}
+		wanted.push([p, key]);
+	}
+	if (!wanted.length) return mapped;
 	const started = performance.now();
 	let hits = 0;
-	await poolAll(missing, ILL_FETCH_CONCURRENCY, async (wanted) => {
-		const rel = underIllTree(wanted);
-		if (!rel) return;
-		const cached = join(/*turbopackIgnore: true*/ CACHE_ROOT, rel);
-		if (fsExists(/*turbopackIgnore: true*/ cached)) {
-			mountBytes(wanted, await readFile(/*turbopackIgnore: true*/ cached));
-			mapped.set(wanted, cached);
-			hits += 1;
-			return;
-		}
-		const buf = await fetchBytes(rel);
-		if (!buf) return;
-		mapped.set(wanted, await persist(wanted, rel, buf));
+	let fetched = 0;
+	await poolAll(wanted, concurrency, async ([path, key]) => {
+		const hit = await locateAsset(key);
+		if (!hit) return;
+		mapped.set(path, hit.dest);
 		hits += 1;
+		if (hit.fetched) fetched += 1;
 	});
-	const ms = Math.round(performance.now() - started);
-	const via = r2Ready() ? "r2" : "gh";
-	if (hits)
+	if (fetched) {
 		logger.ok(
-			`ills ${hits}/${missing.length} in ${ms}ms (${via} → ${CACHE_ROOT})`,
+			`assets ${hits}/${wanted.length} (${fetched} fetched) in ${Math.round(performance.now() - started)}ms → ${CACHE_ROOT}`,
 		);
-	else logger.warn(`ills miss ${missing.length}`);
+	} else if (!hits) logger.warn(`assets miss ${wanted.length}`);
 	return mapped;
-}
-
-export function illCacheRoot(): string {
-	return CACHE_ROOT;
 }

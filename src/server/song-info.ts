@@ -5,20 +5,23 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { getInfo } from "@/phi/lib/get-info";
 import {
 	INFO_FILE_KV_KEY,
 	type InfoFileCache,
 	parseInfoFileCache,
 } from "@/phi/lib/info-file";
 import { applyPhiVersion } from "@/phi/lib/version";
+import { runInBackground } from "./background";
 import { logger } from "./logger";
 import { assetsDir } from "./paths";
 import { fetchR2Object, r2Ready } from "./r2";
 import { mountBytes } from "./vfs";
 
 export const INFO_STATE_KEY = "_sync/info.json";
-export const INFO_FILES = [
+const INFO_FILES = [
 	"avatar.txt",
+	"chaplist.yaml",
 	"info.csv",
 	"infolist.json",
 	"nicklist.yaml",
@@ -64,6 +67,13 @@ let inflight: Promise<void> | undefined;
 
 export function catalogRevision(): string {
 	return levelsSha ? `${gitRevision}:${levelsSha}` : gitRevision;
+}
+
+const reloadListeners = new Set<() => void>();
+
+/** Runs after `getInfo` re-parses a newer catalog (the Discord bot re-indexes song aliases). */
+export function onCatalogReload(fn: () => void): void {
+	reloadListeners.add(fn);
 }
 
 export function resetSongInfoForTest() {
@@ -269,20 +279,34 @@ async function refresh(): Promise<void> {
 
 	const rev = catalogRevision();
 	if (initedCommit !== rev) {
-		const { getInfo } = await import("@/phi/lib/get-info");
 		await getInfo.init(assetsDir());
 		initedCommit = rev;
+		for (const fn of reloadListeners) {
+			try {
+				fn();
+			} catch (err) {
+				logger.warn(
+					`catalog reload hook failed: ${err instanceof Error ? err.message : err}`,
+				);
+			}
+		}
 	}
-
-	const { reloadAttachedCatalog } = await import("@/phi/lib/catalog");
-	reloadAttachedCatalog(rev);
 }
 
 export function ensureSongInfo(): Promise<void> {
+	const ready = initedCommit != null;
+	if (ready && Date.now() - checkedAt < CHECK_MS) return Promise.resolve();
 	if (!inflight) {
 		inflight = refresh().finally(() => {
 			inflight = undefined;
 		});
+		if (ready) {
+			runInBackground(inflight, (err) =>
+				logger.warn(
+					`song info refresh failed: ${err instanceof Error ? err.message : err}`,
+				),
+			);
+		}
 	}
-	return inflight;
+	return ready ? Promise.resolve() : inflight;
 }

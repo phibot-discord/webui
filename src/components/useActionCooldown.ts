@@ -28,12 +28,14 @@ export function useActionCooldown(
 	const remaining = now ? Math.max(0, until - now) : Math.max(0, cooldownMs);
 	const cooling = remaining > 0;
 
+	// Tick only while a cooldown is running; idle buttons do not re-render 4×/s.
 	useEffect(() => {
 		const tick = () => setNow(Date.now());
-		const id = window.setInterval(tick, 250);
 		queueMicrotask(tick);
+		if (!cooling) return;
+		const id = window.setInterval(tick, 250);
 		return () => window.clearInterval(id);
-	}, []);
+	}, [cooling]);
 
 	useEffect(() => () => window.clearTimeout(hideError.current), []);
 

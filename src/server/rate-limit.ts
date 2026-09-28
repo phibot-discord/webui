@@ -1,27 +1,28 @@
 import { kvKey } from "@/phi/lib/const";
 
 type KvCounter = {
-	incr(key: string): Promise<number>;
-	expire(key: string, seconds: number): Promise<unknown>;
+	incr(
+		key: string,
+		options?: { ttlMs?: number; blocking?: boolean },
+	): Promise<number>;
 };
 
 const USER_PER_MIN = 10;
 const IP_PER_MIN = 30;
+const WINDOW_MS = 60_000;
 
 export async function rateLimit(
 	kv: KvCounter,
 	opts: { userId?: string; ip: string },
 ): Promise<{ ok: true } | { ok: false; retryAfter: number }> {
-	const window = Math.floor(Date.now() / 60_000);
-	const ipKey = kvKey("webRl", "ip", opts.ip, window);
-	const ipN = await kv.incr(ipKey);
-	if (ipN === 1) await kv.expire(ipKey, 60);
+	const window = Math.floor(Date.now() / WINDOW_MS);
+	const bump = (key: string) =>
+		kv.incr(key, { ttlMs: WINDOW_MS, blocking: false });
+	const ipN = await bump(kvKey("webRl", "ip", opts.ip, window));
 	if (ipN > IP_PER_MIN) return { ok: false, retryAfter: 60 };
 
 	if (opts.userId) {
-		const userKey = kvKey("webRl", "user", opts.userId, window);
-		const userN = await kv.incr(userKey);
-		if (userN === 1) await kv.expire(userKey, 60);
+		const userN = await bump(kvKey("webRl", "user", opts.userId, window));
 		if (userN > USER_PER_MIN) return { ok: false, retryAfter: 60 };
 	}
 	return { ok: true };

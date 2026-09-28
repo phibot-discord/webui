@@ -1,54 +1,53 @@
-import { sessionUserId } from "@/auth";
 import { getNotes, setCardQuality, setShowTagAnalysis } from "@/phi/lib/notes";
+import { authed } from "@/server/authed";
 import { getDataHost } from "@/server/data-host";
-import { localizedError } from "@/server/i18n-http";
 import { parsePaintQuality } from "@/server/render/paint-budget";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-	const userId = await sessionUserId();
-	if (!userId) return localizedError(401, "unauthorized");
-	const host = await getDataHost();
-	const notes = await getNotes(host.db, userId);
-	return Response.json({
-		showTagAnalysis: notes.showTagAnalysis !== false,
-		showB30Analysis: notes.showB30Analysis !== false,
-		allowApiUsage: notes.allowApiUsage !== false,
-		cardQuality: parsePaintQuality(notes.cardQuality),
+	return authed(async (userId) => {
+		const host = await getDataHost();
+		const notes = await getNotes(host.db, userId);
+		return Response.json({
+			showTagAnalysis: notes.showTagAnalysis !== false,
+			showB30Analysis: notes.showB30Analysis !== false,
+			allowApiUsage: notes.allowApiUsage !== false,
+			cardQuality: parsePaintQuality(notes.cardQuality),
+		});
 	});
 }
 
 export async function POST(request: Request) {
-	const userId = await sessionUserId();
-	if (!userId) return localizedError(401, "unauthorized");
-	let body: { showTagAnalysis?: unknown; cardQuality?: unknown };
-	try {
-		body = (await request.json()) as {
-			showTagAnalysis?: unknown;
-			cardQuality?: unknown;
-		};
-	} catch {
-		return Response.json({ error: "bad_request" }, { status: 400 });
-	}
-	const host = await getDataHost();
-	const out: {
-		ok: true;
-		showTagAnalysis?: boolean;
-		cardQuality?: "high" | "fast";
-	} = { ok: true };
-	let wrote = false;
-	if (typeof body.showTagAnalysis === "boolean") {
-		await setShowTagAnalysis(host.db, userId, body.showTagAnalysis);
-		out.showTagAnalysis = body.showTagAnalysis;
-		wrote = true;
-	}
-	if (body.cardQuality === "high" || body.cardQuality === "fast") {
-		await setCardQuality(host.db, userId, body.cardQuality);
-		out.cardQuality = body.cardQuality;
-		wrote = true;
-	}
-	if (!wrote) return Response.json({ error: "bad_request" }, { status: 400 });
-	return Response.json(out);
+	return authed(async (userId) => {
+		let body: { showTagAnalysis?: unknown; cardQuality?: unknown };
+		try {
+			body = (await request.json()) as {
+				showTagAnalysis?: unknown;
+				cardQuality?: unknown;
+			};
+		} catch {
+			return Response.json({ error: "bad_request" }, { status: 400 });
+		}
+		const host = await getDataHost();
+		const out: {
+			ok: true;
+			showTagAnalysis?: boolean;
+			cardQuality?: "high" | "fast";
+		} = { ok: true };
+		let wrote = false;
+		if (typeof body.showTagAnalysis === "boolean") {
+			await setShowTagAnalysis(host.db, userId, body.showTagAnalysis);
+			out.showTagAnalysis = body.showTagAnalysis;
+			wrote = true;
+		}
+		if (body.cardQuality === "high" || body.cardQuality === "fast") {
+			await setCardQuality(host.db, userId, body.cardQuality);
+			out.cardQuality = body.cardQuality;
+			wrote = true;
+		}
+		if (!wrote) return Response.json({ error: "bad_request" }, { status: 400 });
+		return Response.json(out);
+	});
 }

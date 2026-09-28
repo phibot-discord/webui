@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { chapIllPath, chartImgPath, songIllPath } from "@/server/ill";
+import { chapIllPath, songIllPath } from "@/server/ill";
 import { logger } from "@/server/logger";
 import { illDir } from "@/server/paths";
 import { exists, readdir } from "@/server/vfs";
@@ -18,7 +18,6 @@ type Chart = {
 	flick?: number;
 	combo?: number;
 	maxTime?: number;
-	distribution?: unknown;
 };
 
 type SongInfo = {
@@ -58,7 +57,7 @@ type Notes = Record<
 	Partial<
 		Record<
 			(typeof LEVEL)[number],
-			{ m: number; d: unknown; t: [number, number, number, number] }
+			{ m: number; t: [number, number, number, number] }
 		>
 	>
 >;
@@ -75,7 +74,14 @@ function withDotZero(id: string) {
 	return id.endsWith(".0") ? id : `${id}.0`;
 }
 
-export class GetInfo {
+const AVATAR_FILE: Record<string, string> = {
+	"Cipher : /2&//<|0": "Cipher1",
+	"Oblivion: PHIN": "OblivionPHIN",
+	"Drop It": "Drop it",
+	RIPPER: "ripper",
+};
+
+class GetInfo {
 	allLevel = ALL_LEVEL;
 	Level = LEVEL;
 	tips: string[] = [];
@@ -103,29 +109,16 @@ export class GetInfo {
 	> = {};
 	MAX_DIFFICULTY = 0;
 	avatarid: string[] = [];
+	private totals: [number, number, number, number] | undefined;
 	resources = "";
 	originalIll = "";
-	otherIll = "";
-	imgPath = "";
 
 	async init(resources: string) {
 		this.resources = resources;
 		this.originalIll = illDir();
-		this.otherIll = join(resources, "otherill");
-		this.imgPath = join(resources, "html/otherimg");
 		const infoPath = join(resources, "info");
 		const oldInfoPath = join(infoPath, "oldInfo");
 		const dlcPath = join(infoPath, "DLC");
-
-		if (
-			!exists(join(this.originalIll, ".git")) &&
-			!exists(join(this.originalIll, "ill")) &&
-			!exists(join(this.originalIll, "illLow"))
-		) {
-			logger.warn(
-				"chart illustrations missing locally — cards fetch from R2 or GitHub at render",
-			);
-		}
 
 		this.tips = [];
 		this.ori_info = {};
@@ -144,6 +137,7 @@ export class GetInfo {
 		this.historyDifficultyBySongId = {};
 		this.historyDifficultyByVerDifficulty = {};
 		this.MAX_DIFFICULTY = 0;
+		this.totals = undefined;
 
 		this.avatarid = readText(join(infoPath, "avatar.txt"))
 			.split("\n")
@@ -274,7 +268,6 @@ export class GetInfo {
 					flick: notes?.t[3],
 					combo,
 					maxTime: notes?.m,
-					distribution: notes?.d,
 				};
 				this.ori_info[id]!.chart![level] = chart;
 				if (oldDifList[idWithout0]) {
@@ -367,12 +360,18 @@ export class GetInfo {
 		);
 	}
 
-	info(id: string, _original = false): SongInfo | undefined {
-		const row =
+	/** Stored row without copying; callers must not mutate it. */
+	raw(id: string): SongInfo | undefined {
+		return (
 			this.ori_info[id] ||
 			this.sp_info[id] ||
 			this.ori_info[withDotZero(id)] ||
-			this.sp_info[withDotZero(id)];
+			this.sp_info[withDotZero(id)]
+		);
+	}
+
+	info(id: string, _original = false): SongInfo | undefined {
+		const row = this.raw(id);
 		if (!row) return;
 		return {
 			...row,
@@ -381,34 +380,35 @@ export class GetInfo {
 		};
 	}
 
-	getill(id: string, kind: "common" | "blur" | "low" = "common"): string {
-		const song =
-			this.ori_info[id] ||
-			this.sp_info[id] ||
-			this.ori_info[withDotZero(id)] ||
-			this.sp_info[withDotZero(id)];
-		return songIllPath(this.originalIll, id, kind, {
-			otherIll: this.otherIll,
-			illustration: song?.illustration,
-			fallback: join(this.imgPath, "phigros.png"),
-		});
+	/** Charts per level with a real constant, for the stats table. Constant per catalog load. */
+	chartTotals(): [number, number, number, number] {
+		if (this.totals) return this.totals;
+		const tot: [number, number, number, number] = [0, 0, 0, 0];
+		for (const info of Object.values(this.ori_info)) {
+			if (!info.chart) continue;
+			for (let i = 0; i < LEVEL.length; i++) {
+				if (Number(info.chart[LEVEL[i]!]?.difficulty))
+					tot[i] = (tot[i] ?? 0) + 1;
+			}
+		}
+		this.totals = tot;
+		return tot;
 	}
 
-	getChartImg(songId: string, dif: string) {
-		return chartImgPath(this.originalIll, songId, dif);
+	getill(id: string, kind: "common" | "blur" | "low" = "common"): string {
+		const key = withDotZero(id);
+		const sp = !this.ori_info[key] && Boolean(this.sp_info[key]);
+		return songIllPath(this.originalIll, id, kind, sp);
 	}
 
 	getChapIll(name: string) {
 		return chapIllPath(this.originalIll, name);
 	}
 
+	/** avatar.txt id → `html/avatar/<name>.png`; unknown ids draw the game's default. */
 	idgetavatar(id: string) {
-		if (this.avatarid?.includes(id)) {
-			if (id === "Cipher : /2&//<|0") return "Cipher1";
-			if (id === "Oblivion: PHIN") return "OblivionPHIN";
-			return id;
-		}
-		return "Introduction";
+		if (!this.avatarid.includes(id)) return "Introduction";
+		return AVATAR_FILE[id] ?? id;
 	}
 
 	idgetsong(id: string) {
@@ -420,6 +420,7 @@ export class GetInfo {
 	}
 
 	getBackground(saveBackground: string) {
+		if (!saveBackground) return "";
 		let name = saveBackground;
 		switch (name) {
 			case "Another Me ":
@@ -444,4 +445,6 @@ export class GetInfo {
 	}
 }
 
-export const getInfo = new GetInfo();
+const g = globalThis as typeof globalThis & { __phiGetInfo?: GetInfo };
+if (!g.__phiGetInfo) g.__phiGetInfo = new GetInfo();
+export const getInfo = g.__phiGetInfo;

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/i18n/provider";
@@ -46,7 +47,10 @@ export function BindPanel() {
 	useEffect(() => {
 		if (phase !== "qr" && phase !== "scanned") return;
 		let dead = false;
+		let busy = false;
 		const poll = async () => {
+			if (dead || busy) return;
+			busy = true;
 			try {
 				const res = await fetch("/api/bind/poll", { method: "POST" });
 				const { httpStatus, data } = await readJsonWithTapWait(res, () =>
@@ -54,7 +58,7 @@ export function BindPanel() {
 				);
 				if (dead) return;
 				if (data.status === "bound") {
-					router.refresh();
+					router.replace("/me/b30");
 					return;
 				}
 				if (data.status === "scanned") setPhase("scanned");
@@ -76,6 +80,8 @@ export function BindPanel() {
 					setWaitingTap(false);
 					setPhase("idle");
 				}
+			} finally {
+				busy = false;
 			}
 		};
 		const id = window.setInterval(() => void poll(), intervalMs.current);
@@ -166,7 +172,7 @@ export function BindPanel() {
 				return;
 			}
 			setToken("");
-			router.refresh();
+			router.replace("/me/b30");
 		} catch {
 			setError(m.bind.failed);
 			setWaitingTap(false);
@@ -279,6 +285,14 @@ export function BindPanel() {
 							{busy && waitingTap ? m.bind.waitingTap : m.bind.tokenSubmit}
 						</button>
 					</form>
+				</div>
+				<div className="bind-manual-col">
+					<p className="bind-or">{m.bind.or}</p>
+					<h2>{m.bind.manualTitle}</h2>
+					<p className="lede">{m.bind.manualLede}</p>
+					<Link className="btn btn-ghost" href="/me/manual" prefetch={false}>
+						{m.bind.manualStart}
+					</Link>
 				</div>
 			</div>
 		</section>

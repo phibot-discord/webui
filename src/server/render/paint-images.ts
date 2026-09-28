@@ -16,6 +16,35 @@ export function maxEdgeFor(src: string) {
 	return BG_SRC.test(src) ? BG_MAX_EDGE : TILE_MAX_EDGE;
 }
 
+/**
+ * Jackets are shared by every card, so the decode + downscale result is kept
+ * per source. Keyed by src + byte length (disk assets are immutable per stamp).
+ */
+const fitted = new Map<string, Uint8Array>();
+const FITTED_MAX_BYTES = 64 * 1024 * 1024;
+let fittedBytes = 0;
+
+/** Inline `data:` images are unique per card (radar plot); only file-backed sources are worth keeping. */
+function fitKey(image: PaintImage): string | undefined {
+	if (/^data:/i.test(image.src)) return;
+	return `${image.src}|${image.data.byteLength}`;
+}
+
+function rememberFitted(key: string, data: Uint8Array) {
+	const prev = fitted.get(key);
+	if (prev) fittedBytes -= prev.byteLength;
+	fitted.delete(key);
+	fitted.set(key, data);
+	fittedBytes += data.byteLength;
+	while (fittedBytes > FITTED_MAX_BYTES && fitted.size > 1) {
+		const oldest = fitted.keys().next().value;
+		if (oldest === undefined) break;
+		const evicted = fitted.get(oldest);
+		fitted.delete(oldest);
+		if (evicted) fittedBytes -= evicted.byteLength;
+	}
+}
+
 export async function fitPaintImages(
 	images: PaintImage[],
 ): Promise<PaintImage[]> {
@@ -27,8 +56,19 @@ export async function fitPaintImages(
 		Array.from({ length: workers }, async () => {
 			for (;;) {
 				const i = next++;
-				if (i >= images.length) return;
-				out[i] = await fitOne(images[i]!);
+				const image = images[i];
+				if (!image) return;
+				const key = fitKey(image);
+				const hot = key ? fitted.get(key) : undefined;
+				if (key && hot) {
+					fitted.delete(key);
+					fitted.set(key, hot);
+					out[i] = hot === image.data ? image : { ...image, data: hot };
+					continue;
+				}
+				const done = await fitOne(image);
+				if (key) rememberFitted(key, done.data);
+				out[i] = done;
 			}
 		}),
 	);

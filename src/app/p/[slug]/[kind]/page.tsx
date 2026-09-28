@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { CardNav } from "@/components/CardNav";
 import { CardStage } from "@/components/CardStage";
 import { Desk } from "@/components/Desk";
+import { getMessages } from "@/i18n/server";
 import { displayPlayerId, displayRks } from "@/lib/player-display";
 import { getNotes } from "@/phi/lib/notes";
 import { lastSyncedIso, loadBound } from "@/server/bound";
@@ -32,6 +33,7 @@ export default async function PublicKindPage({
 	if ("error" in got) notFound();
 	const srcBase = `/api/public/${slug}/card/${kind}`;
 	const synced = lastSyncedIso(got.save);
+	const { m } = await getMessages();
 
 	return (
 		<Desk
@@ -39,6 +41,7 @@ export default async function PublicKindPage({
 			rks={displayRks(got.save.saveInfo.summary?.rankingScore)}
 			lastSyncedIso={synced}
 			publicHint
+			note={got.manual ? m.manual.deskNote : undefined}
 			nav={<CardNav current={kind} base={`/p/${slug}`} />}
 		>
 			<CardStage

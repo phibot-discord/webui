@@ -5,8 +5,24 @@ import { useCallback, useId, useRef, useState } from "react";
 import { ToolPop, useToolDismiss } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 
-export function UnbindButton() {
+/** Unbinds TapTap, or in manual mode deletes the hand-typed scores */
+export function UnbindButton({ manual = false }: { manual?: boolean }) {
 	const { m } = useI18n();
+	const copy = manual
+		? {
+				button: m.manual.clear,
+				confirm: m.manual.clearConfirm,
+				yes: m.manual.clear,
+				pending: m.manual.clearing,
+				failed: m.manual.clearFailed,
+			}
+		: {
+				button: m.bind.unbind,
+				confirm: m.bind.unbindConfirm,
+				yes: m.bind.unbindYes,
+				pending: m.bind.unbinding,
+				failed: m.bind.unbindFailed,
+			};
 	const router = useRouter();
 	const root = useRef<HTMLDivElement>(null);
 	const titleId = useId();
@@ -25,12 +41,12 @@ export function UnbindButton() {
 			const res = await fetch("/api/unbind", { method: "POST" });
 			const data = (await res.json().catch(() => ({}))) as { error?: string };
 			if (!res.ok) {
-				setError(data.error || m.bind.unbindFailed);
+				setError(data.error || copy.failed);
 				return;
 			}
 			router.refresh();
 		} catch {
-			setError(m.bind.unbindFailed);
+			setError(copy.failed);
 		} finally {
 			setPending(false);
 		}
@@ -49,12 +65,12 @@ export function UnbindButton() {
 					setConfirming((open) => !open);
 				}}
 			>
-				{m.bind.unbind}
+				{copy.button}
 			</button>
 			{confirming ? (
 				<ToolPop labelledBy={titleId}>
 					<p className="tool-pop-copy" id={titleId}>
-						{m.bind.unbindConfirm}
+						{copy.confirm}
 					</p>
 					{error ? (
 						<p className="bind-error" role="alert">
@@ -68,7 +84,7 @@ export function UnbindButton() {
 							disabled={pending}
 							onClick={() => void unbind()}
 						>
-							{pending ? m.bind.unbinding : m.bind.unbindYes}
+							{pending ? copy.pending : copy.yes}
 						</button>
 						<button
 							className="btn btn-ghost"

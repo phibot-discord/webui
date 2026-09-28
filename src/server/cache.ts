@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { after } from "next/server";
 import { kvKey } from "@/phi/lib/const";
+import { runInBackground } from "./background";
 import { parseCachedHeight } from "./card-image-cache";
-import type { WebHost } from "./host";
+import type { KvStore } from "./kv";
 import { logger } from "./logger";
 import { fetchR2Object, putR2Object, r2WriteReady } from "./r2";
 
@@ -10,17 +10,24 @@ const CARD_TTL_MS = 6 * 60 * 60 * 1000;
 const CARD_R2_PREFIX = "web-cards";
 
 const pngBufferCache = new Map<string, Buffer>();
-const PNG_BUFFER_CACHE_MAX = 48;
+const PNG_BUFFER_CACHE_BYTES = 64 * 1024 * 1024;
+let pngBufferBytes = 0;
 const heightMem = new Map<string, number>();
 const HEIGHT_MEM_MAX = 200;
 
 function rememberPng(key: string, bytes: Buffer) {
+	const prev = pngBufferCache.get(key);
+	if (prev) pngBufferBytes -= prev.byteLength;
 	pngBufferCache.delete(key);
-	if (pngBufferCache.size >= PNG_BUFFER_CACHE_MAX) {
-		const oldest = pngBufferCache.keys().next().value;
-		if (oldest !== undefined) pngBufferCache.delete(oldest);
-	}
 	pngBufferCache.set(key, bytes);
+	pngBufferBytes += bytes.byteLength;
+	while (pngBufferBytes > PNG_BUFFER_CACHE_BYTES && pngBufferCache.size > 1) {
+		const oldest = pngBufferCache.keys().next().value;
+		if (oldest === undefined) break;
+		const evicted = pngBufferCache.get(oldest);
+		pngBufferCache.delete(oldest);
+		if (evicted) pngBufferBytes -= evicted.byteLength;
+	}
 }
 
 function rememberHeightMem(id: string, height: number) {
@@ -78,11 +85,7 @@ export async function writeCachedHeight(
 	const n = parseCachedHeight(height);
 	if (!n) return;
 	rememberHeightMem(id, n);
-	try {
-		after(() => persistHeight(store, id, n));
-	} catch {
-		await persistHeight(store, id, n);
-	}
+	runInBackground(persistHeight(store, id, n));
 }
 
 export function cardEtag(parts: string[]): string {
@@ -96,9 +99,9 @@ export function cacheKey(kind: string, userId: string, etag: string): string {
 	return kvKey("webCard", "png", kind, userId, etag);
 }
 
-type PngStore = Pick<WebHost, "store">;
+type PngStore = { store: KvStore };
 
-export function r2CardKey(key: string) {
+function r2CardKey(key: string) {
 	return `${CARD_R2_PREFIX}/${key}.jpg`;
 }
 
@@ -118,17 +121,24 @@ export function durableCardStore(store: CachedCard["store"]): "r2" | "kv" {
 	return r2WriteReady() ? "r2" : "kv";
 }
 
+export type CardCacheOpts = { durable?: boolean };
+
 export async function readCachedPng(
 	host: PngStore,
 	key: string,
+	opts: CardCacheOpts = {},
 ): Promise<CachedCard | undefined> {
 	const hot = pngBufferCache.get(key);
 	if (hot) {
 		rememberPng(key, hot);
 		return { bytes: hot, store: "mem" };
 	}
+	if (opts.durable === false) return undefined;
 	if (r2WriteReady()) {
-		const buf = await fetchR2Object(r2CardKey(key));
+		const buf = await fetchR2Object(r2CardKey(key), {
+			cache: "no-store",
+			negative: false,
+		});
 		if (buf?.byteLength) {
 			rememberPng(key, buf);
 			return { bytes: buf, store: "r2" };
@@ -147,6 +157,7 @@ async function persistPng(host: PngStore, key: string, bytes: Buffer) {
 		if (r2WriteReady()) {
 			await putR2Object(r2CardKey(key), bytes, "image/jpeg", {
 				contentDisposition: `attachment; filename="${cardFilenameFromCacheKey(key)}"`,
+				cache: "no-store",
 			});
 			return;
 		}
@@ -164,11 +175,9 @@ export async function writeCachedPng(
 	host: PngStore,
 	key: string,
 	bytes: Buffer,
+	opts: CardCacheOpts = {},
 ): Promise<void> {
 	rememberPng(key, bytes);
-	try {
-		after(() => persistPng(host, key, bytes));
-	} catch {
-		await persistPng(host, key, bytes);
-	}
+	if (opts.durable === false) return;
+	runInBackground(persistPng(host, key, bytes));
 }

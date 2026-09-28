@@ -9,12 +9,54 @@ import { applyIllPaths } from "../../server/ill";
 import { rewriteLocalUrls } from "../../server/render/html";
 import {
 	buildRksHistogram,
-	buildTagAnalysis,
-	buildTagRadar,
-	type ChartTagTreeNode,
+	type RadarCategory,
+	type TagRadar,
 } from "./b30-analysis";
 import { localizeChartTagLabels, localizeChartTagName } from "./card-i18n";
 import { tagRadarHtml, tagRadarPlotPng, tagRadarPlotSvg } from "./charts";
+
+/** Radar geometry as phib19 returns it (pentagon, top-first, 0–17 rks radius). */
+function radarFixture(
+	categories: { name: string; rks: number; votes: number; hasVotes: boolean }[],
+): TagRadar {
+	const cx = 100;
+	const cy = 92;
+	const r = 55;
+	const n = Math.max(3, categories.length);
+	const at = (index: number, t: number) => {
+		const ang = -Math.PI / 2 + (index / n) * Math.PI * 2;
+		return { x: cx + Math.cos(ang) * r * t, y: cy + Math.sin(ang) * r * t };
+	};
+	const round = (v: number) => Math.round(v * 100) / 100;
+	const pair = (p: { x: number; y: number }) => `${round(p.x)},${round(p.y)}`;
+	const placed = categories.map((category, i) => {
+		const t = category.hasVotes ? Math.min(1, category.rks / 17) : 0.08;
+		const point = at(i, t);
+		const label = at(i, 1.42);
+		const anchor: RadarCategory["anchor"] =
+			label.x < cx - 8 ? "end" : label.x > cx + 8 ? "start" : "middle";
+		return {
+			...category,
+			displayRks: category.hasVotes ? category.rks.toFixed(2) : "—",
+			pointX: round(point.x),
+			pointY: round(point.y),
+			labelX: round(label.x),
+			labelY: round(label.y),
+			anchor,
+		};
+	});
+	return {
+		grids: [0.25, 0.5, 0.75, 1].map((t) =>
+			Array.from({ length: n }, (_, i) => pair(at(i, t))).join(" "),
+		),
+		axes: Array.from({ length: n }, (_, i) => {
+			const p = at(i, 1);
+			return { x: round(p.x), y: round(p.y) };
+		}),
+		points: placed.map((c) => `${c.pointX},${c.pointY}`).join(" "),
+		categories: placed,
+	};
+}
 
 const rec = (id: string, rank: string, rks: number) => ({
 	id,
@@ -23,17 +65,6 @@ const rec = (id: string, rank: string, rks: number) => ({
 	kind: "best" as const,
 	slot: "B1",
 });
-
-const tree: ChartTagTreeNode[] = [
-	{
-		name: "读谱",
-		children: [{ name: "面海" }, { name: "脑裂" }],
-	},
-	{
-		name: "硬抗",
-		children: [{ name: "快交互" }],
-	},
-];
 
 test("histogram reports population stddev of song equivalent rks", () => {
 	const hist = buildRksHistogram([
@@ -45,79 +76,8 @@ test("histogram reports population stddev of song equivalent rks", () => {
 	assert.ok(Math.abs(hist.stddev - Math.sqrt(8 / 3)) < 1e-9);
 });
 
-test("radar uses a top-starting pentagon matching the B30 panel viewBox", () => {
-	const radar = buildTagRadar([
-		{ name: "读谱", rks: 15.72, votes: 10, hasVotes: true },
-		{ name: "硬抗", rks: 15.94, votes: 10, hasVotes: true },
-		{ name: "拆谱", rks: 15.38, votes: 10, hasVotes: true },
-		{ name: "定位", rks: 15.51, votes: 10, hasVotes: true },
-		{ name: "多指", rks: 15.12, votes: 10, hasVotes: true },
-	]);
-	assert.equal(radar.axes.length, 5);
-	assert.equal(radar.grids.length, 4);
-	assert.equal(radar.categories.length, 5);
-	assert.ok(Math.abs(radar.axes[0]!.x - 100) < 0.05);
-	assert.ok(Math.abs(radar.axes[0]!.y - 37) < 0.05);
-	assert.ok(Math.abs(radar.axes[1]!.x - 152.3) < 0.2);
-	assert.ok(Math.abs(radar.axes[1]!.y - 75) < 0.2);
-	const high = radar.categories[1]!;
-	const low = radar.categories[4]!;
-	const dist = (c: { pointX: number; pointY: number }) =>
-		Math.hypot(c.pointX - 100, c.pointY - 92);
-	assert.ok(dist(high) > dist(low));
-	assert.equal(high.displayRks, "15.94");
-});
-
-test("radar uses a fixed 0-17 rks radius instead of min-max stretching", () => {
-	const radar = buildTagRadar([
-		{ name: "读谱", rks: 16.27, votes: 10, hasVotes: true },
-		{ name: "硬抗", rks: 16.34, votes: 10, hasVotes: true },
-		{ name: "拆谱", rks: 16.28, votes: 10, hasVotes: true },
-		{ name: "定位", rks: 16.33, votes: 10, hasVotes: true },
-		{ name: "多指", rks: 6.34, votes: 10, hasVotes: true },
-	]);
-	const dist = (c: { pointX: number; pointY: number }) =>
-		Math.hypot(c.pointX - 100, c.pointY - 92);
-	const high = radar.categories[1]!;
-	const near = radar.categories[0]!;
-	const low = radar.categories[4]!;
-	assert.ok(Math.abs(dist(high) / 55 - 16.34 / 17) < 0.03);
-	assert.ok(Math.abs(dist(low) / 55 - 6.34 / 17) < 0.03);
-	assert.ok(Math.abs(dist(high) - dist(near)) < 2);
-	assert.ok(dist(low) > 18 && dist(low) < 28);
-});
-
-test("weights B30 rks by community tag votes and splits strong vs weak", () => {
-	const analysis = buildTagAnalysis(
-		[
-			rec("song-a", "IN", 16),
-			rec("song-b", "IN", 14),
-			rec("song-c", "AT", 15),
-			rec("song-d", "HD", 15.4),
-		],
-		tree,
-		{
-			"song-a": { IN: { 面海: 10, 快交互: 5 } },
-			"song-b": { IN: { 面海: 10, 脑裂: 8 } },
-			"song-c": { AT: { 快交互: 20 } },
-			"song-d": { HD: { 快交互: 4, 脑裂: 6 } },
-		},
-	);
-	assert.equal(analysis.insufficient, false);
-	assert.ok(analysis.totalVotes > 0);
-	const ranked = [...analysis.strong, ...analysis.weak];
-	const mianhai = ranked.find((tag) => tag.name === "面海");
-	assert.ok(mianhai);
-	assert.ok(Math.abs(mianhai.rks - 15) < 1e-9);
-	assert.equal(analysis.strong[0]!.name, "快交互");
-	assert.equal(analysis.weak[0]!.name, "脑裂");
-	const reading = analysis.radar.categories.find((c) => c.name === "读谱");
-	assert.ok(reading?.hasVotes);
-	assert.ok(reading!.rks < 15.5);
-});
-
 test("radar plot is a white PNG, not a black Takumi SVG/clip-path fill", async () => {
-	const radar = buildTagRadar([
+	const radar = radarFixture([
 		{ name: "读谱", rks: 16.28, votes: 10, hasVotes: true },
 		{ name: "硬抗", rks: 16.34, votes: 10, hasVotes: true },
 		{ name: "拆谱", rks: 15.4, votes: 10, hasVotes: true },
@@ -281,7 +241,7 @@ test("tag ranking sits right of English radar labels and is vertically centered"
 	assert.doesNotMatch(takumiCss, /left: -36px/);
 	assert.doesNotMatch(takumiCss, /rotate\(-90deg\)/);
 
-	const radar = buildTagRadar([
+	const radar = radarFixture([
 		{ name: "读谱", rks: 16.28, votes: 10, hasVotes: true },
 		{ name: "硬抗", rks: 16.34, votes: 10, hasVotes: true },
 		{ name: "拆谱", rks: 15.4, votes: 10, hasVotes: true },
@@ -360,14 +320,4 @@ test("tag ranking sits right of English radar labels and is vertically centered"
 		pinkY >= 2 && pinkY < 40,
 		`ranking lists not vertically centered: y=${pinkY}`,
 	);
-});
-
-test("marks analysis insufficient when B30 charts have no tag votes", () => {
-	const analysis = buildTagAnalysis([rec("song-a", "IN", 16)], tree, {
-		"song-a": { IN: { 面海: 0, 快交互: 0 } },
-	});
-	assert.equal(analysis.insufficient, true);
-	assert.equal(analysis.totalVotes, 0);
-	assert.equal(analysis.strong.length, 0);
-	assert.equal(analysis.weak.length, 0);
 });

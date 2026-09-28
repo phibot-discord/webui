@@ -6,6 +6,21 @@ export function bindBackground(fn: (name: string) => string) {
 	backgroundOf = fn;
 }
 
+let shanghaiFormat: Intl.DateTimeFormat | undefined;
+function shanghaiDateFormat() {
+	shanghaiFormat ??= new Intl.DateTimeFormat("en-GB", {
+		timeZone: "Asia/Shanghai",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hourCycle: "h23",
+	});
+	return shanghaiFormat;
+}
+
 export const fCompute = {
 	rks(acc: number, difficulty: number) {
 		if (acc === 100) return Number(difficulty);
@@ -145,16 +160,7 @@ export const fCompute = {
 	formatDate(date?: Date | string | number, formater = "YYYY/MM/DD hh:mm:ss") {
 		const d = date ? new Date(date) : new Date();
 		const parts = Object.fromEntries(
-			new Intl.DateTimeFormat("en-GB", {
-				timeZone: "Asia/Shanghai",
-				year: "numeric",
-				month: "2-digit",
-				day: "2-digit",
-				hour: "2-digit",
-				minute: "2-digit",
-				second: "2-digit",
-				hourCycle: "h23",
-			})
+			shanghaiDateFormat()
 				.formatToParts(d)
 				.map((p) => [p.type, p.value]),
 		);

@@ -5,6 +5,8 @@ import { isTapApiFailure } from "@/phi/lib/tapapi";
 import { isGlobalTapLogin } from "@/phi/lib/taptap";
 import { lastSyncedIso } from "./bound";
 import { getDataHost } from "./data-host";
+import { logger, withDiscordUid } from "./logger";
+import { clearManual } from "./manual";
 import { ensureSongInfo } from "./song-info";
 
 export type BindServer = "cn" | "gb";
@@ -47,10 +49,11 @@ function asServer(raw: unknown, globalFlag?: unknown): BindServer {
 }
 
 function failBind(err: unknown): BindErr {
+	const msg = err instanceof Error ? err.message : String(err);
+	logger.error("bind failed", err instanceof Error ? err : msg);
 	if (isTapApiFailure(err)) {
 		return { error: "tapapi_unavailable", status: 502 };
 	}
-	const msg = err instanceof Error ? err.message : "";
 	if (/banned/i.test(msg)) return { error: "banned", status: 403 };
 	if (/already bound/i.test(msg))
 		return { error: "already_bound", status: 409 };
@@ -111,6 +114,18 @@ export async function startQrBind(
 ): Promise<
 	{ expiresIn: number; intervalMs: number; openUrl: string } | BindErr
 > {
+	return withDiscordUid(userId, () =>
+		startQrBindFor(userId, server, globalFlag),
+	);
+}
+
+async function startQrBindFor(
+	userId: string,
+	server: unknown,
+	globalFlag?: unknown,
+): Promise<
+	{ expiresIn: number; intervalMs: number; openUrl: string } | BindErr
+> {
 	const host = await getDataHost();
 	if (await getToken(host.rt, userId))
 		return { error: "already_bound", status: 409 };
@@ -125,8 +140,10 @@ export async function startQrBind(
 	try {
 		const request = await host.rt.getQRcode.getRequest(global);
 		const fields = qrFields(request);
-		if (!fields.url || !fields.deviceId)
+		if (!fields.url || !fields.deviceId) {
+			logger.error(`qr missing url ${JSON.stringify(request).slice(0, 400)}`);
 			throw new Error("TapTap did not return a QR login URL.");
+		}
 		const expiresIn = Math.min(
 			Math.max(Number(fields.data.expires_in) || 300, 30),
 			840,
@@ -194,6 +211,12 @@ export function isQrResume(
 export async function peekQrBind(
 	userId: string,
 ): Promise<{ status: "waiting" | "scanned" } | BindOk | BindErr | QrResume> {
+	return withDiscordUid(userId, () => peekQrBindFor(userId));
+}
+
+async function peekQrBindFor(
+	userId: string,
+): Promise<{ status: "waiting" | "scanned" } | BindOk | BindErr | QrResume> {
 	const host = await getDataHost();
 	if (await getToken(host.rt, userId)) {
 		await clearQr(userId);
@@ -228,6 +251,13 @@ export async function finishQrBind(
 	userId: string,
 	resume: QrResume["resume"],
 ): Promise<BindOk | BindErr> {
+	return withDiscordUid(userId, () => finishQrBindFor(userId, resume));
+}
+
+async function finishQrBindFor(
+	userId: string,
+	resume: QrResume["resume"],
+): Promise<BindOk | BindErr> {
 	const host = await getDataHost();
 	let token: string;
 	try {
@@ -252,6 +282,7 @@ export async function finishQrBind(
 			global: resume.useGlobal,
 		});
 		await clearQr(userId);
+		await leaveManualMode(userId);
 		return playerFromSave(save);
 	} catch (err) {
 		await clearQr(userId);
@@ -259,15 +290,29 @@ export async function finishQrBind(
 	}
 }
 
-export async function pollQrBind(
-	userId: string,
-): Promise<{ status: "waiting" | "scanned" } | BindOk | BindErr> {
-	const peeked = await peekQrBind(userId);
-	if (isQrResume(peeked)) return finishQrBind(userId, peeked.resume);
-	return peeked;
+/** A real bind replaces a manual profile; its hand-typed B30 snapshots go with it. */
+async function leaveManualMode(userId: string) {
+	try {
+		await clearManual(userId);
+	} catch (err) {
+		logger.warn(
+			`manual cleanup skipped: ${err instanceof Error ? err.message : err}`,
+		);
+	}
 }
 
 export async function bindWithToken(
+	userId: string,
+	rawToken: unknown,
+	server: unknown,
+	globalFlag?: unknown,
+): Promise<BindOk | BindErr> {
+	return withDiscordUid(userId, () =>
+		bindWithTokenFor(userId, rawToken, server, globalFlag),
+	);
+}
+
+async function bindWithTokenFor(
 	userId: string,
 	rawToken: unknown,
 	server: unknown,
@@ -286,6 +331,7 @@ export async function bindWithToken(
 			global: asServer(server, globalFlag) === "gb",
 		});
 		await clearQr(userId);
+		await leaveManualMode(userId);
 		return playerFromSave(save);
 	} catch (err) {
 		return failBind(err);
@@ -300,13 +346,21 @@ export async function cancelQrBind(userId: string): Promise<{ ok: true }> {
 export async function unbindAccount(
 	userId: string,
 ): Promise<{ ok: true } | BindErr> {
+	return withDiscordUid(userId, () => unbindAccountFor(userId));
+}
+
+async function unbindAccountFor(
+	userId: string,
+): Promise<{ ok: true } | BindErr> {
 	const host = await getDataHost();
 	try {
 		const had = await clearUser(host.rt, host.db, userId);
 		await clearQr(userId);
-		if (!had) return { error: "not_bound", status: 409 };
+		if (!had && !(await clearManual(userId)))
+			return { error: "not_bound", status: 409 };
 		return { ok: true };
-	} catch {
+	} catch (err) {
+		logger.error("unbind failed", err);
 		return { error: "unbind_failed", status: 502 };
 	}
 }

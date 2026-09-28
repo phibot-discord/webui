@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { Catalog } from "../phi/lib/catalog";
+import { getInfo } from "../phi/lib/get-info";
 import { parseInfoFileCache } from "../phi/lib/info-file";
 import {
 	applyLevelsCsv,
@@ -199,7 +200,7 @@ test("hydrateSongInfo re-downloads when levelsSha changes with the same git comm
 	assert.equal(readFile(join(assets, "info", "info.csv"), "utf8"), "fresh");
 });
 
-test("applyLevelsCsv mounts KV csv over R2 and updates catalogRevision", () => {
+test("applyLevelsCsv mounts KV csv over R2 and updates catalogRevision", async () => {
 	resetSongInfoForTest();
 	const assets = tmp();
 	mkdirSync(join(assets, "info"), { recursive: true });
@@ -218,27 +219,28 @@ test("applyLevelsCsv mounts KV csv over R2 and updates catalogRevision", () => {
 	applyLevelsCsv(assets, cache);
 	assert.equal(readFile(join(assets, "info", "info.csv"), "utf8"), csv);
 	assert.equal(catalogRevision().endsWith(":deadbeef"), true);
-	const catalog = new Catalog(assets).load();
-	assert.equal(
-		catalog.songs.get("Credits.Frums.0")?.chart.AT?.difficulty,
-		15.8,
-	);
+	await getInfo.init(assets);
+	assert.equal(getInfo.ori_info["Credits.Frums.0"]?.chart.AT?.difficulty, 15.8);
 });
 
-test("Catalog.load replaces songs so a newer info.csv can drop old ids", () => {
+test("getInfo.init replaces songs so a newer info.csv can drop old ids", async () => {
 	const assets = tmp();
 	mkdirSync(join(assets, "info"), { recursive: true });
 	writeFileSync(
 		join(assets, "info", "info.csv"),
 		`${CSV_HEAD}Old.Song\tOld\tx\tx\t\t\t\t\t1\t2\t3\t\n`,
 	);
-	const catalog = new Catalog(assets).load();
-	assert.equal(catalog.songs.has("Old.Song.0"), true);
+	await getInfo.init(assets);
+	assert.equal("Old.Song.0" in getInfo.ori_info, true);
+	assert.deepEqual(getInfo.chartTotals(), [1, 1, 1, 0]);
 	writeFileSync(
 		join(assets, "info", "info.csv"),
 		`${CSV_HEAD}NWAD.Knighthood\tNWAD\tx\tx\t\t\t\t\t5.5\t9.2\t15.6\t\n`,
 	);
-	catalog.load();
-	assert.equal(catalog.songs.has("Old.Song.0"), false);
-	assert.equal(catalog.songs.has("NWAD.Knighthood.0"), true);
+	await getInfo.init(assets);
+	assert.equal("Old.Song.0" in getInfo.ori_info, false);
+	assert.equal("NWAD.Knighthood.0" in getInfo.ori_info, true);
+	const catalog = new Catalog(assets);
+	assert.equal(catalog.size, 1);
+	assert.ok(catalog.randomIll("blur").endsWith("illBlur/NWAD.Knighthood.png"));
 });

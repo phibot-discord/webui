@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { beforeEach } from "node:test";
 import type { Kv } from "@/server/sdk";
 import { kvKey } from "./const";
 import type { PhiRuntime } from "./runtime";
 import { Save } from "./save";
-import { updateSave } from "./saves";
+import { asSessionToken, resetSaveBlobMemForTest, updateSave } from "./saves";
 import { TapApiError } from "./tapapi";
 
 const TOKEN = "abcdefghijklmnopqrstuvwxy";
@@ -71,9 +71,6 @@ function mockRt(opts: {
 			isSessionTokenBanned: async () => false,
 			setSessionToken: async () => undefined,
 		},
-		getRksRank: {
-			addUserRks: async () => undefined,
-		},
 	} as unknown as PhiRuntime;
 }
 
@@ -91,6 +88,21 @@ function mockDb(opts: { log: string[]; save?: string }) {
 		close: async () => undefined,
 	} satisfies Kv;
 }
+
+beforeEach(() => resetSaveBlobMemForTest());
+
+test("asSessionToken accepts a raw 25-char token and unwraps JSON", () => {
+	assert.equal(
+		asSessionToken("abcdefghijklmnopqrstuvwxy"),
+		"abcdefghijklmnopqrstuvwxy",
+	);
+	assert.equal(
+		asSessionToken(JSON.stringify({ d: "abcdefghijklmnopqrstuvwxy" })),
+		"abcdefghijklmnopqrstuvwxy",
+	);
+	assert.equal(asSessionToken(""), undefined);
+	assert.equal(asSessionToken("short"), undefined);
+});
 
 test("failed TapTap fetch does not read the Cloudflare save blob", async () => {
 	const log: string[] = [];

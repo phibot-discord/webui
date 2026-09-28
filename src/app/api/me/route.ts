@@ -1,44 +1,44 @@
-import { sessionUserId } from "@/auth";
+import { authed } from "@/server/authed";
 import {
 	lastSyncedIso,
 	loadBound,
 	refreshCooldownRemaining,
 } from "@/server/bound";
 import { getDataHost } from "@/server/data-host";
-import { localizedError } from "@/server/i18n-http";
 import { getShareSlug } from "@/server/share";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-	const userId = await sessionUserId();
-	if (!userId) return localizedError(401, "unauthorized");
-	const host = await getDataHost();
-	const [shareSlug, refreshCooldownMs, got] = await Promise.all([
-		getShareSlug(userId),
-		refreshCooldownRemaining(userId),
-		loadBound(host, userId),
-	]);
-	if ("error" in got) {
+	return authed(async (userId) => {
+		const host = await getDataHost();
+		const [shareSlug, refreshCooldownMs, got] = await Promise.all([
+			getShareSlug(userId),
+			refreshCooldownRemaining(userId),
+			loadBound(host, userId),
+		]);
+		if ("error" in got) {
+			return Response.json({
+				bound: got.reason === "no_save",
+				banned: got.reason === "banned",
+				hasSave: false,
+				error: got.error,
+				shareSlug,
+				refreshCooldownMs,
+			});
+		}
+		const rks = got.save.saveInfo.summary?.rankingScore;
 		return Response.json({
-			bound: got.reason === "no_save",
-			banned: got.reason === "banned",
-			hasSave: false,
-			error: got.error,
+			bound: true,
+			banned: false,
+			hasSave: true,
+			manual: got.manual === true,
+			playerId: String(got.save.saveInfo.PlayerId || ""),
+			rks: typeof rks === "number" ? rks : undefined,
+			lastSynced: lastSyncedIso(got.save),
 			shareSlug,
 			refreshCooldownMs,
 		});
-	}
-	const rks = got.save.saveInfo.summary?.rankingScore;
-	return Response.json({
-		bound: true,
-		banned: false,
-		hasSave: true,
-		playerId: String(got.save.saveInfo.PlayerId || ""),
-		rks: typeof rks === "number" ? rks : undefined,
-		lastSynced: lastSyncedIso(got.save),
-		shareSlug,
-		refreshCooldownMs,
 	});
 }

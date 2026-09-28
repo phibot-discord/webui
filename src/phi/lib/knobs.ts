@@ -1,6 +1,9 @@
 import { PHI_CSS } from "../css/bundle";
 
-export function knobs(): Map<string, string> {
+let parsed: Map<string, string> | undefined;
+
+function knobs(): Map<string, string> {
+	if (parsed) return parsed;
 	const css = PHI_CSS["knobs.css"] || "";
 	const map = new Map<string, string>();
 	for (const block of css.matchAll(/(?::root|html)\s*\{([^{}]*)\}/gi)) {
@@ -13,10 +16,11 @@ export function knobs(): Map<string, string> {
 			map.set(`--${name}`, value.trim());
 		}
 	}
+	parsed = map;
 	return map;
 }
 
-export function knob(name: string, fallback: string): string {
+function knob(name: string, fallback: string): string {
 	return knobs().get(name) ?? fallback;
 }
 

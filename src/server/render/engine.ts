@@ -3,7 +3,6 @@ import { Renderer } from "@takumi-rs/core";
 import sharp from "sharp";
 import { render, setGlyphCacheMaxBytes } from "takumi-js";
 import { fromHtml } from "takumi-js/helpers/html";
-import { applyIllPaths, hydrateIlls } from "../ill";
 import { logger } from "../logger";
 import { renderLock } from "../render-lock";
 import type {
@@ -23,7 +22,6 @@ import {
 } from "./css";
 import { PHI_FONT_FAMILIES } from "./fonts";
 import {
-	collectLocalAssetPaths,
 	type ImageAsset,
 	rewriteLegacyPhiPluginPaths,
 	rewriteLocalUrls,
@@ -197,6 +195,7 @@ export class RenderEngine {
 			id?: string;
 			heightKey?: string;
 			paintQuality?: PaintQuality;
+			maxRatio?: number;
 		} = {},
 	): Promise<RenderedImage> {
 		const started = performance.now();
@@ -204,14 +203,12 @@ export class RenderEngine {
 		const width = opts.width ?? 1200;
 		const format = opts.format ?? "png";
 		const quality = opts.quality ?? 90;
+		const maxRatio = opts.maxRatio ?? PIXEL_RATIO;
 		const baseDir = opts.baseDir ?? process.cwd();
 		const id = opts.id || "html";
 
+		// Jackets were already hydrated by the template's html() step.
 		let html = stripScripts(rewriteLegacyPhiPluginPaths(rawHtml, baseDir));
-		html = applyIllPaths(
-			html,
-			await hydrateIlls(collectLocalAssetPaths(html, baseDir)),
-		);
 		const sheets = collectStylesheets(html, baseDir);
 		html = sheets.html;
 		const rewritten = rewriteLocalUrls(html, baseDir);
@@ -226,10 +223,9 @@ export class RenderEngine {
 		);
 
 		const prepared = html;
-		const layoutTree = fromHtml(wrapPixelRoot(prepared, width, 1));
+		// `<style>` blocks were pulled into `inline` above, so fromHtml() has no CSS to add.
 		const rawSheets = [
 			...sheets.sheets,
-			...(layoutTree.css || []),
 			`.help_box, .line { overflow: visible !important; max-height: none !important; }`,
 			...inline,
 		];
@@ -257,90 +253,102 @@ export class RenderEngine {
 		const assetsMs = performance.now() - tAssets;
 
 		const paintQuality = opts.paintQuality ?? "fast";
-		const { encoded, height, ratio, heightCached, measureMs } =
-			await renderLock.run(async () => {
-				let height = opts.height;
-				const heightKey = opts.heightKey
-					? `${opts.heightKey}|w${width}`
-					: undefined;
-				let heightCached: "hit" | "miss" | undefined;
-				let measureMs: number | undefined;
-				if (height && height > 64 && heightKey) {
-					heightCached = "hit";
-					rememberHeight(heightKey, height);
-					logger.info(`height cache hit ${heightKey} → ${height}`);
-				} else if (!height && heightKey) {
-					const cached = heightCache.get(heightKey);
-					if (cached && cached > 64) {
-						height = cached;
-						heightCached = "hit";
-						logger.info(`height cache hit ${heightKey} → ${cached}`);
-					}
-				}
-				if (!height) {
-					const tMeasure = performance.now();
-					const measured = await renderer.measure(layoutTree.node, {
-						width,
-						height: MEASURE_VIEWPORT_H,
-						css: layoutCss,
-						images,
-						fontFamilies: [...PHI_FONT_FAMILIES],
-						lang: "zh-CN",
-					});
-					const boxH = measured.height || 0;
-					const extent = Math.max(1, Math.ceil(contentExtent(measured)));
-					let raw = Math.max(boxH, extent);
-					if (
-						extent >= MEASURE_VIEWPORT_H - 1 &&
-						boxH > 64 &&
-						boxH + 24 < extent
-					) {
-						raw = boxH;
-					}
-					height = Math.min(
-						MEASURE_VIEWPORT_H,
-						Math.max(1, Math.ceil(raw) + 24),
-					);
-					measureMs = performance.now() - tMeasure;
-					if (heightKey) heightCached = "miss";
-					logger.info(
-						`measured box ${measured.width}x${measured.height} content ${extent} using ${height}`,
-					);
-					if (heightKey && height > 64) rememberHeight(heightKey, height);
-				}
+		let height = opts.height;
+		const heightKey = opts.heightKey
+			? `${opts.heightKey}|w${width}`
+			: undefined;
+		let heightCached: "hit" | "miss" | undefined;
+		if (height && height > 64 && heightKey) {
+			heightCached = "hit";
+			rememberHeight(heightKey, height);
+			logger.info(`height cache hit ${heightKey} → ${height}`);
+		} else if (!height && heightKey) {
+			const cached = heightCache.get(heightKey);
+			if (cached && cached > 64) {
+				height = cached;
+				heightCached = "hit";
+				logger.info(`height cache hit ${heightKey} → ${cached}`);
+			}
+		}
+		// With a known height the paint tree (a JS-side HTML parse) is built before
+		// taking the raster lock, so it overlaps another render's raster instead of
+		// serialising behind it. The measure tree is only parsed when measuring.
+		const knownPaint = height
+			? fitPaint(width, height, PIXEL_RATIO, paintQuality, maxRatio)
+			: undefined;
+		const preparedPaintTree = knownPaint
+			? fromHtml(wrapPixelRoot(prepared, width, knownPaint.ratio))
+			: undefined;
 
-				const paint = fitPaint(width, height, PIXEL_RATIO, paintQuality);
-				if (paint.ratio < PIXEL_RATIO) {
-					logger.warn(
-						`paint ${id} ${width}x${height} ratio ${paint.ratio.toFixed(3)} (Takumi ${paint.width}x${paint.height})`,
-					);
-				}
-				const paintTree = fromHtml(wrapPixelRoot(prepared, width, paint.ratio));
-				const paintCss = [
-					...sharedSheets,
-					rootBoxCss(width),
-					pixelRootCss(width),
-				];
-				const encoded = await this.encodeNode(paintTree.node, {
-					width: paint.width,
-					height: paint.height,
-					format,
-					quality,
-					css: paintCss,
+		const {
+			encoded,
+			ratio,
+			measureMs,
+			height: paintedHeight,
+		} = await renderLock.run(async () => {
+			let measureMs: number | undefined;
+			if (!height) {
+				const tMeasure = performance.now();
+				const layoutTree = fromHtml(wrapPixelRoot(prepared, width, 1));
+				const measured = await renderer.measure(layoutTree.node, {
+					width,
+					height: MEASURE_VIEWPORT_H,
+					css: layoutCss,
 					images,
+					fontFamilies: [...PHI_FONT_FAMILIES],
+					lang: "zh-CN",
 				});
-				return {
-					encoded,
-					height,
-					ratio: paint.ratio,
-					heightCached,
-					measureMs,
-				};
+				const boxH = measured.height || 0;
+				const extent = Math.max(1, Math.ceil(contentExtent(measured)));
+				let raw = Math.max(boxH, extent);
+				if (
+					extent >= MEASURE_VIEWPORT_H - 1 &&
+					boxH > 64 &&
+					boxH + 24 < extent
+				) {
+					raw = boxH;
+				}
+				height = Math.min(MEASURE_VIEWPORT_H, Math.max(1, Math.ceil(raw) + 24));
+				measureMs = performance.now() - tMeasure;
+				if (heightKey) heightCached = "miss";
+				logger.info(
+					`measured box ${measured.width}x${measured.height} content ${extent} using ${height}`,
+				);
+				if (heightKey && height > 64) rememberHeight(heightKey, height);
+			}
+
+			const paint =
+				knownPaint ??
+				fitPaint(width, height, PIXEL_RATIO, paintQuality, maxRatio);
+			if (paint.ratio < PIXEL_RATIO) {
+				logger.warn(
+					`paint ${id} ${width}x${height} ratio ${paint.ratio.toFixed(3)} (Takumi ${paint.width}x${paint.height})`,
+				);
+			}
+			const paintTree =
+				preparedPaintTree ??
+				fromHtml(wrapPixelRoot(prepared, width, paint.ratio));
+			const paintCss = [
+				...sharedSheets,
+				rootBoxCss(width),
+				pixelRootCss(width),
+			];
+			const encoded = await this.encodeNode(paintTree.node, {
+				width: paint.width,
+				height: paint.height,
+				format,
+				quality,
+				css: paintCss,
+				images,
 			});
+			return { encoded, height, ratio: paint.ratio, measureMs };
+		});
+		height = paintedHeight;
 
 		const ms = performance.now() - started;
-		const ratioLabel =
-			ratio === PIXEL_RATIO ? String(PIXEL_RATIO) : ratio.toFixed(3);
+		const ratioLabel = Number.isInteger(ratio)
+			? String(ratio)
+			: ratio.toFixed(3);
 		const split =
 			encoded.rasterMs != null && encoded.encodeMs != null
 				? ` (raster ${fmtMs(encoded.rasterMs)} ${encoded.ext} ${fmtMs(encoded.encodeMs)})`
@@ -442,41 +450,10 @@ export class RenderEngine {
 		} = {},
 	): Promise<RenderedImage> {
 		const started = performance.now();
-		let img: RenderedImage;
-		if (typeof def.render === "function") {
-			const tHtml = performance.now();
-			const node = await def.render(data, helpers);
-			const htmlMs = performance.now() - tHtml;
-			if (node && typeof node !== "string") {
-				img = await this.renderJsx(node, def);
-				logger.info(
-					`renderTemplate ${def.id} total ${fmtMs(performance.now() - started)}`,
-				);
-				return withHtmlMs(img, htmlMs);
-			}
-			if (typeof node === "string") {
-				img = await this.renderHtml(node, {
-					width: def.width,
-					height: opts.height ?? def.height,
-					format: def.format,
-					quality: def.quality,
-					baseDir: helpers.resources,
-					id: def.id,
-					heightKey: opts.heightKey,
-					paintQuality: opts.paintQuality,
-				});
-				logger.info(
-					`renderTemplate ${def.id} total ${fmtMs(performance.now() - started)}`,
-				);
-				return withHtmlMs(img, htmlMs);
-			}
-		}
-		if (!def.html)
-			throw new Error(`template ${def.id} has neither html() nor render()`);
 		const tHtml = performance.now();
 		const html = await def.html(data, helpers);
 		const htmlMs = performance.now() - tHtml;
-		img = await this.renderHtml(html, {
+		const img = await this.renderHtml(html, {
 			width: def.width,
 			height: opts.height ?? def.height,
 			format: def.format,
@@ -485,46 +462,12 @@ export class RenderEngine {
 			id: def.id,
 			heightKey: opts.heightKey,
 			paintQuality: opts.paintQuality,
+			maxRatio: def.maxRatio,
 		});
 		logger.info(
 			`renderTemplate ${def.id} total ${fmtMs(performance.now() - started)}`,
 		);
 		return withHtmlMs(img, htmlMs);
-	}
-
-	private async renderJsx(
-		node: unknown,
-		def: TemplateDefinition,
-	): Promise<RenderedImage> {
-		const started = performance.now();
-		await this.ensureFonts();
-		const width = def.width ?? 1200;
-		const height = def.height ?? 1800;
-		const format = def.format ?? "png";
-		const quality = def.quality ?? 90;
-		const encoded = await renderLock.run(() =>
-			this.encodeNode(node, {
-				width,
-				height,
-				format,
-				quality,
-			}),
-		);
-		logger.ok(
-			`card ${def.id} ${width}x${height} ${encoded.ext} ${encoded.bytes.length}B in ${Math.round(performance.now() - started)}ms`,
-		);
-		return {
-			bytes: encoded.bytes,
-			mime: encoded.mime,
-			ext: encoded.ext,
-			width,
-			height,
-			timings: {
-				rasterMs: encoded.rasterMs,
-				encodeMs: encoded.encodeMs,
-				paintMs: performance.now() - started,
-			},
-		};
 	}
 
 	async close() {

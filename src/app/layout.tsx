@@ -11,6 +11,7 @@ import { VersionNotice } from "@/components/VersionNotice";
 import { localeTag } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/provider";
 import { getMessages } from "@/i18n/server";
+import { withDiscordUid } from "@/server/logger";
 import { THEME_BOOT } from "@/theme/config";
 import { getRequestTheme } from "@/theme/server";
 import "./globals.css";
@@ -49,35 +50,37 @@ export default async function RootLayout({
 	children: ReactNode;
 }) {
 	const session = await auth();
-	const { locale, m } = await getMessages();
-	const theme = await getRequestTheme();
-	return (
-		<html
-			lang={localeTag(locale)}
-			className={`${cjk.variable} ${display.variable}`}
-			data-theme={theme ?? undefined}
-			style={theme ? { colorScheme: theme } : undefined}
-			suppressHydrationWarning
-		>
-			<body>
-				<Script id="phi-theme" strategy="beforeInteractive">
-					{THEME_BOOT}
-				</Script>
-				<I18nProvider locale={locale} m={m}>
-					<SkipLink />
-					<VersionNotice />
-					<div className="shell">
-						<SiteHeader
-							signedIn={Boolean(session?.user?.id)}
-							name={session?.user?.name}
-							image={session?.user?.image}
-						/>
-						{children}
-						<SiteFooter />
-					</div>
-				</I18nProvider>
-				<Analytics />
-			</body>
-		</html>
-	);
+	return withDiscordUid(session?.user?.id, async () => {
+		const { locale, m } = await getMessages();
+		const theme = await getRequestTheme();
+		return (
+			<html
+				lang={localeTag(locale)}
+				className={`${cjk.variable} ${display.variable}`}
+				data-theme={theme ?? undefined}
+				style={theme ? { colorScheme: theme } : undefined}
+				suppressHydrationWarning
+			>
+				<body>
+					<Script id="phi-theme" strategy="beforeInteractive">
+						{THEME_BOOT}
+					</Script>
+					<I18nProvider locale={locale} m={m}>
+						<SkipLink />
+						<VersionNotice />
+						<div className="shell">
+							<SiteHeader
+								signedIn={Boolean(session?.user?.id)}
+								name={session?.user?.name}
+								image={session?.user?.image}
+							/>
+							{children}
+							<SiteFooter />
+						</div>
+					</I18nProvider>
+					<Analytics />
+				</body>
+			</html>
+		);
+	});
 }

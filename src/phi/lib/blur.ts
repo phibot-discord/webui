@@ -13,10 +13,7 @@ function localFile(src: string): string | undefined {
 	return file;
 }
 
-export async function blurredFile(
-	src: string,
-	fallbackSigma = 10,
-): Promise<string> {
+async function blurredFile(src: string, fallbackSigma = 10): Promise<string> {
 	const file = localFile(src);
 	if (!file) return src;
 	if (/[/\\]illBlur[/\\]/.test(file)) return file;
@@ -182,7 +179,7 @@ export async function contrastOverBackground(html: string): Promise<string> {
 		bottomLight,
 	);
 	const css = `<style>
-    ${inkCss(".playerInfo .date p, .date p, .row-date p, .descTip p", topLight)}
+    ${inkCss(".playerInfo .date p, .date p", topLight)}
     ${inkCss(".tips p, .tips-abs p", bottomLight)}
   </style>`;
 	if (out.includes("</head>")) return out.replace("</head>", `${css}</head>`);

@@ -1,6 +1,6 @@
 export const CARD_KINDS = ["b30", "x30", "fc30", "hisb30", "info"] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
-export const PUBLIC_KINDS = ["b30", "hisb30", "info"] as const;
+const PUBLIC_KINDS = ["b30", "hisb30", "info"] as const;
 export type PublicKind = (typeof PUBLIC_KINDS)[number];
 
 export function isCardKind(v: string): v is CardKind {
@@ -9,6 +9,10 @@ export function isCardKind(v: string): v is CardKind {
 
 export function isPublicKind(v: string): v is PublicKind {
 	return (PUBLIC_KINDS as readonly string[]).includes(v);
+}
+
+export function cardCacheKind(kind: CardKind): string {
+	return kind === "hisb30" ? "update" : kind;
 }
 
 export function clampCount(raw: string | null | undefined): number {

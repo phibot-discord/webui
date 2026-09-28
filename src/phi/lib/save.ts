@@ -3,7 +3,7 @@ import { MAX_DIFFICULTY } from "./const";
 import { fCompute } from "./fcompute";
 import { getInfo } from "./get-info";
 import { LevelRecordInfo } from "./level-record";
-import { getRksRank } from "./rks-rank";
+import { attachB19AccAvg } from "./score-avg";
 
 type Limit =
 	| { type: "acc" | "score" | "rks"; value: number[] }
@@ -126,11 +126,13 @@ export class Save {
 			background: data.gameuser?.background || "",
 		};
 		if (checkIg(this)) {
-			void getRksRank?.delUserRks(this.session);
 			logger.error(`banned tk ${this.session}`);
 			throw new Error(
 				`您的存档rks异常，该 token 已禁用，如有异议请联系机器人管理员。\n${this.session}`,
 			);
+		}
+		if (!Object.keys(getInfo.ori_info).length) {
+			logger.warn("save built before getInfo init");
 		}
 		const idList = Object.keys(data.gameRecord || {});
 		for (const id of idList) {
@@ -152,13 +154,11 @@ export class Save {
 							(rec.acc ?? 0) >= 0
 						)
 							continue;
-						void getRksRank?.delUserRks(this.session);
 						throw new Error(
 							`您的存档 acc 异常，该 token 已禁用，如有异议请联系机器人管理员。\n${this.session}\n${id} ${level} ${rec.acc}`,
 						);
 					}
 					if ((rec.score ?? 0) > 1_000_000 || (rec.score ?? 0) < 0) {
-						void getRksRank?.delUserRks(this.session);
 						throw new Error(
 							`您的存档 score 异常，该 token 已禁用，如有异议请联系机器人管理员。\n${this.session}\n${id} ${level} ${rec.score}`,
 						);
@@ -168,8 +168,6 @@ export class Save {
 			}
 		}
 	}
-
-	async init() {}
 
 	getRecord() {
 		if (this.sortedRecord) return this.sortedRecord;
@@ -259,7 +257,7 @@ export class Save {
 				const tem = { ...x } as LevelRecordInfo;
 				phi[i] = tem;
 				sum_rks += Number(tem.rks);
-				tem.illustration = getInfo.getill(tem.id);
+				tem.illustration = getInfo.getill(tem.id, "low");
 				tem.suggest = "无法推分";
 			}
 		}
@@ -296,12 +294,13 @@ export class Save {
 			} else {
 				row.suggest = "无法推分";
 			}
-			row.illustration = getInfo.getill(row.id, "common");
+			row.illustration = getInfo.getill(row.id, "low");
 			b19_list.push(row);
 		}
 		const com_rks = sum_rks / 30;
 		this.B19List = { phi, b19_list };
 		this.b19_rks = b19_list[Math.min(b19_list.length - 1, 26)]?.rks || 0;
+		await attachB19AccAvg({ phi, b19_list, com_rks }, option);
 		return { phi, b19_list, com_rks };
 	}
 
@@ -327,7 +326,7 @@ export class Save {
 					const tem = { ...x } as LevelRecordInfo;
 					phi[i] = tem;
 					sum_rks += Number(tem.rks);
-					tem.illustration = getInfo.getill(tem.id);
+					tem.illustration = getInfo.getill(tem.id, "low");
 					tem.suggest = "无法推分";
 				}
 			}
@@ -366,7 +365,7 @@ export class Save {
 			} else {
 				x.suggest = "无法推分";
 			}
-			x.illustration = getInfo.getill(x.id, "common");
+			x.illustration = getInfo.getill(x.id, "low");
 			b19_list.push(x);
 		}
 		return { phi, b19_list, com_rks: sum_rks / 30 };
@@ -443,7 +442,7 @@ export class Save {
 	}
 
 	async getStats() {
-		const tot = [0, 0, 0, 0];
+		const tot = getInfo.chartTotals();
 		const stats_ = {
 			title: "",
 			Rating: "",
@@ -459,18 +458,6 @@ export class Save {
 		};
 		const stats = [{ ...stats_ }, { ...stats_ }, { ...stats_ }, { ...stats_ }];
 		const Level = getInfo.allLevel;
-		for (const id of Object.keys(getInfo.ori_info)) {
-			const info = getInfo.ori_info[id];
-			if (!info?.chart) continue;
-			if (info.chart.AT && Number(info.chart.AT.difficulty))
-				tot[3] = (tot[3] ?? 0) + 1;
-			if (info.chart.IN && Number(info.chart.IN.difficulty))
-				tot[2] = (tot[2] ?? 0) + 1;
-			if (info.chart.HD && Number(info.chart.HD.difficulty))
-				tot[1] = (tot[1] ?? 0) + 1;
-			if (info.chart.EZ && Number(info.chart.EZ.difficulty))
-				tot[0] = (tot[0] ?? 0) + 1;
-		}
 		for (let i = 0; i < 4; i++) {
 			stats[i]!.tot = tot[i]!;
 			stats[i]!.title = Level[i]!;

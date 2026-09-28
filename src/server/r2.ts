@@ -1,11 +1,14 @@
 import { cfFetch } from "./cf-fetch";
 import { logger } from "./logger";
 
+type CacheMode = "default" | "no-store";
+
 export type R2Config = {
 	accountId: string;
 	apiToken: string;
 	bucket: string;
 	prefix: string;
+	htmlPrefix: string;
 	publicBase: string;
 };
 
@@ -13,6 +16,27 @@ const mem = new Map<string, Buffer>();
 const inflight = new Map<string, Promise<Buffer | undefined>>();
 let memBytes = 0;
 const MEM_MAX_BYTES = 256 * 1024 * 1024;
+const missing = new Map<string, number>();
+const MISSING_TTL_MS = 15 * 60 * 1000;
+const MISSING_MAX = 4_000;
+
+function knownMissing(key: string) {
+	const until = missing.get(key);
+	if (until == null) return false;
+	if (until > Date.now()) return true;
+	missing.delete(key);
+	return false;
+}
+
+function rememberMissing(key: string) {
+	missing.delete(key);
+	missing.set(key, Date.now() + MISSING_TTL_MS);
+	while (missing.size > MISSING_MAX) {
+		const oldest = missing.keys().next().value;
+		if (oldest === undefined) break;
+		missing.delete(oldest);
+	}
+}
 
 function normalizePublicBase(raw: string | undefined): string {
 	const t = (raw || "").trim().replace(/\/+$/, "");
@@ -21,12 +45,23 @@ function normalizePublicBase(raw: string | undefined): string {
 	return `https://${t}`;
 }
 
+export function r2BucketName(raw = process.env.CLOUDFLARE_R2_BUCKET) {
+	const t = raw?.trim() || "";
+	if (t === "off" || t === "none") return "";
+	if (!t || t === "[SENSITIVE]") return "phi-web-assets";
+	return t;
+}
+
 export function r2Config(): R2Config {
 	return {
 		accountId: process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || "",
 		apiToken: process.env.CLOUDFLARE_API_TOKEN?.trim() || "",
-		bucket: process.env.CLOUDFLARE_R2_BUCKET?.trim() ?? "phi-web-assets",
+		bucket: r2BucketName(),
 		prefix: (process.env.CLOUDFLARE_R2_ILL_PREFIX ?? "original_ill").replace(
+			/\/+$/,
+			"",
+		),
+		htmlPrefix: (process.env.CLOUDFLARE_R2_HTML_PREFIX ?? "html").replace(
 			/\/+$/,
 			"",
 		),
@@ -77,10 +112,6 @@ function remember(key: string, buf: Buffer) {
 	}
 }
 
-export function rememberR2Object(key: string, buf: Buffer) {
-	remember(key.replace(/^\//, ""), buf);
-}
-
 async function readPublic(
 	cfg: R2Config,
 	key: string,
@@ -97,30 +128,36 @@ async function readPublic(
 async function readApi(
 	cfg: R2Config,
 	key: string,
-): Promise<Buffer | undefined> {
+): Promise<Buffer | false | undefined> {
 	if (!cfg.accountId || !cfg.apiToken || !cfg.bucket) return undefined;
 	const res = await cfFetch(objectUrl(cfg, key), {
 		headers: { Authorization: `Bearer ${cfg.apiToken}` },
 	});
 	if (res.ok) return Buffer.from(await res.arrayBuffer());
-	if (res.status !== 404) logger.warn(`r2 get ${res.status} ${key}`);
+	if (res.status === 404) return false;
+	logger.warn(`r2 get ${res.status} ${key}`);
 	return undefined;
 }
 
-let publicBroken = false;
+/** After a public-domain failure fall back to the API for a while, then try the fast path again. */
+let publicBrokenUntil = 0;
+const PUBLIC_RETRY_MS = 60_000;
 
-async function loadR2Object(key: string): Promise<Buffer | undefined> {
+/** `false` = definitely absent (404), `undefined` = unknown/error. */
+async function loadR2Object(key: string): Promise<Buffer | false | undefined> {
 	const cfg = r2Config();
-	if (cfg.publicBase && !publicBroken) {
+	if (cfg.publicBase && Date.now() >= publicBrokenUntil) {
 		try {
 			const pub = await readPublic(cfg, key);
-			if (Buffer.isBuffer(pub)) return pub;
-			if (pub === false) return undefined;
+			if (Buffer.isBuffer(pub) || pub === false) return pub;
 		} catch (err) {
-			publicBroken = true;
-			logger.warn(
-				`r2 public disabled: ${err instanceof Error ? err.message : err}`,
-			);
+			// Requests already in flight all fail together; report the outage once.
+			if (Date.now() >= publicBrokenUntil) {
+				logger.warn(
+					`r2 public paused ${PUBLIC_RETRY_MS / 1000}s: ${err instanceof Error ? err.message : err}`,
+				);
+			}
+			publicBrokenUntil = Date.now() + PUBLIC_RETRY_MS;
 		}
 	}
 	return readApi(cfg, key);
@@ -128,10 +165,11 @@ async function loadR2Object(key: string): Promise<Buffer | undefined> {
 
 export async function fetchR2Object(
 	key: string,
-	opts: { cache?: RequestCache; revalidate?: number } = {},
+	opts: { cache?: CacheMode; negative?: boolean } = {},
 ): Promise<Buffer | undefined> {
 	const k = key.replace(/^\//, "");
 	const noStore = opts.cache === "no-store";
+	const negative = opts.negative !== false;
 	if (!noStore) {
 		const hot = mem.get(k);
 		if (hot) {
@@ -139,10 +177,15 @@ export async function fetchR2Object(
 			return hot;
 		}
 	}
+	if (negative && knownMissing(k)) return undefined;
 	const pending = inflight.get(k);
 	if (pending) return pending;
 	const job = loadR2Object(k)
 		.then((buf) => {
+			if (buf === false) {
+				if (negative) rememberMissing(k);
+				return undefined;
+			}
 			if (buf?.byteLength && !noStore) remember(k, buf);
 			return buf;
 		})
@@ -155,7 +198,7 @@ export async function putR2Object(
 	key: string,
 	body: Buffer,
 	contentType = "application/octet-stream",
-	extra: { contentDisposition?: string } = {},
+	extra: { contentDisposition?: string; cache?: CacheMode } = {},
 ): Promise<void> {
 	const cfg = r2Config();
 	if (!r2WriteReady(cfg)) {
@@ -178,5 +221,6 @@ export async function putR2Object(
 		const text = await res.text().catch(() => "");
 		throw new Error(`R2 PUT ${k} failed: ${res.status} ${text}`.slice(0, 500));
 	}
-	remember(k, body);
+	missing.delete(k);
+	if (extra.cache !== "no-store") remember(k, body);
 }

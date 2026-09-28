@@ -1,9 +1,9 @@
 import { clearCardBlobs } from "./card-fetch";
 
-export const REFRESH_UNTIL_KEY = "phi.web.refreshUntil";
-export const BYPASS_UNTIL_KEY = "phi.web.bypassUntil";
-export const BUST_EPOCH_KEY = "phi.web.cardEpoch";
-export const SAVE_REFRESHED_EVENT = "phi-save-refreshed";
+const REFRESH_UNTIL_KEY = "phi.web.refreshUntil";
+const BYPASS_UNTIL_KEY = "phi.web.bypassUntil";
+const BUST_EPOCH_KEY = "phi.web.cardEpoch";
+const SAVE_REFRESHED_EVENT = "phi-save-refreshed";
 
 type Listener = () => void;
 const listeners = new Set<Listener>();

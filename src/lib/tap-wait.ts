@@ -1,6 +1,6 @@
 export const TAP_WAIT_PHASE = "taptap";
 
-export type TapWaitPayload = {
+type TapWaitPayload = {
 	error?: string;
 	code?: string;
 	status?: number | string;

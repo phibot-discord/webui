@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import QRCode from "qrcode";
+import { logger } from "@/server/logger";
 import { TAPAPI_QR_POLL_TIMEOUT_MS, tapFetch } from "./tapapi";
 
 type PartialQR = {
@@ -96,13 +97,14 @@ async function requestLoginQrCode(
 ) {
 	const tap = tapLogin(useGlobal);
 	const deviceId = randomUUID().replace(/-/g, "");
-	const params = new FormData();
-	params.append("client_id", tap.clientId);
-	params.append("response_type", "device_code");
-	params.append("scope", permissions.join(","));
-	params.append("version", TapSDKVersion);
-	params.append("platform", "unity");
-	params.append("info", JSON.stringify({ device_id: deviceId }));
+	const params = new URLSearchParams({
+		client_id: tap.clientId,
+		response_type: "device_code",
+		scope: permissions.join(","),
+		version: TapSDKVersion,
+		platform: "unity",
+		info: JSON.stringify({ device_id: deviceId }),
+	});
 	const endpoint = `${tap.webHost}/oauth2/v1/device/code`;
 	const response = await tapFetch(endpoint, { method: "POST", body: params });
 	const data = (await response.json()) as Record<string, unknown>;
@@ -116,14 +118,15 @@ async function requestLoginQrCode(
 async function checkQRCodeResult(data: PartialQR, useGlobal = false) {
 	const tap = tapLogin(isGlobalTapLogin(data, useGlobal));
 	const qr = new CompleteQRCodeData(data);
-	const params = new FormData();
-	params.append("grant_type", "device_token");
-	params.append("client_id", tap.clientId);
-	params.append("secret_type", "hmac-sha-1");
-	params.append("code", qr.deviceCode);
-	params.append("version", "1.0");
-	params.append("platform", "unity");
-	params.append("info", JSON.stringify({ device_id: qr.deviceID }));
+	const params = new URLSearchParams({
+		grant_type: "device_token",
+		client_id: tap.clientId,
+		secret_type: "hmac-sha-1",
+		code: qr.deviceCode,
+		version: "1.0",
+		platform: "unity",
+		info: JSON.stringify({ device_id: qr.deviceID }),
+	});
 	const endpoint = `${tap.webHost}/oauth2/v1/token`;
 	try {
 		const response = await tapFetch(
@@ -141,8 +144,23 @@ async function checkQRCodeResult(data: PartialQR, useGlobal = false) {
 			success?: boolean;
 			data?: { error?: string; kid?: string; access_token?: string };
 		};
-	} catch {
+	} catch (err) {
+		logger.warn(
+			`qr poll fail ${err instanceof Error ? `${err.name} ${err.message}` : err}`,
+		);
 		return null;
+	}
+}
+
+export function taptapProfile(
+	raw: unknown,
+): Record<string, unknown> | undefined {
+	let cur: unknown = raw;
+	for (let i = 0; i < 3; i++) {
+		if (!cur || typeof cur !== "object") return;
+		const row = cur as Record<string, unknown>;
+		if (typeof row.openid === "string" && row.openid) return row;
+		cur = row.data;
 	}
 }
 
@@ -160,13 +178,22 @@ async function getProfile(
 			Authorization: authorization(url, "GET", token.kid, token.mac_key),
 		},
 	});
-	return response.json() as Promise<{ data?: Record<string, unknown> }>;
+	const body: unknown = await response.json().catch(() => undefined);
+	if (!response.ok) {
+		throw new Error(`TapTap profile ${response.status}`);
+	}
+	const profile = taptapProfile(body);
+	if (!profile) throw new Error("TapTap profile missing openid");
+	return profile;
 }
 
 async function loginAndGetToken(
 	data: Record<string, unknown>,
 	withGlobal = false,
 ) {
+	if (typeof data.openid !== "string" || !data.openid) {
+		throw new Error("TapTap profile missing openid");
+	}
 	const tap = tapLogin(withGlobal);
 	const url = `${tap.lcBase}/users`;
 	const timestamp = Math.floor(Date.now() / 1000);
@@ -180,7 +207,11 @@ async function loginAndGetToken(
 		},
 		body: JSON.stringify({ authData: { taptap: data } }),
 	});
-	return response.json() as Promise<{ sessionToken?: string }>;
+	const body = (await response.json()) as { sessionToken?: string };
+	if (!response.ok) {
+		throw new Error(`Phigros cloud ${response.status}`);
+	}
+	return body;
 }
 
 export const getQRcode = {
@@ -188,7 +219,11 @@ export const getQRcode = {
 		return requestLoginQrCode(undefined, useGlobal);
 	},
 	getQRcode(url: string, _useGlobal = false) {
-		return QRCode.toBuffer(url, { scale: 10 });
+		return QRCode.toBuffer(url, {
+			scale: 10,
+			margin: 2,
+			color: { dark: "#000000ff", light: "#ffffffff" },
+		});
 	},
 	checkQRCodeResult(request: PartialQR, useGlobal = false) {
 		return checkQRCodeResult(request, useGlobal);
@@ -211,8 +246,7 @@ export const getQRcode = {
 			access_token?: string;
 		};
 		const profile = await getProfile(token, useGlobal);
-		return (
-			await loginAndGetToken({ ...profile.data, ...result.data }, useGlobal)
-		).sessionToken;
+		return (await loginAndGetToken({ ...token, ...profile }, useGlobal))
+			.sessionToken;
 	},
 };

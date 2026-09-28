@@ -9,6 +9,7 @@ import {
 	attachmentDisposition,
 	cardImageResponse,
 	cardRedirectResponse,
+	jsonError,
 	retryAfter,
 } from "./http";
 
@@ -16,12 +17,21 @@ test("retryAfter puts remaining seconds in the JSON body and header", async () =
 	const res = retryAfter(37, "wait", "cache_bypass_cooldown");
 	assert.equal(res.status, 429);
 	assert.equal(res.headers.get("retry-after"), "37");
+	assert.equal(res.headers.get("cache-control"), "no-store");
 	const body = (await res.json()) as {
 		code?: string;
 		retryAfter?: number;
 	};
 	assert.equal(body.code, "cache_bypass_cooldown");
 	assert.equal(body.retryAfter, 37);
+});
+
+test("jsonError is not stored by caches", async () => {
+	const res = jsonError(409, "unbound", "not_bound");
+	assert.equal(res.status, 409);
+	assert.equal(res.headers.get("cache-control"), "no-store");
+	const body = (await res.json()) as { error?: string; code?: string };
+	assert.equal(body.code, "not_bound");
 });
 
 test("cardImageResponse attaches X-Phi-Stats", () => {

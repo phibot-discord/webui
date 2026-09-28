@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getQRcode } from "./taptap";
+import { setTapHttpForTest } from "./tapapi";
+import { getQRcode, taptapProfile } from "./taptap";
 
 const GB_CLIENT = "kviehleldgxsagpozb";
 const GB_LC = "https://kviehlel.cloud.ap-sg.tapapis.com/1.1/users";
 
-type Capture = { url: string; clientId?: string; lcId?: string };
+type Capture = {
+	url: string;
+	clientId?: string;
+	lcId?: string;
+	urlencoded?: boolean;
+	openid?: string;
+};
 
 async function withFetch<T>(
 	fn: (calls: Capture[]) => Promise<T>,
@@ -14,26 +21,39 @@ async function withFetch<T>(
 	}),
 ): Promise<T> {
 	const calls: Capture[] = [];
-	const orig = globalThis.fetch;
-	globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+	setTapHttpForTest(async (url, init) => {
 		const href = String(url);
 		const cap: Capture = { url: href };
 		const body = init?.body;
-		if (body instanceof FormData) {
-			cap.clientId = String(body.get("client_id") || "");
+		if (body instanceof URLSearchParams) {
+			cap.clientId = body.get("client_id") || undefined;
+			cap.urlencoded = true;
 		}
-		const headers = new Headers(init?.headers);
+		const headers = new Headers(
+			init?.headers as ConstructorParameters<typeof Headers>[0],
+		);
 		cap.lcId = headers.get("X-LC-Id") || undefined;
+		if (typeof body === "string") {
+			try {
+				cap.openid = (
+					JSON.parse(body) as {
+						authData?: { taptap?: { openid?: string } };
+					}
+				).authData?.taptap?.openid;
+			} catch {
+				/* not json */
+			}
+		}
 		calls.push(cap);
 		return new Response(JSON.stringify(respond(href)), {
 			status: 200,
 			headers: { "Content-Type": "application/json" },
 		});
-	}) as typeof fetch;
+	});
 	try {
 		return await fn(calls);
 	} finally {
-		globalThis.fetch = orig;
+		setTapHttpForTest();
 	}
 }
 
@@ -51,6 +71,7 @@ test("global QR token poll uses tapapis.com even if useGlobal is omitted", async
 		assert.match(calls[0]!.url, /accounts\.tapapis\.com\/oauth2\/v1\/token/);
 		assert.doesNotMatch(calls[0]!.url, /tapapis\.cn/);
 		assert.equal(calls[0]!.clientId, GB_CLIENT);
+		assert.equal(calls[0]!.urlencoded, true);
 	});
 });
 
@@ -64,6 +85,7 @@ test("global device code request uses international host and GB client id", asyn
 				/accounts\.tapapis\.com\/oauth2\/v1\/device\/code/,
 			);
 			assert.equal(calls[0]!.clientId, GB_CLIENT);
+			assert.equal(calls[0]!.urlencoded, true);
 		},
 		() => ({
 			data: {
@@ -92,6 +114,7 @@ test("CN QR token poll stays on tapapis.cn", async () => {
 		assert.equal(calls.length, 1);
 		assert.match(calls[0]!.url, /accounts\.tapapis\.cn\/oauth2\/v1\/token/);
 		assert.equal(calls[0]!.clientId, "rAK3FfdieFob2Nn8Am");
+		assert.equal(calls[0]!.urlencoded, true);
 	});
 });
 
@@ -118,6 +141,7 @@ test("global session login uses GB LeanCloud id and host", async () => {
 			assert.ok(login);
 			assert.equal(login!.url, GB_LC);
 			assert.equal(login!.lcId, GB_CLIENT);
+			assert.equal(login!.openid, "o");
 		},
 		(url) => {
 			if (url.includes("/account/profile/")) {
@@ -125,5 +149,36 @@ test("global session login uses GB LeanCloud id and host", async () => {
 			}
 			return { sessionToken: "abcdefghijklmnopqrstuvwxy" };
 		},
+	);
+});
+
+test("taptapProfile unwraps nested data", () => {
+	assert.equal(taptapProfile({ openid: "x" })?.openid, "x");
+	assert.equal(taptapProfile({ data: { openid: "y" } })?.openid, "y");
+	assert.equal(taptapProfile({ data: { data: { openid: "z" } } })?.openid, "z");
+	assert.equal(taptapProfile({ error: "Unauthorized" }), undefined);
+});
+
+test("session login does not POST /users without openid", async () => {
+	await withFetch(
+		async (calls) => {
+			await assert.rejects(
+				() =>
+					getQRcode.getSessionToken(
+						{
+							data: {
+								kid: "kid",
+								access_token: "access",
+								mac_key: "mac",
+								scope: "public_profile",
+							},
+						},
+						false,
+					),
+				/openid|profile/i,
+			);
+			assert.equal(calls.filter((c) => c.url.includes("/users")).length, 0);
+		},
+		() => ({}),
 	);
 });

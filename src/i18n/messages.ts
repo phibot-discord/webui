@@ -29,11 +29,71 @@ export type Messages = {
 	nav: {
 		cards: string;
 		tags: string;
+		score: string;
 		b30: string;
 		hisb30: string;
 		info: string;
 		x30: string;
 		fc30: string;
+	};
+	score: {
+		title: string;
+		lede: string;
+		chart: string;
+		clearChart: string;
+		searchPlaceholder: string;
+		loadingCharts: string;
+		chartsFailed: string;
+		notes: string;
+		notesShort: string;
+		notesHint: string;
+		target: string;
+		mode: string;
+		modeNormal: string;
+		modeChallenge: string;
+		challengeHint: string;
+		plan: string;
+		allSplits: string;
+		perfect: string;
+		good: string;
+		badMiss: string;
+		maxCombo: string;
+		acc: string;
+		exactScore: string;
+		tip: string;
+		roundingHint: string;
+		noteAccuracy: string;
+		none: string;
+		nearest: string;
+		useScore: string;
+	};
+	manual: {
+		title: string;
+		lede: string;
+		notice: string;
+		playerName: string;
+		playerNamePlaceholder: string;
+		addChart: string;
+		searchPlaceholder: string;
+		empty: string;
+		acc: string;
+		score: string;
+		scoreEstimated: string;
+		fc: string;
+		rks: string;
+		remove: string;
+		charts: string;
+		save: string;
+		saving: string;
+		saveFailed: string;
+		edit: string;
+		clear: string;
+		clearConfirm: string;
+		clearing: string;
+		clearFailed: string;
+		deskNote: string;
+		badge: string;
+		invalid: string;
 	};
 	tags: {
 		title: string;
@@ -68,6 +128,9 @@ export type Messages = {
 		tokenSubmit: string;
 		or: string;
 		failed: string;
+		manualTitle: string;
+		manualLede: string;
+		manualStart: string;
 		unbind: string;
 		unbindConfirm: string;
 		unbindYes: string;
@@ -147,7 +210,6 @@ export type Messages = {
 		not_bound: string;
 		banned: string;
 		no_save: string;
-		hisb30_empty: string;
 		refresh_cooldown: string;
 		cache_bypass_cooldown: string;
 		refresh_failed: string;
@@ -193,7 +255,7 @@ export const en: Messages = {
 		lookupsTitle: "Lookups",
 		lookups: [
 			{ name: "B30", blurb: "Best 30, plus three phi slots." },
-			{ name: "hisB30", blurb: "Charts that entered or left B30." },
+			{ name: "History", blurb: "Recent score updates and your RKS trend." },
 			{ name: "Info", blurb: "Name, RKS, player card." },
 			{ name: "x30", blurb: "Best if a 1-Good still counts." },
 			{ name: "fc30", blurb: "Best Full Combo charts." },
@@ -214,11 +276,77 @@ export const en: Messages = {
 	nav: {
 		cards: "Cards",
 		tags: "Tags",
+		score: "Score control",
 		b30: "B30",
-		hisb30: "hisB30",
+		hisb30: "History",
 		info: "Info",
 		x30: "x30",
 		fc30: "fc30",
+	},
+	score: {
+		title: "Score control",
+		lede: "Find the Perfect / Good / Bad·Miss split and the max combo that land exactly on a target score.",
+		chart: "Chart",
+		clearChart: "Clear chart",
+		searchPlaceholder: "Search a song to fill in its note count…",
+		loadingCharts: "Loading chart list…",
+		chartsFailed: "Chart list unavailable. Type the note count instead.",
+		notes: "Notes",
+		notesShort: "notes",
+		notesHint: "Total notes in the chart. Picking a song fills it in.",
+		target: "Target score",
+		mode: "Mode",
+		modeNormal: "Normal",
+		modeChallenge: "Challenge",
+		challengeHint:
+			"Challenge mode scores judgements only, so combo does not matter.",
+		plan: "Closest split",
+		allSplits: "All splits ({n})",
+		perfect: "Perfect",
+		good: "Good",
+		badMiss: "Bad / Miss",
+		maxCombo: "Max combo",
+		acc: "Accuracy",
+		exactScore: "Exact score",
+		tip: "Sorted by distance to the target, then fewest Goods, then a max combo close to the Perfect count.",
+		roundingHint:
+			"The game shows a whole number but does not always round the exact score to the nearest one (1671 notes, FC with 5 Goods is 999057.45 and shows as 999058). Every split within 1 point of the target is listed with its exact score and offset.",
+		noteAccuracy:
+			"Accuracy is shown in full. In game and on the cards it is rounded to two decimals; the save keeps more digits.",
+		none: "No split lands within 1 point of {score} on this chart.",
+		nearest: "Closest reachable",
+		useScore: "Use {score}",
+	},
+	manual: {
+		title: "Manual scores",
+		lede: "Type each chart's accuracy — the two decimals the game shows, or the exact value if you have it. Score and FC are optional; a blank score is estimated from the accuracy.",
+		notice:
+			"Accuracy typed with two decimals is what the game shows, not the exact value it stores, so RKS drawn from it can differ slightly from the in-game value.",
+		playerName: "Player name",
+		playerNamePlaceholder: "Shown on the cards",
+		addChart: "Add a chart",
+		searchPlaceholder: "Search a song, then pick a difficulty…",
+		empty: "No charts yet. Search above to add one.",
+		acc: "ACC %",
+		score: "Score",
+		scoreEstimated: "estimated",
+		fc: "FC",
+		rks: "RKS",
+		remove: "Remove",
+		charts: "{n} charts",
+		save: "Save and draw cards",
+		saving: "Saving…",
+		saveFailed: "Could not save.",
+		edit: "Edit scores",
+		clear: "Delete manual scores",
+		clearConfirm: "Delete every manually entered score for this Discord login?",
+		clearing: "Deleting…",
+		clearFailed: "Could not delete.",
+		deskNote:
+			"Manual mode: cards are drawn from the accuracy you typed. If it was the two-decimal in-game figure, RKS here is approximate.",
+		badge: "Manual",
+		invalid:
+			"Check the highlighted rows: accuracy is 0–100 and score is 0–1000000.",
 	},
 	tags: {
 		title: "Chart tags",
@@ -253,6 +381,10 @@ export const en: Messages = {
 		tokenSubmit: "Bind code",
 		or: "or",
 		failed: "Bind failed.",
+		manualTitle: "No account mode",
+		manualLede:
+			"Skip TapTap. Type the accuracy you see in game for each chart and the same cards are drawn from that.",
+		manualStart: "Enter scores by hand",
 		unbind: "Unbind",
 		unbindConfirm: "Remove the Phigros bind from this Discord login?",
 		unbindYes: "Unbind",
@@ -278,7 +410,7 @@ export const en: Messages = {
 			b30: "B30",
 			x30: "x30 (1-Good)",
 			fc30: "fc30 (Full Combo)",
-			hisb30: "Historical B30",
+			hisb30: "Score history",
 			info: "Player info",
 		},
 		stats: "Timing",
@@ -343,11 +475,9 @@ export const en: Messages = {
 	errors: {
 		unauthorized: "unauthorized",
 		unknown_card: "unknown card",
-		not_bound: "No Phigros account is bound. Bind TapTap on this page.",
+		not_bound: "No Phigros account is bound.",
 		banned: "This account is banned.",
 		no_save: "No cached save yet. Use Refresh on this site.",
-		hisb30_empty:
-			"Need score history or at least two save updates to show B30 changes.",
 		refresh_cooldown:
 			"Refresh is on cooldown. Try again in a couple of minutes.",
 		cache_bypass_cooldown:
@@ -391,7 +521,7 @@ export const zh: Messages = {
 		lookupsTitle: "能查什么",
 		lookups: [
 			{ name: "B30", blurb: "最好的 30 首，外加三个 AP" },
-			{ name: "hisB30", blurb: "进出过 B30 的谱" },
+			{ name: "历史", blurb: "最近更新的成绩和 RKS 走势" },
 			{ name: "Info", blurb: "名字、RKS、玩家信息" },
 			{ name: "x30", blurb: "算上 1 Good 时最好的谱" },
 			{ name: "fc30", blurb: "Full Combo 最好的谱" },
@@ -411,11 +541,74 @@ export const zh: Messages = {
 	nav: {
 		cards: "成绩图",
 		tags: "标签",
+		score: "控分",
 		b30: "B30",
-		hisb30: "历史B30",
+		hisb30: "历史",
 		info: "信息",
 		x30: "x30",
 		fc30: "fc30",
+	},
+	score: {
+		title: "控分计算",
+		lede: "根据谱面物量和目标分数，算出恰好达成所需的 Perfect / Good / Bad·Miss 数量和最大连击。",
+		chart: "谱面",
+		clearChart: "清除谱面",
+		searchPlaceholder: "搜索曲目，自动填入物量…",
+		loadingCharts: "正在加载曲目列表…",
+		chartsFailed: "曲目列表暂不可用，请手动输入物量。",
+		notes: "物量",
+		notesShort: "物量",
+		notesHint: "谱面总物量。选择曲目后会自动填入。",
+		target: "目标分数",
+		mode: "模式",
+		modeNormal: "普通",
+		modeChallenge: "课题模式",
+		challengeHint: "课题模式只计判定分，不看连击。",
+		plan: "最接近的方案",
+		allSplits: "全部方案（{n}）",
+		perfect: "Perfect",
+		good: "Good",
+		badMiss: "Bad / Miss",
+		maxCombo: "最大连击",
+		acc: "准确率",
+		exactScore: "精确分数",
+		tip: "按与目标分数的差距排序，其次 Good 越少越优先，再看最大连击是否接近 Perfect 数。",
+		roundingHint: "游戏显示的是整数，但并不总是对精确分数四舍五入",
+		noteAccuracy:
+			"准确率按完整精度显示。游戏内和成绩图只显示两位小数，存档中保留更多位数。",
+		none: "该谱面没有与 {score} 分相差 1 分以内的方案。",
+		nearest: "最接近的可达分数",
+		useScore: "改为 {score}",
+	},
+	manual: {
+		title: "手动录入成绩",
+		lede: "逐谱面填写准确率：可以填游戏内显示的两位小数，也可以填已知的精确值。分数和 FC 可选；分数留空时按准确率估算。",
+		notice:
+			"按两位小数填写的准确率只是游戏显示值，并非存档中的精确值，因此据此算出的 RKS 可能与游戏内略有差异。",
+		playerName: "玩家名",
+		playerNamePlaceholder: "显示在成绩图上",
+		addChart: "添加谱面",
+		searchPlaceholder: "搜索曲目，再选择难度…",
+		empty: "还没有谱面。在上方搜索添加。",
+		acc: "ACC %",
+		score: "分数",
+		scoreEstimated: "估算",
+		fc: "FC",
+		rks: "RKS",
+		remove: "删除",
+		charts: "{n} 张谱面",
+		save: "保存并出图",
+		saving: "正在保存…",
+		saveFailed: "保存失败。",
+		edit: "编辑成绩",
+		clear: "删除手动成绩",
+		clearConfirm: "删除这个 Discord 登录下所有手动录入的成绩？",
+		clearing: "正在删除…",
+		clearFailed: "无法删除。",
+		deskNote:
+			"手动模式：成绩图由你填写的准确率生成。若填的是游戏显示的两位小数，RKS 为近似值。",
+		badge: "手动",
+		invalid: "请检查高亮的行：准确率范围 0–100，分数范围 0–1000000。",
 	},
 	tags: {
 		title: "谱面标签",
@@ -442,7 +635,7 @@ export const zh: Messages = {
 		scan: "请用 TapTap 扫码。",
 		scanned: "已扫码。请在手机上确认。",
 		openPhone: "在这台手机上打开",
-		expires: "{seconds} 秒���失效",
+		expires: "{seconds} 秒后失效",
 		qrAlt: "TapTap 登录二维码",
 		tokenLabel: "sessionToken",
 		tokenPlaceholder: "25 位",
@@ -450,10 +643,14 @@ export const zh: Messages = {
 		tokenSubmit: "用代码绑定",
 		or: "或",
 		failed: "绑定失败。",
+		manualTitle: "无账号模式",
+		manualLede:
+			"不用 TapTap。按游戏内显示逐谱面填写准确率，就能生成同样的成绩图。",
+		manualStart: "手动录入成绩",
 		unbind: "解绑",
 		unbindConfirm: "从这个 Discord 登录解除 Phigros 绑定？",
 		unbindYes: "解绑",
-		unbindNo: "留下",
+		unbindNo: "取消",
 		unbinding: "正在解绑…",
 		unbindFailed: "无法解绑。",
 	},
@@ -475,7 +672,7 @@ export const zh: Messages = {
 			b30: "B30",
 			x30: "x30（1 Good）",
 			fc30: "fc30（Full Combo）",
-			hisb30: "历史 B30",
+			hisb30: "成绩历史",
 			info: "玩家信息",
 		},
 		stats: "耗时",
@@ -539,10 +736,9 @@ export const zh: Messages = {
 	errors: {
 		unauthorized: "未登录",
 		unknown_card: "未知成绩图",
-		not_bound: "尚未绑定 Phigros。请在本页绑定 TapTap",
+		not_bound: "尚未绑定 Phigros。",
 		banned: "这个账号已被封禁",
 		no_save: "还没有缓存存档。请在本页刷新",
-		hisb30_empty: "需要成绩历史，或至少两次存档更新，才能显示 B30 变化",
 		refresh_cooldown: "刷新仍在冷却中 请稍后再试",
 		cache_bypass_cooldown: "绕过缓存仍在冷却中 请稍后再试",
 		refresh_failed: "刷新失败",

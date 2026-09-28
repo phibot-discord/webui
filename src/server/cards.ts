@@ -2,12 +2,12 @@ import type { CardStats } from "@/lib/card-stats";
 import { type PhiLocale, resolvePhiLocale } from "@/phi/lib/card-i18n";
 import { b19Card, infoCard } from "@/phi/lib/cards";
 import {
-	buildHisb30Rows,
+	buildUpdateCard,
 	loadHisb30Snaps,
 	loadSaveHistory,
-	playerBlock,
+	updateCardImages,
 } from "@/phi/lib/history";
-import { getNotes } from "@/phi/lib/notes";
+import { getNotes, type UserNotes } from "@/phi/lib/notes";
 import type { Save } from "@/phi/lib/save";
 import {
 	type BoundErr,
@@ -25,38 +25,30 @@ import {
 	writeCachedHeight,
 	writeCachedPng,
 } from "./cache";
-import { type CardImageCacheInput, cardCacheParts } from "./card-image-cache";
-import { type CardKind, clampCount } from "./card-kinds";
+import {
+	cardCacheInput,
+	cardCacheParts,
+	RENDER_VERSION,
+} from "./card-image-cache";
+import { type CardKind, cardCacheKind, clampCount } from "./card-kinds";
 import { getDataHost } from "./data-host";
 import { getHost, type WebHost } from "./host";
 import { etagMatches } from "./http";
-import { logger } from "./logger";
+import { prefetchIlls } from "./ill";
+import { logger, withDiscordUid } from "./logger";
 import { type PaintQuality, parsePaintQuality } from "./render/paint-budget";
 import { withTimeout } from "./render-lock";
 import { ensureSongInfo } from "./song-info";
 
+export type { BoundErr, ErrorCode } from "./bound";
 export {
-	CARD_KINDS,
 	type CardKind,
 	clampCount,
 	isCardKind,
 	isPublicKind,
-	PUBLIC_KINDS,
 	type PublicKind,
 } from "./card-kinds";
-
-export const RENDER_VERSION = "v32";
-
-export {
-	type BoundErr,
-	type ErrorCode,
-	lastSyncedIso,
-	loadBound,
-	REFRESH_COOLDOWN_MS,
-	refreshCooldownRemaining,
-	refreshSave,
-	saveRevision,
-} from "./bound";
+export { RENDER_VERSION };
 
 type RenderOk = {
 	bytes: Buffer;
@@ -99,11 +91,18 @@ async function prepareCardCache(
 ): Promise<CardPrep | BoundErr> {
 	const started = performance.now();
 	const [data] = await Promise.all([getDataHost(), ensureSongInfo()]);
-	const [bound, notes, epoch] = await Promise.all([
+	let [bound, notes, epoch] = await Promise.all([
 		loadBound(data, userId),
 		getNotes(data.db, userId),
 		getCardEpoch(data.store, userId),
 	]);
+	if (
+		"error" in bound &&
+		(bound.error === "not_bound" || bound.error === "no_save")
+	) {
+		await new Promise((r) => setTimeout(r, 350));
+		bound = await loadBound(data, userId);
+	}
 	if ("error" in bound) return bound;
 	const { save, token } = bound;
 	const locale = resolvePhiLocale(opts.locale, notes.locale);
@@ -112,19 +111,18 @@ async function prepareCardCache(
 		opts.paintQuality ?? notes.cardQuality,
 	);
 	const tagOn = opts.showTagAnalysis ?? notes.showTagAnalysis !== false;
-	const cacheInput: CardImageCacheInput = {
-		kind,
+	const cacheKind = cardCacheKind(kind);
+	const cacheInput = cardCacheInput({
+		kind: cacheKind,
 		userId,
 		saveRevision: saveRevision(save),
-		locale: `locale:${locale}`,
-		quality: paintQuality,
+		locale,
+		paintQuality,
 		epoch: resolveCardEpoch(opts.epoch, epoch),
-		count: String(nnum),
-		theme: notes.theme,
-		renderVersion: RENDER_VERSION,
-		analysisFlag: notes.showB30Analysis === false ? "a0" : "a1",
-		tagFlag: tagOn ? "t1" : "t0",
-	};
+		count: nnum,
+		notes,
+		tagOn,
+	});
 	const etag = cardEtag(cardCacheParts(cacheInput, "jpeg"));
 	return {
 		started,
@@ -139,7 +137,7 @@ async function prepareCardCache(
 		tagOn,
 		notes,
 		etag,
-		key: cacheKey(kind, userId, etag),
+		key: cacheKey(cacheKind, userId, etag),
 		heightId: cardEtag(cardCacheParts(cacheInput, "height")),
 	};
 }
@@ -168,6 +166,14 @@ export async function renderCard(
 	kind: CardKind,
 	opts: CardRenderOpts = {},
 ): Promise<RenderOk | BoundErr> {
+	return withDiscordUid(userId, () => renderCardFor(userId, kind, opts));
+}
+
+async function renderCardFor(
+	userId: string,
+	kind: CardKind,
+	opts: CardRenderOpts = {},
+): Promise<RenderOk | BoundErr> {
 	const prep = await prepareCardCache(userId, kind, opts);
 	if ("error" in prep) return prep;
 	if (!opts.download && etagMatches(opts.ifNoneMatch, prep.etag)) {
@@ -182,15 +188,40 @@ export async function renderCard(
 		};
 	}
 	const tCache = performance.now();
+	const warmHost = getHost().catch(() => undefined);
+	const cachedHeight = settleable(
+		readCachedHeight(prep.data.store, prep.heightId),
+	);
 	const cached = await readCachedCard(prep);
 	if (cached) return cached;
 	logger.info(`card cache miss ${kind} ${RENDER_VERSION}`);
-	return paintFreshCard(prep, Math.round(performance.now() - tCache));
+	await warmHost;
+	return paintFreshCard(
+		prep,
+		Math.round(performance.now() - tCache),
+		cachedHeight,
+	);
+}
+
+type Settleable<T> = { promise: Promise<T>; done: boolean };
+
+function settleable<T>(promise: Promise<T>): Settleable<T> {
+	const out: Settleable<T> = { promise, done: false };
+	promise.then(
+		() => {
+			out.done = true;
+		},
+		() => {
+			out.done = true;
+		},
+	);
+	return out;
 }
 
 async function paintFreshCard(
 	prep: CardPrep,
 	cacheMs: number,
+	cachedHeight: Settleable<number | undefined>,
 ): Promise<RenderOk | BoundErr> {
 	try {
 		const host = await getHost();
@@ -204,26 +235,28 @@ async function paintFreshCard(
 				prep.token,
 				prep.nnum,
 				prep.locale,
-				prep.notes.theme,
+				prep.notes,
 				prep.tagOn,
 			),
-			60_000,
+			75_000,
 			`${prep.kind}-data`,
 		);
 		const dataMs = Math.round(performance.now() - tData);
 		if ("error" in built) return built;
-		const cachedHeight = await readCachedHeight(host.store, prep.heightId);
+		const height = cachedHeight.done
+			? await cachedHeight.promise.catch(() => undefined)
+			: undefined;
 		const img = await withTimeout(
 			host.render(built.templateId, built.data, {
 				paintQuality: prep.paintQuality,
 				heightKey: prep.heightId,
-				height: cachedHeight,
+				height,
 			}),
 			45_000,
 			built.templateId,
 		);
 		await writeCachedPng(host, prep.key, img.bytes);
-		if (!cachedHeight && img.height > 64) {
+		if (!height && img.height > 64) {
 			await writeCachedHeight(host.store, prep.heightId, img.height);
 		}
 		const t = img.timings;
@@ -261,7 +294,7 @@ async function buildCardData(
 	token: string,
 	nnum: number,
 	locale: PhiLocale,
-	theme: string,
+	notes: UserNotes,
 	showTagAnalysis?: boolean,
 ): Promise<
 	| {
@@ -271,37 +304,43 @@ async function buildCardData(
 	| BoundErr
 > {
 	const catalog = host.catalog;
-	const themeKey = theme || "default";
+	const themeKey = notes.theme || "default";
 	if (kind === "b30" || kind === "x30" || kind === "fc30") {
 		const data = await b19Card(host.rt, save, host.db, userId, catalog, {
 			nnum,
 			mode: kind,
 			locale,
 			showTagAnalysis,
+			notes,
 		});
 		return { templateId: "phi/b19/b19", data };
 	}
 	if (kind === "info") {
 		const data = await infoCard(host.rt, save, host.db, userId, catalog, {
 			locale,
+			notes,
+			token,
 		});
 		return { templateId: "phi/userinfo/userinfo", data };
 	}
-	const snaps = await loadHisb30Snaps(host.db, userId);
-	const history = await loadSaveHistory(host.rt, host.db, token);
-	const rows = await buildHisb30Rows(host.rt, history, snaps);
-	if (!rows.length) {
-		return { error: "hisb30_empty", status: 404, reason: "hisb30_empty" };
-	}
+	// hisb30: the Discord bot's `/phi account update` card (score history by save date).
+	const [snaps, history] = await Promise.all([
+		loadHisb30Snaps(host.db, userId),
+		loadSaveHistory(host.rt, host.db, token),
+	]);
+	const data = await buildUpdateCard(
+		host.rt,
+		save,
+		catalog,
+		history,
+		notes,
+		snaps,
+		{ locale },
+	);
+	// Jackets / grade icons start downloading while the template compiles.
+	prefetchIlls(updateCardImages(host.rt, data));
 	return {
-		templateId: "phi/historyB30/historyB30",
-		data: {
-			rows,
-			Date: save.saveInfo.summary?.updatedAt,
-			gameuser: playerBlock(host.rt, save),
-			background: catalog.randomIll("blur"),
-			theme: themeKey,
-			locale,
-		},
+		templateId: "phi/update/update",
+		data: { ...data, theme: themeKey, locale },
 	};
 }

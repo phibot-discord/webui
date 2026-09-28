@@ -1,18 +1,20 @@
+import { runInBackground } from "./background";
 import { cfFetch } from "./cf-fetch";
 import { logger } from "./logger";
 import type { Kv } from "./sdk";
 
 type KvSetOptions = { ttlMs?: number; nx?: boolean };
+type KvIncrOptions = {
+	ttlMs?: number;
+	blocking?: boolean;
+};
 type Envelope = { d: string; e?: number };
-type ZMap = Record<string, number>;
 
 export type KvConfig = {
 	accountId: string;
 	namespaceId: string;
 	apiToken: string;
 };
-
-export type KvSortedItem = { score: number; value: string };
 
 export type KvStore = {
 	get: (key: string) => Promise<string | null>;
@@ -23,16 +25,9 @@ export type KvStore = {
 	) => Promise<string | null>;
 	del: (...keys: Array<string | string[]>) => Promise<number>;
 	keys: (pattern?: string) => Promise<string[]>;
-	incr: (key: string) => Promise<number>;
+	incr: (key: string, options?: KvIncrOptions) => Promise<number>;
 	expire: (key: string, seconds: number) => Promise<number>;
 	ttlMs: (key: string) => Promise<number>;
-	sortedAdd: (key: string, item: KvSortedItem) => Promise<number>;
-	sortedRemove: (key: string, value: string) => Promise<number>;
-	sortedRank: (key: string, value: string) => Promise<number | null>;
-	sortedScore: (key: string, value: string) => Promise<number | null>;
-	sortedRange: (key: string, min: number, max: number) => Promise<string[]>;
-	sortedCount: (key: string, min: number, max: number) => Promise<number>;
-	sortedSize: (key: string) => Promise<number>;
 };
 
 export type KvBundle = {
@@ -91,25 +86,7 @@ function globToRegExp(pattern: string): RegExp {
 	return new RegExp(`^${escaped}$`);
 }
 
-function sortedMembers(map: ZMap): string[] {
-	return Object.entries(map)
-		.sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))
-		.map(([value]) => value);
-}
-
-function parseZMap(raw: string | null): ZMap {
-	if (!raw) return {};
-	try {
-		const parsed = JSON.parse(raw) as unknown;
-		if (parsed && typeof parsed === "object" && !Array.isArray(parsed))
-			return parsed as ZMap;
-	} catch {
-		/* empty */
-	}
-	return {};
-}
-
-type RemoteKv = {
+export type RemoteKv = {
 	label: string;
 	getRaw: (key: string) => Promise<string | undefined>;
 	putRaw: (key: string, value: string, ttlSec?: number) => Promise<void>;
@@ -210,23 +187,87 @@ function restRemote(cfg: KvConfig): RemoteKv {
 	};
 }
 
+type OverlayEntry = { env: Envelope; at: number; write: boolean };
+
+const OVERLAY_MAX = 1_000;
+const OVERLAY_MAX_AGE_MS = 60_000;
+const OVERLAY_WRITE_MS = 5_000;
+const MISS_TTL_MS = 3_000;
+const MISS_MAX = 2_000;
+const BIND_KEY =
+	/:userToken:|:save:|:notes:|:hisb30:|:history:|:manualSave:|:webShare/;
+
 export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
-	const remote = restRemote(cfg);
-	const overlay = new Map<string, Envelope>();
-	const knownMissing = new Set<string>();
+	const bundle = createKv(restRemote(cfg));
+	runInBackground(
+		bundle.db.ping().then((pong) => logger.ok(`kv ${pong} ${bundle.label}`)),
+		(err) =>
+			logger.error(
+				`kv ping failed: ${err instanceof Error ? err.message : err}`,
+			),
+	);
+	return bundle;
+}
+
+export function createKv(remote: RemoteKv): KvBundle & { label: string } {
+	const overlay = new Map<string, OverlayEntry>();
+	const knownMissing = new Map<string, number>();
 	const writeTail = new Map<string, Promise<unknown>>();
 	const readInflight = new Map<string, Promise<Envelope | undefined>>();
+
+	const evictOldest = (map: Map<string, unknown>, max: number) => {
+		while (map.size > max) {
+			const oldest = map.keys().next().value;
+			if (oldest === undefined) break;
+			map.delete(oldest);
+		}
+	};
+	const missFresh = (key: string) => {
+		const until = knownMissing.get(key);
+		if (until == null) return false;
+		if (until > Date.now()) return true;
+		knownMissing.delete(key);
+		return false;
+	};
+	const markMiss = (key: string) => {
+		if (/:userToken:|:save:/.test(key)) return;
+		knownMissing.delete(key);
+		knownMissing.set(key, Date.now() + MISS_TTL_MS);
+		evictOldest(knownMissing, MISS_MAX);
+	};
+	const clearMiss = (key: string) => {
+		knownMissing.delete(key);
+	};
+	const remember = (key: string, env: Envelope, write: boolean) => {
+		overlay.delete(key);
+		overlay.set(key, { env, at: Date.now(), write });
+		evictOldest(overlay, OVERLAY_MAX);
+	};
+	const rememberWrite = (key: string, env: Envelope) => {
+		remember(key, env, true);
+		clearMiss(key);
+	};
+	const forget = (key: string) => {
+		overlay.delete(key);
+	};
+	const overlayFresh = (key: string, entry: OverlayEntry, now: number) => {
+		if (!alive(entry.env, now)) return false;
+		const age = now - entry.at;
+		if (entry.write && age < OVERLAY_WRITE_MS) return true;
+		return !BIND_KEY.test(key) && age < OVERLAY_MAX_AGE_MS;
+	};
 
 	const enqueue = <T>(key: string, fn: () => Promise<T>): Promise<T> => {
 		const prev = writeTail.get(key) ?? Promise.resolve();
 		const next = prev.then(fn, fn);
-		writeTail.set(
-			key,
-			next.then(
-				() => undefined,
-				() => undefined,
-			),
+		const tail: Promise<unknown> = next.then(
+			() => undefined,
+			() => undefined,
 		);
+		writeTail.set(key, tail);
+		void tail.then(() => {
+			if (writeTail.get(key) === tail) writeTail.delete(key);
+		});
 		return next;
 	};
 
@@ -248,13 +289,13 @@ export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 			if (!raw) return undefined;
 			const envl = parseEnvelope(raw);
 			if (!alive(envl)) {
-				overlay.delete(key);
-				knownMissing.add(key);
-				void delRemote(key);
+				forget(key);
+				markMiss(key);
+				delRemote(key).catch(() => undefined);
 				return undefined;
 			}
-			knownMissing.delete(key);
-			overlay.set(key, envl);
+			clearMiss(key);
+			if (!BIND_KEY.test(key)) remember(key, envl, false);
 			return envl;
 		})().finally(() => readInflight.delete(key));
 		readInflight.set(key, job);
@@ -264,12 +305,14 @@ export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 	const listRemote = (prefix: string) => remote.listRaw(prefix);
 
 	const read = async (key: string): Promise<Envelope | undefined> => {
-		if (knownMissing.has(key)) return undefined;
+		if (missFresh(key)) return undefined;
 		const local = overlay.get(key);
-		if (alive(local)) return local;
-		if (local) overlay.delete(key);
+		if (local) {
+			if (overlayFresh(key, local, Date.now())) return local.env;
+			forget(key);
+		}
 		const env = await getRemote(key);
-		if (!env) knownMissing.add(key);
+		if (!env) markMiss(key);
 		return env;
 	};
 
@@ -288,9 +331,13 @@ export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 				const existing = await read(key);
 				if (existing) return null;
 			}
-			overlay.set(key, env);
-			knownMissing.delete(key);
-			await putRemote(key, env);
+			rememberWrite(key, env);
+			try {
+				await putRemote(key, env);
+			} catch (err) {
+				forget(key);
+				throw err;
+			}
 			return "OK";
 		});
 	};
@@ -304,8 +351,8 @@ export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 		const flat = keys.flat().filter(Boolean);
 		let n = 0;
 		for (const key of flat) {
-			overlay.delete(key);
-			knownMissing.add(key);
+			forget(key);
+			markMiss(key);
 			await enqueue(key, () => delRemote(key));
 			n += 1;
 		}
@@ -318,9 +365,9 @@ export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 		const listed = await listRemote(prefix === "*" ? "" : prefix);
 		const names = new Set<string>(listed.filter((name) => re.test(name)));
 		const now = Date.now();
-		for (const [key, env] of overlay) {
-			if (!alive(env, now)) {
-				overlay.delete(key);
+		for (const [key, entry] of overlay) {
+			if (!alive(entry.env, now)) {
+				forget(key);
 				continue;
 			}
 			if (re.test(key)) names.add(key);
@@ -328,26 +375,54 @@ export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 		return [...names];
 	};
 
-	const loadZ = async (key: string): Promise<ZMap> => parseZMap(await get(key));
-	const saveZ = async (key: string, map: ZMap) => {
-		await write(key, JSON.stringify(map));
-	};
-
 	const store: KvStore = {
 		get,
 		set: write,
 		del,
 		keys,
-		incr: async (key) => {
-			return enqueue(key, async () => {
-				const env = await read(key);
-				const n = Number(env?.d || 0) + 1;
-				const next: Envelope = { d: String(n), e: env?.e };
-				overlay.set(key, next);
-				knownMissing.delete(key);
-				await putRemote(key, next);
-				return n;
+		incr: async (key, options = {}) => {
+			const bump = (env: Envelope | undefined): Envelope => ({
+				d: String(Number(env?.d || 0) + 1),
+				e:
+					env?.e ??
+					(options.ttlMs != null ? Date.now() + options.ttlMs : undefined),
 			});
+			if (options.blocking !== false) {
+				return enqueue(key, async () => {
+					const next = bump(await read(key));
+					rememberWrite(key, next);
+					try {
+						await putRemote(key, next);
+					} catch (err) {
+						forget(key);
+						throw err;
+					}
+					return Number(next.d);
+				});
+			}
+			const now = Date.now();
+			let local = overlay.get(key);
+			if (!local || !overlayFresh(key, local, now)) {
+				await read(key);
+				local = overlay.get(key);
+			}
+			const next = bump(local && alive(local.env, now) ? local.env : undefined);
+			rememberWrite(key, next);
+			runInBackground(
+				enqueue(key, async () => {
+					try {
+						await putRemote(key, next);
+					} catch (err) {
+						forget(key);
+						throw err;
+					}
+				}),
+				(err) =>
+					logger.warn(
+						`kv incr ${key} deferred write failed: ${err instanceof Error ? err.message : err}`,
+					),
+			);
+			return Number(next.d);
 		},
 		expire: async (key, seconds) => {
 			const env = await read(key);
@@ -356,40 +431,6 @@ export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 			return 1;
 		},
 		ttlMs: async (key) => remainingMs(await read(key)),
-		sortedAdd: async (key, item) => {
-			const map = await loadZ(key);
-			const existed = Object.hasOwn(map, item.value);
-			map[item.value] = Number(item.score);
-			await saveZ(key, map);
-			return existed ? 0 : 1;
-		},
-		sortedRemove: async (key, value) => {
-			const map = await loadZ(key);
-			if (!Object.hasOwn(map, value)) return 0;
-			delete map[value];
-			await saveZ(key, map);
-			return 1;
-		},
-		sortedRank: async (key, value) => {
-			const rank = sortedMembers(await loadZ(key)).indexOf(value);
-			return rank < 0 ? null : rank;
-		},
-		sortedScore: async (key, value) => {
-			const map = await loadZ(key);
-			return Object.hasOwn(map, value) ? (map[value] ?? null) : null;
-		},
-		sortedRange: async (key, min, max) => {
-			const members = sortedMembers(await loadZ(key));
-			const start = min < 0 ? Math.max(0, members.length + min) : min;
-			const end = max < 0 ? members.length + max + 1 : max + 1;
-			return members.slice(start, end);
-		},
-		sortedCount: async (key, min, max) => {
-			return Object.values(await loadZ(key)).filter(
-				(score) => score >= min && score <= max,
-			).length;
-		},
-		sortedSize: async (key) => Object.keys(await loadZ(key)).length,
 	};
 
 	const db: Kv = {
@@ -408,7 +449,5 @@ export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
 		close: async () => undefined,
 	};
 
-	const pong = await db.ping();
-	logger.ok(`kv ${pong} ${remote.label}`);
-	return { store, db };
+	return { store, db, label: remote.label };
 }

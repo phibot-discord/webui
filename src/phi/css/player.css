@@ -36,6 +36,7 @@
 	display: block !important;
 }
 .playerInfo .rks {
+	position: absolute !important;
 	height: var(--b30-rks-height) !important;
 	min-height: var(--b30-rks-height) !important;
 	overflow: hidden !important;

@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
 		"/api/refresh": phiInfoOnly,
 		"/api/bind/poll": phiInfoOnly,
 		"/api/bind/token": phiInfoOnly,
+		"/api/charts": phiInfoOnly,
+		"/api/manual": phiInfoOnly,
 	},
 	outputFileTracingExcludes: {
 		"*": [

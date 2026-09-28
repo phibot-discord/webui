@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveCardEpoch, saveRevision } from "./bound";
 import type { Save } from "@/phi/lib/save";
+import { resolveCardEpoch, saveRevision } from "./bound";
 
 function save(over: {
 	url?: string;

@@ -1,6 +1,5 @@
 import { join } from "node:path";
 import type { Kv } from "@/server/sdk";
-import { exists, readFile } from "@/server/vfs";
 import { cardCopy, fill, resolvePhiLocale } from "./card-i18n";
 import type { Catalog } from "./catalog";
 import type { LineSeg } from "./charts";
@@ -9,38 +8,27 @@ import { fCompute } from "./fcompute";
 import type { UserNotes } from "./notes";
 import type { PhiRuntime } from "./runtime";
 import type { Save } from "./save";
-import { SaveHistory } from "./save-history";
-import { moneyText } from "./saves";
-import ScoreHistory from "./score-history";
+import { openHistory, SaveHistory } from "./save-history";
 
 const LEVELS = ["EZ", "HD", "IN", "AT"] as const;
 const HISTORY_DAY = 10;
 const HISTORY_DATE = 10;
 const HISTORY_TOT = 50;
+const UPDATE_ROW_TILES = 5;
 
-export type HisSnap = {
+type HisSnap = {
 	t: number;
 	rks: number;
 	phi: { id: string; rank: string }[];
 	b27: { id: string; rank: string }[];
 };
 
-export function historyKey(token: string) {
+function historyKey(token: string) {
 	return kvKey("history", token);
 }
 
-export function hisb30Key(userId: string) {
+function hisb30Key(userId: string) {
 	return kvKey("hisb30", userId);
-}
-
-type SaveHistoryCtor = typeof SaveHistory;
-
-function saveHistoryClass(_rt: PhiRuntime): SaveHistoryCtor {
-	return SaveHistory;
-}
-
-function scoreHistoryMod(_rt?: PhiRuntime) {
-	return { default: ScoreHistory };
 }
 
 function serializeHistory(h: {
@@ -62,40 +50,18 @@ function serializeHistory(h: {
 	};
 }
 
-function fileHistoryPath(rt: PhiRuntime, token: string) {
-	return join(rt.phiRoot, "saveData", token, "history.json");
-}
-
-export async function loadSaveHistory(rt: PhiRuntime, db: Kv, token: string) {
-	const Ctor = saveHistoryClass(rt);
+export async function loadSaveHistory(_rt: PhiRuntime, db: Kv, token: string) {
+	// Manual ("no account") profiles have no TapTap token and no score history.
+	if (!token) return new SaveHistory(null);
 	const raw = await db.get(historyKey(token));
 	if (raw) {
 		try {
-			return new Ctor(JSON.parse(raw));
+			return new SaveHistory(JSON.parse(raw));
 		} catch {
 			/* fall through */
 		}
 	}
-	const file = fileHistoryPath(rt, token);
-	if (exists(file)) {
-		try {
-			const parsed = JSON.parse(readFile(file, "utf8"));
-			const hist = new Ctor(parsed);
-			await db.set(historyKey(token), JSON.stringify(serializeHistory(hist)));
-			return hist;
-		} catch {
-			/* empty */
-		}
-	}
-	return new Ctor(null);
-}
-
-export async function persistSaveHistory(
-	db: Kv,
-	token: string,
-	history: Parameters<typeof serializeHistory>[0],
-) {
-	await db.set(historyKey(token), JSON.stringify(serializeHistory(history)));
+	return new SaveHistory(null);
 }
 
 export async function applySaveToHistory(
@@ -106,7 +72,7 @@ export async function applySaveToHistory(
 ) {
 	const history = await loadSaveHistory(rt, db, token);
 	history.update(save);
-	await persistSaveHistory(db, token, history);
+	await db.set(historyKey(token), JSON.stringify(serializeHistory(history)));
 	return history;
 }
 
@@ -131,11 +97,7 @@ function rangePct(value: number, span: number[]) {
 	return Math.abs(((value - a) / (b - a)) * 100);
 }
 
-function fmtLineDate(t: number) {
-	return fCompute.formatDate(t);
-}
-
-export function rksLineFromRecords(
+function rksLineFromRecords(
 	items: { date: Date | string | number; value: number }[],
 ) {
 	const data = items
@@ -186,38 +148,11 @@ export function rksLineFromRecords(
 	return {
 		rks_history: segs,
 		rks_range,
-		rks_date: [fmtLineDate(rks_date[0]), fmtLineDate(rks_date[1])] as [
-			string,
-			string,
-		],
+		rks_date: [
+			fCompute.formatDate(rks_date[0]),
+			fCompute.formatDate(rks_date[1]),
+		] as [string, string],
 	};
-}
-
-export function rksLineFromPoints(points: { t: number; rks: number }[]) {
-	return rksLineFromRecords(points.map((p) => ({ date: p.t, value: p.rks })));
-}
-
-export function fixtureRksPoints() {
-	const t0 = Date.now() - 86400000 * 40;
-	return [
-		{ t: t0, rks: 15.21 },
-		{ t: t0 + 86400000 * 7, rks: 15.44 },
-		{ t: t0 + 86400000 * 14, rks: 15.71 },
-		{ t: t0 + 86400000 * 21, rks: 15.83 },
-		{ t: t0 + 86400000 * 28, rks: 15.96 },
-		{ t: t0 + 86400000 * 35, rks: 16.0104 },
-	];
-}
-
-export function rksLineLooksSparse(line: {
-	rks_history?: LineSeg[];
-	rks_date?: [string, string];
-}) {
-	const segs = line.rks_history || [];
-	if (segs.length < 2) return true;
-	if (line.rks_date?.[0] && line.rks_date[0] === line.rks_date[1]) return true;
-	const ys = segs.flatMap((s) => [s[1], s[3]]);
-	return Math.max(...ys) - Math.min(...ys) < 1;
 }
 
 function formatHistoryDate(rt: PhiRuntime, value: unknown) {
@@ -261,26 +196,6 @@ export async function rksLineFor(
 	};
 }
 
-function comWidth(num: number) {
-	return num * 135 + 20 * num - 20;
-}
-
-function sanitizeUpdateSong(
-	info: Record<string, unknown>,
-	rt: PhiRuntime,
-	id: string,
-) {
-	const rks = Number(info.rks_new);
-	const acc = Number(info.acc_new);
-	return {
-		...info,
-		illustration: info.illustration || rt.getInfo.getill?.(id) || "",
-		rks_new: Number.isFinite(rks) ? rks : 0,
-		acc_new: Number.isFinite(acc) ? acc : 0,
-		score_new: info.score_new ?? info.score ?? 0,
-	};
-}
-
 function randomColor(rt: PhiRuntime) {
 	try {
 		return String(rt.fCompute.getRandomBgColor());
@@ -288,397 +203,6 @@ function randomColor(rt: PhiRuntime) {
 		const n = Math.floor(Math.random() * 0xa0a0a0);
 		return `#${n.toString(16).padStart(6, "0")}`;
 	}
-}
-
-export async function buildUpdateCard(
-	rt: PhiRuntime,
-	save: Save,
-	catalog: Catalog,
-	history: Awaited<ReturnType<typeof loadSaveHistory>>,
-	notes: UserNotes,
-	snaps: HisSnap[],
-	extra: { fixture?: boolean; locale?: string } = {},
-) {
-	const t = cardCopy(resolvePhiLocale(extra.locale, notes.locale));
-	const SH = scoreHistoryMod(rt);
-	const timeVis: Record<string, number> = {};
-	const tot: {
-		date: string;
-		color: string;
-		update_num: number;
-		song: Record<string, unknown>[];
-	}[] = [];
-	const ids = Object.keys(history.scoreHistory || {});
-	for (const id of ids) {
-		const tem = history.scoreHistory[id];
-		if (!tem) continue;
-		for (const level of LEVELS) {
-			const rows = tem[level];
-			if (!rows?.length) continue;
-			for (let i = 0; i < rows.length; i++) {
-				const scoreDate = formatHistoryDate(rt, SH.default.date(rows[i]!));
-				const info = SH.default.extend(
-					id,
-					level,
-					rows[i]!,
-					i ? rows[i - 1] : undefined,
-				);
-				if (!info.illustration) info.illustration = rt.getInfo.getill?.(id);
-				if (timeVis[scoreDate] == null) {
-					timeVis[scoreDate] = tot.length;
-					tot.push({
-						date: scoreDate,
-						color: randomColor(rt),
-						update_num: 0,
-						song: [],
-					});
-				}
-				tot[timeVis[scoreDate]!]!.update_num++;
-				tot[timeVis[scoreDate]!]!.song.push(sanitizeUpdateSong(info, rt, id));
-			}
-		}
-	}
-	tot.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-	let show = 0;
-	for (let date = 0; date < tot.length; date++) {
-		if (
-			date >= HISTORY_DATE ||
-			HISTORY_TOT < show + Math.min(HISTORY_DAY, tot[date]!.update_num)
-		) {
-			tot.splice(date);
-			break;
-		}
-		tot[date]!.song.sort(
-			(a, b) => Number(b.rks_new || 0) - Number(a.rks_new || 0),
-		);
-		tot[date]!.song = tot[date]!.song.slice(
-			0,
-			Math.min(HISTORY_DAY, HISTORY_TOT - show),
-		);
-		show += tot[date]!.song.length;
-	}
-
-	const box_line: {
-		date?: string;
-		color: string;
-		song: Record<string, unknown>[];
-		width: number;
-		update_num?: number;
-	}[][] = [];
-	let lineNum = 5;
-	let flag = false;
-	const remaining = tot.map((x) => ({ ...x, song: [...x.song] }));
-	while (remaining.length) {
-		if (lineNum === 5) {
-			const take = remaining[0]!.song.splice(0, 5);
-			box_line.push([
-				flag
-					? { color: remaining[0]!.color, song: take, width: 0 }
-					: {
-							date: remaining[0]!.date,
-							color: remaining[0]!.color,
-							song: take,
-							width: 0,
-						},
-			]);
-			const last = box_line[box_line.length - 1]!;
-			lineNum = last[last.length - 1]!.song.length;
-		} else {
-			const last = box_line[box_line.length - 1]!;
-			const take = remaining[0]!.song.splice(0, 5 - lineNum);
-			last.push(
-				flag
-					? { color: remaining[0]!.color, song: take, width: 0 }
-					: {
-							date: remaining[0]!.date,
-							color: remaining[0]!.color,
-							song: take,
-							width: 0,
-						},
-			);
-			lineNum += last[last.length - 1]!.song.length;
-		}
-		const last = box_line[box_line.length - 1]!;
-		last[last.length - 1]!.width = comWidth(last[last.length - 1]!.song.length);
-		flag = true;
-		if (!remaining[0]!.song.length) {
-			last[last.length - 1]!.update_num = remaining[0]!.update_num;
-			remaining.shift();
-			flag = false;
-		}
-	}
-
-	let line = await rksLineFor(rt, history, snaps);
-	if (extra.fixture && rksLineLooksSparse(line))
-		line = rksLineFromPoints(fixtureRksPoints());
-
-	const added: [string, string] = ["", ""];
-	if (snaps.length >= 2) {
-		const prev = snaps[snaps.length - 2]!;
-		const cur = snaps[snaps.length - 1]!;
-		const d = Number(cur.rks) - Number(prev.rks);
-		if (Math.abs(d) >= 1e-4) added[0] = `${d > 0 ? "+" : ""}${d.toFixed(4)}`;
-	}
-
-	const task_data = (notes.task || []).map((t) => {
-		const info = rt.getInfo.info?.(t.song, true);
-		return {
-			...t,
-			illustration: rt.getInfo.getill?.(t.song) || catalog.getill?.(t.song),
-			song: info?.song || t.song,
-			request: {
-				...t.request,
-				value:
-					t.request?.type === "acc"
-						? `${Number(t.request.value).toFixed(2)}%`
-						: String(t.request?.value ?? "").padStart(6, "0"),
-			},
-		};
-	});
-
-	return {
-		PlayerId: rt.fCompute.convertRichText(save.saveInfo.PlayerId),
-		Rks: Number(save.saveInfo.summary.rankingScore).toFixed(4),
-		Date: formatHistoryDate(rt, save.saveInfo.summary.updatedAt),
-		ChallengeMode: Math.floor(save.saveInfo.summary.challengeModeRank / 100),
-		ChallengeModeRank: save.saveInfo.summary.challengeModeRank % 100,
-		background: catalog.randomIll("blur"),
-		box_line,
-		show,
-		tips:
-			(rt.getInfo.tips || [])[
-				Math.floor(Math.random() * Math.max(1, (rt.getInfo.tips || []).length))
-			] || "",
-		task_data: task_data.length ? task_data : null,
-		task_time: notes.task_time ? formatHistoryDate(rt, notes.task_time) : "",
-		added_rks_notes: added,
-		update_ans: show ? fill(t.updatedScores, { n: show }) : t.noNewScores,
-		theme: notes.theme || "default",
-		rks_date: line.rks_date,
-		rks_history: line.rks_history,
-		rks_range: [
-			Number.isFinite(Number(line.rks_range?.[0]))
-				? Number(line.rks_range[0])
-				: 0,
-			Number.isFinite(Number(line.rks_range?.[1]))
-				? Number(line.rks_range[1])
-				: 1,
-		],
-	};
-}
-
-export async function buildHisb30Rows(
-	rt: PhiRuntime,
-	history: Awaited<ReturnType<typeof loadSaveHistory>>,
-	snaps: HisSnap[],
-) {
-	const fromHist = await hisb30FromScoreHistory(rt, history);
-	if (fromHist.length) return fromHist;
-	return hisb30FromSnaps(rt, snaps);
-}
-
-async function hisb30FromScoreHistory(
-	rt: PhiRuntime,
-	history: Awaited<ReturnType<typeof loadSaveHistory>>,
-) {
-	const SH = scoreHistoryMod(rt);
-	const records: {
-		id: string;
-		level: string;
-		acc: number;
-		score: number;
-		date: Date;
-		fc: boolean;
-		rks: number;
-		rank: string;
-	}[] = [];
-	for (const id of Object.keys(history.scoreHistory || {})) {
-		const songRecords = history.scoreHistory[id];
-		if (!songRecords) continue;
-		for (const level of LEVELS) {
-			const rows = songRecords[level];
-			if (!rows) continue;
-			const info = rt.getInfo.info(id, true);
-			const dif = info?.chart?.[level]?.difficulty;
-			if (dif == null) continue;
-			for (const row of rows) {
-				const opened = SH.default.open(row);
-				records.push({
-					id,
-					level,
-					rank: level,
-					acc: opened.acc,
-					score: opened.score,
-					date: opened.date,
-					fc: opened.fc,
-					rks: rt.fCompute.rks(opened.acc, dif),
-				});
-			}
-		}
-	}
-	if (records.length < 2) return [];
-	const byTime: Record<string, typeof records> = {};
-	for (const rec of records) {
-		const k = `${rec.date.getTime()}`;
-		const bucket = byTime[k] ?? [];
-		byTime[k] = bucket;
-		bucket.push(rec);
-	}
-	const times = Object.keys(byTime).sort((a, b) => Number(a) - Number(b));
-	let b30 = { phi: [] as typeof records, b27: [] as typeof records };
-	const rows: {
-		date: string;
-		color: string;
-		songs: Record<string, unknown>[];
-	}[] = [];
-	for (const time of times) {
-		const batch = byTime[time]!;
-		const newB30 = rt.fCompute.updateB30(b30, batch) as {
-			phi: typeof records;
-			b27: typeof records;
-		};
-		const oldPhi = new Set(b30.phi.map((x) => `${x.id}-${x.rank}`));
-		const oldB27 = new Set(b30.b27.map((x) => `${x.id}-${x.rank}`));
-		const newPhi = new Set(newB30.phi.map((x) => `${x.id}-${x.rank}`));
-		const newB27 = new Set(newB30.b27.map((x) => `${x.id}-${x.rank}`));
-		const songs: Record<string, unknown>[] = [];
-		newB30.phi.forEach((item, index) => {
-			const key = `${item.id}-${item.rank}`;
-			if (!oldPhi.has(key))
-				songs.push({
-					ill: rt.getInfo.getill(item.id, "low"),
-					rank: item.rank,
-					newPhi: index + 1,
-				});
-		});
-		newB30.b27.forEach((item, index) => {
-			const key = `${item.id}-${item.rank}`;
-			if (!oldB27.has(key))
-				songs.push({
-					ill: rt.getInfo.getill(item.id, "low"),
-					rank: item.rank,
-					newB27: index + 1,
-				});
-		});
-		b30.phi.forEach((item) => {
-			const key = `${item.id}-${item.rank}`;
-			if (!newPhi.has(key))
-				songs.push({
-					ill: rt.getInfo.getill(item.id, "low"),
-					rank: item.rank,
-					exitPhi: true,
-				});
-		});
-		b30.b27.forEach((item) => {
-			const key = `${item.id}-${item.rank}`;
-			if (!newB27.has(key))
-				songs.push({
-					ill: rt.getInfo.getill(item.id, "low"),
-					rank: item.rank,
-					exitB27: true,
-				});
-		});
-		if (songs.length) {
-			rows.push({
-				date: formatHistoryDate(rt, Number(time)),
-				songs,
-				color: randomColor(rt),
-			});
-		}
-		b30 = newB30;
-	}
-	return rows.reverse().slice(0, 12);
-}
-
-function hisb30FromSnaps(rt: PhiRuntime, snaps: HisSnap[]) {
-	const rows: {
-		date: string;
-		color: string;
-		songs: Record<string, unknown>[];
-	}[] = [];
-	for (let i = 1; i < snaps.length; i++) {
-		const prev = snaps[i - 1]!;
-		const cur = snaps[i]!;
-		const oldPhi = new Set((prev.phi || []).map((x) => `${x.id}-${x.rank}`));
-		const oldB27 = new Set((prev.b27 || []).map((x) => `${x.id}-${x.rank}`));
-		const newPhi = new Set((cur.phi || []).map((x) => `${x.id}-${x.rank}`));
-		const newB27 = new Set((cur.b27 || []).map((x) => `${x.id}-${x.rank}`));
-		const songs: Record<string, unknown>[] = [];
-		(cur.phi || []).forEach((item, index) => {
-			const key = `${item.id}-${item.rank}`;
-			if (!oldPhi.has(key))
-				songs.push({
-					ill: rt.getInfo.getill(item.id, "low"),
-					rank: item.rank,
-					newPhi: index + 1,
-				});
-		});
-		(cur.b27 || []).forEach((item, index) => {
-			const key = `${item.id}-${item.rank}`;
-			if (!oldB27.has(key))
-				songs.push({
-					ill: rt.getInfo.getill(item.id, "low"),
-					rank: item.rank,
-					newB27: index + 1,
-				});
-		});
-		(prev.phi || []).forEach((item) => {
-			const key = `${item.id}-${item.rank}`;
-			if (!newPhi.has(key))
-				songs.push({
-					ill: rt.getInfo.getill(item.id, "low"),
-					rank: item.rank,
-					exitPhi: true,
-				});
-		});
-		(prev.b27 || []).forEach((item) => {
-			const key = `${item.id}-${item.rank}`;
-			if (!newB27.has(key))
-				songs.push({
-					ill: rt.getInfo.getill(item.id, "low"),
-					rank: item.rank,
-					exitB27: true,
-				});
-		});
-		if (songs.length) {
-			rows.push({
-				date: formatHistoryDate(rt, cur.t),
-				songs,
-				color: randomColor(rt),
-			});
-		}
-	}
-	return rows.slice(-12).reverse();
-}
-
-export async function songScoreHistory(
-	rt: PhiRuntime,
-	history: Awaited<ReturnType<typeof loadSaveHistory>>,
-	songId: string,
-) {
-	const SH = scoreHistoryMod(rt);
-	const rec = history.scoreHistory?.[songId];
-	if (!rec) return [];
-	const out: Record<string, unknown>[] = [];
-	for (const level of LEVELS) {
-		const rows = rec[level];
-		if (!rows) continue;
-		for (let i = 0; i < rows.length; i++) {
-			const tem = SH.default.extend(
-				songId,
-				level,
-				rows[i]!,
-				i ? rows[i - 1] : undefined,
-			);
-			out.push({ ...tem, date_new: formatHistoryDate(rt, tem.date_new) });
-		}
-	}
-	out.sort(
-		(a, b) =>
-			new Date(String(b.date_new)).getTime() -
-			new Date(String(a.date_new)).getTime(),
-	);
-	return out.slice(0, 16);
 }
 
 export function accRksLines(save: Save) {
@@ -761,51 +285,271 @@ export function accRksLines(save: Save) {
 	return { acc_rks_data: segs, acc_rks_range, acc_rks_AccRange: positions };
 }
 
-export function playerBlock(rt: PhiRuntime, save: Save) {
-	const money = save.gameProgress?.money || [0, 0, 0, 0, 0];
+type ScoreDetail = Parameters<typeof openHistory>[0];
+
+export type UpdateTile = {
+	song: string;
+	rank: string;
+	illustration: string;
+	Rating: string;
+	acc_new: number;
+	acc_old?: number;
+	score_new: number;
+	score_old?: number;
+	date_new: Date;
+	date_old?: Date;
+	rks_new: number;
+	rks_old: number;
+};
+
+export type UpdateBox = {
+	date?: string;
+	color: string;
+	song: UpdateTile[];
+	width: number;
+	update_num?: number;
+};
+
+function comWidth(num: number) {
+	return num * 135 + 20 * num - 20;
+}
+
+function chartDifficulty(rt: PhiRuntime, songId: string, level: string) {
+	const difficulty = rt.getInfo.raw(songId)?.chart?.[level]?.difficulty;
+	return Number.isFinite(difficulty) ? (difficulty as number) : undefined;
+}
+
+function extendScore(
+	rt: PhiRuntime,
+	songId: string,
+	level: string,
+	now: ScoreDetail,
+	old?: ScoreDetail,
+): UpdateTile {
+	const cur = openHistory(now);
+	const prev = old ? openHistory(old) : undefined;
+	const difficulty = chartDifficulty(rt, songId, level);
 	return {
-		avatar: rt.getInfo.idgetavatar(save.gameuser.avatar),
-		ChallengeMode: Math.floor(save.saveInfo.summary.challengeModeRank / 100),
-		ChallengeModeRank: save.saveInfo.summary.challengeModeRank % 100,
-		rks: save.saveInfo.summary.rankingScore,
-		data: moneyText(money),
-		selfIntro: rt.fCompute.convertRichText(save.gameuser.selfIntro),
-		PlayerId: rt.fCompute.convertRichText(save.saveInfo.PlayerId),
+		song: rt.getInfo.idgetsong(songId) || songId,
+		rank: level,
+		illustration: rt.getInfo.getill(songId, "low"),
+		Rating: rt.fCompute.rate(cur.score, cur.fc),
+		acc_new: cur.acc,
+		acc_old: prev?.acc,
+		score_new: cur.score,
+		score_old: prev?.score,
+		date_new: cur.date,
+		date_old: prev?.date,
+		rks_new: difficulty == null ? 0 : rt.fCompute.rks(cur.acc, difficulty),
+		rks_old:
+			difficulty == null || !prev ? 0 : rt.fCompute.rks(prev.acc, difficulty),
 	};
 }
 
-export function fixtureUpdateSongs(rt: PhiRuntime, catalog: Catalog) {
-	const ids = [...catalog.songs.keys()].slice(0, 8);
-	const songs = ids.map((id, i) => {
-		const info = rt.getInfo.info(id, true) || catalog.info(id);
+type UpdateGroup = {
+	date: string;
+	time: number;
+	color: string;
+	update_num: number;
+	song: UpdateTile[];
+};
+
+function updateGroups(
+	rt: PhiRuntime,
+	history: Awaited<ReturnType<typeof loadSaveHistory>>,
+): { groups: UpdateGroup[]; show: number } {
+	type Pending = {
+		id: string;
+		level: string;
+		row: ScoreDetail;
+		prev?: ScoreDetail;
+		rks: number;
+	};
+	const byDate = new Map<
+		string,
+		{ date: string; time: number; color: string; pending: Pending[] }
+	>();
+	for (const id of Object.keys(history.scoreHistory || {})) {
+		const tem = history.scoreHistory[id];
+		if (!tem) continue;
+		for (const level of LEVELS) {
+			const rows = tem[level];
+			if (!rows?.length) continue;
+			const difficulty = chartDifficulty(rt, id, level);
+			for (let i = 0; i < rows.length; i++) {
+				const row = rows[i]!;
+				const cur = openHistory(row);
+				const date = formatHistoryDate(rt, cur.date);
+				let group = byDate.get(date);
+				if (!group) {
+					group = {
+						date,
+						time: cur.date.getTime(),
+						color: randomColor(rt),
+						pending: [],
+					};
+					byDate.set(date, group);
+				}
+				group.pending.push({
+					id,
+					level,
+					row,
+					prev: i ? rows[i - 1] : undefined,
+					rks: difficulty == null ? 0 : rt.fCompute.rks(cur.acc, difficulty),
+				});
+			}
+		}
+	}
+	const sorted = [...byDate.values()].sort((a, b) => b.time - a.time);
+	const groups: UpdateGroup[] = [];
+	let show = 0;
+	for (let i = 0; i < sorted.length; i++) {
+		const g = sorted[i]!;
+		const update_num = g.pending.length;
+		if (
+			i >= HISTORY_DATE ||
+			HISTORY_TOT < show + Math.min(HISTORY_DAY, update_num)
+		) {
+			break;
+		}
+		g.pending.sort((a, b) => b.rks - a.rks);
+		const song = g.pending
+			.slice(0, Math.min(HISTORY_DAY, HISTORY_TOT - show))
+			.map((p) => extendScore(rt, p.id, p.level, p.row, p.prev));
+		show += song.length;
+		groups.push({
+			date: g.date,
+			time: g.time,
+			color: g.color,
+			update_num,
+			song,
+		});
+	}
+	return { groups, show };
+}
+
+function packUpdateRows(groups: UpdateGroup[]): UpdateBox[][] {
+	const box_line: UpdateBox[][] = [];
+	let lineNum = UPDATE_ROW_TILES;
+	let continued = false;
+	const remaining = groups.map((x) => ({ ...x, song: [...x.song] }));
+	while (remaining.length) {
+		const head = remaining[0]!;
+		const box = (song: UpdateTile[]): UpdateBox =>
+			continued
+				? { color: head.color, song, width: comWidth(song.length) }
+				: {
+						date: head.date,
+						color: head.color,
+						song,
+						width: comWidth(song.length),
+					};
+		if (lineNum === UPDATE_ROW_TILES) {
+			const next = box(head.song.splice(0, UPDATE_ROW_TILES));
+			box_line.push([next]);
+			lineNum = next.song.length;
+		} else {
+			const next = box(head.song.splice(0, UPDATE_ROW_TILES - lineNum));
+			box_line[box_line.length - 1]!.push(next);
+			lineNum += next.song.length;
+		}
+		continued = true;
+		if (!head.song.length) {
+			const line = box_line[box_line.length - 1]!;
+			line[line.length - 1]!.update_num = head.update_num;
+			remaining.shift();
+			continued = false;
+		}
+	}
+	return box_line;
+}
+
+export function updateCardImages(
+	rt: PhiRuntime,
+	data: Pick<
+		Awaited<ReturnType<typeof buildUpdateCard>>,
+		"box_line" | "task_data" | "background" | "ChallengeMode"
+	>,
+) {
+	const html = (rel: string) => join(rt.getInfo.resources, "html", rel);
+	const out = new Set<string>();
+	if (data.background) out.add(data.background);
+	out.add(html(`otherimg/${data.ChallengeMode}.png`));
+	for (const line of data.box_line) {
+		for (const box of line) {
+			for (const song of box.song) {
+				out.add(song.illustration);
+				if (song.Rating) out.add(html(`otherimg/${song.Rating}.png`));
+			}
+		}
+	}
+	for (const task of data.task_data || []) out.add(task.illustration);
+	return [...out];
+}
+
+export async function buildUpdateCard(
+	rt: PhiRuntime,
+	save: Save,
+	catalog: Catalog,
+	history: Awaited<ReturnType<typeof loadSaveHistory>>,
+	notes: UserNotes,
+	snaps: HisSnap[],
+	extra: { locale?: string } = {},
+) {
+	const t = cardCopy(resolvePhiLocale(extra.locale, notes.locale));
+	const { groups, show } = updateGroups(rt, history);
+	const box_line = packUpdateRows(groups);
+
+	const line = await rksLineFor(rt, history, snaps);
+
+	const added: [string, string] = ["", ""];
+	if (snaps.length >= 2) {
+		const prev = snaps[snaps.length - 2]!;
+		const cur = snaps[snaps.length - 1]!;
+		const d = Number(cur.rks) - Number(prev.rks);
+		if (Math.abs(d) >= 1e-4) added[0] = `${d > 0 ? "+" : ""}${d.toFixed(4)}`;
+	}
+
+	const task_data = (notes.task || []).map((task) => {
+		const info = rt.getInfo.raw(task.song);
 		return {
-			song: info?.song || id,
-			rank: LEVELS[i % 4],
-			illustration: rt.getInfo.getill(id, "low") || info?.illustration,
-			Rating: i % 3 === 0 ? "phi" : "V",
-			score_new: 990000 + i * 111,
-			acc_new: 99.1 + i * 0.1,
-			rks_new: 15.2 + i * 0.05,
-			isB19: i < 3 ? i + 1 : undefined,
+			...task,
+			illustration: rt.getInfo.getill(task.song, "low"),
+			song: info?.song || task.song,
+			request: {
+				...task.request,
+				value:
+					task.request?.type === "acc"
+						? `${Number(task.request.value).toFixed(2)}%`
+						: String(task.request?.value ?? "").padStart(6, "0"),
+			},
 		};
 	});
-	return [
-		[
-			{
-				date: "2026/08/20",
-				color: "#5aa0d0",
-				song: songs.slice(0, 5),
-				width: comWidth(5),
-				update_num: 5,
-			},
+
+	return {
+		PlayerId: rt.fCompute.convertRichText(save.saveInfo.PlayerId),
+		Rks: Number(save.saveInfo.summary.rankingScore).toFixed(4),
+		Date: formatHistoryDate(rt, save.saveInfo.summary.updatedAt),
+		ChallengeMode: Math.floor(save.saveInfo.summary.challengeModeRank / 100),
+		ChallengeModeRank: save.saveInfo.summary.challengeModeRank % 100,
+		background: catalog.randomIll("blur"),
+		box_line,
+		show,
+		tips: "",
+		task_data: task_data.length ? task_data : null,
+		task_time: notes.task_time ? formatHistoryDate(rt, notes.task_time) : "",
+		added_rks_notes: added,
+		update_ans: show ? fill(t.updatedScores, { n: show }) : t.noNewScores,
+		theme: notes.theme || "default",
+		rks_date: line.rks_date,
+		rks_history: line.rks_history,
+		rks_range: [
+			Number.isFinite(Number(line.rks_range?.[0]))
+				? Number(line.rks_range[0])
+				: 0,
+			Number.isFinite(Number(line.rks_range?.[1]))
+				? Number(line.rks_range[1])
+				: 1,
 		],
-		[
-			{
-				color: "#d08a5a",
-				song: songs.slice(5),
-				width: comWidth(songs.slice(5).length),
-				update_num: songs.slice(5).length,
-			},
-		],
-	];
+	};
 }

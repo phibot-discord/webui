@@ -1,6 +1,6 @@
 import { join, resolve } from "node:path";
 
-export function appRoot(): string {
+function appRoot(): string {
 	const fromEnv = process.env.PHI_APP_ROOT?.trim();
 	if (fromEnv) return resolve(fromEnv);
 	return process.cwd();
@@ -10,12 +10,6 @@ export function assetsDir(): string {
 	const fromEnv = process.env.PHI_ASSETS?.trim();
 	if (fromEnv) return resolve(fromEnv);
 	return join(appRoot(), "phi-assets");
-}
-
-export function dataDir(): string {
-	const fromEnv = process.env.PHI_DATA?.trim();
-	if (fromEnv) return resolve(fromEnv);
-	return join(appRoot(), "data");
 }
 
 export function illDir(): string {

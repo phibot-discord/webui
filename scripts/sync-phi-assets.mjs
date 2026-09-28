@@ -24,22 +24,16 @@ const HTML_FILES = [
 	"b19/b19.css",
 	"userinfo/userinfo.art",
 	"userinfo/userinfo.css",
-	"historyB30/historyB30.art",
-	"historyB30/historyB30.css",
+	"update/update.art",
+	"update/update.css",
 	"common/common.css",
 ];
-const HTML_DIRS = [
-	"avatar",
-	"otherimg",
-	"common/layout",
-	"common/css",
-	"common/theme",
-];
+// Images (avatar/, otherimg/, jackets) are not bundled: ill-sync mirrors them to R2.
+const HTML_DIRS = ["common/layout", "common/css"];
 const INFO_FILES = [
 	"avatar.txt",
 	"info.csv",
 	"infolist.json",
-	"nicklist.yaml",
 	"notesInfo.json",
 	"spinfo.json",
 	"tips.txt",
@@ -64,12 +58,17 @@ function copyFile(src, dest) {
 	cpSync(src, dest);
 }
 
-function copyDir(src, dest) {
+function copyDir(src, dest, skip = []) {
 	if (!existsSync(src)) throw new Error(`missing ${src}`);
 	mkdirSync(dirname(dest), { recursive: true });
 	cpSync(src, dest, {
 		recursive: true,
-		filter: (p) => !p.endsWith(".DS_Store") && !p.endsWith("demo.jpg"),
+		filter: (p) => {
+			const base = p.split(/[/\\]/).pop();
+			return (
+				base !== ".DS_Store" && base !== "demo.jpg" && !skip.includes(base)
+			);
+		},
 	});
 }
 
@@ -118,6 +117,11 @@ function stripCss(text) {
 	return `${text
 		.replace(/\/\*[\s\S]*?\*\//g, "")
 		.replace(/@font-face\s*\{[^}]*NotoColorEmoji[^}]*\}/gi, "")
+		// The layout's .background <img> covers the page; the body image is not bundled.
+		.replace(
+			/\r?\n[ \t]*background:\s*url\("\.\.\/otherimg\/phigros\.png"\)[^;]*;(?:\r?\n[ \t]*background-(?:size|position):[^;]*;)*/g,
+			"",
+		)
 		.replace(/(\.\/font\/[^"')]+)\.ttf/gi, "$1.woff2")
 		.replace(/(\.\/font\/[^"')]+)\.TTF/g, "$1.woff2")
 		.replace(/format\(\s*(['"]?)truetype\1\s*\)/gi, 'format("woff2")')
@@ -133,6 +137,29 @@ function walkCss(dir, out = []) {
 		else if (name.endsWith(".css")) out.push(p);
 	}
 	return out;
+}
+
+function walkArt(dir, out = []) {
+	for (const name of readdirSync(dir)) {
+		const p = join(dir, name);
+		if (statSync(p).isDirectory()) walkArt(p, out);
+		else if (name.endsWith(".art")) out.push(p);
+	}
+	return out;
+}
+
+/** Takumi never runs <script>; snow/topText are remapped to default. */
+function stripDeadTheme(text) {
+	return text
+		.replace(
+			/\n\s*\{\{if theme == "snow"\}\}\s*\n\s*<link rel="stylesheet" href="\{\{_res_path\}\}html\/common\/theme\/snow\/snow\.css">\s*\n\s*\{\{else if theme == "topText" \|\| theme == "foolsDay"\}\}\s*\n\s*<link rel="stylesheet" href="\{\{_res_path\}\}html\/common\/theme\/topText\/topText\.css">\s*\n\s*\{\{\/if\}\}\s*\n/,
+			"\n",
+		)
+		.replace(
+			/\n\s*\{\{if theme == "snow"\}\}\s*\n\s*<script src="\{\{_res_path\}\}html\/common\/theme\/snow\/snow\.js"><\/script>\s*\n\s*\{\{else if theme == "topText" \|\| theme == "foolsDay"\}\}\s*\n\s*<script src="\{\{_res_path\}\}html\/common\/theme\/topText\/topText\.js"><\/script>\s*\n\s*\{\{else if theme == "star"\}\}\s*\n\s*<script src="\{\{_res_path\}\}html\/common\/theme\/star\/star\.js"><\/script>\s*\n\s*\{\{\/if\}\}\s*\n/,
+			"\n",
+		)
+		.replace(/\{\{if theme == "snow"\}\}[\s\S]*?\{\{\/if\}\}\s*\n?/g, "");
 }
 
 function main() {
@@ -155,7 +182,11 @@ function main() {
 		copyFile(join(resources, "html", rel), join(htmlStage, rel));
 	}
 	for (const rel of HTML_DIRS) {
-		copyDir(join(resources, "html", rel), join(htmlStage, rel));
+		copyDir(
+			join(resources, "html", rel),
+			join(htmlStage, rel),
+			rel === "common/layout" ? ["elem.art"] : [],
+		);
 	}
 	convertFonts(
 		join(resources, "html/common/font"),
@@ -170,7 +201,16 @@ function main() {
 	}
 
 	for (const file of walkCss(htmlStage)) {
-		writeFileSync(file, stripCss(readFileSync(file, "utf8")));
+		writeFileSync(
+			file,
+			stripCss(readFileSync(file, "utf8")).replace(
+				/@import\s+"\.\/theme\/snow\/snow\.css";\s*\n+/,
+				"",
+			),
+		);
+	}
+	for (const file of walkArt(htmlStage)) {
+		writeFileSync(file, stripDeadTheme(readFileSync(file, "utf8")));
 	}
 
 	mkdirSync(DEST, { recursive: true });

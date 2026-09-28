@@ -9,6 +9,34 @@
 .song {
 	height: 100px !important;
 }
+.accAvg,
+.accAvg.clip-box {
+	left: var(--b30-avg-left) !important;
+	z-index: 5 !important;
+	overflow: hidden !important;
+	clip-path: polygon(100% 0, calc(100% - 5px) 100%, 0 100%, 5px 0) !important;
+}
+.accAvgLine,
+.accAvgLine.clip-box {
+	position: absolute !important;
+	left: 0 !important;
+	top: 0 !important;
+	width: var(--b30-avg-line-width) !important;
+	height: 100% !important;
+	overflow: hidden !important;
+	clip-path: polygon(
+		100% 0,
+		var(--b30-avg-line-clip-out) 100%,
+		0 100%,
+		var(--b30-avg-line-clip-in) 0
+	) !important;
+}
+.accHigher path {
+	fill: #1a1408 !important;
+}
+.accLower path {
+	fill: #ffe566 !important;
+}
 .ill-box {
 	position: relative !important;
 	z-index: 1 !important;

@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useActionCooldown } from "@/components/useActionCooldown";
 import { SteadyButton } from "@/components/Tool";
+import { useActionCooldown } from "@/components/useActionCooldown";
 import { useI18n } from "@/i18n/provider";
 import { apiErrorText } from "@/lib/api-error";
 import {

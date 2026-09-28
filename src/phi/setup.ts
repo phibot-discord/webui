@@ -9,9 +9,8 @@ import { ensureSongInfo } from "@/server/song-info";
 import { readdir, stat } from "@/server/vfs";
 import { blurCardBackgrounds, contrastOverBackground } from "./lib/blur";
 import { cardCopy, resolvePhiLocale } from "./lib/card-i18n";
-import { attachCatalog, Catalog } from "./lib/catalog";
-import { layoutChartBars, polishSvgCharts } from "./lib/charts";
-import { kvKey } from "./lib/const";
+import { Catalog } from "./lib/catalog";
+import { polishSvgCharts } from "./lib/charts";
 import { fCompute } from "./lib/fcompute";
 import { layoutHistogram } from "./lib/histogram";
 import { knobNum } from "./lib/knobs";
@@ -104,23 +103,10 @@ function polishCardHtml(html: string, tip = "") {
 		html.includes("phi_song") || html.includes('class="b19"')
 			? cssLink("b30.css")
 			: "",
+		html.includes("Player_Info") ? cssLink("userinfo.css") : "",
 		html.includes("rks_line") && html.includes("record_box")
 			? cssLink("update.css")
 			: "",
-		html.includes("Player_Info") ? cssLink("userinfo.css") : "",
-		html.includes("full-box") && html.includes("left-mid")
-			? cssLink("userinfo-old.css")
-			: "",
-		html.includes("changeTag") ||
-		html.includes("descTip") ||
-		html.includes("hisb30")
-			? cssLink("hisb30.css")
-			: "",
-		html.includes("list_box") ? cssLink("listcard.css") : "",
-		html.includes("setting-group") ? cssLink("myset.css") : "",
-		html.includes('class="song song_') ? cssLink("chap.css") : "",
-		html.includes("progress_bar-in-phi") ? cssLink("lvsco.css") : "",
-		html.includes("Constant Table") ? cssLink("tablecard.css") : "",
 	].join("");
 	let out = html.replace(/<title>[^<]*<\/title>/gi, "<title>phi</title>");
 	out = stripInlineFilters(out);
@@ -138,13 +124,8 @@ function polishCardHtml(html: string, tip = "") {
 	out = layoutGradeWithScore(out);
 	out = wrapB30Info(out);
 	out = shrinkSongTitles(out);
-	out = layoutHistoryB30(out);
-	out = layoutHelpCard(out);
 	out = layoutInfoPanels(out);
-	out = layoutSignCard(out);
-	out = layoutChartTag(out);
 	out = layoutUpdateCard(out);
-	out = layoutChartBars(out);
 	out = polishSvgCharts(out);
 	if (out.includes("</head>")) return out.replace("</head>", `${extra}</head>`);
 	return extra + out;
@@ -285,143 +266,6 @@ function textUnits(s: string) {
 	return Math.max(units, 1);
 }
 
-function fitPx(
-	text: string,
-	availPx: number,
-	max: number,
-	min: number,
-	lines = 1,
-) {
-	return Math.min(
-		max,
-		Math.max(
-			min,
-			Math.floor((availPx * lines) / textUnits(decodeHtmlText(text).trim())),
-		),
-	);
-}
-
-function layoutHelpCard(html: string) {
-	if (!html.includes("help-group")) return html;
-	const escTags = (s: string) => s.replace(/<(?!\/?br\s*\/?>)/gi, "&lt;");
-	let out = html;
-	out = out.replace(
-		/(<div class="order">\s*<p name="pvis">)([\s\S]*?)(<\/p>)/g,
-		(_m, open: string, text: string, close: string) => {
-			const px = fitPx(text, 130, 24, 12, 2);
-			return `${open.replace('<p name="pvis">', `<p name="pvis" style="font-size:${px}px;text-align:center;">`)}${escTags(text)}${close}`;
-		},
-	);
-	out = out.replace(
-		/(<div class="song">\s*<p name="pvis">)([\s\S]*?)(<\/p>)/g,
-		(_m, open: string, text: string, close: string) => {
-			const px = fitPx(text, 175, 15, 8);
-			return `${open.replace('<p name="pvis">', `<p name="pvis" style="font-size:${px}px;white-space:nowrap;overflow:hidden;">`)}${escTags(text)}${close}`;
-		},
-	);
-	out = out.replace(
-		/(<div class="desc">\s*<p name="pvis">)([\s\S]*?)(<\/p>)/g,
-		(_m, open: string, text: string, close: string) => {
-			const px = fitPx(text, 200, 13, 10, 4);
-			return `${open.replace('<p name="pvis">', `<p name="pvis" style="font-size:${px}px;line-height:1.3;">`)}${escTags(text)}${close}`;
-		},
-	);
-	const boxRe = /<div class="help_box">/g;
-	let res = "";
-	let last = 0;
-	for (;;) {
-		const m = boxRe.exec(out);
-		if (!m) break;
-		const start = m.index;
-		const end = closeDiv(out, start);
-		const inner = out.slice(start + m[0].length, end - 6);
-		const lines: string[] = [];
-		let rest = inner;
-		let head = "";
-		const lineRe = /<div class="line">/;
-		for (;;) {
-			const lm = lineRe.exec(rest);
-			if (!lm) break;
-			if (!lines.length) head = rest.slice(0, lm.index);
-			const lend = closeDiv(rest, lm.index);
-			lines.push(rest.slice(lm.index, lend));
-			rest = rest.slice(0, lm.index) + rest.slice(lend);
-			if (!lines.length) break;
-		}
-		if (!lines.length) {
-			res += out.slice(last, end);
-			last = end;
-			boxRe.lastIndex = end;
-			continue;
-		}
-		const rows: string[] = [];
-		for (let i = 0; i < lines.length; i += 3) {
-			rows.push(
-				`<div class="help-row" style="display:flex;flex-direction:row;justify-content:flex-start;width:100%;height:121px;flex:none;">` +
-					lines
-						.slice(i, i + 3)
-						.map((l) =>
-							l.replace(
-								'<div class="line">',
-								'<div class="line" style="width:33.3333%;flex:none;height:121px;overflow:hidden;">',
-							),
-						)
-						.join("") +
-					`</div>`,
-			);
-		}
-		res += `${out.slice(last, start)}<div class="help_box" style="display:flex;flex-direction:column;flex-wrap:nowrap;width:90%;height:auto;flex:none;">${head}${rows.join("")}</div>`;
-		last = end;
-		boxRe.lastIndex = end;
-	}
-	res += out.slice(last);
-	const groups = (res.match(/class="help-group"/g) || []).length;
-	const rowCount = (res.match(/class="help-row"/g) || []).length;
-	const bodyH = groups * 80 + rowCount * 121 + 60;
-	const style = `<style>body { height: ${bodyH}px !important; min-height: ${bodyH}px !important; }</style>`;
-	return res.includes("</body>")
-		? res.replace("</body>", `${style}</body>`)
-		: res + style;
-}
-
-function layoutChartTag(html: string) {
-	if (!html.includes('id="words"')) return html;
-	const tags = [
-		...html.matchAll(/indicators\.push\(\{name:\s*["']([^"']+)["']/g),
-	].map((m) => m[1]!);
-	if (!tags.length) return html;
-	const chips = tags
-		.map(
-			(t) =>
-				`<div style="padding:6px 14px;background:rgba(0,181,255,0.28);border-radius:6px;color:#fff;font-size:22px;white-space:nowrap;flex:none;">${escapeHtml(t)}</div>`,
-		)
-		.join("");
-	return html.replace(
-		/<div class="words" id="words"><\/div>/,
-		`<div class="words" id="words" style="display:flex;flex-direction:row;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center;height:auto;padding:14px 8px;">${chips}</div>`,
-	);
-}
-
-function layoutSignCard(html: string) {
-	if (!html.includes("dailySongsPanel")) return html;
-	let out = html;
-	out = out.replace(/style="--rate:\s*([0-9.]+)"/g, (_m, rate: string) => {
-		const pct = Math.max(0, Math.min(100, Number(rate) * 100));
-		return `style="width:${pct.toFixed(1)}%;"`;
-	});
-	const railStart = out.indexOf('<div class="leftRail');
-	const noticeStart = out.indexOf('<div class="noticePanel');
-	if (railStart < 0 || noticeStart < 0) return out;
-	const noticeEnd = closeDiv(out, noticeStart);
-	out =
-		out.slice(0, railStart) +
-		`<div class="sign-main-row" style="display:flex;flex-direction:row;gap:20px;width:100%;align-items:stretch;">` +
-		out.slice(railStart, noticeEnd) +
-		`</div>` +
-		out.slice(noticeEnd);
-	return out;
-}
-
 function wrapInfoRow(html: string) {
 	const leftStart = html.indexOf('<div class="left">');
 	const rightStart = html.indexOf('<div class="right">');
@@ -505,135 +349,6 @@ function closeDiv(html: string, openIdx: number) {
 		}
 	}
 	return i;
-}
-
-function hisb30PackLines(songCounts: number[]) {
-	const wideN = knobNum("--hisb30-wide-row-songs", 4);
-	const lines: number[][] = [];
-	let cur: number[] = [];
-	let slots = 0;
-	songCounts.forEach((n, i) => {
-		const need = n >= wideN ? 2 : 1;
-		if (slots && slots + need > 2) {
-			lines.push(cur);
-			cur = [];
-			slots = 0;
-		}
-		cur.push(i);
-		slots += need;
-		if (slots >= 2) {
-			lines.push(cur);
-			cur = [];
-			slots = 0;
-		}
-	});
-	if (cur.length) lines.push(cur);
-	return lines;
-}
-
-function hisb30RowMinHeight(n: number, wide: boolean) {
-	const minH = knobNum("--hisb30-row-min-height", 230);
-	if (!wide) return minH;
-	const cols = knobNum("--hisb30-wide-cols", 4);
-	const jacketLines = Math.max(1, Math.ceil(n / Math.max(cols, 1)));
-	return Math.max(
-		minH,
-		knobNum("--hisb30-songs-margin-top", 68) +
-			knobNum("--hisb30-songs-pad", 20) * 2 +
-			jacketLines *
-				(knobNum("--hisb30-ill-height", 90) +
-					knobNum("--hisb30-song-gap-y", 30)) +
-			knobNum("--hisb30-row-pad-bottom", 24),
-	);
-}
-
-function styleHisb30Tags(html: string) {
-	const openRe = /<div class="tag-box">/g;
-	let tagged = "";
-	let last = 0;
-	for (;;) {
-		const m = openRe.exec(html);
-		if (!m) break;
-		const start = m.index;
-		const end = closeDiv(html, start);
-		const inner = html.slice(start + m[0].length, end - 6);
-		let idx = 0;
-		const body = inner.replace(
-			/<div class="changeTag ([^"]+)">/g,
-			(_t, cls: string) => {
-				const n = idx++;
-				return `<div class="changeTag ${cls} tag-${n}">`;
-			},
-		);
-		tagged += `${html.slice(last, start)}<div class="tag-box">${body}</div>`;
-		last = end;
-		openRe.lastIndex = end;
-	}
-	return tagged + html.slice(last);
-}
-
-function styleHisb30Row(rowHtml: string, songCount: number) {
-	const color = /--row-color:\s*([^;"'\s]+)/.exec(rowHtml)?.[1] || "#00aaff";
-	const wide = songCount >= knobNum("--hisb30-wide-row-songs", 4);
-	const kind = wide ? "his-wide" : "his-short";
-	const minH = hisb30RowMinHeight(songCount, wide);
-	const songsMin = Math.max(
-		160,
-		minH - knobNum("--hisb30-songs-margin-top", 68),
-	);
-	let row = rowHtml.replace(
-		/<div class="row" style="--row-color:\s*([^"]+)">\s*<div class="date-box">\s*<div class="upLine"><\/div>\s*<div class="midCirc">\s*<div class="circInner"><\/div>\s*<\/div>\s*<div class="downLine"><\/div>/,
-		`<div class="row ${kind}" style="--row-color:${color};min-height:${minH}px;">` +
-			`<div class="date-box">` +
-			`<div class="upLine" style="background-color:${color};"></div>` +
-			`<div class="midCirc">` +
-			`<div class="circInner" style="background-color:${color};"></div>` +
-			`</div>` +
-			`<div class="downLine" style="background-color:${color};"></div>`,
-	);
-	row = row.replace(
-		/<div class="songs-box">/,
-		`<div class="songs-box" style="min-height:${songsMin}px;">`,
-	);
-	row = row.replace(
-		/<div class="row-date">\s*<p>([^<]*)<\/p>\s*<div class="underLine"><\/div>/,
-		`<div class="row-date"><p>$1</p><div class="underLine" style="background-color:${color};"></div>`,
-	);
-	return styleHisb30Tags(row);
-}
-
-function layoutHistoryB30(html: string) {
-	if (
-		!html.includes("changeTag") &&
-		!html.includes("descTip") &&
-		!html.includes("main-box")
-	)
-		return html;
-	const mainM = /<div class="main-box"[^>]*>/.exec(html);
-	if (!mainM) return html;
-	const mainStart = mainM.index;
-	const innerStart = mainStart + mainM[0].length;
-	const mainEnd = closeDiv(html, mainStart);
-	const inner = html.slice(innerStart, mainEnd - 6);
-	const rows: string[] = [];
-	const rowOpenRe = /<div class="row" style="--row-color:/g;
-	for (;;) {
-		const m = rowOpenRe.exec(inner);
-		if (!m) break;
-		const end = closeDiv(inner, m.index);
-		rows.push(inner.slice(m.index, end));
-		rowOpenRe.lastIndex = end;
-	}
-	if (!rows.length) return html;
-	const counts = rows.map((r) => (r.match(/class="s-song"/g) || []).length);
-	const styled = rows.map((r, i) => styleHisb30Row(r, counts[i]!));
-	const packed = hisb30PackLines(counts);
-	const lines = packed.map((idxs, lineI) => {
-		const tuck = lineI === 0 ? "" : " his-tuck";
-		const body = idxs.map((i) => styled[i]!).join("");
-		return `<div class="his-line${tuck}">${body}</div>`;
-	});
-	return `${html.slice(0, innerStart)}${lines.join("")}${html.slice(mainEnd - 6)}`;
 }
 
 function decodeHtmlText(raw: string) {
@@ -767,6 +482,7 @@ function layoutUpdateCard(html: string) {
 		/<div class="rks">\s*<p>([^<]*)<\/p>/g,
 		`<div class="rks" style="position:static;left:auto;height:auto;min-width:0;min-height:0;width:auto;padding:0;overflow:visible;flex:none;margin-left:6px;"><p style="font-size:9px;margin:0;color:#fff;line-height:1.1;">$1</p>`,
 	);
+	// Collapse rank / score / acc / rks into two plain text lines per tile.
 	out = out.replace(
 		/<div class="songsinfo"[^>]*>\s*<div class="rank"[^>]*>\s*<p[^>]*>([^<]*)<\/p>\s*<\/div>\s*<div class="score"[^>]*>\s*<p[^>]*>([^<]*)<\/p>\s*<\/div>\s*<div class="acc"[^>]*>\s*<div class="acc_1"[^>]*>\s*<p[^>]*>([^<]*)<\/p>\s*<\/div>\s*<div class="acc_2"[^>]*>\s*<p[^>]*>([^<]*)<\/p>\s*<\/div>\s*<\/div>\s*(?:<div class="rks"[^>]*>\s*<p[^>]*>([^<]*)<\/p>\s*<\/div>\s*)?<\/div>/g,
 		(
@@ -786,28 +502,11 @@ function layoutUpdateCard(html: string) {
 
 const TEMPLATE_WIDTH: Record<string, number> = {
 	userinfo: 1920,
-	"userinfo-old": 1800,
-	score: 1920,
 	update: 800,
-	list: 800,
-	difficultyHistory: 2048,
-	atlas: 2048,
-	jrrp: 2048,
-	sign: 2048,
-	rankingList: 2048,
-	rand: 2048,
-	lvsco: 2400,
-	chap: 2048,
-	clg: 1920,
-	table: 960,
-	userSetting: 1080,
-	newSong: 720,
-	tasks: 800,
-	help: 1200,
-	historyB30: 1200,
-	suggest: 1200,
-	chartImg: 1920,
-	ill: 1600,
+};
+
+const TEMPLATE_MAX_RATIO: Record<string, number> = {
+	update: 3,
 };
 
 function screenshotTheme(theme: unknown) {
@@ -821,22 +520,11 @@ export async function setupPhi(app: App) {
 	const fontDir = join(resources, "html/common/font");
 	await app.fonts.fromDir(fontDir, PHI_FONT_FILES);
 
-	const catalog = new Catalog(resources);
-	attachCatalog(catalog);
 	await ensureSongInfo();
-	const extraNicks = await app.db.get(kvKey("nicklist"));
-	if (extraNicks) {
-		try {
-			catalog.loadExtraNicks(
-				JSON.parse(extraNicks) as Record<string, string[]>,
-			);
-		} catch {
-			/* ignore */
-		}
-	}
+	const catalog = new Catalog(resources);
 	app.service("phi.catalog", catalog);
 	app.service("phi.resources", resources);
-	logger.ok(`phi catalog: ${catalog.songs.size} songs`);
+	logger.ok(`phi catalog: ${catalog.size} songs`);
 	try {
 		const rt = await bootPhiRuntime(app);
 		app.service("phi.runtime", rt);
@@ -859,17 +547,9 @@ export async function setupPhi(app: App) {
 			defineTemplate({
 				id,
 				width: TEMPLATE_WIDTH[tpl] || TEMPLATE_WIDTH[kind] || width,
-				format: [
-					"b19",
-					"update",
-					"historyB30",
-					"difficultyHistory",
-					"userinfo",
-					"score",
-				].includes(kind)
-					? "jpeg"
-					: format,
+				format: ["b19", "update", "userinfo"].includes(kind) ? "jpeg" : format,
 				quality,
+				maxRatio: TEMPLATE_MAX_RATIO[tpl] ?? TEMPLATE_MAX_RATIO[kind],
 				html: async (data, helpers) => {
 					const d = data as {
 						theme?: unknown;

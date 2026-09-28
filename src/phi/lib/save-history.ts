@@ -23,7 +23,7 @@ function createHistory(
 	return [acc.toFixed(4), score, date.toISOString(), fc];
 }
 
-function openHistory(data: ScoreDetail) {
+export function openHistory(data: ScoreDetail) {
 	return {
 		acc: Number(data[0]),
 		score: Number(data[1]),
@@ -39,22 +39,6 @@ function checkValue(a: unknown, b: unknown): boolean {
 	for (const i in a)
 		if (!Object.is(a[i], bb[i as unknown as number])) return false;
 	return true;
-}
-
-function merge<T>(m: Dated<T>[], n: Dated<T>[]) {
-	const t = m
-		.concat(n)
-		.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-	let i = 1;
-	while (i < t.length - 1) {
-		if (
-			checkValue(t[i]!.value, t[i - 1]!.value) &&
-			checkValue(t[i]!.value, t[i + 1]!.value)
-		)
-			t.splice(i, 1);
-		else ++i;
-	}
-	return t;
 }
 
 export class SaveHistory {
@@ -101,47 +85,6 @@ export class SaveHistory {
 		if (this.version < 3) {
 			this.challengeModeRank = [];
 			this.version = 3;
-		}
-	}
-
-	add(other: SaveHistory) {
-		this.data = merge(this.data, other.data);
-		this.rks = merge(this.rks, other.rks);
-		this.challengeModeRank = merge(
-			this.challengeModeRank,
-			other.challengeModeRank,
-		);
-		for (const id of Object.keys(other.scoreHistory || {})) {
-			this.scoreHistory[id] ||= {};
-			for (const dif of ALL_LEVEL) {
-				if (this.scoreHistory[id]![dif]) {
-					if (other.scoreHistory[id]?.[dif]) {
-						this.scoreHistory[id]![dif] = [
-							...this.scoreHistory[id]![dif]!,
-							...other.scoreHistory[id]![dif]!,
-						];
-						this.scoreHistory[id]![dif]!.sort(
-							(a, b) =>
-								openHistory(a).date.getTime() - openHistory(b).date.getTime(),
-						);
-					}
-				} else {
-					this.scoreHistory[id]![dif] = other.scoreHistory[id]?.[dif];
-				}
-				if (!this.scoreHistory[id]![dif]) continue;
-				let i = 1;
-				while (i < this.scoreHistory[id]![dif]!.length) {
-					const last = openHistory(this.scoreHistory[id]![dif]![i - 1]!);
-					const now = openHistory(this.scoreHistory[id]![dif]![i]!);
-					if (
-						last.score === now.score &&
-						last.acc === now.acc &&
-						last.fc === now.fc
-					) {
-						this.scoreHistory[id]![dif]!.splice(i, 1);
-					} else ++i;
-				}
-			}
 		}
 	}
 
@@ -354,9 +297,5 @@ export class SaveHistory {
 			if (!data_history.length) data_history.push([0, 50, 100, 50]);
 		}
 		return { data_history, data_range: data_range_num, data_date };
-	}
-
-	getRksAndDataLine() {
-		return { ...this.getRksLine(), ...this.getDataLine() };
 	}
 }

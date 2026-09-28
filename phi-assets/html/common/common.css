@@ -1,5 +1,3 @@
-@import "./theme/snow/snow.css";
-
 @font-face {
 	font-family: "吞弥恰俊";
 	src: url("./font/吞弥恰俊.woff2") format("woff2");
@@ -75,9 +73,6 @@ body {
 		"NotoSansKannada", "NotoSansCanadianAboriginal", "NotoColorEmoji-Regular",
 		"HIMALAYA", "吞弥恰俊", "NotoSansMath-Regular";
 	margin: 0;
-	background: url("../otherimg/phigros.png") center no-repeat;
-	background-size: cover;
-	background-position: center;
 	transform-origin: top left;
 	position: absolute;
 }

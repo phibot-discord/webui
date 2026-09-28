@@ -1,7 +1,6 @@
 export const ALL_LEVEL = ["EZ", "HD", "IN", "AT", "LEGACY"] as const;
 export const LEVEL = ["EZ", "HD", "IN", "AT"] as const;
 export type LevelKind = (typeof LEVEL)[number];
-export type AllLevelKind = (typeof ALL_LEVEL)[number];
 
 export const LEVEL_NUM: Record<string, number> = {
 	EZ: 0,
@@ -19,4 +18,20 @@ export function kvKey(...parts: Array<string | number>) {
 
 export const MAX_DIFFICULTY = 17.6;
 
-export const PHI_CHART_TAG_API = "https://phib19.top:8080";
+export const PHI_CHART_TAG_API = (
+	process.env.PHI_CHART_TAG_API || "https://phi-ill-sync.ymyk.workers.dev"
+).replace(/\/+$/, "");
+
+export const PHI_PROXY_KEY = process.env.PHI_PROXY_KEY?.trim() || "";
+export const PROXY_KEY_HEADER = "x-phi-proxy-key";
+
+export function isProxyHost(url: string | URL): boolean {
+	try {
+		const host = (typeof url === "string" ? new URL(url) : url).hostname;
+		return !/(^|\.)(phib19\.top|tapapis\.cn|tapfiles\.cn|tapapis\.com)$/i.test(
+			host,
+		);
+	} catch {
+		return false;
+	}
+}

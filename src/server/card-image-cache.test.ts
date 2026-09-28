@@ -24,6 +24,7 @@ function sample(over: Partial<CardImageCacheInput> = {}): CardImageCacheInput {
 		theme: "default",
 		analysisFlag: "a1",
 		tagFlag: "t1",
+		avgFlag: "avg:all:blue",
 		renderVersion: "v32",
 		...over,
 	};
@@ -103,6 +104,18 @@ test("theme or analysis changes get a new JPEG cache id", () => {
 	);
 });
 
+test("b30 avg bar setting changes get a new JPEG cache id", () => {
+	const base = cardEtag(cardCacheParts(sample(), "jpeg"));
+	assert.notEqual(
+		base,
+		cardEtag(cardCacheParts(sample({ avgFlag: "avg:none" }), "jpeg")),
+	);
+	assert.notEqual(
+		base,
+		cardEtag(cardCacheParts(sample({ avgFlag: "avg:b30:red" }), "jpeg")),
+	);
+});
+
 test("parseCachedHeight keeps measured pixel heights", () => {
 	assert.equal(parseCachedHeight(4320), 4320);
 	assert.equal(parseCachedHeight("4320"), 4320);
@@ -125,6 +138,7 @@ test("public object URL is the R2 custom domain plus key", () => {
 			apiToken: "t",
 			bucket: "phi-web-assets",
 			prefix: "original_ill",
+			htmlPrefix: "html",
 			publicBase: "https://r2.example.test",
 		}),
 		"https://r2.example.test/web-cards/phi%3AwebCard%3Apng%3Ab30%3Au%3Aetag.jpg",

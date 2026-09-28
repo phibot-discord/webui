@@ -23,7 +23,3 @@ export function applyPhiVersion(patch: Partial<PhiVersion>) {
 		phigrosVerNum: patch.phigrosVerNum ?? current.phigrosVerNum,
 	};
 }
-
-export function resetPhiVersionForTest() {
-	current = { ...bundled };
-}

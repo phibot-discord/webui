@@ -9,14 +9,14 @@ const KEY = Buffer.from(
 );
 const IV = Buffer.from("Kk/wisgNYwcAV8WVGMgyUw==", "base64");
 
-export function encrypt(text: string) {
+function encrypt(text: string) {
 	const cipher = createCipheriv("aes-256-cbc", KEY, IV);
 	return Buffer.concat([cipher.update(text, "utf8"), cipher.final()]).toString(
 		"base64",
 	);
 }
 
-export function decrypt(word: string) {
+function decrypt(word: string) {
 	const decipher = createDecipheriv("aes-256-cbc", KEY, IV);
 	return Buffer.concat([
 		decipher.update(Buffer.from(word, "base64")),
@@ -24,7 +24,7 @@ export function decrypt(word: string) {
 	]).toString("hex");
 }
 
-export class ByteReader {
+class ByteReader {
 	data: Buffer;
 	position: number;
 
@@ -108,7 +108,7 @@ function decodeSummaryBytes(data: string) {
 	return Buffer.from(data, "base64").toString("hex");
 }
 
-export class Summary {
+class Summary {
 	updatedAt: string;
 	saveVersion = 0;
 	challengeModeRank = 0;
@@ -142,7 +142,7 @@ class LevelRecord {
 	acc = 0;
 }
 
-export class GameRecord {
+class GameRecord {
 	static version = 1;
 	data: ByteReader;
 	Record: Record<string, (LevelRecord | undefined)[]> = {};
@@ -176,7 +176,7 @@ export class GameRecord {
 	}
 }
 
-export class GameUser {
+class GameUser {
 	name = "user";
 	version = 1;
 	showPlayerId: boolean;
@@ -193,7 +193,7 @@ export class GameUser {
 	}
 }
 
-export class GameProgress {
+class GameProgress {
 	isFirstRun: boolean;
 	legacyChapterFinished: boolean;
 	alreadyShowCollectionTip: boolean;
@@ -242,7 +242,7 @@ export class GameProgress {
 	}
 }
 
-export class GameSettings {
+class GameSettings {
 	chordSupport: boolean;
 	fcAPIndicator: boolean;
 	enableHitSound: boolean;
@@ -332,7 +332,7 @@ async function jsonGet<T>(
 	return res.json() as Promise<T>;
 }
 
-export class SaveManager {
+class SaveManager {
 	baseUrl: string;
 	headers: Record<string, string>;
 	userInfo: string;

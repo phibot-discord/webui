@@ -4,11 +4,11 @@ import {
 	parseCardStats,
 } from "@/lib/card-stats";
 
-export const CARD_FETCH_REUSE_MS = 2_500;
+const CARD_FETCH_REUSE_MS = 2_500;
 const CARD_FETCH_MAX = 8;
-const CARD_FETCH_TIMEOUT_MS = 55_000;
+const CARD_FETCH_TIMEOUT_MS = 80_000;
 
-export type CardBlob = {
+type CardBlob = {
 	url: string;
 	stats?: CardStats;
 };
@@ -64,29 +64,44 @@ export function loadCardBlob(src: string): Promise<CardBlob> {
 	return promise;
 }
 
+async function cardFromResponse(res: Response, t0: number): Promise<CardBlob> {
+	const parsed = parseCardStats(res.headers.get(CARD_STATS_HEADER));
+	const blob = await res.blob();
+	const waitMs = Math.round(performance.now() - t0);
+	const stats = parsed
+		? { ...parsed, waitMs }
+		: { cache: "miss" as const, cacheMs: 0, totalMs: waitMs, waitMs };
+	return { url: objectUrl(blob), stats };
+}
+
+function httpError(data: { error?: string; code?: string }, fallback: string) {
+	const err = new Error(data.error || fallback) as Error & { code?: string };
+	err.name = "http";
+	err.code = data.code;
+	return err;
+}
+
 async function fetchCard(src: string): Promise<CardBlob> {
 	const ctrl = new AbortController();
 	const timer = setTimeout(() => ctrl.abort(), CARD_FETCH_TIMEOUT_MS);
 	const t0 = performance.now();
 	try {
-		const res = await fetch(src, { cache: "reload", signal: ctrl.signal });
-		if (!res.ok) {
-			const data = (await res
-				.json()
-				.catch(() => ({ error: res.statusText }))) as {
-				error?: string;
-			};
-			const err = new Error(data.error || res.statusText);
-			err.name = "http";
-			throw err;
+		const privateCard = src.startsWith("/api/card/");
+		const maxAttempts = privateCard ? 3 : 1;
+		let last: { error?: string; code?: string; fallback: string } | undefined;
+		for (let attempt = 0; attempt < maxAttempts; attempt++) {
+			if (attempt > 0) {
+				await new Promise((r) => setTimeout(r, attempt === 1 ? 400 : 1000));
+			}
+			const res = await fetch(src, { cache: "no-store", signal: ctrl.signal });
+			if (res.ok) return cardFromResponse(res, t0);
+			const data = (await res.json().catch(() => ({
+				error: res.statusText,
+			}))) as { error?: string; code?: string };
+			last = { ...data, fallback: res.statusText };
+			if (data.code !== "not_bound" && data.code !== "no_save") break;
 		}
-		const parsed = parseCardStats(res.headers.get(CARD_STATS_HEADER));
-		const blob = await res.blob();
-		const waitMs = Math.round(performance.now() - t0);
-		const stats = parsed
-			? { ...parsed, waitMs }
-			: { cache: "miss" as const, cacheMs: 0, totalMs: waitMs, waitMs };
-		return { url: objectUrl(blob), stats };
+		throw httpError(last || {}, last?.fallback || "error");
 	} catch (err) {
 		if (err instanceof Error && err.name === "http") throw err;
 		const abort =

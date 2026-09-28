@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { Renderer } from "@takumi-rs/core";
 import sharp from "sharp";
 import { render } from "takumi-js";

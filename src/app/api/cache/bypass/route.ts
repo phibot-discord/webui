@@ -1,18 +1,18 @@
-import { sessionUserId } from "@/auth";
+import { authed } from "@/server/authed";
 import { bypassCardCache } from "@/server/bound";
-import { localizedError, localizedRenderError } from "@/server/i18n-http";
+import { localizedRenderError } from "@/server/i18n-http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-	const userId = await sessionUserId();
-	if (!userId) return localizedError(401, "unauthorized");
-	const result = await bypassCardCache(userId);
-	if ("error" in result) return localizedRenderError(result);
-	return Response.json({
-		ok: true,
-		epoch: result.epoch,
-		cooldownMs: result.cooldownMs,
+	return authed(async (userId) => {
+		const result = await bypassCardCache(userId);
+		if ("error" in result) return localizedRenderError(result);
+		return Response.json({
+			ok: true,
+			epoch: result.epoch,
+			cooldownMs: result.cooldownMs,
+		});
 	});
 }

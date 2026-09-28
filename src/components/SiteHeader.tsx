@@ -25,6 +25,9 @@ export function SiteHeader({
 					<a className="topbar-cards" href="/tags">
 						{m.nav.tags}
 					</a>
+					<a className="topbar-cards" href="/score">
+						{m.nav.score}
+					</a>
 					{signedIn ? (
 						<a className="topbar-cards" href="/me">
 							{m.nav.cards}

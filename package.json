@@ -8,22 +8,22 @@
 		"node": ">=22.11"
 	},
 	"scripts": {
-		"dev": "node scripts/precompile-art.mjs && NODE_OPTIONS='--import tsx' next dev --turbopack",
-		"build": "node scripts/precompile-art.mjs && NODE_OPTIONS='--import tsx' next build",
+		"dev": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && NODE_OPTIONS='--import tsx' next dev --turbopack",
+		"build": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && NODE_OPTIONS='--import tsx' next build",
 		"start": "NODE_OPTIONS='--import tsx' next start",
 		"typecheck": "tsc --noEmit",
+		"test": "node --import tsx --test 'src/**/*.test.ts'",
 		"fmt": "pnpx @biomejs/biome format --write",
 		"precompile-art": "node scripts/precompile-art.mjs",
-		"sync-assets": "node scripts/sync-phi-assets.mjs && node scripts/precompile-art.mjs"
+		"bundle-css": "node scripts/bundle-css.mjs",
+		"sync-assets": "node scripts/sync-phi-assets.mjs && node scripts/precompile-art.mjs && node scripts/bundle-css.mjs"
 	},
 	"dependencies": {
 		"@phosphor-icons/react": "^2.1.10",
-		"@takumi-rs/core": "2.13.7",
-		"@takumi-rs/helpers": "2.13.7",
+		"@takumi-rs/core": "2.14.0",
 		"@vercel/analytics": "^2.0.1",
 		"art-template": "^4.13.4",
 		"jszip": "^3.10.2",
-		"motion": "^13.2.0",
 		"nanoid": "^6.0.1",
 		"next": "^16.3.5",
 		"next-auth": "5.0.0-beta.32",
@@ -31,14 +31,14 @@
 		"react": "^19.3.0",
 		"react-dom": "^19.3.0",
 		"sharp": "^0.35.4",
-		"takumi-js": "^2.13.7",
+		"takumi-js": "^2.14.0",
 		"tsx": "^4.23.13",
 		"undici": "^8.10.2",
 		"yaml": "^2.9.1"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.5.13",
-		"@types/node": "^26.5.1",
+		"@biomejs/biome": "2.5.14",
+		"@types/node": "^26.6.1",
 		"@types/react": "^19.3.0",
 		"@types/react-dom": "^19.3.0",
 		"typescript": "^7.0.2"

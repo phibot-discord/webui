@@ -32,7 +32,6 @@ export function Desk({
 	const syncedText = lastSyncedIso
 		? formatDateTime(lastSyncedIso, locale)
 		: m.me.cachedSave;
-	const hint = publicHint ? m.public.hint : note;
 	return (
 		<main id="content" className="page desk">
 			<header className="desk-mast">
@@ -53,7 +52,8 @@ export function Desk({
 				</div>
 				{tools ? <div className="desk-tools">{tools}</div> : null}
 			</header>
-			{hint ? <p className="desk-note">{hint}</p> : null}
+			{publicHint ? <p className="desk-note">{m.public.hint}</p> : null}
+			{note ? <p className="desk-note">{note}</p> : null}
 			{nav}
 			{toolbar}
 			{children}

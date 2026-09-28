@@ -1,18 +1,66 @@
+import { runInBackground } from "@/server/background";
+import { logger, withDiscordUid } from "@/server/logger";
 import type { Kv } from "@/server/sdk";
 import { kvKey } from "./const";
 import type { PhiRuntime } from "./runtime";
 import type { Save, SavePayload } from "./save";
-import { isTapApiFailure } from "./tapapi";
+import { isTapApiFailure, tapCnProxyUrl } from "./tapapi";
 
 const SAVE = (token: string) => kvKey("save", token);
+
+const blobMem = new Map<string, { rev: string; raw: string }>();
+const BLOB_MEM_MAX = 32;
+
+function rememberBlob(token: string, rev: string, raw: string) {
+	blobMem.delete(token);
+	blobMem.set(token, { rev, raw });
+	while (blobMem.size > BLOB_MEM_MAX) {
+		const oldest = blobMem.keys().next().value;
+		if (oldest === undefined) break;
+		blobMem.delete(oldest);
+	}
+}
+
+export function resetSaveBlobMemForTest() {
+	blobMem.clear();
+}
+
+/** Which TapTap region answered last, so a refresh tries it first. Only a hint: bounded. */
 const sessionRegion = new Map<string, boolean>();
+const SESSION_REGION_MAX = 500;
+
+function rememberRegion(userId: string, global: boolean) {
+	sessionRegion.delete(userId);
+	sessionRegion.set(userId, global);
+	while (sessionRegion.size > SESSION_REGION_MAX) {
+		const oldest = sessionRegion.keys().next().value;
+		if (oldest === undefined) break;
+		sessionRegion.delete(oldest);
+	}
+}
+
+export function asSessionToken(raw: unknown): string | undefined {
+	if (typeof raw !== "string" || !raw) return;
+	const trimmed = raw.replace(/\s/g, "");
+	if (/^[a-z0-9A-Z]{25}$/.test(trimmed)) return trimmed;
+	if (!raw.startsWith("{") && !raw.startsWith('"')) return;
+	try {
+		const parsed = JSON.parse(raw) as unknown;
+		if (typeof parsed === "string") return asSessionToken(parsed);
+		if (parsed && typeof parsed === "object") {
+			const o = parsed as Record<string, unknown>;
+			return asSessionToken(o.d ?? o.sessionToken ?? o.token);
+		}
+	} catch {
+		/* not json */
+	}
+}
 
 export async function getToken(
 	rt: PhiRuntime,
 	userId: string,
 ): Promise<string | undefined> {
-	const t = await rt.store.getSessionToken(userId);
-	return t || undefined;
+	return asSessionToken(await rt.store.getSessionToken(userId));
 }
 
 export const ALREADY_BOUND =
@@ -20,7 +68,7 @@ export const ALREADY_BOUND =
 export const NOT_BOUND =
 	"No account is bound. Use `/phi account qrcode` (or `/phi account bind`) first.";
 
-export async function setToken(rt: PhiRuntime, userId: string, token: string) {
+async function setToken(rt: PhiRuntime, userId: string, token: string) {
 	await rt.store.setSessionToken(userId, token);
 }
 
@@ -29,25 +77,31 @@ export async function clearUser(rt: PhiRuntime, db: Kv, userId: string) {
 	const token = await getToken(rt, userId);
 	await rt.store.clearLocalCredentials(userId);
 	if (!token) return false;
-	const stillHeld = [
-		...(await rt.store.listSessionCredentials()).values(),
-	].includes(token);
-	if (!stillHeld) {
-		await db.del(SAVE(token));
-		await rt.getRksRank.delUserRks(token);
-	}
+	runInBackground(reapOrphanSave(rt, db, token), (err) =>
+		logger.warn(
+			`orphan save cleanup skipped: ${err instanceof Error ? err.message : err}`,
+		),
+	);
 	return true;
+}
+
+async function reapOrphanSave(rt: PhiRuntime, db: Kv, token: string) {
+	const held = await rt.store.listSessionCredentials();
+	for (const other of held.values()) if (other === token) return;
+	await db.del(SAVE(token));
 }
 
 export async function loadSave(rt: PhiRuntime, db: Kv, userId: string) {
 	const token = await getToken(rt, userId);
 	if (!token) return undefined;
+	return loadSaveByToken(rt, db, token);
+}
+
+/** For callers that already hold the token: saves the `phi:userToken` round trip. */
+export async function loadSaveByToken(rt: PhiRuntime, db: Kv, token: string) {
 	const raw = await db.get(SAVE(token));
 	if (!raw) return undefined;
-	const data = JSON.parse(raw);
-	const save = new rt.Save(data);
-	await save.init();
-	return save;
+	return new rt.Save(JSON.parse(raw));
 }
 
 export function saveIdentity(
@@ -84,6 +138,15 @@ function saveRev(
 	return saveIdentity(saveInfo) || undefined;
 }
 
+function saveZipHop(url: string | undefined): string {
+	if (!url) return "";
+	try {
+		return tapCnProxyUrl(url) ? " via tap-proxy" : "";
+	} catch {
+		return "";
+	}
+}
+
 async function fetchSaveInfo(rt: PhiRuntime, token: string, global: boolean) {
 	const user = new rt.PhigrosUser(token, global);
 	await user.getSaveInfo();
@@ -96,14 +159,23 @@ export async function updateSave(
 	userId: string,
 	opts: { token?: string; global?: boolean } = {},
 ) {
+	return withDiscordUid(userId, () => updateSaveFor(rt, db, userId, opts));
+}
+
+async function updateSaveFor(
+	rt: PhiRuntime,
+	db: Kv,
+	userId: string,
+	opts: { token?: string; global?: boolean } = {},
+) {
 	const existing = await getToken(rt, userId);
 	if (opts.token && existing) throw new Error(ALREADY_BOUND);
 	const token = opts.token || existing;
 	if (!token) throw new Error(NOT_BOUND);
 	if (!/[a-z0-9A-Z]{25}/.test(token))
 		throw new Error("SessionToken format is invalid (need 25 alphanumerics).");
-	if (await rt.store.isSessionTokenBanned(token))
-		throw new Error("This sessionToken is banned.");
+	const bannedJob = rt.store.isSessionTokenBanned(token);
+	bannedJob.catch(() => undefined);
 	const preferred = opts.global ?? sessionRegion.get(userId) ?? false;
 	let user: InstanceType<PhiRuntime["PhigrosUser"]>;
 	try {
@@ -112,17 +184,25 @@ export async function updateSave(
 		if (opts.global != null || isTapApiFailure(err)) throw err;
 		user = await fetchSaveInfo(rt, token, !preferred);
 	}
-	sessionRegion.set(userId, user.global);
-	const cachedRaw = await db.get(SAVE(token));
-	const cached = cachedRaw ? JSON.parse(cachedRaw) : undefined;
+	rememberRegion(userId, user.global);
+	if (await bannedJob) throw new Error("This sessionToken is banned.");
 	const rev = saveRev(user.saveInfo);
+	const hop = saveZipHop(user.saveInfo?.gameFile?.url);
+	const hot = blobMem.get(token);
+	const cachedRaw =
+		hot && rev && hot.rev === rev ? hot.raw : await db.get(SAVE(token));
+	const cached = cachedRaw ? JSON.parse(cachedRaw) : undefined;
 	if (cached?.gameRecord && rev && rev === saveRev(cached.saveInfo)) {
+		logger.info(
+			`save cache hit ${rev}${hop}${hot?.rev === rev ? " (mem)" : ""}`,
+		);
+		if (cachedRaw) rememberBlob(token, rev, cachedRaw);
 		await setToken(rt, userId, token);
 		const save = new rt.Save(cached);
-		await save.init();
 		if (opts.token) await snapshotB30(db, userId, save);
 		return save;
 	}
+	logger.info(`save cache miss ${rev || "-"}${hop}`);
 	await user.buildRecord();
 	await setToken(rt, userId, token);
 	const payload = JSON.stringify({
@@ -137,10 +217,8 @@ export async function updateSave(
 		Recordver: user.Recordver,
 	});
 	await db.set(SAVE(token), payload);
-	const rks = user.saveInfo?.summary?.rankingScore;
-	if (typeof rks === "number") await rt.getRksRank.addUserRks(token, rks);
+	if (rev) rememberBlob(token, rev, payload);
 	const save = new rt.Save(user as unknown as SavePayload);
-	await save.init();
 	await snapshotB30(db, userId, save);
 	try {
 		const { applySaveToHistory } = await import("./history");

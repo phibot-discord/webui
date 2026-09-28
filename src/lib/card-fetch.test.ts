@@ -62,6 +62,61 @@ test("loadCardBlob reuses a just-finished blob instead of refetching", async () 
 	}
 });
 
+test("private card not_bound retries once then succeeds", async () => {
+	resetCardFetchCacheForTest();
+	let calls = 0;
+	const orig = globalThis.fetch;
+	globalThis.fetch = (async () => {
+		calls += 1;
+		if (calls === 1) {
+			return new Response(
+				JSON.stringify({ error: "unbound", code: "not_bound" }),
+				{
+					status: 409,
+					headers: { "content-type": "application/json" },
+				},
+			);
+		}
+		return new Response(new Uint8Array([9]), {
+			headers: { "content-type": "image/jpeg" },
+		});
+	}) as typeof fetch;
+	try {
+		const blob = await loadCardBlob("/api/card/b30?_=retry");
+		assert.equal(calls, 2);
+		assert.ok(blob.url);
+	} finally {
+		globalThis.fetch = orig;
+		resetCardFetchCacheForTest();
+	}
+});
+
+test("public card not_bound does not retry", async () => {
+	resetCardFetchCacheForTest();
+	let calls = 0;
+	const orig = globalThis.fetch;
+	globalThis.fetch = (async () => {
+		calls += 1;
+		return new Response(
+			JSON.stringify({ error: "unbound", code: "not_bound" }),
+			{
+				status: 409,
+				headers: { "content-type": "application/json" },
+			},
+		);
+	}) as typeof fetch;
+	try {
+		await assert.rejects(
+			() => loadCardBlob("/api/public/abc/card/b30?_=retry"),
+			(err: unknown) => err instanceof Error && err.name === "http",
+		);
+		assert.equal(calls, 1);
+	} finally {
+		globalThis.fetch = orig;
+		resetCardFetchCacheForTest();
+	}
+});
+
 test("clearCardBlobs drops a finished card so the next load refetches", async () => {
 	resetCardFetchCacheForTest();
 	let calls = 0;

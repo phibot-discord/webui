@@ -1,17 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-	TAPAPI_TIMEOUT_MS,
+	isRetryableTapNet,
 	isTimeoutError,
 	setTapHttpForTest,
+	TAPAPI_TIMEOUT_MS,
+	TapApiError,
 	tapAgent,
+	tapCnProxyUrl,
 	tapFetch,
+	tapProxyForwardHeaders,
+	tapRemainMs,
 	withTapWait,
 } from "./tapapi";
 
 test("TapTap cloud waits 30s including TCP connect", () => {
 	assert.equal(TAPAPI_TIMEOUT_MS, 30_000);
 	assert.equal(tapAgent.connectTimeout, 30_000);
+	assert.equal(tapAgent.connect.timeout, 30_000);
 });
 
 test("undici connect timeout is a TapAPI timeout", () => {
@@ -62,6 +68,146 @@ test("tapFetch without withTapWait still works", async () => {
 		const res = await tapFetch("https://example.test/plain");
 		assert.equal(res.status, 200);
 	} finally {
+		setTapHttpForTest();
+	}
+});
+
+test("AbortSignal.timeout rejects fractional leftover ms from performance.now", () => {
+	const remain = tapRemainMs(0, TAPAPI_TIMEOUT_MS, 0.00488699999);
+	assert.equal(remain, 29_999);
+	assert.doesNotThrow(() => AbortSignal.timeout(remain));
+});
+
+test("isRetryableTapNet retries kernel SYN deaths, not HTTP errors", () => {
+	const timed = new TypeError("fetch failed");
+	(timed as { cause?: unknown }).cause = Object.assign(new Error("connect"), {
+		code: "ETIMEDOUT",
+	});
+	assert.equal(isRetryableTapNet(timed), true);
+	assert.equal(isRetryableTapNet(new TapApiError("TapAPI 502")), false);
+});
+
+test("CN TapTap is proxied; global TapTap is not", () => {
+	assert.equal(
+		tapCnProxyUrl("https://rak3ffdi.cloud.tds1.tapapis.cn/1.1/users/me"),
+		"https://phi-ill-sync.ymyk.workers.dev/tap-proxy",
+	);
+	assert.equal(
+		tapCnProxyUrl("https://accounts.tapapis.cn/oauth2/v1/token"),
+		"https://phi-ill-sync.ymyk.workers.dev/tap-proxy",
+	);
+	assert.equal(
+		tapCnProxyUrl("https://rak3ffdi.tds1.tapfiles.cn/gamesaves/abc/.save"),
+		"https://phi-ill-sync.ymyk.workers.dev/tap-proxy",
+	);
+	assert.equal(
+		tapCnProxyUrl("https://kviehlel.cloud.ap-sg.tapapis.com/1.1/users/me"),
+		undefined,
+	);
+	assert.equal(
+		tapCnProxyUrl("https://accounts.tapapis.com/oauth2/v1/token"),
+		undefined,
+	);
+});
+
+test("CN tap proxy copies MAC onto x-tap-authorization", () => {
+	const mac = 'MAC id="kid", ts="1", nonce="n", mac="m"';
+	const headers = tapProxyForwardHeaders(
+		"https://open.tapapis.cn/account/profile/v1?client_id=rAK3FfdieFob2Nn8Am",
+		{ headers: { Authorization: mac } },
+	);
+	assert.equal(headers.get("authorization"), mac);
+	assert.equal(headers.get("x-tap-authorization"), mac);
+	assert.equal(
+		headers.get("x-tap-target"),
+		"https://open.tapapis.cn/account/profile/v1?client_id=rAK3FfdieFob2Nn8Am",
+	);
+});
+
+test("CN tap proxy carries the Worker key only when one is configured", () => {
+	const url = "https://open.tapapis.cn/account/profile/v1";
+	assert.equal(
+		tapProxyForwardHeaders(url, {}, "shared-secret").get("x-phi-proxy-key"),
+		"shared-secret",
+	);
+	assert.equal(
+		tapProxyForwardHeaders(url, {}, "").has("x-phi-proxy-key"),
+		false,
+	);
+});
+
+test("users/me GET retries ETIMEDOUT inside the 30s budget", async () => {
+	let n = 0;
+	setTapHttpForTest(async () => {
+		n += 1;
+		if (n < 2) {
+			const err = new TypeError("fetch failed");
+			(err as { cause?: unknown }).cause = Object.assign(new Error("connect"), {
+				code: "ETIMEDOUT",
+			});
+			throw err;
+		}
+		return new Response("{}", { status: 200 });
+	});
+	try {
+		const res = await tapFetch(
+			"https://rak3ffdi.cloud.tds1.tapapis.cn/1.1/users/me",
+		);
+		assert.equal(res.status, 200);
+		assert.equal(n, 2);
+	} finally {
+		setTapHttpForTest();
+	}
+});
+
+test("OAuth POST is not retried on fetch failed", async () => {
+	let n = 0;
+	setTapHttpForTest(async () => {
+		n += 1;
+		throw new TypeError("fetch failed");
+	});
+	try {
+		await assert.rejects(
+			() =>
+				tapFetch("https://accounts.tapapis.cn/oauth2/v1/token", {
+					method: "POST",
+				}),
+			TapApiError,
+		);
+		assert.equal(n, 1);
+	} finally {
+		setTapHttpForTest();
+	}
+});
+
+test("authorization_pending 400 is a wait, not a tap warning", async () => {
+	const warns: string[] = [];
+	const orig = console.warn;
+	console.warn = (...a: unknown[]) => {
+		warns.push(a.map(String).join(" "));
+	};
+	setTapHttpForTest(
+		async () =>
+			new Response(
+				JSON.stringify({
+					data: { error: "authorization_pending", msg: "pending" },
+				}),
+				{ status: 400 },
+			),
+	);
+	try {
+		const res = await tapFetch("https://accounts.tapapis.com/oauth2/v1/token", {
+			method: "POST",
+		});
+		assert.equal(res.status, 400);
+		const body = (await res.json()) as { data?: { error?: string } };
+		assert.equal(body.data?.error, "authorization_pending");
+		assert.equal(
+			warns.some((w) => /tap POST/.test(w)),
+			false,
+		);
+	} finally {
+		console.warn = orig;
 		setTapHttpForTest();
 	}
 });

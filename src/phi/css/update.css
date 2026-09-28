@@ -25,8 +25,6 @@
 	flex: none !important;
 }
 .svg-box {
-	width: var(--update-chart-width) !important;
-	height: var(--update-chart-height) !important;
 	padding: 6px 8px !important;
 	box-sizing: border-box !important;
 }
@@ -53,10 +51,15 @@
 }
 .rks_line .line,
 .title .line {
-	height: 100px !important;
+	height: var(--update-plot-height) !important;
+	margin-top: var(--update-plot-headroom) !important;
 	width: 100% !important;
 	filter: none !important;
 	transform: none !important;
+	box-sizing: border-box !important;
+	border-style: solid !important;
+	border-width: 0 0 var(--update-axis-width) var(--update-axis-width) !important;
+	border-color: var(--update-axis-color) !important;
 }
 .rks_line .line svg,
 .title .line svg,

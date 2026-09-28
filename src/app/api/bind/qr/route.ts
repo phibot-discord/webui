@@ -1,4 +1,4 @@
-import { sessionUserId } from "@/auth";
+import { authed } from "@/server/authed";
 import { startQrBind } from "@/server/bind";
 import { getDataHost } from "@/server/data-host";
 import { localizedError, localizedErrorBody } from "@/server/i18n-http";
@@ -10,25 +10,26 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
-	const userId = await sessionUserId();
-	if (!userId) return localizedError(401, "unauthorized");
-	const host = await getDataHost();
-	const limited = await rateLimit(host.store, {
-		userId,
-		ip: clientIp(request.headers),
-	});
-	if (!limited.ok) return localizedError(429, "rate_limit");
+	return authed(async (userId) => {
+		const host = await getDataHost();
+		const limited = await rateLimit(host.store, {
+			userId,
+			ip: clientIp(request.headers),
+		});
+		if (!limited.ok) return localizedError(429, "rate_limit");
 
-	const body = (await request.json().catch(() => ({}))) as {
-		server?: string;
-		global?: boolean;
-	};
-	return tapWaitNdjson(
-		async () => {
-			const result = await startQrBind(userId, body.server, body.global);
-			if ("error" in result) return localizedErrorBody(result);
-			return result;
-		},
-		{ error: "bind_failed", code: "bind_failed", status: 502 },
-	);
+		const body = (await request.json().catch(() => ({}))) as {
+			server?: string;
+			global?: boolean;
+		};
+		return tapWaitNdjson(
+			userId,
+			async () => {
+				const result = await startQrBind(userId, body.server, body.global);
+				if ("error" in result) return localizedErrorBody(result);
+				return result;
+			},
+			{ error: "bind_failed", code: "bind_failed", status: 502 },
+		);
+	});
 }

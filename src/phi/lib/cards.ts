@@ -1,4 +1,5 @@
-import { saveRevision } from "@/server/bound";
+import { join } from "node:path";
+import { prefetchIlls } from "@/server/ill";
 import { logger } from "@/server/logger";
 import type { Kv } from "@/server/sdk";
 import {
@@ -9,10 +10,10 @@ import {
 import {
 	cardCopy,
 	fill,
-	resolvePhiLocale,
 	localizeChartTagLabels,
 	localizeSuggestFields,
 	type PhiLocale,
+	resolvePhiLocale,
 } from "./card-i18n";
 import type { Catalog } from "./catalog";
 import { tagAnalysisFor } from "./chart-tags-api";
@@ -26,7 +27,31 @@ import {
 import { getNotes, tagAnalysisEnabled, type UserNotes } from "./notes";
 import type { PhiRuntime } from "./runtime";
 import type { Save } from "./save";
-import { getToken, moneyText } from "./saves";
+import { getToken, moneyText, saveIdentity } from "./saves";
+import { attachB19AccAvg } from "./score-avg";
+
+function htmlImage(rt: PhiRuntime, rel: string) {
+	return join(rt.getInfo.resources, "html", rel);
+}
+
+function iconImages(
+	rt: PhiRuntime,
+	save: Save,
+	rows: Array<{ Rating?: string } | undefined>,
+) {
+	const out = [
+		htmlImage(rt, `avatar/${rt.getInfo.idgetavatar(save.gameuser.avatar)}.png`),
+		htmlImage(
+			rt,
+			`otherimg/${Math.floor(save.saveInfo.summary.challengeModeRank / 100)}.png`,
+		),
+		htmlImage(rt, "otherimg/data.png"),
+	];
+	for (const rating of new Set(rows.map((r) => r?.Rating).filter(Boolean))) {
+		out.push(htmlImage(rt, `otherimg/${rating}.png`));
+	}
+	return out;
+}
 
 async function b30AnalysisFor(
 	save_b19: { phi?: unknown[]; b19_list?: unknown[] },
@@ -45,8 +70,8 @@ async function b30AnalysisFor(
 	if (showTags && records.length) {
 		try {
 			tagAnalysis = localizeChartTagLabels(
-				await tagAnalysisFor(records, {
-					saveRevision: saveRevision(save),
+				await tagAnalysisFor(save, {
+					saveRevision: saveIdentity(save.saveInfo),
 					db,
 				}),
 				locale,
@@ -84,9 +109,10 @@ export async function b19Card(
 		accMin?: number;
 		locale?: PhiLocale | string;
 		showTagAnalysis?: boolean;
+		notes?: UserNotes;
 	} = {},
 ) {
-	const notes = await getNotes(db, userId);
+	const notes = { ...(extra.notes ?? (await getNotes(db, userId))) };
 	if (extra.showTagAnalysis != null) {
 		notes.showTagAnalysis = extra.showTagAnalysis;
 	}
@@ -94,6 +120,7 @@ export async function b19Card(
 	const t = cardCopy(locale);
 	const nnum = extra.nnum ?? 33;
 	let save_b19: { phi?: unknown[]; b19_list?: unknown[] };
+	let avgJob: Promise<unknown> | undefined;
 	const spInfo = [...(extra.spInfo || [])];
 	if (extra.accMin != null) {
 		save_b19 = await save.getBestWithLimit(nnum, [
@@ -136,11 +163,28 @@ export async function b19Card(
 		);
 		spInfo.push(t.x30Mode);
 	} else {
-		save_b19 = await save.getB19(undefined, nnum, {
-			avgType: notes.b30AvgKind,
-			color: notes.b30AvgColor,
-		});
+		const b19 = await save.getB19(undefined, nnum, { avgType: "none" });
+		save_b19 = b19;
+		if (notes.allowApiUsage !== false) {
+			avgJob = attachB19AccAvg(b19, {
+				avgType: notes.b30AvgKind || "all",
+				color: notes.b30AvgColor,
+			});
+		}
 	}
+	const background = catalog.randomIll("blur");
+	const rows = [...(save_b19.phi || []), ...(save_b19.b19_list || [])] as Array<
+		{ illustration?: string; Rating?: string } | undefined
+	>;
+	prefetchIlls([
+		...rows.map((row) => row?.illustration),
+		background,
+		...iconImages(rt, save, rows),
+	]);
+	const [b30Analysis] = await Promise.all([
+		b30AnalysisFor(save_b19, notes, nnum, locale, db, save),
+		avgJob,
+	]);
 	localizeSuggestFields(
 		save_b19.phi as Array<{ suggest?: string }> | undefined,
 		t,
@@ -169,7 +213,7 @@ export async function b19Card(
 		Date: rt.fCompute.formatDate(save.saveInfo.summary.updatedAt),
 		ChallengeMode: gameuser.ChallengeMode,
 		ChallengeModeRank: gameuser.ChallengeModeRank,
-		background: catalog.randomIll("blur"),
+		background,
 		theme: notes.theme || "default",
 		gameuser,
 		nnum,
@@ -181,8 +225,7 @@ export async function b19Card(
 				.map((row) => Number((row as { rks?: number } | undefined)?.rks))
 				.filter((n) => Number.isFinite(n)),
 		),
-		b30Analysis: await b30AnalysisFor(save_b19, notes, nnum, locale, db, save),
-		BSIllPath: rt.getInfo.getill("BANGINGSTRIKE.DewPleiades.0", "common"),
+		b30Analysis,
 	};
 }
 
@@ -192,9 +235,13 @@ export async function infoCard(
 	db: Kv,
 	userId: string,
 	catalog: Catalog,
-	extra: { locale?: PhiLocale | string } = {},
+	extra: {
+		locale?: PhiLocale | string;
+		notes?: UserNotes;
+		token?: string;
+	} = {},
 ) {
-	const notes = await getNotes(db, userId);
+	const notes = extra.notes ?? (await getNotes(db, userId));
 	const locale = resolvePhiLocale(extra.locale, notes.locale);
 	const stats = await save.getStats();
 	const money = save.gameProgress?.money || [0, 0, 0, 0, 0];
@@ -207,6 +254,8 @@ export async function infoCard(
 	if (!backgroundurl || /^(https?:|data:)/i.test(backgroundurl)) {
 		backgroundurl = catalog.randomIll("common") || catalog.fallbackIll || "";
 	}
+	const background = catalog.randomIll("blur");
+	prefetchIlls([backgroundurl, background, ...iconImages(rt, save, [])]);
 	const gameuser = {
 		avatar: rt.getInfo.idgetavatar(save.gameuser.avatar),
 		ChallengeMode: Math.floor(save.saveInfo.summary.challengeModeRank / 100),
@@ -234,8 +283,10 @@ export async function infoCard(
 	let data_date: [string, string] = ["", ""];
 	let rks_date: [string, string] = ["", ""];
 	try {
-		const token = await getToken(rt, userId);
-		const snaps = await loadHisb30Snaps(db, userId);
+		const [token, snaps] = await Promise.all([
+			extra.token ?? getToken(rt, userId),
+			loadHisb30Snaps(db, userId),
+		]);
 		if (token) {
 			const history = await loadSaveHistory(rt, db, token);
 			const line = await rksLineFor(rt, history, snaps);
@@ -278,7 +329,7 @@ export async function infoCard(
 		acc_rks_data: acc.acc_rks_data,
 		acc_rks_range: acc.acc_rks_range,
 		acc_rks_AccRange: acc.acc_rks_AccRange,
-		background: catalog.randomIll("blur"),
+		background,
 		theme: notes.theme || "default",
 		locale,
 	};

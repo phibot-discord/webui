@@ -5,10 +5,8 @@ import {
 	readdirSync as fsReaddir,
 	statSync as fsStat,
 } from "node:fs";
-import { dirname } from "node:path";
 
 const overlay = new Map<string, Uint8Array>();
-let root = "";
 
 function norm(p: string): string {
 	let s = p.replace(/\\/g, "/");
@@ -21,15 +19,6 @@ function norm(p: string): string {
 function lookup(p: string): Uint8Array | undefined {
 	const n = norm(p);
 	return overlay.get(n) || overlay.get(n.replace(/^\//, ""));
-}
-
-export function vfsRoot(): string {
-	return root;
-}
-
-export function mountDisk(dir: string) {
-	root = norm(dir);
-	overlay.clear();
 }
 
 export function mountBytes(absPath: string, data: Uint8Array) {
@@ -47,12 +36,13 @@ export function readFile(p: string, encoding: "utf8"): string;
 export function readFile(p: string, encoding?: "utf8"): Buffer | string {
 	const data = lookup(p);
 	if (data) {
-		const buf = Buffer.from(data);
+		// View over the mounted bytes; callers treat asset buffers as read-only.
+		const buf = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
 		return encoding === "utf8" ? buf.toString("utf8") : buf;
 	}
 	return encoding === "utf8"
 		? fsRead(/*turbopackIgnore: true*/ p, "utf8")
-		: Buffer.from(fsRead(/*turbopackIgnore: true*/ p));
+		: fsRead(/*turbopackIgnore: true*/ p);
 }
 
 export function readdir(p: string): string[] {
@@ -85,10 +75,6 @@ export function stat(p: string): {
 
 export function mkdirp(p: string) {
 	fsMkdir(/*turbopackIgnore: true*/ p, { recursive: true });
-}
-
-export function mkdirpParent(file: string) {
-	fsMkdir(/*turbopackIgnore: true*/ dirname(file), { recursive: true });
 }
 
 export function hydrateCss(css: Record<string, string>) {

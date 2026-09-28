@@ -1,4 +1,4 @@
-export class Semaphore {
+class Semaphore {
 	private active = 0;
 	private readonly wait: Array<() => void> = [];
 

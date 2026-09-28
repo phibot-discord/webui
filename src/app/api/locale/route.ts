@@ -3,6 +3,7 @@ import { isLocale } from "@/i18n/config";
 import { setLocaleCookie } from "@/i18n/server";
 import { setUserLocale } from "@/phi/lib/notes";
 import { getDataHost } from "@/server/data-host";
+import { withDiscordUid } from "@/server/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,13 +21,13 @@ export async function POST(request: Request) {
 	}
 	await setLocaleCookie(locale);
 	const userId = await sessionUserId();
-	if (userId) {
-		try {
-			const host = await getDataHost();
-			await setUserLocale(host.db, userId, locale);
-		} catch {
-			/* cookie applied */
+	return withDiscordUid(userId, async () => {
+		if (userId) {
+			try {
+				const host = await getDataHost();
+				await setUserLocale(host.db, userId, locale);
+			} catch {}
 		}
-	}
-	return Response.json({ ok: true });
+		return Response.json({ ok: true });
+	});
 }

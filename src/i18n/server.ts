@@ -1,4 +1,5 @@
 import { cookies, headers } from "next/headers";
+import { cache } from "react";
 import {
 	isLocale,
 	LOCALE_COOKIE,
@@ -7,11 +8,11 @@ import {
 } from "./config";
 import { en, type Messages, zh } from "./messages";
 
-export { formatDateTime } from "./datetime";
-
 export const catalogs: Record<Locale, Messages> = { en, zh };
 
-export async function getRequestLocale(): Promise<Locale> {
+export const getRequestLocale = cache(resolveRequestLocale);
+
+async function resolveRequestLocale(): Promise<Locale> {
 	const jar = await cookies();
 	const cookie = jar.get(LOCALE_COOKIE)?.value;
 	if (isLocale(cookie)) return cookie;

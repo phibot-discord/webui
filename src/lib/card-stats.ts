@@ -1,5 +1,5 @@
 export type CardCacheStore = "mem" | "r2" | "kv";
-export type CardSource = "r2" | "kv" | "render";
+type CardSource = "r2" | "kv" | "render";
 
 export type CardStats = {
 	cache: "hit" | "miss";

@@ -158,7 +158,7 @@
             ></path>
             {{/if}}
             </svg>
-            <p>Avg: {{song.accAvg.toFixed(4)}}%</p>
+            <p>{{song.accAvg}}</p>
         </div>
         {{/if}}
         {{if song.cpToOld}}
@@ -455,22 +455,5 @@
         <p>{{Version.ver}}</p>
     </div>
 </div>
-
-{{if theme == "snow"}}
-<div class="snow-box"> </div>
-<script>
-    themeSnow();
-</script>
-{{else if theme == "topText" || theme == "foolsDay"}}
-<div class="topTextBox" id="topTextBox"></div>
-<script>
-    themeTopText();
-</script>
-{{else if theme == "star"}}
-<canvas id="stars"></canvas>
-<script>
-    themeStar();
-</script>
-{{/if}}
 
 {{/block}}

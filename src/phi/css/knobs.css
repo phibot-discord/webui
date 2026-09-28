@@ -11,7 +11,7 @@
 	--b30-avatar-img-height: 160px;
 	--b30-avatar-max-width: 160px;
 
-	--b30-rks-left: 148px;
+	--b30-rks-left: 130px;
 	--b30-rks-min-width: 210px;
 	--b30-rks-height: 24px;
 	--b30-rks-pad-left: 52px;
@@ -43,6 +43,10 @@
 	--b30-num-font-size: 12px;
 	--b30-num-left: 0px;
 	--b30-num-top: 0px;
+	--b30-avg-left: 28px;
+	--b30-avg-line-width: 8px;
+	--b30-avg-line-clip-in: 64%;
+	--b30-avg-line-clip-out: 36%;
 	--b30-info-pad-left: 40px;
 	--b30-info-width: 60%;
 	--b30-rank-clip-in: 16%;
@@ -52,45 +56,20 @@
 	--b30-stats-clip-in: 14%;
 	--b30-stats-clip-out: 86%;
 
-	--hisb30-row-tuck: -60px;
-	--hisb30-wide-row-songs: 4;
-	--hisb30-short-width: 50%;
-	--hisb30-date-box-width: 60px;
-	--hisb30-songs-margin-top: 68px;
-	--hisb30-songs-pad: 20px;
-	--hisb30-ill-height: 90px;
-	--hisb30-song-gap-x: 30px;
-	--hisb30-song-gap-y: 30px;
-	--hisb30-date-line-height: 5px;
-	--hisb30-date-text-left: 45px;
-	--hisb30-date-text-size: 24px;
-	--hisb30-date-text-top: -28px;
-	--hisb30-date-line-width-short: 520px;
-	--hisb30-date-line-width-wide: 1005px;
-	--hisb30-tag-top-0: 5px;
-	--hisb30-tag-top-1: 35px;
-	--hisb30-tag-top-2: 65px;
-	--hisb30-tag-right-0: -47px;
-	--hisb30-tag-right-1: -38px;
-	--hisb30-tag-right-2: -29px;
-	--hisb30-tag-height: 25px;
-	--hisb30-tag-width: 43px;
-	--hisb30-clip-in: 16%;
-	--hisb30-clip-out: 84%;
-	--hisb30-wide-cols: 4;
-	--hisb30-row-pad-bottom: 24px;
-	--hisb30-row-min-height: 230px;
-
 	--update-title-height: 150px;
-	--update-title-width: 800px;
-	--update-title-margin-top: 24px;
-	--update-title-margin-bottom: 20px;
-	--update-panel-width: 300px;
-	--update-panel-height: 140px;
-	--update-chart-width: 400px;
-	--update-chart-height: 140px;
+	--update-title-width: 100%;
+	--update-title-margin-top: 5%;
+	--update-title-margin-bottom: 5%;
+	--update-panel-width: 38%;
+	--update-panel-height: 90%;
+	--update-chart-width: 50%;
+	--update-chart-height: 90%;
+	--update-tile-gap: 10px;
 	--update-tile-width: 135px;
 	--update-tile-height: 104px;
-	--update-tile-gap: 10px;
 	--update-img-height: 72px;
+	--update-axis-width: 1px;
+	--update-axis-color: rgba(255, 255, 255, 0.7);
+	--update-plot-height: 88px;
+	--update-plot-headroom: 12px;
 }

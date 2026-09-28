@@ -580,7 +580,7 @@ body p {
 .accAvg {
 	position: absolute;
 	top: -14px;
-	left: 28.5px;
+	left: 28px;
 	--height: 17px;
 	padding: 0 8px;
 	white-space: nowrap;
@@ -593,7 +593,9 @@ body p {
 .accAvgLine {
 	position: absolute;
 	left: 0;
+	top: 0;
 	width: 8px;
+	height: 100%;
 	background-color: var(--lineColor);
 }
 
@@ -618,6 +620,14 @@ body p {
 .accAvg path,
 .cpToOld path {
 	fill: var(--lineColor);
+}
+
+.accHigher path {
+	fill: #1a1408;
+}
+
+.accLower path {
+	fill: #ffe566;
 }
 
 .cpToOld {

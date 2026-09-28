@@ -7,5 +7,7 @@ node_modules
 *.tsbuildinfo
 data
 src/phi/art-compiled.ts
+src/phi/css/bundle.ts
 .wrangler
 .vercel
+.env*

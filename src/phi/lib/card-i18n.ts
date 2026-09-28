@@ -1,6 +1,6 @@
 export const PHI_LOCALES = ["en", "zh"] as const;
 export type PhiLocale = (typeof PHI_LOCALES)[number];
-export const DEFAULT_PHI_LOCALE: PhiLocale = "en";
+const DEFAULT_PHI_LOCALE: PhiLocale = "en";
 
 export function isPhiLocale(v: unknown): v is PhiLocale {
 	return v === "en" || v === "zh";
@@ -43,15 +43,12 @@ const en = {
 	strongTags: "Strengths",
 	weakTags: "Weaknesses",
 	tagInsufficient:
-		"Not enough chart-tag votes. Vote at https://www.phib19.top or with /settag.",
-	tagTip:
-		"Tag stats are still thin — vote at https://www.phib19.top or with /settag.",
+		"Not enough chart-tag votes. Vote at https://www.phib19.top.",
+	tagTip: "Tag stats are still thin — vote at https://www.phib19.top.",
 	histTitle: "Equivalent RKS histogram",
 	avgRks: "Average RKS",
 	histY: "Per-chart RKS",
 	histSlotsUnit: " slots",
-	hisb30Tip:
-		"*B30 changes use current constants. Historical constants coming later.",
 	emptyBio: "This player's bio was eaten by Hu Tao…",
 	accFilterHint:
 		"RKS after dropping every score whose ACC is below a given value (x-axis).",
@@ -159,14 +156,13 @@ const zh: typeof en = {
 	strongTags: "擅长词条",
 	weakTags: "薄弱词条",
 	tagInsufficient:
-		"可用谱面标签统计量不足，请前往 https://www.phib19.top 或使用 /settag 进行谱面标签投票",
+		"可用谱面标签统计量不足，请前往 https://www.phib19.top 进行谱面标签投票",
 	tagTip:
-		"当前谱面标签统计量较小，可以前往 https://www.phib19.top 或使用 /settag 指令进行投票哦！",
+		"当前谱面标签统计量较小，可以前往 https://www.phib19.top 进行投票哦！",
 	histTitle: "等效 RKS 直方图",
 	avgRks: "平均 RKS",
 	histY: "等效单曲 RKS",
 	histSlotsUnit: " 个有效槽位",
-	hisb30Tip: "*B30变化仅以当前定数为准，实际历史定数敬请期待",
 	emptyBio: "介个人的简介被胡桃吃掉惹……",
 	accFilterHint:
 		"将您的成绩中所有 ACC【小于某一值(横坐标)】的成绩筛去后计算得到的 RKS 值",
@@ -259,7 +255,7 @@ const zh: typeof en = {
 	},
 };
 
-export type CardCopy = typeof en;
+type CardCopy = typeof en;
 
 export function cardCopy(locale: PhiLocale): CardCopy {
 	return locale === "zh" ? zh : en;
@@ -409,7 +405,7 @@ export function fill(
 	return out;
 }
 
-export function isNoPushSuggest(s: string | undefined): boolean {
+function isNoPushSuggest(s: string | undefined): boolean {
 	if (!s) return true;
 	return s === "无法推分" || /^can't push$/i.test(s);
 }

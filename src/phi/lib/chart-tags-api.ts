@@ -1,28 +1,39 @@
 import { createHash } from "node:crypto";
-import { Agent, fetch as undiciFetch } from "undici";
+import { runInBackground } from "@/server/background";
 import { logger } from "@/server/logger";
-import type { Kv } from "@/server/sdk";
 import {
-	type B30Record,
-	buildTagAnalysis,
-	type ChartTagTreeNode,
-	type ChartTagVotes,
-} from "./b30-analysis";
-import { kvKey, PHI_CHART_TAG_API } from "./const";
+	outgoingAgent,
+	outgoingFetch,
+	socketTimeouts,
+} from "@/server/outgoing";
+import type { Kv } from "@/server/sdk";
+import type { ChartTagTreeNode, TagAnalysis } from "./b30-analysis";
+import {
+	isProxyHost,
+	kvKey,
+	PHI_CHART_TAG_API,
+	PHI_PROXY_KEY,
+	PROXY_KEY_HEADER,
+} from "./const";
 
 type TreeBody = { data?: unknown };
-type BatchBody = { data?: ChartTagVotes };
+type OriRecord = { score: number; acc: number; fc: boolean };
 
-export const CHART_TAG_TIMEOUT_MS = 30_000;
+export const CHART_TAG_TIMEOUT_MS = 60_000;
+const CHART_TAG_MAX_ATTEMPTS = 4;
 
-const agent = new Agent({
+export const chartTagAgent = {
+	...socketTimeouts(CHART_TAG_TIMEOUT_MS),
+	headersTimeout: CHART_TAG_TIMEOUT_MS,
+	bodyTimeout: CHART_TAG_TIMEOUT_MS,
+};
+
+const agent = outgoingAgent({
 	connections: 8,
 	pipelining: 1,
 	keepAliveTimeout: 10_000,
 	keepAliveMaxTimeout: 30_000,
-	connectTimeout: CHART_TAG_TIMEOUT_MS,
-	headersTimeout: CHART_TAG_TIMEOUT_MS,
-	bodyTimeout: CHART_TAG_TIMEOUT_MS,
+	...chartTagAgent,
 });
 
 const TREE_TTL_MS = 6 * 60 * 60 * 1000;
@@ -34,11 +45,37 @@ export function chartTagTreeR2Key(
 	return `${prefix.replace(/\/+$/, "")}/tagTree.json`;
 }
 
-export class ChartTagTimeoutError extends Error {
+class ChartTagTimeoutError extends Error {
 	constructor(message = "chart-tag timed out") {
 		super(message);
 		this.name = "ChartTagTimeoutError";
 	}
+}
+
+function errCode(err: unknown): string | undefined {
+	return err && typeof err === "object" && "code" in err
+		? String((err as { code?: unknown }).code || "")
+		: undefined;
+}
+
+function errChain(err: unknown): string {
+	const bits: string[] = [];
+	let cur: unknown = err;
+	for (let i = 0; i < 5 && cur; i++) {
+		if (cur instanceof Error) {
+			const code = errCode(cur);
+			bits.push(
+				[cur.name, cur.message, code]
+					.filter((p) => p && p !== "undefined")
+					.join(" "),
+			);
+			cur = cur.cause;
+			continue;
+		}
+		bits.push(String(cur));
+		break;
+	}
+	return bits.join(" <- ") || String(err);
 }
 
 export function isChartTagTimeout(err: unknown): boolean {
@@ -55,9 +92,31 @@ export function isChartTagTimeout(err: unknown): boolean {
 		) {
 			return true;
 		}
-		const code = (cur as { code?: string }).code;
-		if (typeof code === "string" && /TIMEOUT/i.test(code)) return true;
+		const code = errCode(cur);
+		if (code && /TIMEOUT/i.test(code)) return true;
 		if (/timeout|timed out|aborted/i.test(cur.message)) return true;
+		cur = cur.cause;
+	}
+	return false;
+}
+
+export function isRetryableChartTagNet(err: unknown): boolean {
+	if (err instanceof ChartTagTimeoutError) return true;
+	let cur: unknown = err;
+	for (let i = 0; i < 4 && cur; i++) {
+		if (!(cur instanceof Error)) return false;
+		const code = errCode(cur) || "";
+		if (
+			/^(ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|EPIPE|UND_ERR_CONNECT_TIMEOUT|UND_ERR_SOCKET)$/i.test(
+				code,
+			)
+		) {
+			return true;
+		}
+		if (cur.name === "TypeError" && /fetch failed/i.test(cur.message)) {
+			return true;
+		}
+		if (isChartTagTimeout(cur)) return true;
 		cur = cur.cause;
 	}
 	return false;
@@ -67,111 +126,141 @@ export function chartTagUrl(path: string) {
 	return `${PHI_CHART_TAG_API}${path}`;
 }
 
-type ChartTagJsonFetch = (path: string, init?: RequestInit) => Promise<unknown>;
+export function chartTagRemainMs(started: number, now = performance.now()) {
+	return Math.max(1_000, Math.floor(CHART_TAG_TIMEOUT_MS - (now - started)));
+}
 
-/** Next.js patched `fetch` aborts :8080 in 1–2ms and hides undici's 30s agent. */
+export type ChartTagJsonFetch = (
+	path: string,
+	init?: RequestInit,
+) => Promise<unknown>;
+
+export function chartTagHeaders(
+	url = PHI_CHART_TAG_API,
+	proxyKey = PHI_PROXY_KEY,
+): Record<string, string> {
+	const headers: Record<string, string> = {
+		Accept: "application/json",
+		"Content-Type": "application/json",
+	};
+	if (proxyKey && isProxyHost(url)) headers[PROXY_KEY_HEADER] = proxyKey;
+	return headers;
+}
+
 async function jsonFetch(path: string, init: RequestInit = {}) {
 	const method = (init.method ?? "GET").toUpperCase();
 	const url = chartTagUrl(path);
 	const started = performance.now();
-	try {
-		const res = await undiciFetch(url, {
-			method: init.method,
-			body: typeof init.body === "string" ? init.body : undefined,
-			signal: init.signal ?? AbortSignal.timeout(CHART_TAG_TIMEOUT_MS),
-			headers: {
-				Accept: "application/json",
-				"Content-Type": "application/json",
-			},
-			dispatcher: agent,
-		});
-		const ms = `${Math.round(performance.now() - started)}ms`;
-		if (!res.ok) {
-			const detail = await res.text().catch(() => "");
-			logger.warn(`chart-tag ${method} ${url} ${res.status} ${ms}`);
-			throw new Error(
-				`chart-tag ${res.status}${detail ? `: ${detail.slice(0, 160)}` : ""}`,
-			);
-		}
-		logger.info(`chart-tag ${method} ${url} ${res.status} ${ms}`);
-		return res.json();
-	} catch (err) {
-		if (!(err instanceof Error && err.message.startsWith("chart-tag "))) {
-			const detail =
-				err instanceof Error ? `${err.name} ${err.message}` : String(err);
+	let last: unknown;
+	for (let attempt = 1; attempt <= CHART_TAG_MAX_ATTEMPTS; attempt++) {
+		const remain = chartTagRemainMs(started);
+		try {
+			const res = await outgoingFetch(url, {
+				method,
+				body:
+					method === "GET" || method === "HEAD"
+						? undefined
+						: typeof init.body === "string"
+							? init.body
+							: undefined,
+				signal: init.signal ?? AbortSignal.timeout(remain),
+				headers: chartTagHeaders(url),
+				dispatcher: agent,
+			});
+			const ms = `${Math.round(performance.now() - started)}ms`;
+			if (!res.ok) {
+				const detail = await res.text().catch(() => "");
+				logger.warn(`chart-tag ${method} ${url} ${res.status} ${ms}`);
+				throw new Error(
+					`chart-tag ${res.status}${detail ? `: ${detail.slice(0, 160)}` : ""}`,
+				);
+			}
+			logger.info(`chart-tag ${method} ${url} ${res.status} ${ms}`);
+			return res.json();
+		} catch (err) {
+			last = err;
+			if (err instanceof Error && err.message.startsWith("chart-tag ")) {
+				throw err;
+			}
+			const elapsed = Math.round(performance.now() - started);
+			const left = CHART_TAG_TIMEOUT_MS - elapsed;
+			const retry =
+				attempt < CHART_TAG_MAX_ATTEMPTS &&
+				left > 2_000 &&
+				isRetryableChartTagNet(err);
 			logger.warn(
-				`chart-tag ${method} ${url} fail ${Math.round(performance.now() - started)}ms ${detail}`,
+				`chart-tag ${method} ${url} fail ${elapsed}ms try ${attempt}${retry ? " retry" : ""} ${errChain(err)}`,
 			);
+			if (!retry) break;
 		}
-		if (isChartTagTimeout(err)) throw new ChartTagTimeoutError();
-		throw err;
 	}
+	if (isChartTagTimeout(last)) throw new ChartTagTimeoutError();
+	throw last instanceof Error ? last : new Error(errChain(last));
+}
+
+export async function chartTagJsonFetch(path: string, init: RequestInit = {}) {
+	return jsonFetch(path, init);
 }
 
 function apiSongId(id: string) {
 	return id.endsWith(".0") ? id : `${id}.0`;
 }
 
-export function chartTagCacheId(
-	saveRevision: string,
-	records: Array<{ id: string; rank: string }>,
-): string {
-	const seen = new Set<string>();
-	const parts: string[] = [];
-	for (const record of records) {
-		const key = `${apiSongId(record.id)}\0${record.rank}`;
-		if (seen.has(key)) continue;
-		seen.add(key);
-		parts.push(key);
-	}
-	parts.sort();
-	return createHash("sha256")
-		.update(saveRevision)
-		.update("\n")
-		.update(parts.join("\n"))
-		.digest("hex")
-		.slice(0, 24);
+export function chartTagCacheId(saveRevision: string): string {
+	return createHash("sha256").update(saveRevision).digest("hex").slice(0, 24);
 }
 
-const voteMem = new Map<string, ChartTagVotes>();
+/** One entry per save revision; keep the hot set small (KV holds the rest). */
+const analysisMem = new Map<string, TagAnalysis>();
+const ANALYSIS_MEM_MAX = 64;
+
+function rememberAnalysis(id: string, analysis: TagAnalysis) {
+	analysisMem.delete(id);
+	analysisMem.set(id, analysis);
+	while (analysisMem.size > ANALYSIS_MEM_MAX) {
+		const oldest = analysisMem.keys().next().value;
+		if (oldest === undefined) break;
+		analysisMem.delete(oldest);
+	}
+}
 
 export function resetChartTagVoteMemForTest() {
-	voteMem.clear();
+	analysisMem.clear();
 }
 
-async function readVoteCache(
+async function readAnalysisCache(
 	id: string,
 	db?: Pick<Kv, "get">,
-): Promise<ChartTagVotes | undefined> {
-	const hot = voteMem.get(id);
+): Promise<TagAnalysis | undefined> {
+	const hot = analysisMem.get(id);
 	if (hot) return hot;
-	const raw = await db?.get(kvKey("chartTags", id));
+	const raw = await db?.get(kvKey("b30Analysis", id));
 	if (!raw) return;
 	try {
-		const parsed = JSON.parse(raw) as unknown;
-		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-			return;
-		}
-		voteMem.set(id, parsed as ChartTagVotes);
-		return parsed as ChartTagVotes;
+		const parsed = parseB30TagAnalysis(JSON.parse(raw));
+		if (!parsed) return;
+		rememberAnalysis(id, parsed);
+		return parsed;
 	} catch {
 		return;
 	}
 }
 
-async function writeVoteCache(
+/** The render does not wait for the KV copy; the in-memory entry serves this request. */
+function writeAnalysisCache(
 	id: string,
-	votes: ChartTagVotes,
+	analysis: TagAnalysis,
 	db?: Pick<Kv, "set">,
 ) {
-	voteMem.set(id, votes);
-	try {
-		await db?.set(kvKey("chartTags", id), JSON.stringify(votes));
-	} catch (err) {
-		logger.warn(
-			`chart-tag votes cache write skipped: ${err instanceof Error ? err.message : err}`,
-		);
-	}
+	rememberAnalysis(id, analysis);
+	if (!db) return;
+	runInBackground(
+		db.set(kvKey("b30Analysis", id), JSON.stringify(analysis)),
+		(err) =>
+			logger.warn(
+				`chart-tag analysis cache write skipped: ${err instanceof Error ? err.message : err}`,
+			),
+	);
 }
 
 function asTree(raw: unknown): ChartTagTreeNode[] {
@@ -243,7 +332,9 @@ export async function loadChartTagTree(
 			logger.info("chart-tag tree r2");
 			return cached;
 		}
-		const tree = parseChartTagTree(await fetchJson("/chartsTag/get/tagTree"));
+		const tree = parseChartTagTree(
+			await fetchJson("/chartsTag/get/tagTree", { method: "GET" }),
+		);
 		if (!tree.length) throw new Error("empty chart-tag tree");
 		return tree;
 	})().catch((err) => {
@@ -254,79 +345,173 @@ export async function loadChartTagTree(
 	return value;
 }
 
-export async function loadChartTagVotes(
-	records: Array<{ id: string; rank: string }>,
+export function gameRecordPayload(
+	gameRecord: Record<
+		string,
+		Array<
+			{ score?: number; acc?: number; fc?: boolean | number } | null | undefined
+		>
+	>,
+): Record<string, Array<OriRecord | null>> {
+	const out: Record<string, Array<OriRecord | null>> = {};
+	for (const [id, rows] of Object.entries(gameRecord)) {
+		out[apiSongId(id)] = rows.map((row) =>
+			row
+				? {
+						score: Number(row.score) || 0,
+						acc: Number(row.acc) || 0,
+						fc: Boolean(row.fc),
+					}
+				: null,
+		);
+	}
+	return out;
+}
+
+function num(value: unknown, fallback = 0) {
+	const n = Number(value);
+	return Number.isFinite(n) ? n : fallback;
+}
+
+function asAnchor(value: unknown): "start" | "middle" | "end" {
+	return value === "start" || value === "end" ? value : "middle";
+}
+
+export function parseB30TagAnalysis(raw: unknown): TagAnalysis | undefined {
+	const body =
+		raw && typeof raw === "object" && raw !== null && "data" in raw
+			? (raw as { data: unknown }).data
+			: raw;
+	if (!body || typeof body !== "object" || Array.isArray(body)) return;
+	const b = body as Record<string, unknown>;
+	if (!Array.isArray(b.categories) || !b.radar || typeof b.radar !== "object") {
+		return;
+	}
+	const radarIn = b.radar as Record<string, unknown>;
+	if (
+		!Array.isArray(radarIn.grids) ||
+		!Array.isArray(radarIn.axes) ||
+		!Array.isArray(radarIn.categories)
+	) {
+		return;
+	}
+	const categories = b.categories.flatMap((row) => {
+		if (!row || typeof row !== "object") return [];
+		const r = row as Record<string, unknown>;
+		if (typeof r.name !== "string" || !r.name) return [];
+		return [
+			{
+				name: r.name,
+				rks: num(r.rks),
+				votes: num(r.votes),
+				hasVotes: Boolean(r.hasVotes),
+			},
+		];
+	});
+	const tags = (rows: unknown): TagAnalysis["strong"] =>
+		Array.isArray(rows)
+			? rows.flatMap((row) => {
+					if (!row || typeof row !== "object") return [];
+					const r = row as Record<string, unknown>;
+					if (typeof r.name !== "string" || !r.name) return [];
+					return [
+						{
+							name: r.name,
+							rks: num(r.rks),
+							votes: num(r.votes),
+							charts: num(r.charts, num(r.sampleCount, 1)),
+						},
+					];
+				})
+			: [];
+	return {
+		totalVotes: num(b.totalVotes),
+		minimumVotes: num(b.minimumVotes, 20),
+		averageRks: num(b.averageRks),
+		categories,
+		radar: {
+			grids: radarIn.grids.filter((g): g is string => typeof g === "string"),
+			axes: radarIn.axes.flatMap((axis) => {
+				if (!axis || typeof axis !== "object") return [];
+				const a = axis as { x?: unknown; y?: unknown };
+				return [{ x: num(a.x), y: num(a.y) }];
+			}),
+			points: typeof radarIn.points === "string" ? radarIn.points : "",
+			categories: radarIn.categories.flatMap((row) => {
+				if (!row || typeof row !== "object") return [];
+				const r = row as Record<string, unknown>;
+				if (typeof r.name !== "string" || !r.name) return [];
+				return [
+					{
+						name: r.name,
+						rks: num(r.rks),
+						votes: num(r.votes),
+						hasVotes: Boolean(r.hasVotes),
+						displayRks:
+							typeof r.displayRks === "string"
+								? r.displayRks
+								: num(r.rks).toFixed(2),
+						pointX: num(r.pointX),
+						pointY: num(r.pointY),
+						labelX: num(r.labelX),
+						labelY: num(r.labelY),
+						anchor: asAnchor(r.anchor),
+					},
+				];
+			}),
+		},
+		strong: tags(b.strong),
+		weak: tags(b.weak),
+		insufficient: Boolean(b.insufficient),
+	};
+}
+
+export async function tagAnalysisFor(
+	save: {
+		gameRecord?: Record<
+			string,
+			Array<
+				| { score?: number; acc?: number; fc?: boolean | number }
+				| null
+				| undefined
+			>
+		>;
+	},
 	opts: {
 		fetchJson?: ChartTagJsonFetch;
 		saveRevision?: string;
 		db?: Pick<Kv, "get" | "set">;
 	} = {},
-): Promise<ChartTagVotes> {
+): Promise<TagAnalysis> {
 	const fetchJson = opts.fetchJson ?? jsonFetch;
-	const seen = new Set<string>();
-	const unique: { id: string; rank: string; apiId: string }[] = [];
-	for (const record of records) {
-		const apiId = apiSongId(record.id);
-		const key = `${apiId}\0${record.rank}`;
-		if (seen.has(key)) continue;
-		seen.add(key);
-		unique.push({ id: record.id, rank: record.rank, apiId });
-	}
-	if (!unique.length) return {};
 	const cacheId = opts.saveRevision
-		? chartTagCacheId(opts.saveRevision, unique)
+		? chartTagCacheId(opts.saveRevision)
 		: undefined;
 	if (cacheId) {
-		const hit = await readVoteCache(cacheId, opts.db);
+		const hit = await readAnalysisCache(cacheId, opts.db);
 		if (hit) {
-			logger.info(`chart-tag votes cache hit ${cacheId}`);
+			logger.info(`chart-tag analysis cache hit ${cacheId}`);
 			return hit;
 		}
 	}
-	const body = (await fetchJson("/chartsTag/get/chartsTags", {
-		method: "POST",
-		body: JSON.stringify({
-			data: unique.map((row) => ({
-				song_id: row.apiId,
-				rank: [row.rank],
-			})),
-		}),
-	})) as BatchBody;
-	const votes = pickVotes(unique, body?.data);
-	if (cacheId) await writeVoteCache(cacheId, votes, opts.db);
-	return votes;
-}
-
-function pickVotes(
-	rows: Array<{ id: string; rank: string; apiId: string }>,
-	raw: ChartTagVotes | undefined,
-): ChartTagVotes {
-	const out: ChartTagVotes = {};
-	if (!raw || typeof raw !== "object") return out;
-	for (const row of rows) {
-		const votes =
-			raw[row.apiId]?.[row.rank] || raw[row.id]?.[row.rank] || undefined;
-		if (!votes) continue;
-		out[row.id] ||= {};
-		out[row.id]![row.rank] = votes;
-		if (row.apiId !== row.id) {
-			out[row.apiId] ||= {};
-			out[row.apiId]![row.rank] = votes;
-		}
+	const gameRecord = gameRecordPayload(save.gameRecord || {});
+	try {
+		const parsed = parseB30TagAnalysis(
+			await fetchJson("/chartsTag/get/b30Analysis", {
+				method: "POST",
+				body: JSON.stringify({ gameRecord }),
+			}),
+		);
+		if (!parsed) throw new Error("empty chart-tag analysis");
+		if (cacheId) writeAnalysisCache(cacheId, parsed, opts.db);
+		logger.info(
+			`chart-tag analysis votes ${parsed.totalVotes} insufficient ${parsed.insufficient}`,
+		);
+		return parsed;
+	} catch (err) {
+		logger.warn(
+			`chart-tag analysis miss: ${err instanceof Error ? err.message : err}`,
+		);
+		throw err;
 	}
-	return out;
-}
-
-export async function tagAnalysisFor(
-	records: B30Record[],
-	opts: { saveRevision?: string; db?: Pick<Kv, "get" | "set"> } = {},
-) {
-	const [tree, votes] = await Promise.all([
-		loadChartTagTree(),
-		loadChartTagVotes(records, {
-			saveRevision: opts.saveRevision,
-			db: opts.db,
-		}),
-	]);
-	return buildTagAnalysis(records, tree, votes);
 }

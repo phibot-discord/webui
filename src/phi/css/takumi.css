@@ -503,43 +503,6 @@ img.tag-radar-plot,
 	height: 250px !important;
 	overflow: visible !important;
 }
-.main-box {
-	filter: none !important;
-}
-.descTip,
-.main-box,
-.s-song {
-	position: relative !important;
-	z-index: 2 !important;
-}
-.s-song .ill {
-	height: 90px !important;
-}
-.levelKind {
-	height: 20px !important;
-}
-.changeTag {
-	position: absolute !important;
-	height: 25px !important;
-	width: 43px !important;
-}
-.changeTagLine {
-	height: 25px !important;
-	width: 11px !important;
-}
-.upLine,
-.downLine,
-.underLine,
-.circInner {
-	width: 5px !important;
-}
-.upLine {
-	height: 30px !important;
-}
-.midCirc,
-.circInner {
-	height: 5px !important;
-}
 .title,
 .record_box,
 .rks_line,

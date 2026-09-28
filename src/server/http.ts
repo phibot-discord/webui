@@ -6,7 +6,10 @@ import {
 } from "@/lib/card-stats";
 
 export function jsonError(status: number, error: string, code?: string) {
-	return NextResponse.json(code ? { error, code } : { error }, { status });
+	return NextResponse.json(code ? { error, code } : { error }, {
+		status,
+		headers: { "Cache-Control": "no-store" },
+	});
 }
 
 export function etagMatches(
@@ -62,10 +65,14 @@ export function cardImageResponse(
 	if (opts.filename) {
 		headers["Content-Disposition"] = attachmentDisposition(opts.filename);
 	}
-	return new NextResponse(new Uint8Array(bytes), {
-		status: 200,
-		headers,
-	});
+	return new NextResponse(
+		new Uint8Array(
+			bytes.buffer as ArrayBuffer,
+			bytes.byteOffset,
+			bytes.byteLength,
+		),
+		{ status: 200, headers },
+	);
 }
 
 export function cardRedirectResponse(
@@ -103,19 +110,20 @@ export function cardResultResponse(
 		renderVersion?: string;
 	},
 ) {
+	const stats = result.stats;
 	const res =
 		"redirect" in result
 			? cardRedirectResponse(result.redirect, {
 					etag: result.etag,
 					cacheControl: opts.cacheControl,
-					stats: result.stats,
+					stats,
 				})
 			: cardImageResponse(result.bytes, {
 					etag: result.etag,
 					cacheControl: opts.cacheControl,
 					request: opts.request,
 					mime: result.mime,
-					stats: result.stats,
+					stats,
 					filename: opts.filename,
 				});
 	if (opts.renderVersion) res.headers.set("X-Phi-Render", opts.renderVersion);
@@ -129,7 +137,10 @@ export function retryAfter(seconds: number, error: string, code?: string) {
 			: { error, retryAfter: seconds },
 		{
 			status: 429,
-			headers: { "Retry-After": String(seconds) },
+			headers: {
+				"Retry-After": String(seconds),
+				"Cache-Control": "no-store",
+			},
 		},
 	);
 }

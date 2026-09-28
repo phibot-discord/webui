@@ -2,6 +2,7 @@ import { kvKey } from "@/phi/lib/const";
 import type { Save } from "@/phi/lib/save";
 import { saveIdentity } from "@/phi/lib/saves";
 import { isTapApiFailure } from "@/phi/lib/tapapi";
+import { cardEpochKey, getCardEpoch } from "./card-image-cache";
 import {
 	BYPASS_CACHE_COOLDOWN_MS,
 	claimCooldown,
@@ -11,15 +12,14 @@ import {
 } from "./cooldown";
 import type { DataHost } from "./data-host";
 import { getDataHost } from "./data-host";
+import { logger, withDiscordUid } from "./logger";
+import { loadManual, manualSave } from "./manual";
 import { ensureSongInfo } from "./song-info";
-
-export { BYPASS_CACHE_COOLDOWN_MS, REFRESH_COOLDOWN_MS };
 
 export type ErrorCode =
 	| "not_bound"
 	| "banned"
 	| "no_save"
-	| "hisb30_empty"
 	| "refresh_cooldown"
 	| "cache_bypass_cooldown"
 	| "refresh_failed"
@@ -60,25 +60,41 @@ export function resolveCardEpoch(
 	return stored;
 }
 
-export async function getCardEpoch(
-	store: { get: (key: string) => Promise<unknown> },
-	userId: string,
-): Promise<string> {
-	const raw = await store.get(kvKey("webCardEpoch", userId));
-	return raw == null ? "" : String(raw);
-}
+export { getCardEpoch };
+
+export type Bound = {
+	save: Save;
+	token: string;
+	manual?: true;
+};
 
 export async function loadBound(
 	host: DataHost,
 	userId: string,
-): Promise<{ save: Save; token: string } | BoundErr> {
-	const token = (await host.rt.store.getSessionToken(userId)) || undefined;
+): Promise<Bound | BoundErr> {
+	return withDiscordUid(userId, () => loadBoundFor(host, userId));
+}
+
+async function loadBoundFor(
+	host: DataHost,
+	userId: string,
+): Promise<Bound | BoundErr> {
+	const token = await host.lib.getToken(host.rt, userId);
 	if (!token) {
+		const manual = await loadManual(host.db, userId);
+		if (manual) {
+			return {
+				save: manualSave(host.rt, manual, userId),
+				token: "",
+				manual: true,
+			};
+		}
+		logger.info("session token miss");
 		return { error: "not_bound", status: 409, reason: "not_bound" };
 	}
 	const [banned, save] = await Promise.all([
 		host.rt.store.isSessionTokenBanned(token),
-		host.lib.loadSave(host.rt, host.db, userId),
+		host.lib.loadSaveByToken(host.rt, host.db, token),
 	]);
 	if (banned) {
 		return { error: "banned", status: 403, reason: "banned" };
@@ -94,7 +110,7 @@ async function bumpCardEpoch(
 	userId: string,
 ) {
 	const epoch = String(Date.now());
-	await store.set(kvKey("webCardEpoch", userId), epoch);
+	await store.set(cardEpochKey(userId), epoch);
 	return epoch;
 }
 
@@ -104,8 +120,17 @@ export async function refreshSave(
 	| { ok: true; lastSynced?: string; epoch: string; cooldownMs: number }
 	| BoundErr
 > {
+	return withDiscordUid(userId, () => refreshSaveFor(userId));
+}
+
+async function refreshSaveFor(
+	userId: string,
+): Promise<
+	| { ok: true; lastSynced?: string; epoch: string; cooldownMs: number }
+	| BoundErr
+> {
 	const host = await getDataHost();
-	const token = await host.rt.store.getSessionToken(userId);
+	const token = await host.lib.getToken(host.rt, userId);
 	if (!token) return { error: "not_bound", status: 409, reason: "not_bound" };
 	if (await host.rt.store.isSessionTokenBanned(token)) {
 		return { error: "banned", status: 403, reason: "banned" };
@@ -150,6 +175,12 @@ export async function refreshSave(
 }
 
 export async function bypassCardCache(
+	userId: string,
+): Promise<{ ok: true; epoch: string; cooldownMs: number } | BoundErr> {
+	return withDiscordUid(userId, () => bypassCardCacheFor(userId));
+}
+
+async function bypassCardCacheFor(
 	userId: string,
 ): Promise<{ ok: true; epoch: string; cooldownMs: number } | BoundErr> {
 	const host = await getDataHost();
