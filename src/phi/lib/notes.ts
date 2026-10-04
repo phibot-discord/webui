@@ -20,6 +20,7 @@ export type UserNotes = {
 	allowApiUsage: boolean;
 	showB30Analysis: boolean;
 	showTagAnalysis: boolean;
+	showRecordStats: boolean;
 	cardQuality: "high" | "fast";
 	locale?: PhiLocale;
 };
@@ -37,6 +38,7 @@ function defaults(): UserNotes {
 		allowApiUsage: true,
 		showB30Analysis: true,
 		showTagAnalysis: true,
+		showRecordStats: true,
 		cardQuality: "fast",
 	};
 }
@@ -79,6 +81,12 @@ export function tagAnalysisEnabled(notes: UserNotes) {
 export async function setShowTagAnalysis(db: Kv, userId: string, on: boolean) {
 	const notes = await getNotes(db, userId);
 	notes.showTagAnalysis = on;
+	await setNotes(db, userId, notes);
+}
+
+export async function setShowRecordStats(db: Kv, userId: string, on: boolean) {
+	const notes = await getNotes(db, userId);
+	notes.showRecordStats = on;
 	await setNotes(db, userId, notes);
 }
 

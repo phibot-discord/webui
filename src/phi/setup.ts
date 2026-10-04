@@ -15,6 +15,7 @@ import { fCompute } from "./lib/fcompute";
 import { layoutHistogram } from "./lib/histogram";
 import { knobNum } from "./lib/knobs";
 import { bootPhiRuntime } from "./lib/runtime";
+import { fitEm, fitFontPx, splitTwoLines, textEm } from "./lib/text-fit";
 import { readPhiVersion } from "./lib/version";
 
 function cssLink(file: string) {
@@ -95,7 +96,11 @@ function ensureTipFooter(html: string, tip: string): string {
 		: html + block;
 }
 
-function polishCardHtml(html: string, tip = "") {
+function polishCardHtml(
+	html: string,
+	tip = "",
+	opts: { hideRecordStats?: boolean } = {},
+) {
 	const extra = [
 		cssLink("knobs.css"),
 		cssLink("takumi.css"),
@@ -115,11 +120,14 @@ function polishCardHtml(html: string, tip = "") {
 	out = out.replace(/&ensp;/g, "&nbsp;");
 	out = stripDivsWithClass(out, "snow-box");
 	out = stripDivsWithClass(out, "createdbox");
+	// The C / FC / Phi counts in the top right of b30 / x30 / fc30.
+	if (opts.hideRecordStats) out = stripDivsWithClass(out, "recordInfo");
 	out = ensureTipFooter(out, tip);
 	out = tagStarBackgrounds(out);
 	out = layoutFlowLines(out);
 	out = convertSheetToTable(out);
 	out = liftAvatarOverRks(out);
+	out = fitPlayerName(out);
 	out = layoutHistogram(out);
 	out = layoutGradeWithScore(out);
 	out = wrapB30Info(out);
@@ -314,19 +322,86 @@ function layoutInfoPanels(html: string) {
 	return out;
 }
 
-function titleFontPx(name: string) {
-	let units = 0;
-	for (const ch of name) units += ch.charCodeAt(0) <= 0xff ? 0.46 : 0.95;
-	const avail = 158;
-	return Math.min(15, Math.max(10, Math.floor(avail / Math.max(units, 1))));
-}
-
 function shrinkSongTitles(html: string) {
+	const maxPx = knobNum("--b30-songname-font-size", 15);
+	const minPx = knobNum("--b30-songname-min-font-size", 8);
+	const wrapPx = knobNum("--b30-songname-wrap-font-size", 11);
+	const width = knobNum("--b30-songname-fit-width", 150);
 	return html.replace(
 		/<div class="songname">\s*<p name="pvis">([^<]*)<\/p>/g,
 		(_m, raw: string) => {
-			const px = titleFontPx(decodeHtmlText(raw).trim());
-			return `<div class="songname"><p name="pvis" style="font-size:${px}px;white-space:nowrap;overflow:hidden;">${raw}</p>`;
+			const name = decodeHtmlText(raw).trim();
+			const px = fitFontPx(name, width, maxPx);
+			if (px >= minPx) {
+				return `<div class="songname"><p name="pvis" style="font-size:${px}px;">${raw}</p>`;
+			}
+			// Too long for one readable line: two balanced lines, each still shrunk to fit.
+			const lines = splitTwoLines(name).filter(Boolean);
+			const linePx = Math.min(
+				...lines.map((line) => fitFontPx(line, width, wrapPx)),
+			);
+			const body = lines
+				.map(
+					(line) =>
+						`<p name="pvis" style="font-size:${linePx}px;">${escapeHtml(line)}</p>`,
+				)
+				.join("");
+			return `<div class="songname songname-wrap">${body}`;
+		},
+	);
+}
+
+// .playerInfo is 50% of the 1200px card; .playerId sits at right 6% with width 51%.
+const PLAYER_BAR_W = 600;
+const NAME_LEFT = PLAYER_BAR_W * (1 - 0.06 - 0.51);
+const NAME_RIGHT = PLAYER_BAR_W * (1 - 0.06);
+const NAME_BOX_H = 64;
+
+/** Right edge of the white rks box (.playerInfo coordinates); it sizes to its text. */
+function rksBoxRight(html: string) {
+	const m =
+		/<div class="rks clip-box">\s*<p>([^<]*)(?:<span class="rks-sd">([^<]*)<\/span>)?/.exec(
+			html,
+		);
+	if (!m) return 0;
+	const px = knobNum("--b30-rks-font-size", 20.8);
+	const text =
+		textEm(decodeHtmlText(m[1] ?? "")) * px +
+		textEm(decodeHtmlText(m[2] ?? "")) * px * 0.72;
+	return (
+		knobNum("--b30-rks-left", 153) +
+		knobNum("--b30-rks-pad-left", 15) +
+		text +
+		knobNum("--b30-rks-pad-right", 11)
+	);
+}
+
+/**
+ * Shrink the player name to fit the bar. Names that fit stay centred where
+ * they always were; wider ones take the whole bar right of the rks box.
+ */
+function fitPlayerName(html: string) {
+	const left = Math.max(
+		NAME_LEFT,
+		rksBoxRight(html) + knobNum("--b30-name-gap", 12),
+	);
+	const maxPx = knobNum("--b30-name-font-size", 32);
+	return html.replace(
+		/(<div class="playerId">\s*<p name="pvis")>([\s\S]*?)<\/p>/,
+		(m, open: string, inner: string) => {
+			const lines = inner
+				.split(/<br\s*\/?>/i)
+				.map((line) => decodeHtmlText(line.replace(/<[^>]*>/g, "")).trim());
+			const em =
+				Math.max(...lines.map(textEm)) * (/<b>/i.test(inner) ? 1.06 : 1);
+			const centre = (NAME_LEFT + NAME_RIGHT) / 2;
+			const centred = 2 * Math.min(centre - left, NAME_RIGHT - centre);
+			const tallPx = NAME_BOX_H / (lines.length * 1.3);
+			if (em * maxPx <= centred && maxPx <= tallPx) return m;
+			// 2px slack: CJK may break between any two glyphs if the fit is exact.
+			const px = Math.min(fitEm(em, NAME_RIGHT - left - 2, maxPx), tallPx);
+			const shift = Math.round(left - NAME_LEFT);
+			return `${open} style="font-size:${px.toFixed(1)}px;padding-left:${shift}px;">${inner}</p>`;
 		},
 	);
 }
@@ -555,6 +630,7 @@ export async function setupPhi(app: App) {
 						theme?: unknown;
 						tips?: unknown;
 						locale?: unknown;
+						hideRecordStats?: unknown;
 					};
 					const locale = resolvePhiLocale(d.locale);
 					const t = cardCopy(locale);
@@ -581,6 +657,7 @@ export async function setupPhi(app: App) {
 							theme: screenshotTheme(d.theme),
 						}),
 						tips,
+						{ hideRecordStats: d.hideRecordStats === true },
 					);
 					const map = await hydrateIlls(
 						collectLocalAssetPaths(html, resources),

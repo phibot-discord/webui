@@ -43,6 +43,7 @@ export async function GET(
 		const url = new URL(request.url);
 		const count = clampCount(url.searchParams.get("count"));
 		const tags = url.searchParams.get("tags");
+		const stats = url.searchParams.get("stats");
 		const qualityParam = url.searchParams.get("quality");
 		const download = url.searchParams.get("download") === "1";
 		const locale = resolvePhiLocale(
@@ -57,6 +58,7 @@ export async function GET(
 			paintQuality:
 				qualityParam == null ? undefined : parsePaintQuality(qualityParam),
 			showTagAnalysis: tags === "1" ? true : tags === "0" ? false : undefined,
+			showRecordStats: stats === "1" ? true : stats === "0" ? false : undefined,
 			download,
 			epoch: url.searchParams.get("epoch") ?? undefined,
 		});

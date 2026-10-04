@@ -63,6 +63,7 @@ type CardRenderOpts = {
 	ifNoneMatch?: string | null;
 	paintQuality?: PaintQuality;
 	showTagAnalysis?: boolean;
+	showRecordStats?: boolean;
 	download?: boolean;
 	epoch?: string;
 };
@@ -78,6 +79,7 @@ type CardPrep = {
 	nnum: number;
 	paintQuality: PaintQuality;
 	tagOn: boolean;
+	statsOn: boolean;
 	notes: Awaited<ReturnType<typeof getNotes>>;
 	etag: string;
 	key: string;
@@ -111,6 +113,7 @@ async function prepareCardCache(
 		opts.paintQuality ?? notes.cardQuality,
 	);
 	const tagOn = opts.showTagAnalysis ?? notes.showTagAnalysis !== false;
+	const statsOn = opts.showRecordStats ?? notes.showRecordStats !== false;
 	const cacheKind = cardCacheKind(kind);
 	const cacheInput = cardCacheInput({
 		kind: cacheKind,
@@ -122,6 +125,7 @@ async function prepareCardCache(
 		count: nnum,
 		notes,
 		tagOn,
+		statsOn,
 	});
 	const etag = cardEtag(cardCacheParts(cacheInput, "jpeg"));
 	return {
@@ -135,6 +139,7 @@ async function prepareCardCache(
 		nnum,
 		paintQuality,
 		tagOn,
+		statsOn,
 		notes,
 		etag,
 		key: cacheKey(cacheKind, userId, etag),
@@ -237,6 +242,7 @@ async function paintFreshCard(
 				prep.locale,
 				prep.notes,
 				prep.tagOn,
+				prep.statsOn,
 			),
 			75_000,
 			`${prep.kind}-data`,
@@ -296,6 +302,7 @@ async function buildCardData(
 	locale: PhiLocale,
 	notes: UserNotes,
 	showTagAnalysis?: boolean,
+	showRecordStats = true,
 ): Promise<
 	| {
 			templateId: string;
@@ -313,7 +320,10 @@ async function buildCardData(
 			showTagAnalysis,
 			notes,
 		});
-		return { templateId: "phi/b19/b19", data };
+		return {
+			templateId: "phi/b19/b19",
+			data: { ...data, hideRecordStats: !showRecordStats },
+		};
 	}
 	if (kind === "info") {
 		const data = await infoCard(host.rt, save, host.db, userId, catalog, {

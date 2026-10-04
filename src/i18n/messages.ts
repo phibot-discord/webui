@@ -182,6 +182,7 @@ export type Messages = {
 		qualityHigh: string;
 		download: string;
 		tagProfile: string;
+		recordStats: string;
 		rendering: string;
 		renderFailed: string;
 		unreachable: string;
@@ -474,6 +475,7 @@ export const en: Messages = {
 		qualityHigh: "High quality · slower",
 		download: "Download JPEG",
 		tagProfile: "Tag profile",
+		recordStats: "Clear / FC / AP counts",
 		rendering: "Rendering card…",
 		renderFailed: "Could not render this card.",
 		unreachable: "Could not reach the render server.",
@@ -772,6 +774,7 @@ export const zh: Messages = {
 		qualityHigh: "高画质 · 较慢",
 		download: "下载 JPEG",
 		tagProfile: "谱面标签",
+		recordStats: "完成 / FC / AP 数量",
 		rendering: "正在出图…",
 		renderFailed: "无法生成这张成绩图",
 		unreachable: "无法连接到出图服务",

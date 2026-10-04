@@ -43,7 +43,7 @@
 	z-index: 1 !important;
 	left: var(--b30-rks-left) !important;
 	width: auto !important;
-	min-width: var(--b30-rks-min-width) !important;
+	min-width: 0 !important;
 	padding: 0 var(--b30-rks-pad-right) 0 var(--b30-rks-pad-left) !important;
 	box-sizing: border-box !important;
 }
@@ -66,9 +66,9 @@
 .playerInfo .rks.clip-box {
 	clip-path: polygon(
 		100% 0,
-		var(--b30-bar-clip-out) 100%,
+		calc(100% - var(--b30-rks-slant)) 100%,
 		0 100%,
-		var(--b30-bar-clip-in) 0
+		var(--b30-rks-slant) 0
 	) !important;
 	display: flex !important;
 	align-items: center !important;
@@ -77,7 +77,9 @@
 .playerInfo .rks p {
 	text-align: center !important;
 	margin: 0 !important;
-	width: 100% !important;
+	width: auto !important;
+	flex: none !important;
+	font-size: var(--b30-rks-font-size) !important;
 	white-space: nowrap !important;
 }
 .playerInfo .rks-sd {
@@ -96,7 +98,9 @@
 .playerInfo .playerId p {
 	text-align: center !important;
 	margin: 0 !important;
-	font-size: 2rem !important;
+	flex: none !important;
+	white-space: nowrap !important;
+	font-size: var(--b30-name-font-size);
 	font-family: NotoSansSC, PHI, Aldrich, sans-serif !important;
 }
 .playerInfo .dataBox,

@@ -24,6 +24,7 @@ function sample(over: Partial<CardImageCacheInput> = {}): CardImageCacheInput {
 		theme: "default",
 		analysisFlag: "a1",
 		tagFlag: "t1",
+		statsFlag: "s1",
 		avgFlag: "avg:all:blue",
 		renderVersion: "v32",
 		...over,
@@ -90,6 +91,12 @@ test("enabling tags after a t0 render must not reuse the t0 etag", () => {
 	const off = cardEtag(cardCacheParts(sample({ tagFlag: "t0" }), "jpeg"));
 	const on = cardEtag(cardCacheParts(sample({ tagFlag: "t1" }), "jpeg"));
 	assert.notEqual(on, off);
+});
+
+test("hiding the C / FC / AP counts gets a new JPEG cache id", () => {
+	const shown = cardEtag(cardCacheParts(sample({ statsFlag: "s1" }), "jpeg"));
+	const hidden = cardEtag(cardCacheParts(sample({ statsFlag: "s0" }), "jpeg"));
+	assert.notEqual(shown, hidden);
 });
 
 test("theme or analysis changes get a new JPEG cache id", () => {

@@ -11,11 +11,14 @@
 	--b30-avatar-img-height: 160px;
 	--b30-avatar-max-width: 160px;
 
-	--b30-rks-left: 130px;
-	--b30-rks-min-width: 210px;
+	--b30-rks-left: 153px;
 	--b30-rks-height: 24px;
-	--b30-rks-pad-left: 52px;
-	--b30-rks-pad-right: 14px;
+	--b30-rks-slant: 7px;
+	--b30-rks-font-size: 20.8px;
+	--b30-rks-pad-left: 15px;
+	--b30-rks-pad-right: 11px;
+	--b30-name-font-size: 32px;
+	--b30-name-gap: 12px;
 
 	--b30-clg-left: 180px;
 
@@ -24,6 +27,11 @@
 
 	--b30-songname-pad-top: 0px;
 	--b30-songname-height: auto;
+	--b30-songname-pad-left: 8px;
+	--b30-songname-font-size: 15px;
+	--b30-songname-min-font-size: 8px;
+	--b30-songname-wrap-font-size: 11px;
+	--b30-songname-fit-width: 150px;
 	--b30-rating-size: 32px;
 	--b30-stats-lab-width: 48px;
 	--b30-stats-val-width: 48px;

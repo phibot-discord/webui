@@ -1,7 +1,7 @@
 import { kvKey } from "@/phi/lib/const";
 import type { UserNotes } from "@/phi/lib/notes";
 
-export const RENDER_VERSION = "v39";
+export const RENDER_VERSION = "v40";
 
 export type CardImageCacheInput = {
 	kind: string;
@@ -14,6 +14,7 @@ export type CardImageCacheInput = {
 	theme: string;
 	analysisFlag: string;
 	tagFlag: string;
+	statsFlag: string;
 	avgFlag: string;
 	renderVersion: string;
 };
@@ -31,6 +32,7 @@ export function cardCacheInput(args: {
 		"theme" | "showB30Analysis" | "allowApiUsage" | "b30AvgKind" | "b30AvgColor"
 	>;
 	tagOn: boolean;
+	statsOn: boolean;
 }): CardImageCacheInput {
 	const { notes } = args;
 	return {
@@ -45,6 +47,7 @@ export function cardCacheInput(args: {
 		renderVersion: RENDER_VERSION,
 		analysisFlag: notes.showB30Analysis === false ? "a0" : "a1",
 		tagFlag: args.tagOn ? "t1" : "t0",
+		statsFlag: args.statsOn ? "s1" : "s0",
 		avgFlag:
 			notes.allowApiUsage === false
 				? "avg:none"
@@ -67,6 +70,7 @@ export function cardCacheParts(
 		input.theme || "default",
 		input.analysisFlag,
 		input.tagFlag,
+		input.statsFlag,
 		input.avgFlag,
 		input.renderVersion,
 		suffix,
