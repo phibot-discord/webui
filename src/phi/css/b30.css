@@ -161,6 +161,8 @@
 .songname {
 	margin: 0 !important;
 	padding-top: var(--b30-songname-pad-top) !important;
+	padding-left: var(--b30-songname-pad-left) !important;
+	box-sizing: border-box !important;
 	height: var(--b30-songname-height) !important;
 	width: 100% !important;
 	min-height: 0 !important;
@@ -178,6 +180,12 @@
 	max-width: 100% !important;
 	text-align: center !important;
 	margin: 0 !important;
+}
+.songname.songname-wrap {
+	flex-direction: column !important;
+}
+.songname.songname-wrap p {
+	line-height: 1.1 !important;
 }
 .songinfo {
 	display: flex !important;

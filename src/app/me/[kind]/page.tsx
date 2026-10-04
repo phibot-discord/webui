@@ -107,6 +107,9 @@ export default async function KindPage({
 					tagProfile={
 						counted ? { on: notes.showTagAnalysis !== false } : undefined
 					}
+					recordStats={
+						counted ? { on: notes.showRecordStats !== false } : undefined
+					}
 				/>
 			</Desk>
 		);

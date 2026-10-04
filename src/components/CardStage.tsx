@@ -20,6 +20,7 @@ function withQuery(
 		locale: string;
 		quality: PaintQuality;
 		tags?: boolean;
+		stats?: boolean;
 	},
 ) {
 	const u = new URL(srcBase, "http://local.invalid");
@@ -27,6 +28,7 @@ function withQuery(
 	u.searchParams.set("locale", opts.locale);
 	u.searchParams.set("quality", opts.quality);
 	if (opts.tags != null) u.searchParams.set("tags", opts.tags ? "1" : "0");
+	if (opts.stats != null) u.searchParams.set("stats", opts.stats ? "1" : "0");
 	return `${u.pathname}${u.search}`;
 }
 
@@ -36,6 +38,7 @@ export function CardStage({
 	counted,
 	initialCount,
 	tagProfile,
+	recordStats,
 	initialQuality = "fast",
 	persistQuality = false,
 }: {
@@ -44,6 +47,7 @@ export function CardStage({
 	counted: boolean;
 	initialCount: number;
 	tagProfile?: { on: boolean };
+	recordStats?: { on: boolean };
 	initialQuality?: PaintQuality;
 	persistQuality?: boolean;
 }) {
@@ -53,6 +57,7 @@ export function CardStage({
 		parsePaintQuality(initialQuality),
 	);
 	const [tagsOn, setTagsOn] = useState(tagProfile?.on ?? true);
+	const [statsOn, setStatsOn] = useState(recordStats?.on ?? true);
 	const [stats, setStats] = useState<CardStats>();
 	const [fileUrl, setFileUrl] = useState<string>();
 	const query = {
@@ -60,6 +65,7 @@ export function CardStage({
 		locale,
 		quality,
 		tags: tagProfile ? tagsOn : undefined,
+		stats: recordStats ? statsOn : undefined,
 	};
 	const src = withQuery(srcBase, query);
 	const title = m.card.titles[kind];
@@ -96,10 +102,19 @@ export function CardStage({
 				<QualitySelect value={quality} onChange={onQuality} />
 				<CardStatsMenu stats={stats} />
 				{tagProfile ? (
-					<TagProfileToggle
+					<NotesToggle
+						field="showTagAnalysis"
 						on={tagsOn}
 						label={m.card.tagProfile}
 						onChange={setTagsOn}
+					/>
+				) : null}
+				{recordStats ? (
+					<NotesToggle
+						field="showRecordStats"
+						on={statsOn}
+						label={m.card.recordStats}
+						onChange={setStatsOn}
 					/>
 				) : null}
 				<a
@@ -146,11 +161,13 @@ function QualitySelect({
 	);
 }
 
-function TagProfileToggle({
+function NotesToggle({
+	field,
 	on,
 	label,
 	onChange,
 }: {
+	field: "showTagAnalysis" | "showRecordStats";
 	on: boolean;
 	label: string;
 	onChange: (next: boolean) => void;
@@ -164,7 +181,7 @@ function TagProfileToggle({
 			const res = await fetch("/api/notes", {
 				method: "POST",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ showTagAnalysis: next }),
+				body: JSON.stringify({ [field]: next }),
 			});
 			if (!res.ok) return;
 			onChange(next);
