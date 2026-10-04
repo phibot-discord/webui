@@ -116,6 +116,16 @@ export function applyLevelsCsv(
 	levelsSha = cache.sha;
 }
 
+/** Note counts for the unpacker's csv. The bundled notesInfo predates those songs. */
+export function applyNotesInfo(
+	assets: string,
+	buf: Buffer,
+	cacheRoot?: string,
+) {
+	if (cacheRoot) persistFile(cacheRoot, "notesInfo.json", buf);
+	mountInfoFile(assets, "notesInfo.json", buf);
+}
+
 function infoPrefix(): string {
 	return (process.env.CLOUDFLARE_R2_INFO_PREFIX ?? "info").replace(/\/+$/, "");
 }
@@ -237,6 +247,11 @@ async function overlayKvLevels(): Promise<void> {
 		const cache = parseInfoFileCache(await store.get(INFO_FILE_KV_KEY));
 		if (!cache) return;
 		applyLevelsCsv(assetsDir(), cache, CACHE_ROOT);
+		if (!r2Ready()) return;
+		const notes = await fetchR2Object(`${infoPrefix()}/notesInfo.json`, {
+			cache: "no-store",
+		});
+		if (notes?.byteLength) applyNotesInfo(assetsDir(), notes, CACHE_ROOT);
 	} catch (err) {
 		logger.warn(
 			`infoFile kv skipped: ${err instanceof Error ? err.message : err}`,

@@ -106,7 +106,7 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 						placeholder={t.searchPlaceholder}
 						onPick={pick}
 					/>
-					{picked ? (
+					{picked && chart ? (
 						<p className="score-picked">
 							<span className={`chart-level chart-level-${chart?.rank}`}>
 								<span>{chart?.rank}</span>

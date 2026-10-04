@@ -16,8 +16,6 @@ export function kvKey(...parts: Array<string | number>) {
 	return `${PHI_KV}:${parts.map(String).join(":")}`;
 }
 
-export const MAX_DIFFICULTY = 17.6;
-
 export const PHI_CHART_TAG_API = (
 	process.env.PHI_CHART_TAG_API || "https://phi-ill-sync.ymyk.workers.dev"
 ).replace(/\/+$/, "");

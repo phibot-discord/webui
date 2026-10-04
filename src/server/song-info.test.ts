@@ -8,6 +8,7 @@ import { getInfo } from "../phi/lib/get-info";
 import { parseInfoFileCache } from "../phi/lib/info-file";
 import {
 	applyLevelsCsv,
+	applyNotesInfo,
 	catalogRevision,
 	hydrateSongInfo,
 	INFO_STATE_KEY,
@@ -221,6 +222,36 @@ test("applyLevelsCsv mounts KV csv over R2 and updates catalogRevision", async (
 	assert.equal(catalogRevision().endsWith(":deadbeef"), true);
 	await getInfo.init(assets);
 	assert.equal(getInfo.ori_info["Credits.Frums.0"]?.chart.AT?.difficulty, 15.8);
+});
+
+test("notesInfo mounted with the KV csv supplies combo for a song the bundle lacks", async () => {
+	const assets = tmp();
+	mkdirSync(join(assets, "info"), { recursive: true });
+	writeFileSync(
+		join(assets, "info", "info.csv"),
+		`${CSV_HEAD}ExoplanetaryMirage.x\tExoplanetary Mirage\tx\tx\t\t\t\t\t8.7\t13.4\t16.9\t17.9\n`,
+	);
+	writeFileSync(join(assets, "info", "notesInfo.json"), "{}");
+	applyNotesInfo(
+		assets,
+		Buffer.from(
+			JSON.stringify({
+				"ExoplanetaryMirage.x": {
+					EZ: { t: [131, 429, 73, 37], m: 1 },
+					AT: { t: [1152, 538, 211, 176], m: 1 },
+				},
+			}),
+		),
+	);
+	await getInfo.init(assets);
+	assert.equal(
+		getInfo.ori_info["ExoplanetaryMirage.x.0"]?.chart.EZ?.combo,
+		670,
+	);
+	assert.equal(
+		getInfo.ori_info["ExoplanetaryMirage.x.0"]?.chart.AT?.combo,
+		2077,
+	);
 });
 
 test("getInfo.init replaces songs so a newer info.csv can drop old ids", async () => {

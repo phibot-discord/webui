@@ -3,7 +3,7 @@ import { chapIllPath, songIllPath } from "@/server/ill";
 import { logger } from "@/server/logger";
 import { illDir } from "@/server/paths";
 import { exists, readdir } from "@/server/vfs";
-import { ALL_LEVEL, LEVEL, MAX_DIFFICULTY } from "./const";
+import { ALL_LEVEL, LEVEL } from "./const";
 import { bindBackground } from "./fcompute";
 import { readJson, readText, readTsv, readYaml } from "./files";
 
@@ -323,12 +323,6 @@ class GetInfo {
 			this.illlist.push(id);
 			this.songlist.push(this.ori_info[id]!.song);
 			this.idList.push(id);
-		}
-
-		if (this.MAX_DIFFICULTY !== MAX_DIFFICULTY) {
-			logger.warn(
-				`MAX_DIFFICULTY constant ${MAX_DIFFICULTY} != computed ${this.MAX_DIFFICULTY}`,
-			);
 		}
 
 		this.chapList = readYaml<Record<string, string[]>>(

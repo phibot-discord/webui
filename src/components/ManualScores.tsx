@@ -258,39 +258,52 @@ export function ManualScores({
 										</span>
 									</td>
 									<td className="num">
-										<input
-											type="text"
-											inputMode="decimal"
-											placeholder="99.87"
-											aria-label={t.acc}
-											value={row.acc}
-											onChange={(e) =>
-												patch(row.key, {
-													acc: e.target.value
-														.replace(/[^\d.]/g, "")
-														.slice(0, 10),
-												})
-											}
-										/>
+										<div className="manual-field">
+											<input
+												type="text"
+												inputMode="decimal"
+												placeholder="99.87"
+												aria-label={t.acc}
+												value={row.acc}
+												onChange={(e) =>
+													patch(row.key, {
+														acc: e.target.value
+															.replace(/[^\d.]/g, "")
+															.slice(0, 10),
+													})
+												}
+											/>
+											{score === null && estimated != null ? (
+												<span className="manual-estimated" aria-hidden="true">
+													{"\u00a0"}
+												</span>
+											) : null}
+										</div>
 									</td>
 									<td className="num">
-										<input
-											type="text"
-											inputMode="numeric"
-											aria-label={t.score}
-											placeholder={estimated != null ? String(estimated) : "—"}
-											value={row.score}
-											onChange={(e) =>
-												patch(row.key, {
-													score: e.target.value.replace(/\D/g, "").slice(0, 7),
-												})
-											}
-										/>
-										{score === null && estimated != null ? (
-											<span className="manual-estimated">
-												{t.scoreEstimated}
-											</span>
-										) : null}
+										<div className="manual-field">
+											<input
+												type="text"
+												inputMode="numeric"
+												aria-label={t.score}
+												placeholder={
+													estimated != null ? String(estimated) : "—"
+												}
+												value={row.score}
+												onChange={(e) =>
+													patch(row.key, {
+														score: e.target.value
+															.replace(/\D/g, "")
+															.slice(0, 7),
+													})
+												}
+											/>
+											{score === null && estimated != null ? (
+												<span className="manual-estimated">
+													{t.scoreEstimated}
+												</span>
+											) : null}
+										</div>
 									</td>
 									<td>
 										<input

@@ -1,5 +1,4 @@
 import { logger } from "@/server/logger";
-import { MAX_DIFFICULTY } from "./const";
 import { fCompute } from "./fcompute";
 import { getInfo } from "./get-info";
 import { LevelRecordInfo } from "./level-record";
@@ -33,7 +32,8 @@ function checkLimit(record: LevelRecordInfo, limit: Limit[]) {
 function checkIg(save: Save) {
 	const rks = save.saveInfo?.summary?.rankingScore;
 	const clg = save.saveInfo?.summary?.challengeModeRank;
-	if (rks > MAX_DIFFICULTY) return true;
+	const cap = getInfo.MAX_DIFFICULTY;
+	if (cap > 0 && rks > cap) return true;
 	if (rks == null || Number.isNaN(rks)) return true;
 	if (clg % 100 > 51) return true;
 	if (clg < 0) return true;

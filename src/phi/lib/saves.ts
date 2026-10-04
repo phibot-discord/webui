@@ -1,6 +1,7 @@
 import { runInBackground } from "@/server/background";
 import { logger, withDiscordUid } from "@/server/logger";
 import type { Kv } from "@/server/sdk";
+import { ensureSongInfo } from "@/server/song-info";
 import { kvKey } from "./const";
 import type { PhiRuntime } from "./runtime";
 import type { Save, SavePayload } from "./save";
@@ -101,6 +102,7 @@ export async function loadSave(rt: PhiRuntime, db: Kv, userId: string) {
 export async function loadSaveByToken(rt: PhiRuntime, db: Kv, token: string) {
 	const raw = await db.get(SAVE(token));
 	if (!raw) return undefined;
+	await ensureSongInfo();
 	return new rt.Save(JSON.parse(raw));
 }
 

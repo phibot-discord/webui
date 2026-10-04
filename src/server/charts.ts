@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
 import { getInfo } from "@/phi/lib/get-info";
 import { catalogRevision, ensureSongInfo } from "./song-info";
@@ -55,11 +56,12 @@ export async function chartCatalog(): Promise<Snapshot> {
 	if (snapshot?.rev === rev) return snapshot;
 	const list = build();
 	const json = JSON.stringify(list);
+	const hash = createHash("sha1").update(json).digest("hex").slice(0, 16);
 	snapshot = {
 		rev,
 		list,
 		json,
-		etag: `"charts-${rev.replace(/[^\w:.-]/g, "_")}-${list.length}"`,
+		etag: `"charts-${hash}"`,
 	};
 	return snapshot;
 }

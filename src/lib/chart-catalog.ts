@@ -11,7 +11,7 @@ let pending: Promise<ChartSummary[]> | undefined;
 
 export function loadChartCatalog(): Promise<ChartSummary[]> {
 	if (!pending) {
-		pending = fetch("/api/charts")
+		pending = fetch("/api/charts", { cache: "no-store" })
 			.then(async (res) => {
 				if (!res.ok) throw new Error(`charts ${res.status}`);
 				return (await res.json()) as ChartSummary[];

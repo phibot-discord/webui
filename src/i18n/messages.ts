@@ -28,7 +28,10 @@ export type Messages = {
 	};
 	nav: {
 		cards: string;
+		menu: string;
 		tags: string;
+		phira: string;
+		files: string;
 		score: string;
 		b30: string;
 		hisb30: string;
@@ -66,6 +69,39 @@ export type Messages = {
 		none: string;
 		nearest: string;
 		useScore: string;
+	};
+	phira: {
+		title: string;
+		lede: string;
+		searchPlaceholder: string;
+		download: string;
+		empty: string;
+	};
+	files: {
+		title: string;
+		lede: string;
+		searchPlaceholder: string;
+		kindLabel: string;
+		empty: string;
+		loading: string;
+		failed: string;
+		none: string;
+		matches: string;
+		view: string;
+		download: string;
+		close: string;
+		tooBig: string;
+		previewFailed: string;
+		kinds: {
+			all: string;
+			jacket: string;
+			low: string;
+			blur: string;
+			chart: string;
+			avatar: string;
+			info: string;
+			other: string;
+		};
 	};
 	manual: {
 		title: string;
@@ -275,7 +311,10 @@ export const en: Messages = {
 	},
 	nav: {
 		cards: "Cards",
+		menu: "Pages",
 		tags: "Tags",
+		phira: "Phira",
+		files: "Files",
 		score: "Score control",
 		b30: "B30",
 		hisb30: "History",
@@ -316,6 +355,39 @@ export const en: Messages = {
 		none: "No split lands within 1 point of {score} on this chart.",
 		nearest: "Closest reachable",
 		useScore: "Use {score}",
+	},
+	phira: {
+		title: "Phira chart",
+		lede: "Search a song and download one difficulty as a .pez pack.",
+		searchPlaceholder: "Search a song…",
+		download: "Download .pez",
+		empty: "Pick a song to see its difficulties.",
+	},
+	files: {
+		title: "Files",
+		lede: "Search illustrations, chart packs, and info files, then view or download them.",
+		searchPlaceholder: "Song or file name…",
+		kindLabel: "Kind",
+		empty: "Type a name, or choose a kind to browse.",
+		loading: "Loading files…",
+		failed: "File list unavailable.",
+		none: "No matches.",
+		matches: "matches",
+		view: "View",
+		download: "Download",
+		close: "Close",
+		tooBig: "This file is too large to preview.",
+		previewFailed: "Couldn't preview this file.",
+		kinds: {
+			all: "All",
+			jacket: "Jacket",
+			low: "Low",
+			blur: "Blur",
+			chart: "Chart",
+			avatar: "Avatar",
+			info: "Info",
+			other: "Other",
+		},
 	},
 	manual: {
 		title: "Manual scores",
@@ -540,7 +612,10 @@ export const zh: Messages = {
 	},
 	nav: {
 		cards: "成绩图",
+		menu: "页面",
 		tags: "标签",
+		phira: "Phira",
+		files: "资源",
 		score: "控分",
 		b30: "B30",
 		hisb30: "历史",
@@ -579,6 +654,39 @@ export const zh: Messages = {
 		none: "该谱面没有与 {score} 分相差 1 分以内的方案。",
 		nearest: "最接近的可达分数",
 		useScore: "改为 {score}",
+	},
+	phira: {
+		title: "Phira 谱面",
+		lede: "搜索曲目，按难度下载 .pez 包。",
+		searchPlaceholder: "搜索曲目…",
+		download: "下载 .pez",
+		empty: "选择一首曲目后会列出各难度。",
+	},
+	files: {
+		title: "资源",
+		lede: "搜索曲绘、谱面包和资料文件，在线查看或下载。",
+		searchPlaceholder: "曲名或文件名…",
+		kindLabel: "分类",
+		empty: "输入名称，或选择分类浏览。",
+		loading: "正在加载文件…",
+		failed: "文件列表暂不可用。",
+		none: "没有匹配的文件。",
+		matches: "个结果",
+		view: "查看",
+		download: "下载",
+		close: "关闭",
+		tooBig: "文件太大，无法预览。",
+		previewFailed: "无法预览这个文件。",
+		kinds: {
+			all: "全部",
+			jacket: "曲绘",
+			low: "低清",
+			blur: "模糊",
+			chart: "谱面",
+			avatar: "头像",
+			info: "资料",
+			other: "其他",
+		},
 	},
 	manual: {
 		title: "手动录入成绩",

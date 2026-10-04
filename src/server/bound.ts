@@ -79,6 +79,7 @@ async function loadBoundFor(
 	host: DataHost,
 	userId: string,
 ): Promise<Bound | BoundErr> {
+	await ensureSongInfo();
 	const token = await host.lib.getToken(host.rt, userId);
 	if (!token) {
 		const manual = await loadManual(host.db, userId);

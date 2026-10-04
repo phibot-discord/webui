@@ -252,7 +252,7 @@ export async function infoCard(
 		/* optional */
 	}
 	if (!backgroundurl || /^(https?:|data:)/i.test(backgroundurl)) {
-		backgroundurl = catalog.randomIll("common") || catalog.fallbackIll || "";
+		backgroundurl = catalog.randomIll("low") || catalog.fallbackIll || "";
 	}
 	const background = catalog.randomIll("blur");
 	prefetchIlls([backgroundurl, background, ...iconImages(rt, save, [])]);

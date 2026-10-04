@@ -1,5 +1,6 @@
-import { ALL_LEVEL, MAX_DIFFICULTY } from "./const";
+import { ALL_LEVEL } from "./const";
 import { fCompute } from "./fcompute";
+import { getInfo } from "./get-info";
 import type { LevelRecordInfo } from "./level-record";
 import type { Save } from "./save";
 
@@ -223,7 +224,8 @@ export class SaveHistory {
 	getRksLine() {
 		const rks_history_: Dated<number>[] = [];
 		const user_rks_data = this.rks;
-		const rks_range = [MAX_DIFFICULTY, 0];
+		const cap = getInfo.MAX_DIFFICULTY;
+		const rks_range = [cap > 0 ? cap : Number.POSITIVE_INFINITY, 0];
 		const rks_date: [number, number] = [0, 0];
 		const rks_history: number[][] = [];
 		if (user_rks_data.length) {
