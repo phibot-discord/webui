@@ -1,7 +1,7 @@
 import { kvKey } from "@/phi/lib/const";
-import type { UserNotes } from "@/phi/lib/notes";
+import { b30AvgKindOf, type UserNotes } from "@/phi/lib/notes";
 
-export const RENDER_VERSION = "v40";
+export const RENDER_VERSION = "v46";
 
 export type CardImageCacheInput = {
 	kind: string;
@@ -16,6 +16,11 @@ export type CardImageCacheInput = {
 	tagFlag: string;
 	statsFlag: string;
 	avgFlag: string;
+	background: string;
+	/** Layout style; "classic" adds no key part so classic etags stay stable */
+	style: string;
+	/** Kind-specific discriminator (e.g. the per-song card's chart, level and day) */
+	extra?: string;
 	renderVersion: string;
 };
 
@@ -29,10 +34,17 @@ export function cardCacheInput(args: {
 	count: number;
 	notes: Pick<
 		UserNotes,
-		"theme" | "showB30Analysis" | "allowApiUsage" | "b30AvgKind" | "b30AvgColor"
+		| "theme"
+		| "showB30Analysis"
+		| "allowApiUsage"
+		| "b30AvgKind"
+		| "b30AvgColor"
+		| "cardBackground"
 	>;
 	tagOn: boolean;
 	statsOn: boolean;
+	style?: string;
+	extra?: string;
 }): CardImageCacheInput {
 	const { notes } = args;
 	return {
@@ -48,11 +60,19 @@ export function cardCacheInput(args: {
 		analysisFlag: notes.showB30Analysis === false ? "a0" : "a1",
 		tagFlag: args.tagOn ? "t1" : "t0",
 		statsFlag: args.statsOn ? "s1" : "s0",
-		avgFlag:
-			notes.allowApiUsage === false
-				? "avg:none"
-				: `avg:${notes.b30AvgKind || "all"}:${notes.b30AvgColor || "blue"}`,
+		avgFlag: avgFlag(notes),
+		background: notes.cardBackground?.trim() || "random",
+		style: args.style || "classic",
+		extra: args.extra,
 	};
+}
+
+/** Badge mode as drawn: bot-only modes share "all"; API off keeps its own key */
+function avgFlag(
+	notes: Pick<UserNotes, "allowApiUsage" | "b30AvgKind" | "b30AvgColor">,
+): string {
+	if (notes.allowApiUsage === false) return "avg:none";
+	return `avg:${b30AvgKindOf(notes)}:${notes.b30AvgColor || "blue"}`;
 }
 
 export function cardCacheParts(
@@ -72,6 +92,11 @@ export function cardCacheParts(
 		input.tagFlag,
 		input.statsFlag,
 		input.avgFlag,
+		input.background || "random",
+		...(input.style && input.style !== "classic"
+			? [`style:${input.style}`]
+			: []),
+		...(input.extra ? [input.extra] : []),
 		input.renderVersion,
 		suffix,
 	];

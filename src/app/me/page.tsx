@@ -1,12 +1,19 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { BindPanel } from "@/components/BindPanel";
 import { MeGate } from "@/components/Desk";
+import { getMessages } from "@/i18n/server";
 import { loadBound, refreshCooldownRemaining } from "@/server/bound";
 import { getDataHost } from "@/server/data-host";
 import { withDiscordUid } from "@/server/logger";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+	const { m } = await getMessages();
+	return { title: m.me.title, robots: { index: false } };
+}
 
 export default async function MePage() {
 	const session = await auth();

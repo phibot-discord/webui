@@ -1,10 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
 	createContext,
 	type ReactNode,
 	useCallback,
 	useContext,
+	useMemo,
 	useState,
 } from "react";
 import { bumpCardReload } from "@/lib/save-refresh";
@@ -20,7 +22,7 @@ const I18nContext = createContext<{
 } | null>(null);
 
 function writeLocaleCookie(locale: Locale) {
-	// Instant client cookie so the next navigation does not wait on /api/locale.
+	// Instant client cookie so the next navigation does not wait on /api/locale
 	// biome-ignore lint/suspicious/noDocumentCookie: not httpOnly; Cookie Store is not universal
 	document.cookie = `${LOCALE_COOKIE}=${locale}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`;
 }
@@ -34,6 +36,7 @@ export function I18nProvider({
 	m: Messages;
 	children: ReactNode;
 }) {
+	const router = useRouter();
 	const [locale, setLocaleState] = useState(initialLocale);
 	const m = locale === initialLocale ? initialM : catalogs[locale];
 
@@ -49,16 +52,20 @@ export function I18nProvider({
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({ locale: next }),
 				keepalive: true,
-			});
+			})
+				.catch(() => {})
+				// Server-rendered text (page copy, <title>) re-renders in the new language
+				.finally(() => router.refresh());
 		},
-		[locale],
+		[locale, router],
 	);
 
-	return (
-		<I18nContext.Provider value={{ locale, m, setLocale }}>
-			{children}
-		</I18nContext.Provider>
+	const value = useMemo(
+		() => ({ locale, m, setLocale }),
+		[locale, m, setLocale],
 	);
+
+	return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 export function useI18n() {

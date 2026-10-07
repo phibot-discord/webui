@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { subscribeSaveRefresh } from "@/lib/save-refresh";
 
+/** Cooldown countdown plus the action's error, kept until cleared (WCAG 2.2.1) */
 export function useActionCooldown(
 	cooldownMs: number,
 	getStoredUntil: () => number,
@@ -16,7 +17,6 @@ export function useActionCooldown(
 		getStoredUntil,
 		() => 0,
 	);
-	const hideError = useRef<number | undefined>(undefined);
 
 	if (prevCooldown !== cooldownMs) {
 		setPrevCooldown(cooldownMs);
@@ -28,7 +28,7 @@ export function useActionCooldown(
 	const remaining = now ? Math.max(0, until - now) : Math.max(0, cooldownMs);
 	const cooling = remaining > 0;
 
-	// Tick only while a cooldown is running; idle buttons do not re-render 4×/s.
+	// Tick only while a cooldown is running; idle buttons do not re-render 4×/s
 	useEffect(() => {
 		const tick = () => setNow(Date.now());
 		queueMicrotask(tick);
@@ -37,13 +37,16 @@ export function useActionCooldown(
 		return () => window.clearInterval(id);
 	}, [cooling]);
 
-	useEffect(() => () => window.clearTimeout(hideError.current), []);
+	return {
+		remaining,
+		cooling,
+		message,
+		showError: (text: string) => setMessage(text),
+		clearError: () => setMessage(undefined),
+	};
+}
 
-	function showError(text: string) {
-		setMessage(text);
-		window.clearTimeout(hideError.current);
-		hideError.current = window.setTimeout(() => setMessage(undefined), 4000);
-	}
-
-	return { remaining, cooling, message, showError };
+/** Whole seconds left, never 0 while still cooling */
+export function cooldownSeconds(remaining: number) {
+	return String(Math.max(1, Math.ceil(remaining / 1000)));
 }

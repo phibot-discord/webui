@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>PhiBot</title>
+  <rect width="64" height="64" rx="14" fill="#0b121c"/>
+  <g transform="translate(32 32) skewX(-14)" fill="none" stroke="#8ee5ee" stroke-width="6" stroke-linecap="round">
+    <ellipse rx="14" ry="12"/>
+    <path d="M0 -22V22"/>
+  </g>
+</svg>

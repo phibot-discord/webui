@@ -17,6 +17,8 @@ export const maxDuration = 60;
 export async function GET() {
 	return authed(async (userId) => {
 		const host = await getDataHost();
+		// The editor saves what it loads: always a KV read (no `memo`), never a copy
+		// that may predate a save made on another instance
 		const data = await loadManual(host.db, userId);
 		return Response.json(data ?? null, {
 			headers: { "Cache-Control": "private, no-store" },
@@ -26,11 +28,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
 	return authed(async (userId) => {
-		const host = await getDataHost();
-		const limited = await rateLimit(host.store, {
-			userId,
-			ip: clientIp(request.headers),
-		});
+		const limited = rateLimit({ userId, ip: clientIp(request.headers) });
 		if (!limited.ok) return localizedError(429, "rate_limit");
 		let body: ManualInput;
 		try {
@@ -56,11 +54,7 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
 	return authed(async (userId) => {
-		const host = await getDataHost();
-		const limited = await rateLimit(host.store, {
-			userId,
-			ip: clientIp(request.headers),
-		});
+		const limited = rateLimit({ userId, ip: clientIp(request.headers) });
 		if (!limited.ok) return localizedError(429, "rate_limit");
 		const had = await clearManual(userId);
 		return Response.json({ ok: true, had });

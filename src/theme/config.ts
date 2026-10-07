@@ -1,11 +1,16 @@
 export const THEMES = ["light", "dark"] as const;
 export type Theme = (typeof THEMES)[number];
+/** What the visitor picked. "system" means no cookie: follow the OS */
+export type ThemeChoice = Theme | "system";
 
 export const THEME_COOKIE = "phi-theme";
+
+/** Page background per theme, for <meta name="theme-color">. Matches --bg */
+export const THEME_COLORS: Record<Theme, string> = {
+	light: "#f5f8fa",
+	dark: "#080e16",
+};
 
 export function isTheme(v: string | undefined | null): v is Theme {
 	return v === "light" || v === "dark";
 }
-
-/** Runs in <head> before paint so the first frame matches cookie or prefers-color-scheme. */
-export const THEME_BOOT = `(function(){try{var m=document.cookie.match(/(?:^|; )phi-theme=([^;]*)/);var t=m?decodeURIComponent(m[1]):null;if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}var r=document.documentElement;r.setAttribute("data-theme",t);r.style.colorScheme=t;}catch(e){}})();`;

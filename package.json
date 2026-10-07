@@ -10,13 +10,14 @@
 	"scripts": {
 		"dev": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && NODE_OPTIONS='--import tsx' next dev --turbopack",
 		"build": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && NODE_OPTIONS='--import tsx' next build",
+		"dev:local": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && PHI_LOCAL_DATA=1 CLOUDFLARE_R2_BUCKET=off CLOUDFLARE_R2_PUBLIC_BASE=${CLOUDFLARE_R2_PUBLIC_BASE:-https://r2.phiapi.miyuki-yue.dev} NODE_OPTIONS='--import tsx' next dev --turbopack",
+		"render-card": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && node --import tsx scripts/render-card-local.ts",
 		"start": "NODE_OPTIONS='--import tsx' next start",
 		"typecheck": "tsc --noEmit",
 		"test": "node --import tsx --test 'src/**/*.test.ts'",
 		"fmt": "pnpx @biomejs/biome format --write",
 		"precompile-art": "node scripts/precompile-art.mjs",
-		"bundle-css": "node scripts/bundle-css.mjs",
-		"sync-assets": "node scripts/sync-phi-assets.mjs && node scripts/precompile-art.mjs && node scripts/bundle-css.mjs"
+		"bundle-css": "node scripts/bundle-css.mjs"
 	},
 	"dependencies": {
 		"@phosphor-icons/react": "^2.1.10",

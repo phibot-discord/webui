@@ -1,0 +1,211 @@
+/* ---------------------------------- phira ---------------------------------- */
+
+.phira-pack {
+	max-width: 44rem;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-5);
+}
+
+.phira-search .field-label {
+	color: var(--ink);
+	font-size: var(--text-sm);
+	font-weight: 500;
+}
+
+/* the picked song: title, composer, change */
+.phira-song-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding-bottom: var(--space-3);
+	border-bottom: 1px solid var(--line);
+}
+
+.phira-song-name {
+	min-width: 0;
+}
+
+.phira-song-name h2 {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.phira-song-name p {
+	margin: 2px 0 0;
+	color: var(--muted);
+	font-size: var(--text-sm);
+	overflow-wrap: anywhere;
+}
+
+.phira-song-head .btn {
+	flex: none;
+}
+
+.phira-levels {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.phira-level {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	grid-template-areas:
+		"chip notes action"
+		"progress progress progress"
+		"status status status";
+	align-items: center;
+	column-gap: var(--space-3);
+	padding: var(--space-3) 0;
+	border-bottom: 1px solid var(--line);
+}
+
+.phira-level:last-child {
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+.phira-level .chart-level {
+	grid-area: chip;
+	min-width: 4.25rem;
+	justify-content: center;
+	padding-block: 5px;
+	font-size: var(--text-xs);
+}
+
+.phira-level-notes {
+	grid-area: notes;
+	color: var(--muted);
+	font-size: var(--text-sm);
+	font-variant-numeric: tabular-nums;
+}
+
+.phira-download {
+	grid-area: action;
+}
+
+.phira-progress {
+	grid-area: progress;
+	width: 100%;
+	height: 4px;
+	margin-top: var(--space-2);
+	border: 0;
+	border-radius: 2px;
+	background: var(--surface-2);
+	accent-color: var(--primary);
+	appearance: none;
+	overflow: hidden;
+}
+
+.phira-progress::-webkit-progress-bar {
+	background: var(--surface-2);
+}
+
+.phira-progress::-webkit-progress-value {
+	background: var(--primary);
+	transition: width 120ms linear;
+}
+
+.phira-progress::-moz-progress-bar {
+	background: var(--primary);
+}
+
+.phira-status {
+	grid-area: status;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	align-items: start;
+	gap: var(--space-1) var(--space-2);
+	margin: var(--space-2) 0 0;
+	font-size: var(--text-sm);
+	overflow-wrap: anywhere;
+}
+
+/* the icon sits on the first line of the message */
+.phira-status svg {
+	margin-top: 0.15em;
+}
+
+.phira-status .btn {
+	grid-column: 2;
+	justify-self: start;
+	margin-left: calc(-1 * var(--space-3));
+}
+
+.phira-status-done {
+	color: var(--muted);
+}
+
+.phira-status-done svg {
+	color: var(--primary);
+}
+
+.phira-status-failed {
+	color: var(--danger);
+}
+
+.phira-status-failed .btn {
+	color: var(--ink);
+}
+
+.phira-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-8) var(--space-4);
+	border: 1px dashed var(--line-strong);
+	border-radius: var(--radius-md);
+	color: var(--muted);
+	text-align: center;
+}
+
+.phira-empty p {
+	margin: 0;
+}
+
+/* the chart list didn't load: say so where the levels would be */
+.phira-failed {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--danger);
+	border-radius: var(--radius-md);
+	background: var(--danger-soft);
+}
+
+.phira-failed p {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	margin: 0;
+	color: var(--ink);
+}
+
+.phira-failed svg {
+	flex: none;
+	margin-top: 0.15em;
+	color: var(--danger);
+}
+
+/* phones: level and note count stack beside the button */
+@media (max-width: 29.99em) {
+	.phira-level {
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-areas:
+			"chip action"
+			"notes action"
+			"progress progress"
+			"status status";
+		row-gap: 2px;
+	}
+
+	.phira-level .chart-level {
+		justify-self: start;
+	}
+}

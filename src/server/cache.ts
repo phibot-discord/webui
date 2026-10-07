@@ -69,6 +69,7 @@ async function persistHeight(
 	try {
 		await store.set(heightCacheKey(id), String(height), {
 			ttlMs: CARD_TTL_MS,
+			background: true,
 		});
 	} catch (err) {
 		logger.warn(
@@ -158,11 +159,13 @@ async function persistPng(host: PngStore, key: string, bytes: Buffer) {
 			await putR2Object(r2CardKey(key), bytes, "image/jpeg", {
 				contentDisposition: `attachment; filename="${cardFilenameFromCacheKey(key)}"`,
 				cache: "no-store",
+				background: true,
 			});
 			return;
 		}
 		await host.store.set(key, bytes.toString("base64"), {
 			ttlMs: CARD_TTL_MS,
+			background: true,
 		});
 	} catch (err) {
 		logger.warn(

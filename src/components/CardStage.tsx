@@ -1,335 +1,445 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
-import { CardViewer } from "@/components/CardViewer";
-import { CountSelect } from "@/components/CountSelect";
-import type { Messages } from "@/i18n/messages";
+import {
+	ArrowSquareOut,
+	ArrowsOut,
+	CaretDown,
+	DownloadSimple,
+	ListMagnifyingGlass,
+	ShareNetwork,
+	SlidersHorizontal,
+} from "@phosphor-icons/react";
+import { useCallback, useEffect, useId, useState } from "react";
+import type { BackgroundOption } from "@/components/BackgroundPicker";
+import { CardOptions, useNoteSetting } from "@/components/CardOptions";
+import { type CardView, CardViewer } from "@/components/CardViewer";
+import { useChartCatalog } from "@/components/ChartSearch";
+import { defaultCardSize } from "@/components/card-shape";
+import { SongPicker } from "@/components/SongPicker";
 import { useI18n } from "@/i18n/provider";
-import { type CardStats, cardSource, formatDuration } from "@/lib/card-stats";
+import type { CardStats } from "@/lib/card-stats";
 import { bumpCardReload } from "@/lib/save-refresh";
-import { type CardKind, clampCount } from "@/server/card-kinds";
+import type { CardStyle } from "@/phi/lib/card-styles";
+import type { B30AvgKind } from "@/phi/lib/notes";
+import {
+	type CardKind,
+	clampCount,
+	SONG_LEVELS,
+	type SongLevel,
+} from "@/server/card-kinds";
 import {
 	type PaintQuality,
 	parsePaintQuality,
 } from "@/server/render/paint-budget";
 
-function withQuery(
-	srcBase: string,
-	opts: {
-		count?: number;
-		locale: string;
-		quality: PaintQuality;
-		tags?: boolean;
-		stats?: boolean;
-	},
-) {
-	const u = new URL(srcBase, "http://local.invalid");
-	if (opts.count != null) u.searchParams.set("count", String(opts.count));
-	u.searchParams.set("locale", opts.locale);
-	u.searchParams.set("quality", opts.quality);
-	if (opts.tags != null) u.searchParams.set("tags", opts.tags ? "1" : "0");
-	if (opts.stats != null) u.searchParams.set("stats", opts.stats ? "1" : "0");
-	return `${u.pathname}${u.search}`;
+/** Sets or drops one query parameter without a navigation */
+function setParam(key: string, value: string | undefined) {
+	const url = new URL(window.location.href);
+	if (value === undefined) url.searchParams.delete(key);
+	else url.searchParams.set(key, value);
+	window.history.replaceState(null, "", `${url.pathname}${url.search}`);
 }
 
-export function CardStage({
-	kind,
-	srcBase,
-	counted,
-	initialCount,
-	tagProfile,
-	recordStats,
-	initialQuality = "fast",
-	persistQuality = false,
-}: {
+/** File-name safe, keeping CJK and other letters */
+function fileSafe(s: string) {
+	return (
+		s
+			.replace(/[\\/:*?"<>|#%\s]+/g, "_")
+			.replace(/^_+|_+$/g, "")
+			.slice(0, 60) || "player"
+	);
+}
+
+function today() {
+	const d = new Date();
+	const p = (n: number) => String(n).padStart(2, "0");
+	return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+type StageProps = {
 	kind: CardKind;
 	srcBase: string;
+	/** Player name and RKS for the image's alt text and file name */
+	player: string;
+	rks: string;
 	counted: boolean;
 	initialCount: number;
 	tagProfile?: { on: boolean };
 	recordStats?: { on: boolean };
 	initialQuality?: PaintQuality;
-	persistQuality?: boolean;
-}) {
-	const { locale, m } = useI18n();
-	const [count, setCount] = useState(initialCount);
-	const [quality, setQuality] = useState<PaintQuality>(
-		parsePaintQuality(initialQuality),
-	);
-	const [tagsOn, setTagsOn] = useState(tagProfile?.on ?? true);
-	const [statsOn, setStatsOn] = useState(recordStats?.on ?? true);
-	const [stats, setStats] = useState<CardStats>();
-	const [fileUrl, setFileUrl] = useState<string>();
-	const query = {
-		count: counted ? count : undefined,
-		locale,
-		quality,
-		tags: tagProfile ? tagsOn : undefined,
-		stats: recordStats ? statsOn : undefined,
-	};
-	const src = withQuery(srcBase, query);
-	const title = m.card.titles[kind];
+	/** Signed-in desk: choices are saved to the user's notes */
+	persist?: boolean;
+	backgrounds?: BackgroundOption[];
+	initialBackground?: string;
+	/** Layouts offered for this kind (first is the default) */
+	styles?: readonly CardStyle[];
+	initialStyle?: CardStyle;
+	/** Peer comparison mode; omit to hide the setting */
+	initialPeer?: B30AvgKind;
+	/** Per-song rank card: chart id ("" until picked) and level */
+	song?: { chart: string; level: SongLevel };
+};
 
-	const onCount = useCallback((next: number) => {
-		const n = clampCount(String(next));
-		setCount(n);
-		const url = new URL(window.location.href);
-		url.searchParams.set("count", String(n));
-		window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+export function CardStage(props: StageProps) {
+	if (props.song) return <SongStage {...props} song={props.song} />;
+	return <StageBody {...props} />;
+}
+
+/** The song card: chart picker first, then the card once a chart is chosen */
+function SongStage(
+	props: StageProps & { song: { chart: string; level: SongLevel } },
+) {
+	const { m } = useI18n();
+	const catalog = useChartCatalog();
+	const [chart, setChart] = useState(props.song.chart);
+	const [picked, setLevel] = useState(props.song.level);
+	const song =
+		catalog.status === "ready"
+			? // Links may leave out the catalog's trailing ".0"
+				catalog.list.find((s) => s.id === chart || s.id === `${chart}.0`)
+			: undefined;
+	// A link to a chart the catalog lacks would only fetch a 404
+	const missing = Boolean(chart) && catalog.status === "ready" && !song;
+	// A link's level the chart lacks: its hardest one instead
+	const level =
+		song && !song.charts[picked]
+			? (SONG_LEVELS.findLast((l) => song.charts[l]) ?? picked)
+			: picked;
+
+	useEffect(() => {
+		if (!missing) return;
+		setParam("chart", undefined);
+		setParam("level", undefined);
+	}, [missing]);
+
+	const onChange = useCallback((nextChart: string, nextLevel: SongLevel) => {
+		setChart(nextChart);
+		setLevel(nextLevel);
+		setParam("chart", nextChart);
+		setParam("level", nextLevel);
 	}, []);
-
-	const onQuality = useCallback(
-		(next: PaintQuality) => {
-			setQuality(next);
-			const url = new URL(window.location.href);
-			url.searchParams.set("quality", next);
-			window.history.replaceState(null, "", `${url.pathname}${url.search}`);
-			bumpCardReload();
-			if (!persistQuality) return;
-			void fetch("/api/notes", {
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ cardQuality: next }),
-			});
-		},
-		[persistQuality],
-	);
 
 	return (
 		<>
-			<div className="toolbar">
-				{counted ? <CountSelect value={count} onChange={onCount} /> : null}
-				<QualitySelect value={quality} onChange={onQuality} />
-				<CardStatsMenu stats={stats} />
-				{tagProfile ? (
-					<NotesToggle
-						field="showTagAnalysis"
-						on={tagsOn}
-						label={m.card.tagProfile}
-						onChange={setTagsOn}
-					/>
-				) : null}
-				{recordStats ? (
-					<NotesToggle
-						field="showRecordStats"
-						on={statsOn}
-						label={m.card.recordStats}
-						onChange={setStatsOn}
-					/>
-				) : null}
-				<a
-					className="btn btn-ghost"
-					href={fileUrl}
-					download={`${kind}.jpg`}
-					aria-disabled={!fileUrl}
-					onClick={(e) => {
-						if (!fileUrl) e.preventDefault();
-					}}
-				>
-					{m.card.download}
-				</a>
-			</div>
-			<CardViewer
-				src={src}
-				alt={m.card.alt.replaceAll("{name}", title)}
-				onStats={setStats}
-				onFile={setFileUrl}
+			<SongPicker
+				catalog={catalog}
+				song={song}
+				chart={missing ? "" : chart}
+				level={level}
+				onChange={onChange}
 			/>
+			{chart && !missing ? (
+				<StageBody
+					{...props}
+					song={{ chart, level }}
+					songName={`${song?.song ?? chart} ${level}`}
+					// The catalog checks the chart and level first, so a bad link
+					// costs no render
+					hold={catalog.status === "loading"}
+				/>
+			) : (
+				<div className="card-empty">
+					<ListMagnifyingGlass aria-hidden="true" size={36} />
+					<h2>{missing ? m.card.songNotFoundTitle : m.card.songEmptyTitle}</h2>
+					<p>{missing ? m.card.songNotFound : m.card.songEmpty}</p>
+				</div>
+			)}
 		</>
 	);
 }
 
-function QualitySelect({
-	value,
-	onChange,
-}: {
-	value: PaintQuality;
-	onChange: (next: PaintQuality) => void;
-}) {
-	const { m } = useI18n();
-	return (
-		<label className="field">
-			{m.card.quality}
-			<select
-				value={value}
-				onChange={(e) => onChange(parsePaintQuality(e.target.value))}
-			>
-				<option value="fast">{m.card.qualityFast}</option>
-				<option value="high">{m.card.qualityHigh}</option>
-			</select>
-		</label>
+function StageBody({
+	kind,
+	srcBase,
+	player,
+	rks,
+	counted,
+	initialCount,
+	tagProfile,
+	recordStats,
+	initialQuality = "fast",
+	persist = false,
+	backgrounds,
+	initialBackground = "",
+	styles,
+	initialStyle = "classic",
+	initialPeer,
+	song,
+	songName,
+	hold,
+}: StageProps & { songName?: string; hold?: boolean }) {
+	const { locale, m } = useI18n();
+	const panelId = useId();
+	const summaryId = useId();
+	const [open, setOpen] = useState(false);
+	const [count, setCount] = useState(initialCount);
+	const [stats, setStats] = useState<CardStats>();
+	const [file, setFile] = useState<string>();
+	const [view, setView] = useState<CardView>();
+	const [zoomRequest, setZoomRequest] = useState(0);
+	const [canShare, setCanShare] = useState(false);
+	const [shareFile, setShareFile] = useState<File>();
+	const [shareError, setShareError] = useState<string>();
+
+	const save = <T,>(body: (v: T) => object) => (persist ? body : undefined);
+	const style = useNoteSetting<CardStyle>(
+		initialStyle,
+		styles
+			? save((s: CardStyle) => ({ cardStyle: { kind, style: s } }))
+			: undefined,
+		{ onApply: (s) => setParam("style", s) },
 	);
-}
+	const quality = useNoteSetting<PaintQuality>(
+		parsePaintQuality(initialQuality),
+		save((q: PaintQuality) => ({ cardQuality: q })),
+		{ onApply: (q) => setParam("quality", q) },
+	);
+	const tags = useNoteSetting(
+		tagProfile?.on ?? true,
+		save((on: boolean) => ({ showTagAnalysis: on })),
+	);
+	const recStats = useNoteSetting(
+		recordStats?.on ?? true,
+		save((on: boolean) => ({ showRecordStats: on })),
+	);
+	// The server reads these two from the notes, so the card reloads once saved
+	const background = useNoteSetting(
+		initialBackground,
+		save((id: string) => ({ cardBackground: id })),
+		{ onApply: () => bumpCardReload() },
+	);
+	const peer = useNoteSetting<B30AvgKind>(
+		initialPeer ?? "all",
+		save((k: B30AvgKind) => ({ b30AvgKind: k })),
+		{ onApply: () => bumpCardReload() },
+	);
 
-function NotesToggle({
-	field,
-	on,
-	label,
-	onChange,
-}: {
-	field: "showTagAnalysis" | "showRecordStats";
-	on: boolean;
-	label: string;
-	onChange: (next: boolean) => void;
-}) {
-	const [pending, setPending] = useState(false);
+	const onCount = useCallback((next: number) => {
+		const n = clampCount(String(next));
+		setCount(n);
+		setParam("count", String(n));
+	}, []);
 
-	async function toggle() {
-		const next = !on;
-		setPending(true);
+	const u = new URL(srcBase, "http://local.invalid");
+	if (counted) u.searchParams.set("count", String(count));
+	u.searchParams.set("locale", locale);
+	// Saved choices only: a setting that fails to save never costs a render
+	u.searchParams.set("quality", quality.applied);
+	if (tagProfile) u.searchParams.set("tags", tags.applied ? "1" : "0");
+	if (recordStats) u.searchParams.set("stats", recStats.applied ? "1" : "0");
+	if (styles) u.searchParams.set("style", style.applied);
+	if (song) {
+		u.searchParams.set("chart", song.chart);
+		u.searchParams.set("level", song.level);
+	}
+	const src = `${u.pathname}${u.search}`;
+
+	const titles: Partial<Record<CardKind, string>> = m.card.titles;
+	const title = titles[kind] ?? kind;
+	const name = songName
+		? m.card.songTitle
+				.replaceAll("{title}", title)
+				.replaceAll("{song}", songName)
+		: title;
+	const alt = m.card.alt
+		.replaceAll("{name}", name)
+		.replaceAll("{player}", player)
+		.replaceAll("{rks}", rks);
+	const filename = [
+		fileSafe(player),
+		kind,
+		styles && style.applied !== "classic" ? style.applied : "",
+		song ? `${fileSafe(song.chart)}-${song.level}` : "",
+		today(),
+	]
+		.filter(Boolean)
+		.join("-")
+		.concat(".jpg");
+	const size =
+		view?.width && view.height
+			? m.card.size
+					.replaceAll("{w}", String(view.width))
+					.replaceAll("{h}", String(view.height))
+			: "";
+	const summary = [
+		styles ? m.card.styleNames[style.applied] : "",
+		counted ? `${m.card.charts} ${count}` : "",
+		size,
+	]
+		.filter(Boolean)
+		.join(" · ");
+	const shape = styles ? style.applied : "classic";
+
+	// Web Share with files: phones, and some desktop browsers
+	useEffect(() => {
 		try {
-			const res = await fetch("/api/notes", {
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ [field]: next }),
+			const probe = new File([new Uint8Array(1)], "card.jpg", {
+				type: "image/jpeg",
 			});
-			if (!res.ok) return;
-			onChange(next);
-			bumpCardReload();
-		} finally {
-			setPending(false);
+			setCanShare(
+				typeof navigator.canShare === "function" &&
+					navigator.canShare({ files: [probe] }),
+			);
+		} catch {
+			setCanShare(false);
+		}
+	}, []);
+
+	// Build the File ahead of the tap: iOS only shares inside the tap's activation
+	useEffect(() => {
+		setShareFile(undefined);
+		if (!canShare || !file) return;
+		let dead = false;
+		fetch(file)
+			.then((res) => res.blob())
+			.then((blob) => {
+				if (!dead)
+					setShareFile(new File([blob], filename, { type: "image/jpeg" }));
+			})
+			.catch(() => {});
+		return () => {
+			dead = true;
+		};
+	}, [canShare, file, filename]);
+
+	async function share() {
+		if (!shareFile) return;
+		setShareError(undefined);
+		try {
+			await navigator.share({
+				files: [shareFile],
+				title: `${name} · ${player}`,
+			});
+		} catch (err) {
+			if (err instanceof Error && err.name === "AbortError") return;
+			setShareError(m.card.shareFailed);
 		}
 	}
 
 	return (
-		<button
-			className="btn btn-ghost"
-			type="button"
-			aria-pressed={on}
-			disabled={pending}
-			onClick={() => void toggle()}
-		>
-			{label}
-		</button>
-	);
-}
-
-function hitMiss(
-	v: "hit" | "miss",
-	card: Pick<Messages["card"], "statsHit" | "statsMiss">,
-) {
-	return v === "hit" ? card.statsHit : card.statsMiss;
-}
-
-function sourceLabel(
-	source: ReturnType<typeof cardSource>,
-	card: Pick<Messages["card"], "statsStoreR2" | "statsStoreKv" | "statsRender">,
-) {
-	if (source === "kv") return card.statsStoreKv;
-	if (source === "render") return card.statsRender;
-	return card.statsStoreR2;
-}
-
-type StatsRow = { key: string; label: string; value: string; hint: string };
-
-function statsRows(stats: CardStats, card: Messages["card"]): StatsRow[] {
-	const source = cardSource(stats);
-	const cacheValue =
-		stats.cache === "miss"
-			? card.statsMiss
-			: `${card.statsHit} · ${sourceLabel(source, card)}`;
-	const rows: StatsRow[] = [
-		{
-			key: "cache",
-			label: card.statsCache,
-			value: cacheValue,
-			hint: card.statsHintCache,
-		},
-	];
-	if (stats.heightCache) {
-		rows.push({
-			key: "height",
-			label: card.statsHeight,
-			value: hitMiss(stats.heightCache, card),
-			hint: card.statsHintHeight,
-		});
-	}
-	const ms = (
-		n: number | undefined,
-		key: string,
-		label: string,
-		hint: string,
-	) => {
-		if (n != null) rows.push({ key, label, value: formatDuration(n), hint });
-	};
-	ms(stats.cacheMs, "lookup", card.statsLookup, card.statsHintLookup);
-	ms(stats.dataMs, "data", card.statsData, card.statsHintData);
-	ms(stats.htmlMs, "html", card.statsHtml, card.statsHintHtml);
-	ms(stats.assetsMs, "assets", card.statsAssets, card.statsHintAssets);
-	ms(stats.measureMs, "measure", card.statsMeasure, card.statsHintMeasure);
-	ms(stats.rasterMs, "raster", card.statsRaster, card.statsHintRaster);
-	ms(stats.encodeMs, "encode", card.statsEncode, card.statsHintEncode);
-	ms(stats.paintMs, "paint", card.statsPaint, card.statsHintPaint);
-	ms(stats.totalMs, "server", card.statsServer, card.statsHintServer);
-	ms(stats.waitMs, "wait", card.statsWait, card.statsHintWait);
-	return rows;
-}
-
-function CardStatsMenu({ stats }: { stats?: CardStats }) {
-	const { m } = useI18n();
-	const tipId = useId();
-	const hintId = useId();
-	const card = m.card;
-	const [hint, setHint] = useState<string>();
-	const source = stats ? cardSource(stats) : undefined;
-	const time = stats ? formatDuration(stats.waitMs ?? stats.totalMs) : "…";
-	const label = source ? `${sourceLabel(source, card)} · ${time}` : time;
-	const rows = stats ? statsRows(stats, card) : [];
-	return (
-		<div className="tool stats-tool" onMouseLeave={() => setHint(undefined)}>
-			{stats ? (
-				<button
-					type="button"
-					className="btn btn-ghost stats-chip"
-					data-source={source}
-					aria-label={label}
-					aria-describedby={tipId}
-					onKeyDown={(e) => {
-						if (e.key === "Escape") e.currentTarget.blur();
-					}}
-				>
-					<span className="stats-source">
-						{source ? sourceLabel(source, card) : card.statsRender}
-					</span>
-					<span className="stats-time">{time}</span>
-				</button>
-			) : (
-				<span className="btn btn-ghost stats-chip" aria-busy="true">
-					<span className="stats-source">{card.statsRender}</span>
-					<span className="stats-time">{time}</span>
-				</span>
-			)}
-			{stats ? (
-				<div className="stats-pops">
-					<div
-						className="tool-pop stats-pop"
-						role="dialog"
-						aria-label={card.stats}
-						id={tipId}
+		<section className="card-stage" aria-labelledby={`${panelId}-h`}>
+			<h2 className="sr-only" id={`${panelId}-h`}>
+				{name}
+			</h2>
+			<div className="card-toolbar">
+				<div className="card-toolbar-main">
+					<button
+						type="button"
+						className="btn btn-ghost card-options-toggle"
+						aria-expanded={open}
+						aria-controls={panelId}
+						aria-describedby={summary ? summaryId : undefined}
+						onClick={() => setOpen((v) => !v)}
 					>
-						<dl className="stats-rows">
-							{rows.map((row) => (
-								<div
-									className="stats-row"
-									key={row.key}
-									tabIndex={0}
-									data-active={hint === row.hint ? "true" : undefined}
-									onMouseEnter={() => setHint(row.hint)}
-									onFocus={() => setHint(row.hint)}
-								>
-									<dt>{row.label}</dt>
-									<dd>{row.value}</dd>
-								</div>
-							))}
-						</dl>
-					</div>
-					{hint ? (
-						<p className="tool-pop stats-hint-pop" role="note" id={hintId}>
-							{hint}
-						</p>
+						<SlidersHorizontal aria-hidden="true" size={18} />
+						{m.card.options}
+						<CaretDown className="btn-caret" aria-hidden="true" size={14} />
+					</button>
+					{summary ? (
+						<span className="card-summary" id={summaryId}>
+							{summary}
+						</span>
 					) : null}
 				</div>
+				<div className="card-actions">
+					<button
+						type="button"
+						className="btn btn-ghost card-view-action"
+						aria-haspopup="dialog"
+						aria-disabled={!view || undefined}
+						title={m.card.zoom}
+						onClick={() => {
+							if (view) setZoomRequest((n) => n + 1);
+						}}
+					>
+						<ArrowsOut aria-hidden="true" size={18} />
+						<span className="btn-label">{m.card.fullScreen}</span>
+					</button>
+					{view ? (
+						<a
+							className="btn btn-ghost card-view-action"
+							href={view.url}
+							target="_blank"
+							rel="noopener"
+							title={size ? `${m.card.openFull} · ${size}` : m.card.openFull}
+						>
+							<ArrowSquareOut aria-hidden="true" size={18} />
+							<span className="btn-label">{m.card.original}</span>
+						</a>
+					) : (
+						<button
+							type="button"
+							className="btn btn-ghost card-view-action"
+							aria-disabled="true"
+							title={m.card.openFull}
+						>
+							<ArrowSquareOut aria-hidden="true" size={18} />
+							<span className="btn-label">{m.card.original}</span>
+						</button>
+					)}
+					<span className="card-actions-sep" aria-hidden="true" />
+					{file ? (
+						<a className="btn btn-ghost" href={file} download={filename}>
+							<DownloadSimple aria-hidden="true" size={18} />
+							<span className="btn-label">{m.card.download}</span>
+						</a>
+					) : (
+						<button
+							type="button"
+							className="btn btn-ghost"
+							aria-disabled="true"
+						>
+							<DownloadSimple aria-hidden="true" size={18} />
+							<span className="btn-label">{m.card.download}</span>
+						</button>
+					)}
+					{canShare ? (
+						<button
+							type="button"
+							className="btn btn-ghost"
+							aria-disabled={!shareFile || undefined}
+							onClick={() => void share()}
+						>
+							<ShareNetwork aria-hidden="true" size={18} />
+							<span className="btn-label">{m.card.share}</span>
+						</button>
+					) : null}
+				</div>
+			</div>
+			{shareError ? (
+				<p className="field-error card-share-error" role="alert">
+					{shareError}
+				</p>
 			) : null}
-		</div>
+			<div className="card-options-panel" id={panelId} hidden={!open}>
+				<CardOptions
+					kind={kind}
+					styles={styles}
+					style={style}
+					count={counted ? count : undefined}
+					onCount={counted ? onCount : undefined}
+					quality={quality}
+					backgrounds={persist ? backgrounds : undefined}
+					background={persist && backgrounds ? background : undefined}
+					tags={tagProfile ? tags : undefined}
+					recordStats={recordStats ? recStats : undefined}
+					peer={persist && initialPeer ? peer : undefined}
+					stats={stats}
+					diagnostics={persist}
+				/>
+			</div>
+			<CardViewer
+				src={src}
+				alt={alt}
+				name={name}
+				sizeKey={`${kind}:${shape}:${counted ? count : ""}`}
+				defaultSize={defaultCardSize(kind, shape)}
+				hold={hold}
+				onStats={setStats}
+				onFile={setFile}
+				onView={setView}
+				zoomRequest={zoomRequest}
+			/>
+		</section>
 	);
 }

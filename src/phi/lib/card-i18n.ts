@@ -34,17 +34,24 @@ const en = {
 	noPush: "Can't push",
 	accLimited: "ACC is limited to {n}%",
 	apMode: "All Perfect Mode",
-	fcMode: "Full Combo Mode",
-	x30Mode: "1 Good Mode",
+	/** x30 / fc30 card titles, shown as the classic card's mode chip */
+	fcMode: "FC30",
+	x30Mode: "x30",
 	analysisTitle: "B30 analysis",
-	tagAbility: "Chart tag profile",
-	validVotes: "Votes",
+	tagAbility: "Chart skills",
+	validVotes: "Valid votes",
+	tagRecords: "Scores",
+	tagBallots: "Votes",
+	noData: "No data",
+	tagPool: "Pools every score with chart RKS ≥ {threshold}, not the B30 slots.",
 	categorySummary: "Categories",
 	strongTags: "Strengths",
 	weakTags: "Weaknesses",
 	tagInsufficient:
-		"Not enough chart-tag votes. Vote at https://www.phib19.top.",
-	tagTip: "Tag stats are still thin — vote at https://www.phib19.top.",
+		"Not enough valid votes or per-tag score samples. Vote on chart tags at https://www.phib19.top.",
+	tagUnavailable:
+		"The chart-tag service did not answer in time. Reload the card to try again.",
+	tagTip: "Vote on chart tags at https://www.phib19.top.",
 	histTitle: "Equivalent RKS histogram",
 	avgRks: "Average RKS",
 	histY: "Per-chart RKS",
@@ -103,7 +110,7 @@ const en = {
 	apiDesc: "Turn off to skip online score lookups.",
 	analysisSettingTitle: "B30 analysis",
 	analysisSettingDesc: "Equivalent-RKS histogram at the end of the B30 card.",
-	tagSettingTitle: "Chart tag profile",
+	tagSettingTitle: "Chart skills",
 	tagSettingDesc:
 		"Five-axis radar and strong/weak tags on the B30 card. Needs API lookups.",
 	langTitle: "Language",
@@ -146,19 +153,23 @@ const zh: typeof en = {
 	lang: "zh",
 	noPush: "无法推分",
 	accLimited: "ACC 限制为 {n}%",
-	apMode: "All Perfect Mode",
-	fcMode: "Full Combo Mode",
-	x30Mode: "1 Good Mode",
+	apMode: "All Perfect 模式",
+	fcMode: "FC30",
+	x30Mode: "性30",
 	analysisTitle: "B30 数据分析",
-	tagAbility: "谱面标签能力",
+	tagAbility: "谱面实力分析",
 	validVotes: "有效票",
+	tagRecords: "成绩",
+	tagBallots: "选票",
+	noData: "暂无数据",
+	tagPool: "统计全部单曲 RKS≥{threshold} 的成绩，而非 B30 槽位",
 	categorySummary: "分类汇总",
 	strongTags: "擅长词条",
 	weakTags: "薄弱词条",
 	tagInsufficient:
-		"可用谱面标签统计量不足，请前往 https://www.phib19.top 进行谱面标签投票",
-	tagTip:
-		"当前谱面标签统计量较小，可以前往 https://www.phib19.top 进行投票哦！",
+		"有效选票或逐标签成绩样本不足，请前往 https://www.phib19.top 进行谱面标签投票",
+	tagUnavailable: "谱面标签服务暂未响应，请稍后重新生成",
+	tagTip: "谱面投票可前往 https://www.phib19.top 提交",
 	histTitle: "等效 RKS 直方图",
 	avgRks: "平均 RKS",
 	histY: "等效单曲 RKS",
@@ -217,7 +228,7 @@ const zh: typeof en = {
 	apiDesc: "关闭后不再使用在线查分相关功能。",
 	analysisSettingTitle: "B30统计分析",
 	analysisSettingDesc: "控制 B30 图片末尾的等效 RKS 直方图。",
-	tagSettingTitle: "谱面标签能力",
+	tagSettingTitle: "谱面实力分析",
 	tagSettingDesc: "B30 图上的五维雷达和擅长/薄弱词条。",
 	langTitle: "语言",
 	langDesc: "网页和所有成绩图。和 Discord 机器人共用。",
@@ -403,6 +414,39 @@ export function fill(
 	for (const [k, v] of Object.entries(vars))
 		out = out.replaceAll(`{${k}}`, String(v));
 	return out;
+}
+
+type TagPoolInfo = {
+	threshold?: number;
+	recordCount?: number;
+	totalVotes: number;
+};
+
+function poolThreshold(analysis: TagPoolInfo | null | undefined) {
+	const n = analysis?.threshold;
+	return typeof n === "number" && Number.isFinite(n) ? n : undefined;
+}
+
+/** Tag panel meta line, as upstream b19.art (f908bb31) */
+export function tagAnalysisMeta(
+	analysis: TagPoolInfo | null | undefined,
+	t: CardCopy,
+): string {
+	if (!analysis) return t.noData;
+	const threshold = poolThreshold(analysis);
+	if (threshold == null) return `${t.validVotes} ${analysis.totalVotes}`;
+	return `RKS≥${threshold.toFixed(1)} · ${t.tagRecords} ${analysis.recordCount ?? 0} · ${t.tagBallots} ${analysis.totalVotes}`;
+}
+
+/** Which scores the server pooled; empty when it did not say */
+export function tagPoolNote(
+	analysis: TagPoolInfo | null | undefined,
+	t: CardCopy,
+): string {
+	const threshold = poolThreshold(analysis);
+	return threshold == null
+		? ""
+		: fill(t.tagPool, { threshold: threshold.toFixed(1) });
 }
 
 function isNoPushSuggest(s: string | undefined): boolean {

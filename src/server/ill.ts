@@ -117,7 +117,7 @@ function diskPath(key: string) {
 type Located = { dest: string; fetched: boolean };
 const locating = new Map<string, Promise<Located | undefined>>();
 
-/** Write via a temp name + rename so a concurrent reader never sees a partial file. */
+/** Write via a temp name + rename so a concurrent reader never sees a partial file */
 async function writeAtomic(dest: string, buf: Buffer) {
 	await mkdir(/*turbopackIgnore: true*/ dirname(dest), { recursive: true });
 	const tmp = `${dest}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
@@ -125,7 +125,7 @@ async function writeAtomic(dest: string, buf: Buffer) {
 	await rename(/*turbopackIgnore: true*/ tmp, dest);
 }
 
-/** Path of the cached file for R2 `key`, downloading it once (then its fallback). */
+/** Path of the cached file for R2 `key`, downloading it once (then its fallback) */
 function locateAsset(key: string): Promise<Located | undefined> {
 	const pending = locating.get(key);
 	if (pending) return pending;
@@ -149,7 +149,7 @@ function locateAsset(key: string): Promise<Located | undefined> {
 	return job;
 }
 
-/** One pass over the HTML for all path rewrites (instead of one split/join per jacket). */
+/** One pass over the HTML for all path rewrites (instead of one split/join per jacket) */
 export function applyIllPaths(html: string, map: Map<string, string>): string {
 	const froms = [...map.keys()].filter((from) => from !== map.get(from));
 	if (!froms.length) return html;
@@ -163,14 +163,14 @@ export function applyIllPaths(html: string, map: Map<string, string>): string {
 	return html.replace(re, (hit) => map.get(hit) ?? hit);
 }
 
-/** Start downloading images before they are needed (runs while other card data is fetched). */
+/** Start downloading images before they are needed (runs while other card data is fetched) */
 export function prefetchIlls(paths: Array<string | undefined>): void {
 	const wanted = paths.filter((p): p is string => Boolean(p));
 	if (!wanted.length) return;
 	void hydrateIlls(wanted).catch(() => undefined);
 }
 
-/** Template image path → local disk path, pulling jackets / avatars / icons from R2 on first use. */
+/** Template image path → local disk path, pulling jackets / avatars / icons from R2 on first use */
 export async function hydrateIlls(
 	paths: string[],
 	concurrency = ILL_FETCH_CONCURRENCY,
@@ -180,7 +180,7 @@ export async function hydrateIlls(
 	for (const p of new Set(paths)) {
 		const key = p ? assetKeyOf(p) : undefined;
 		if (!key) continue;
-		// A local copy (git clone of the jackets, bundled icons) wins; R2 only fills what is missing.
+		// A local copy (git clone of the jackets, bundled icons) wins; R2 only fills what is missing
 		const local = decodeEntities(p);
 		if (fsExists(local)) {
 			if (local !== p) mapped.set(p, local);

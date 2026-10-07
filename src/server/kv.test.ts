@@ -1,18 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createKv, type RemoteKv } from "./kv";
+import { connectKv, createKv, type RemoteKv } from "./kv";
 
 function fakeRemote() {
 	const data = new Map<string, string>();
-	const calls = { get: 0, put: 0, del: 0 };
+	const calls = { get: 0, put: 0, del: 0, ping: 0, background: 0 };
 	const remote: RemoteKv = {
 		label: "fake",
 		getRaw: async (key) => {
 			calls.get += 1;
 			return data.get(key);
 		},
-		putRaw: async (key, value) => {
+		putRaw: async (key, value, _ttl, opts) => {
 			calls.put += 1;
+			if (opts?.background) calls.background += 1;
 			data.set(key, value);
 		},
 		delRaw: async (key) => {
@@ -21,7 +22,9 @@ function fakeRemote() {
 		},
 		listRaw: async (prefix) =>
 			[...data.keys()].filter((k) => k.startsWith(prefix)),
-		ping: async () => undefined,
+		ping: async () => {
+			calls.ping += 1;
+		},
 	};
 	return { remote, data, calls };
 }
@@ -161,4 +164,52 @@ test("nx set refuses to overwrite and ttl reports remaining time", async () => {
 			assert.equal(await store.get("phi:lock"), "1");
 		},
 	);
+});
+
+test("connecting does not ping (no KV LIST per cold start)", async () => {
+	const { remote, calls } = fakeRemote();
+	await connectKv(
+		{ accountId: "a", namespaceId: "n", apiToken: "t" },
+		() => remote,
+	);
+	await new Promise((r) => setTimeout(r, 5));
+	assert.equal(calls.ping, 0);
+	assert.equal(calls.get + calls.put, 0);
+});
+
+test("a missing ban key is trusted for a minute, other misses for 3 s", async () => {
+	const { remote, data, calls } = fakeRemote();
+	const { store } = createKv(remote);
+	let clock = 9_000_000;
+	await withNow(
+		() => clock,
+		async () => {
+			assert.equal(await store.get("phi:banSessionToken:tk"), null);
+			assert.equal(await store.get("phi:webQr:u"), null);
+			assert.equal(calls.get, 2);
+			clock += 10_000;
+			data.set("phi:banSessionToken:tk", JSON.stringify({ d: "1" }));
+			data.set("phi:webQr:u", JSON.stringify({ d: "qr" }));
+			assert.equal(
+				await store.get("phi:banSessionToken:tk"),
+				null,
+				"still cached",
+			);
+			assert.equal(await store.get("phi:webQr:u"), "qr", "short miss expired");
+			clock += 51_000;
+			assert.equal(await store.get("phi:banSessionToken:tk"), "1");
+		},
+	);
+});
+
+test("background writes reach the remote as background", async () => {
+	const { remote, calls } = fakeRemote();
+	const { store } = createKv(remote);
+	await store.set("phi:cardHeight:x", "123", {
+		ttlMs: 60_000,
+		background: true,
+	});
+	await store.set("phi:notes:u", "{}");
+	assert.equal(calls.put, 2);
+	assert.equal(calls.background, 1);
 });

@@ -16,7 +16,7 @@ test("jackets, avatars and icons map to R2 keys; css and fonts do not", () => {
 		"html/avatar/Drop it.png",
 	);
 	assert.equal(assetKeyOf(`${res}/html/otherimg/S.png`), "html/otherimg/S.png");
-	// Templates HTML-escape src values; the key must use the real filename.
+	// Templates HTML-escape src values; the key must use the real filename
 	assert.equal(
 		assetKeyOf(`${res}/original_ill/illLow/Song.A&#38;B.png`),
 		"original_ill/illLow/Song.A&B.png",
@@ -44,7 +44,7 @@ test("songIllPath points at the R2 tree without looking on disk", () => {
 		songIllPath(root, "Credits.Frums.0", "blur"),
 		"/no/local/original_ill/illBlur/Credits.Frums.png",
 	);
-	// SP songs have a single jacket; every kind maps to it.
+	// SP songs have a single jacket; every kind maps to it
 	assert.equal(
 		songIllPath(root, "Introduction.0", "blur", true),
 		"/no/local/original_ill/SP/Introduction.png",
@@ -79,7 +79,7 @@ test("a jacket that exists on disk is used as-is and never fetched", async () =>
 	writeFileSync(local, "png");
 	const escaped = join(dir, "original_ill", "illLow", "A&#38;B.png");
 	const map = await hydrateIlls([escaped, local]);
-	// The template's escaped spelling is mapped to the real file; the plain path needs no rewrite.
+	// The template's escaped spelling is mapped to the real file; the plain path needs no rewrite
 	assert.equal(map.get(escaped), local);
 	assert.equal(map.has(local), false);
 });

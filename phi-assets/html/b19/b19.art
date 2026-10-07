@@ -112,7 +112,7 @@
                     <p>{{song.rank}}&ensp;{{song.difficulty.toFixed(1)}}</p>
                 </div>
                 <div class="rel">
-                    <p>{{song.rks.toFixed(2)}}</p>
+                    <p>{{song.rks.toFixed(4)}}</p>
                 </div>
             </div>
         </div>
@@ -131,7 +131,7 @@
                     <div class="line"></div>
                     <div class="acc-box">
                         <div class="acc">
-                            <p>{{song.acc.toFixed(2)}}%</p>
+                            <p>{{song.acc.toFixed(4)}}%</p>
                         </div>
                         <div class="suggest suggest-kind-{{song.suggestType}}">
                             <div class="suggest-tip"></div>
@@ -142,8 +142,11 @@
             </div>
         </div>
         {{if song.accAvg}}
-        <div class="accAvg acc{{song.accKind}} clip-box">
+        <div class="accAvg acc{{song.accKind}}{{if song.accRank && song.accRank.ap}} accRankAp{{/if}} clip-box">
             <div class="accAvgLine clip-box"></div>
+            {{if song.accRank}}
+            <p class="accRankPos">{{song.accRank.pos}}</p><p class="accRankOf">{{song.accRank.of}}</p><p class="accRankPct">{{song.accRank.pct}}</p>
+            {{else}}
             <svg viewBox="0 0 1024 1024">
             {{if song.accKind == 'Finished'}}
             <path
@@ -159,6 +162,7 @@
             {{/if}}
             </svg>
             <p>{{song.accAvg}}</p>
+            {{/if}}
         </div>
         {{/if}}
         {{if song.cpToOld}}
@@ -246,7 +250,7 @@
                     <p>{{song.rank}}&ensp;{{song.difficulty.toFixed(1)}}</p>
                 </div>
                 <div class="rel">
-                    <p>{{song.rks.toFixed(2)}}</p>
+                    <p>{{song.rks.toFixed(4)}}</p>
                 </div>
             </div>
         </div>
@@ -265,7 +269,7 @@
                     <div class="line"></div>
                     <div class="acc-box">
                         <div class="acc">
-                            <p>{{song.acc.toFixed(2)}}%</p>
+                            <p>{{song.acc.toFixed(4)}}%</p>
                         </div>
                         <div class="suggest suggest-kind-{{song.suggestType}}">
                             <div class="suggest-tip"></div>
@@ -277,8 +281,11 @@
         </div>
             
         {{if song.accAvg}}
-        <div class="accAvg acc{{song.accKind}} clip-box">
+        <div class="accAvg acc{{song.accKind}}{{if song.accRank && song.accRank.ap}} accRankAp{{/if}} clip-box">
             <div class="accAvgLine clip-box"></div>
+            {{if song.accRank}}
+            <p class="accRankPos">{{song.accRank.pos}}</p><p class="accRankOf">{{song.accRank.of}}</p><p class="accRankPct">{{song.accRank.pct}}</p>
+            {{else}}
             <svg viewBox="0 0 1024 1024">
             {{if song.accKind == 'Finished'}}
             <path
@@ -294,6 +301,7 @@
             {{/if}}
             </svg>
             <p>{{song.accAvg}}</p>
+            {{/if}}
         </div>
         {{/if}}
         {{if song.cpToOld}}
@@ -351,7 +359,7 @@
                 <p class="analysis-kicker">CHART PROFILE</p>
                 <p class="analysis-title">{{t.tagAbility}}</p>
             </div>
-            <p class="analysis-meta">{{t.validVotes}} {{b30Analysis.tagAnalysis ? b30Analysis.tagAnalysis.totalVotes : 0}}</p>
+            <p class="analysis-meta">{{b30Analysis.tagMeta}}</p>
         </div>
         <div class="tag-analysis-body {{if !b30Analysis.tagAnalysis || b30Analysis.tagAnalysis.insufficient}}is-insufficient{{/if}}">
             <div class="tag-analysis-content">
@@ -390,12 +398,15 @@
             </div>
             {{if !b30Analysis.tagAnalysis || b30Analysis.tagAnalysis.insufficient}}
             <div class="tag-insufficient-message">
-                <p>{{t.tagInsufficient}}</p>
+                <p>{{b30Analysis.tagMessage}}</p>
             </div>
             {{/if}}
         </div>
         {{if b30Analysis.tagAnalysis && !b30Analysis.tagAnalysis.insufficient}}
         <div class="tag-analysis-tip">
+            {{if b30Analysis.tagPoolNote}}
+            <p>{{b30Analysis.tagPoolNote}}</p>
+            {{/if}}
             <p>{{t.tagTip}}</p>
         </div>
         {{/if}}
@@ -440,7 +451,9 @@
             </div>
         </div>
         <div class="histogram-legend">
+            {{if b30Analysis.histogramPhiSlots}}
             <p><span class="legend-dot phi-dot"></span>P1-P3</p>
+            {{/if}}
             <p><span class="legend-dot best-dot"></span>B1-B27</p>
             <p>{{b30Analysis.histogram.count}}{{t.histSlotsUnit}}</p>
         </div>

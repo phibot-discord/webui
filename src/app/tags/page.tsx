@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const { m } = await getMessages();
-	return { title: `${m.tags.title} · ${m.brand}`, description: m.tags.lede };
+	return { title: m.tags.title, description: m.tags.lede };
 }
 
 export default async function TagsPage() {
@@ -19,7 +19,7 @@ export default async function TagsPage() {
 		tree = [];
 	}
 	return (
-		<main id="content" className="page">
+		<main id="content" className="page tags-page">
 			<TagGlossary tree={tree} />
 		</main>
 	);

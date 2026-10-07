@@ -8,28 +8,47 @@ export type Messages = {
 	signedIn: string;
 	credit: { before: string; after: string; heart: string; name: string };
 	locale: { en: string; zh: string; label: string };
-	theme: { label: string };
+	theme: { label: string; light: string; dark: string; system: string };
 	home: {
 		kicker: string;
 		title: string;
 		lede: string;
+		ledeSignedIn: string;
 		lookupsTitle: string;
-		lookups: { name: string; blurb: string }[];
+		lookupsSignedIn: string;
+		lookupsSignedOut: string;
+		/** Keyed by card kind; LandingLookups sets the order */
+		lookups: Record<
+			"b30" | "hisb30" | "info" | "x30" | "fc30" | "song",
+			{ name: string; blurb: string }
+		>;
+		nicknames: { name: string; blurb: string; hint: string };
+		signInHint: string;
+		signingIn: string;
+		newLabel: string;
 		footer: string;
 		boardTitle: string;
 		boardLede: string;
+		layouts: string;
+		sampleAlt: string;
 		showFull: string;
+		newTab: string;
 		openDesk: string;
+		pauseMotion: string;
 	};
 	notice: {
+		title: string;
 		body: string;
 		coffee: string;
 		dismiss: string;
+		close: string;
 	};
 	nav: {
 		cards: string;
 		menu: string;
+		toggle: string;
 		tags: string;
+		songs: string;
 		phira: string;
 		files: string;
 		score: string;
@@ -38,6 +57,7 @@ export type Messages = {
 		info: string;
 		x30: string;
 		fc30: string;
+		song: string;
 	};
 	score: {
 		title: string;
@@ -69,17 +89,48 @@ export type Messages = {
 		none: string;
 		nearest: string;
 		useScore: string;
+		chartsFailedHint: string;
+		notesRange: string;
+		targetRange: string;
+		announce: string;
+		rankTitle: string;
+		rankLoading: string;
+		rankResult: string;
+		rankTied: string;
+		rankNoData: string;
+		rankBusy: string;
+		rankHint: string;
+	};
+	/** ChartSearch: `{n}` is the number of songs */
+	chartSearch: {
+		label: string;
+		viaAlias: string;
+		resultsOne: string;
+		results: string;
+		noResults: string;
 	};
 	phira: {
 		title: string;
 		lede: string;
+		searchLabel: string;
 		searchPlaceholder: string;
 		download: string;
 		empty: string;
+		change: string;
+		notes: string;
+		levels: string;
+		downloading: string;
+		downloadingPct: string;
+		downloaded: string;
+		missing: string;
+		failed: string;
+		chartsFailed: string;
+		reload: string;
 	};
 	files: {
 		title: string;
 		lede: string;
+		searchLabel: string;
 		searchPlaceholder: string;
 		kindLabel: string;
 		empty: string;
@@ -89,15 +140,19 @@ export type Messages = {
 		matches: string;
 		view: string;
 		download: string;
-		close: string;
 		tooBig: string;
 		previewFailed: string;
+		showMore: string;
+		file: string;
+		newTab: string;
+		listen: string;
 		kinds: {
 			all: string;
 			jacket: string;
 			low: string;
 			blur: string;
 			chart: string;
+			music: string;
 			avatar: string;
 			info: string;
 			other: string;
@@ -119,6 +174,7 @@ export type Messages = {
 		rks: string;
 		remove: string;
 		charts: string;
+		chartsOne: string;
 		save: string;
 		saving: string;
 		saveFailed: string;
@@ -130,11 +186,65 @@ export type Messages = {
 		deskNote: string;
 		badge: string;
 		invalid: string;
+		accRequired: string;
+		accInvalid: string;
+		scoreInvalid: string;
+		removeRow: string;
+		added: string;
+		removed: string;
+		loading: string;
+		catalogFailed: string;
+		catalogFailedEmpty: string;
+		full: string;
+		listLabel: string;
 	};
 	tags: {
 		title: string;
 		lede: string;
 		empty: string;
+		index: string;
+		count: string;
+	};
+	songs: {
+		title: string;
+		lede: string;
+		label: string;
+		placeholder: string;
+		search: string;
+		clear: string;
+		/** announced after the search box is emptied */
+		cleared: string;
+		loading: string;
+		failed: string;
+		unavailable: string;
+		countOne: string;
+		count: string;
+		countTop: string;
+		refine: string;
+		none: string;
+		noneHint: string;
+		shared: string;
+		viaAlias: string;
+		viaId: string;
+		viaComposer: string;
+		viaFuzzy: string;
+		/** screen-reader prefix before the composer's name */
+		composer: string;
+		levels: string;
+		nicknames: string;
+		noNicknames: string;
+		matched: string;
+		card: string;
+		/** the card link's accessible name: "{song}" is the title */
+		cardFor: string;
+		/** screen-reader word between an example nickname and the songs it finds */
+		exampleFinds: string;
+		examplesTitle: string;
+		examplesBody: string;
+		aboutTitle: string;
+		aboutBody: string;
+		proposeBody: string;
+		proposeLink: string;
 	};
 	me: {
 		title: string;
@@ -142,6 +252,14 @@ export type Messages = {
 		rks: string;
 		lastSynced: string;
 		cachedSave: string;
+		/** title on the sync time: "{zone}" is the visitor's time zone */
+		timeZone: string;
+		more: string;
+		moreLabel: string;
+		bannedTitle: string;
+		noSaveTitle: string;
+		noSaveBody: string;
+		loading: string;
 	};
 	bind: {
 		title: string;
@@ -162,6 +280,14 @@ export type Messages = {
 		tokenPlaceholder: string;
 		tokenHint: string;
 		tokenSubmit: string;
+		binding: string;
+		tokenNeeds: string;
+		tokenTooLong: string;
+		tokenInvalid: string;
+		tokenReady: string;
+		qrTitle: string;
+		tokenTitle: string;
+		openPhoneHint: string;
 		or: string;
 		failed: string;
 		manualTitle: string;
@@ -174,26 +300,109 @@ export type Messages = {
 		unbinding: string;
 		unbindFailed: string;
 	};
-	public: { hint: string };
+	public: {
+		hint: string;
+		cta: string;
+		ctaLede: string;
+		/** {player}, {card}, {rks} */
+		metaDescription: string;
+	};
 	card: {
+		options: string;
+		optionsSaving: string;
+		saveFailed: string;
 		charts: string;
 		quality: string;
 		qualityFast: string;
 		qualityHigh: string;
+		background: string;
+		backgroundRandom: string;
+		backgroundSearch: string;
+		backgroundChange: string;
+		backgroundNone: string;
+		/** {n} */
+		backgroundResults: string;
+		/** screen-reader suffix on the chosen background in the list */
+		backgroundCurrent: string;
+		style: string;
+		styleNames: Record<
+			"classic" | "table" | "portrait" | "timeline" | "summary",
+			string
+		>;
+		/** one line per layout; classicHistory is the history card's classic */
+		styleHints: Record<
+			| "classic"
+			| "table"
+			| "portrait"
+			| "timeline"
+			| "summary"
+			| "classicHistory"
+			| "classicInfo",
+			string
+		>;
+		styleFailed: string;
+		show: string;
+		peer: string;
+		peerNames: Record<"none" | "all" | "b30" | "top" | "rank", string>;
+		peerHints: Record<"none" | "all" | "b30" | "top" | "rank", string>;
 		download: string;
+		share: string;
+		shareFailed: string;
+		openFull: string;
+		zoom: string;
+		fullScreen: string;
+		original: string;
+		zoomTitle: string;
+		/** the whole card inside the screen */
+		zoomScreen: string;
+		zoomFit: string;
+		zoomActual: string;
+		/** touch screens */
+		zoomHint: string;
+		/** mouse and trackpad */
+		zoomHintMouse: string;
+		/** the scrollable image area's name */
+		zoomArea: string;
+		close: string;
+		/** {w} × {h} */
+		size: string;
 		tagProfile: string;
 		recordStats: string;
 		rendering: string;
+		/** {seconds} */
+		elapsed: string;
+		slow: string;
 		renderFailed: string;
 		unreachable: string;
+		retry: string;
+		/** {name} */
+		ready: string;
+		/** {name}, {error} */
+		failed: string;
+		/** {name}, {player}, {rks} */
 		alt: string;
-		titles: Record<"b30" | "x30" | "fc30" | "hisb30" | "info", string>;
+		titles: Record<"b30" | "x30" | "fc30" | "hisb30" | "info" | "song", string>;
+		songChart: string;
+		songSearch: string;
+		songLevel: string;
+		/** {level} */
+		songNoLevel: string;
+		songUnknown: string;
+		songEmptyTitle: string;
+		songEmpty: string;
+		/** a ?chart= link to a chart the catalog lacks */
+		songNotFoundTitle: string;
+		songNotFound: string;
+		/** {title} (the card), {song} (chart and level) */
+		songTitle: string;
+		diagnostics: string;
 		stats: string;
 		statsHit: string;
 		statsMiss: string;
 		statsCache: string;
 		statsStoreR2: string;
 		statsStoreKv: string;
+		statsStoreBrowser: string;
 		statsRender: string;
 		statsHeight: string;
 		statsLookup: string;
@@ -231,16 +440,33 @@ export type Messages = {
 		bypass: string;
 		bypassPending: string;
 		bypassFailed: string;
+		bypassHint: string;
+		dismiss: string;
 	};
 	share: {
 		menu: string;
 		creating: string;
 		link: string;
+		hint: string;
+		open: string;
 		copy: string;
 		copied: string;
+		copyFailed: string;
+		failed: string;
 		revoke: string;
+		revokeFailed: string;
+		/** read after the button name while a link exists */
+		on: string;
 	};
-	notFound: { title: string; body: string };
+	notFound: { title: string; body: string; home: string };
+	error: {
+		code: string;
+		title: string;
+		body: string;
+		retry: string;
+		home: string;
+		digest: string;
+	};
 	errors: {
 		unauthorized: string;
 		unknown_card: string;
@@ -284,36 +510,72 @@ export const en: Messages = {
 		name: "MiyukiYue",
 	},
 	locale: { en: "EN", zh: "中文", label: "Language" },
-	theme: { label: "Color theme" },
+	theme: {
+		label: "Color theme",
+		light: "Light",
+		dark: "Dark",
+		system: "System",
+	},
 	home: {
-		kicker: "PhiBot",
+		kicker: "Phigros cards · Discord bot",
 		title: "After the last chart.",
-		lede: "Open your B30 on your phone. Sign in, then bind TapTap here.",
-		lookupsTitle: "Lookups",
-		lookups: [
-			{ name: "B30", blurb: "Best 30, plus three phi slots." },
-			{ name: "History", blurb: "Recent score updates and your RKS trend." },
-			{ name: "Info", blurb: "Name, RKS, player card." },
-			{ name: "x30", blurb: "Best if a 1-Good still counts." },
-			{ name: "fc30", blurb: "Best Full Combo charts." },
-		],
+		lede: "Sign in with Discord and bind TapTap once. Then your B30, history and player card open here, or in Discord with /b30.",
+		ledeSignedIn:
+			"Your B30, history and player card open here, or in Discord with /b30.",
+		lookupsTitle: "What you can open",
+		lookupsSignedIn: "Each one opens your own card.",
+		lookupsSignedOut:
+			"Pick one to sign in with Discord. You come back to that card afterwards.",
+		lookups: {
+			b30: { name: "B30", blurb: "Best 30, plus three phi slots." },
+			hisb30: {
+				name: "History",
+				blurb: "Recent score updates and your RKS trend.",
+			},
+			info: { name: "Info", blurb: "Name, RKS, player card." },
+			x30: { name: "x30", blurb: "Best if a 1-Good still counts." },
+			fc30: { name: "fc30", blurb: "Best Full Combo charts." },
+			song: {
+				name: "Song rank",
+				blurb:
+					"Where your accuracy on one chart places among the records on phib19.top.",
+			},
+		},
+		nicknames: {
+			name: "Nicknames",
+			blurb: "Search songs by the names players use, like 无限光 or ASA.",
+			hint: "No sign-in",
+		},
+		signInHint: "Sign in",
+		signingIn: "Opening Discord…",
+		newLabel: "New",
 		footer:
 			"PhiBot draws Phigros cards from a save bound to your Discord login.",
 		boardTitle: "Your B30, drawn for you",
 		boardLede:
 			"Player card, best 30 with overflow, and an RKS breakdown in one image. Run /b30 in Discord or open it here.",
+		layouts:
+			"Three layouts: Classic (shown here), Table with one row per chart, and Phone, a narrow card you can read on a phone without zooming.",
+		sampleAlt:
+			"Sample B30 card in the Classic layout: a player header with RKS 16.3243, then rows of chart tiles, each with jacket art, score and accuracy.",
 		showFull: "See the full render",
+		newTab: "opens in a new tab",
 		openDesk: "Open your cards",
+		pauseMotion: "Pause animation",
 	},
 	notice: {
+		title: "Cards load faster now",
 		body: "Image generation and loading is sped up by the Vercel Pro plan, as we can select multiple function regions. Consider buying me a cup of coffee.",
 		coffee: "Buy me a coffee",
 		dismiss: "Got it",
+		close: "Dismiss",
 	},
 	nav: {
 		cards: "Cards",
 		menu: "Pages",
+		toggle: "Menu",
 		tags: "Tags",
+		songs: "Nicknames",
 		phira: "Phira",
 		files: "Files",
 		score: "Score control",
@@ -322,15 +584,16 @@ export const en: Messages = {
 		info: "Info",
 		x30: "x30",
 		fc30: "fc30",
+		song: "Song rank",
 	},
 	score: {
 		title: "Score control",
-		lede: "Find the Perfect / Good / Bad·Miss split and the max combo that land exactly on a target score.",
+		lede: "Find the Perfect / Good / Bad / Miss split and the max combo that land exactly on a target score.",
 		chart: "Chart",
 		clearChart: "Clear chart",
-		searchPlaceholder: "Search a song to fill in its note count…",
+		searchPlaceholder: "Title, nickname or composer",
 		loadingCharts: "Loading chart list…",
-		chartsFailed: "Chart list unavailable. Type the note count instead.",
+		chartsFailed: "Chart list unavailable.",
 		notes: "Notes",
 		notesShort: "notes",
 		notesHint: "Total notes in the chart. Picking a song fills it in.",
@@ -353,38 +616,75 @@ export const en: Messages = {
 			"The game shows a whole number but does not always round the exact score to the nearest one (1671 notes, FC with 5 Goods is 999057.45 and shows as 999058). Every split within 1 point of the target is listed with its exact score and offset.",
 		noteAccuracy:
 			"Accuracy is shown in full. In game and on the cards it is rounded to two decimals; the save keeps more digits.",
-		none: "No split lands within 1 point of {score} on this chart.",
+		none: "No split of {notes} notes lands within 1 point of {score}.",
 		nearest: "Closest reachable",
 		useScore: "Use {score}",
+		chartsFailedHint:
+			"The chart list didn't load, so songs can't be searched. Type the note count instead.",
+		notesRange: "Enter a note count from 1 to 5000.",
+		targetRange: "Enter a score from 0 to 1000000.",
+		announce:
+			"Closest split: {perfect} Perfect, {good} Good, {badMiss} Bad or Miss. Exact score {exact}.",
+		rankTitle: "Rank at this accuracy",
+		rankLoading: "Looking up phib19 records…",
+		rankResult: "#{rank} of {of} · top {percent}%",
+		rankTied: "tied with {n} others",
+		rankNoData: "phib19 has no records for this chart yet.",
+		rankBusy: "The rank lookup didn't answer.",
+		rankHint:
+			"Where this accuracy would place among the anonymous records on phib19.top, with you added.",
+	},
+	chartSearch: {
+		label: "Search songs",
+		viaAlias: "Nickname",
+		resultsOne: "1 song found",
+		results: "{n} songs found",
+		noResults: "No matching songs",
 	},
 	phira: {
 		title: "Phira chart",
 		lede: "Search a song and download one difficulty as a .pez pack.",
-		searchPlaceholder: "Search a song…",
+		searchLabel: "Song",
+		searchPlaceholder: "Title, nickname or composer",
 		download: "Download .pez",
 		empty: "Pick a song to see its difficulties.",
+		change: "Change song",
+		notes: "{n} notes",
+		levels: "Difficulties",
+		downloading: "Downloading…",
+		downloadingPct: "Downloading {pct}%",
+		downloaded: "Saved {file}",
+		missing: "There is no .pez pack for this difficulty yet.",
+		failed: "Download failed. Check your connection and try again.",
+		chartsFailed: "The chart list didn't load, so songs can't be searched.",
+		reload: "Reload page",
 	},
 	files: {
 		title: "Files",
-		lede: "Search illustrations, chart packs, and info files, then view or download them.",
-		searchPlaceholder: "Song or file name…",
+		lede: "Search illustrations, chart packs, music and info files, then view, play or download them.",
+		searchLabel: "Search files",
+		searchPlaceholder: "Title, nickname or file name",
 		kindLabel: "Kind",
-		empty: "Type a name, or choose a kind to browse.",
+		empty: "No files yet.",
 		loading: "Loading files…",
 		failed: "File list unavailable.",
 		none: "No matches.",
-		matches: "matches",
+		matches: "Showing {shown} of {total}",
 		view: "View",
 		download: "Download",
-		close: "Close",
 		tooBig: "This file is too large to preview.",
 		previewFailed: "Couldn't preview this file.",
+		showMore: "Show {n} more",
+		file: "File",
+		newTab: "(opens in a new tab)",
+		listen: "Listen",
 		kinds: {
 			all: "All",
 			jacket: "Jacket",
 			low: "Low",
 			blur: "Blur",
 			chart: "Chart",
+			music: "Music",
 			avatar: "Avatar",
 			info: "Info",
 			other: "Other",
@@ -398,7 +698,7 @@ export const en: Messages = {
 		playerName: "Player name",
 		playerNamePlaceholder: "Shown on the cards",
 		addChart: "Add a chart",
-		searchPlaceholder: "Search a song, then pick a difficulty…",
+		searchPlaceholder: "Title, nickname or composer",
 		empty: "No charts yet. Search above to add one.",
 		acc: "ACC %",
 		score: "Score",
@@ -407,6 +707,7 @@ export const en: Messages = {
 		rks: "RKS",
 		remove: "Remove",
 		charts: "{n} charts",
+		chartsOne: "1 chart",
 		save: "Save and draw cards",
 		saving: "Saving…",
 		saveFailed: "Could not save.",
@@ -420,11 +721,68 @@ export const en: Messages = {
 		badge: "Manual",
 		invalid:
 			"Check the highlighted rows: accuracy is 0–100 and score is 0–1000000.",
+		accRequired: "Enter the accuracy.",
+		accInvalid: "Accuracy is 0–100, up to 6 decimals.",
+		scoreInvalid: "Score is 0–1000000, or leave it blank.",
+		removeRow: "Remove {chart}",
+		added: "Added {chart}.",
+		removed: "Removed {chart}.",
+		loading: "Loading your charts…",
+		catalogFailed:
+			"The chart list didn't load. Your saved scores are below and can still be saved, but song names and RKS may be missing.",
+		catalogFailedEmpty:
+			"The chart list didn't load, so charts can't be added right now.",
+		full: "That's the limit of {n} charts.",
+		listLabel: "Your charts",
 	},
 	tags: {
 		title: "Chart tags",
 		lede: "Labels on the B30 tag profile. Descriptions come from phib19.",
 		empty: "The tag list is not available right now.",
+		index: "Categories",
+		count: "{n} tags",
+	},
+	songs: {
+		title: "Song nicknames",
+		lede: "Look a song up by its title, a nickname players use for it, or its composer.",
+		label: "Title, nickname or composer",
+		placeholder: "无限光, ASA, Ad…",
+		search: "Search",
+		clear: "Clear search",
+		cleared: "Search cleared",
+		loading: "Loading the song list…",
+		failed:
+			"The song list didn't load. Press Search to look it up on the server instead.",
+		unavailable: "Song search is unavailable right now. Try again in a moment.",
+		countOne: "1 song matches “{q}”",
+		count: "{n} songs match “{q}”",
+		countTop: "Best {shown} of {n} matches for “{q}”",
+		refine: "Type more of the title or nickname to narrow the list.",
+		none: "No songs match “{q}”",
+		noneHint:
+			"Check the spelling, or try part of the title or the composer's name. If players call the song by a nickname that isn't listed yet, you can propose it.",
+		shared:
+			"“{q}” is a nickname for {n} songs. Check the composer and levels to find the one you mean.",
+		viaAlias: "Nickname “{text}”",
+		viaId: "Song ID",
+		viaComposer: "Composer match",
+		viaFuzzy: "Close to “{text}”",
+		composer: "Composer:",
+		levels: "Levels and chart constants",
+		nicknames: "Nicknames",
+		noNicknames: "No nicknames yet.",
+		matched: "(matches your search)",
+		card: "Open song card",
+		cardFor: "Open song card: {song}",
+		exampleFinds: "finds",
+		examplesTitle: "Try a nickname",
+		examplesBody: "Nicknames find songs just like titles do. Pick one:",
+		aboutTitle: "Where nicknames come from",
+		aboutBody:
+			"The list combines phi-plugin's bundled nicknames with the ones the phib19.top community has voted in.",
+		proposeBody:
+			"Missing one? Propose it on phib19.top. Proposals and votes need a phib19 account, so this site can't send them for you.",
+		proposeLink: "Propose a nickname on phib19.top",
 	},
 	me: {
 		title: "Your cards",
@@ -432,10 +790,18 @@ export const en: Messages = {
 		rks: "RKS",
 		lastSynced: "Last synced",
 		cachedSave: "cached save",
+		timeZone: "Your time zone: {zone}",
+		more: "More",
+		moreLabel: "More actions",
+		bannedTitle: "Cards unavailable",
+		noSaveTitle: "No save yet",
+		noSaveBody:
+			"PhiBot has not downloaded your Phigros save yet. Refresh pulls it from TapTap, which usually takes a few seconds.",
+		loading: "Loading your cards…",
 	},
 	bind: {
 		title: "Bind Phigros",
-		lede: "Scan TapTap with the account Phigros uses, or paste the 25-character code. Do not share it.",
+		lede: "Scan TapTap with the account Phigros uses, or paste your sessionToken. Do not share it.",
 		server: "Server",
 		cn: "CN",
 		gb: "Global",
@@ -451,7 +817,15 @@ export const en: Messages = {
 		tokenLabel: "sessionToken",
 		tokenPlaceholder: "25 characters",
 		tokenHint: "Stays on the server. Never pasted into chat.",
-		tokenSubmit: "Bind code",
+		tokenSubmit: "Bind token",
+		binding: "Binding…",
+		tokenNeeds: "Needs 25 letters or digits · {n}/25",
+		tokenTooLong: "Too long: a sessionToken has 25 letters or digits · {n}/25",
+		tokenInvalid: "Letters and digits only · {n}/25",
+		tokenReady: "25/25 · ready to bind",
+		qrTitle: "Sign in with TapTap",
+		tokenTitle: "Paste a sessionToken",
+		openPhoneHint: "Or scan this code from another device:",
 		or: "or",
 		failed: "Bind failed.",
 		manualTitle: "No account mode",
@@ -467,32 +841,114 @@ export const en: Messages = {
 	},
 	public: {
 		hint: "This is a public copy of their cards. Opening the page does not refresh their save.",
+		cta: "Get your own cards",
+		ctaLede: "Sign in with Discord and bind Phigros to draw yours.",
+		metaDescription: "{player}'s Phigros {card}. RKS {rks}.",
 	},
 	card: {
+		options: "Card options",
+		optionsSaving: "Saving…",
+		saveFailed: "Couldn't save this setting. Try again.",
 		charts: "Charts",
 		quality: "Quality",
 		qualityFast: "Faster · normal",
 		qualityHigh: "High quality · slower",
-		download: "Download JPEG",
+		background: "Background",
+		backgroundRandom: "Random",
+		backgroundSearch: "Search songs",
+		backgroundChange: "Change",
+		backgroundNone: "No matching songs",
+		backgroundResults: "Matching songs: {n}",
+		backgroundCurrent: "current",
+		style: "Layout",
+		styleNames: {
+			classic: "Classic",
+			table: "Table",
+			portrait: "Phone",
+			timeline: "Timeline",
+			summary: "Summary",
+		},
+		styleHints: {
+			classic: "Jackets in a grid, like the Discord bot",
+			table: "Dense rows with every number",
+			portrait: "One tall column sized for phones",
+			timeline: "Changes grouped by save date",
+			summary: "Totals and highlights of the latest update",
+			classicHistory: "Recent updates and RKS trend, like the Discord bot",
+			classicInfo: "Profile, progress per difficulty and trends",
+		},
+		styleFailed: "Couldn't save the layout. Try again.",
+		show: "Show on card",
+		peer: "Peer comparison",
+		peerNames: {
+			none: "Off",
+			all: "Average",
+			b30: "B30 average",
+			top: "Top %",
+			rank: "Rank",
+		},
+		peerHints: {
+			none: "No comparison badge on the chart rows.",
+			all: "Average accuracy of players near your RKS.",
+			b30: "The same average, counting only charts in their B30.",
+			top: "Your top percentage among players near your RKS.",
+			rank: "Your estimated place among all phib19.top records.",
+		},
+		download: "Download",
+		share: "Share image",
+		shareFailed: "Couldn't share the image.",
+		openFull: "Open full size",
+		zoom: "View full screen",
+		fullScreen: "Full screen",
+		original: "Original",
+		zoomTitle: "Card viewer",
+		zoomScreen: "Fit screen",
+		zoomFit: "Fit width",
+		zoomActual: "100%",
+		zoomHint: "Pinch or drag to look around. Double-tap to zoom in or out.",
+		zoomHintMouse: "Scroll to look around. Double-click to zoom in or out.",
+		zoomArea: "Card image, scroll to pan",
+		close: "Close",
+		size: "{w} × {h} px",
 		tagProfile: "Tag profile",
 		recordStats: "Clear / FC / AP counts",
 		rendering: "Rendering card…",
+		elapsed: "{seconds}s",
+		slow: "Still drawing. Large cards can take up to a minute.",
 		renderFailed: "Could not render this card.",
 		unreachable: "Could not reach the render server.",
-		alt: "{name} card",
+		retry: "Try again",
+		ready: "{name} card ready.",
+		failed: "{name} card failed: {error}",
+		alt: "{name} card for {player}, RKS {rks}",
 		titles: {
 			b30: "B30",
 			x30: "x30 (1-Good)",
 			fc30: "fc30 (Full Combo)",
 			hisb30: "Score history",
 			info: "Player info",
+			song: "Song rank",
 		},
+		songChart: "Chart",
+		songSearch: "Search by title, nickname or composer",
+		songLevel: "Level",
+		songNoLevel: "No {level} chart",
+		songUnknown: "Unknown chart",
+		songEmptyTitle: "Pick a chart",
+		songEmpty:
+			"See your estimated position among phib19.top records for one chart, by accuracy.",
+		songNotFoundTitle: "Chart not found",
+		songNotFound:
+			"The chart in this link isn't in the song list. Search for another one above.",
+		songTitle: "{title}: {song}",
+		diagnostics: "Render details",
 		stats: "Timing",
 		statsHit: "Hit",
 		statsMiss: "Miss",
 		statsCache: "JPEG",
 		statsStoreR2: "R2",
 		statsStoreKv: "KV",
+		statsStoreBrowser: "Browser copy",
 		statsRender: "Render",
 		statsHeight: "Height",
 		statsLookup: "Cache lookup",
@@ -533,18 +989,36 @@ export const en: Messages = {
 		bypass: "Bypass cache",
 		bypassPending: "Bypassing…",
 		bypassFailed: "Could not bypass cache.",
+		bypassHint:
+			"Redraws every card from scratch. Use it if a card looks out of date.",
+		dismiss: "Dismiss",
 	},
 	share: {
-		menu: "Share",
+		menu: "Share link",
 		creating: "Creating…",
 		link: "Public link",
+		hint: "Anyone with this link can see your B30, history and player info.",
+		open: "Open",
 		copy: "Copy",
 		copied: "Copied",
+		copyFailed: "Couldn't copy. Select the link and copy it.",
+		failed: "Couldn't create the link. Try again.",
 		revoke: "Stop sharing",
+		revokeFailed: "Couldn't stop sharing. Try again.",
+		on: "on",
 	},
 	notFound: {
 		title: "Not found",
 		body: "This page or share link does not exist.",
+		home: "Go to the home page",
+	},
+	error: {
+		code: "Error",
+		title: "This page failed to load",
+		body: "Something went wrong on our side. Try again, or go back to the home page.",
+		retry: "Try again",
+		home: "Home page",
+		digest: "Reference",
 	},
 	errors: {
 		unauthorized: "unauthorized",
@@ -587,35 +1061,66 @@ export const zh: Messages = {
 	signedIn: "已登录",
 	credit: { before: "用", after: "打造 ·", heart: "心", name: "MiyukiYue" },
 	locale: { en: "EN", zh: "中文", label: "语言" },
-	theme: { label: "颜色主题" },
+	theme: {
+		label: "颜色主题",
+		light: "浅色",
+		dark: "深色",
+		system: "跟随系统",
+	},
 	home: {
-		kicker: "PhiBot",
+		kicker: "Phigros 成绩图 · Discord 机器人",
 		title: "打完最后一首",
-		lede: "用手机看 B30。登录后在本页绑定 TapTap",
+		lede: "用 Discord 登录，绑定一次 TapTap。之后 B30、成绩历史和玩家信息都能在这里打开，也可以在 Discord 里发 /b30",
+		ledeSignedIn:
+			"B30、成绩历史和玩家信息都能在这里打开，也可以在 Discord 里发 /b30",
 		lookupsTitle: "能查什么",
-		lookups: [
-			{ name: "B30", blurb: "最好的 30 首，外加三个 AP" },
-			{ name: "历史", blurb: "最近更新的成绩和 RKS 走势" },
-			{ name: "Info", blurb: "名字、RKS、玩家信息" },
-			{ name: "x30", blurb: "算上 1 Good 时最好的谱" },
-			{ name: "fc30", blurb: "Full Combo 最好的谱" },
-		],
+		lookupsSignedIn: "点一项，直接打开你的成绩图",
+		lookupsSignedOut: "点一项会先用 Discord 登录，登录后回到这张图",
+		lookups: {
+			b30: { name: "B30", blurb: "最好的 30 首，外加三个 AP" },
+			hisb30: { name: "历史", blurb: "最近更新的成绩和 RKS 走势" },
+			info: { name: "信息", blurb: "名字、RKS、玩家信息" },
+			x30: { name: "x30", blurb: "算上 1 Good 时最好的谱" },
+			fc30: { name: "fc30", blurb: "Full Combo 最好的谱" },
+			song: {
+				name: "单曲排名",
+				blurb: "你在一张谱面上的准确率，在 phib19.top 的记录里排第几",
+			},
+		},
+		nicknames: {
+			name: "曲目别名",
+			blurb: "用玩家常用的叫法找歌，比如“无限光”“ASA”",
+			hint: "无需登录",
+		},
+		signInHint: "登录",
+		signingIn: "正在前往 Discord…",
+		newLabel: "新",
 		footer: "PhiBot 用绑定到你 Discord 登录的存档出 Phigros 成绩图",
 		boardTitle: "一张图看完你的 B30",
 		boardLede:
 			"玩家信息、Best 30 与溢出曲目、RKS 分析全在一张图里。在 Discord 里发 /b30，或直接在这里查看",
+		layouts:
+			"三种版式：经典（如图）、每行一首的表格，以及手机竖版：窄版成绩图，手机上不用放大也能看清",
+		sampleAlt:
+			"经典版式的 B30 成绩图示例：顶部是玩家信息和 RKS 16.3243，下面每格一张谱面，显示曲绘、分数和准确率",
 		showFull: "查看完整成绩图",
+		newTab: "在新标签页打开",
 		openDesk: "查看成绩图",
+		pauseMotion: "暂停动画",
 	},
 	notice: {
+		title: "成绩图加载更快了",
 		body: "Image 生成和加载因 Vercel Pro 变得更快了。请考虑支持我一下😭",
 		coffee: "请我喝杯咖啡",
 		dismiss: "知道了",
+		close: "关闭",
 	},
 	nav: {
 		cards: "成绩图",
 		menu: "页面",
+		toggle: "菜单",
 		tags: "标签",
+		songs: "别名",
 		phira: "Phira",
 		files: "资源",
 		score: "控分",
@@ -624,15 +1129,16 @@ export const zh: Messages = {
 		info: "信息",
 		x30: "x30",
 		fc30: "fc30",
+		song: "单曲排名",
 	},
 	score: {
 		title: "控分计算",
-		lede: "根据谱面物量和目标分数，算出恰好达成所需的 Perfect / Good / Bad·Miss 数量和最大连击。",
+		lede: "根据谱面物量和目标分数，算出恰好达成所需的 Perfect / Good / Bad / Miss 数量和最大连击。",
 		chart: "谱面",
 		clearChart: "清除谱面",
-		searchPlaceholder: "搜索曲目，自动填入物量…",
+		searchPlaceholder: "按曲名、别名或曲师搜索",
 		loadingCharts: "正在加载曲目列表…",
-		chartsFailed: "曲目列表暂不可用，请手动输入物量。",
+		chartsFailed: "曲目列表暂不可用。",
 		notes: "物量",
 		notesShort: "物量",
 		notesHint: "谱面总物量。选择曲目后会自动填入。",
@@ -650,41 +1156,77 @@ export const zh: Messages = {
 		acc: "准确率",
 		exactScore: "精确分数",
 		tip: "按与目标分数的差距排序，其次 Good 越少越优先，再看最大连击是否接近 Perfect 数。",
-		roundingHint: "游戏显示的是整数，但并不总是对精确分数四舍五入",
+		roundingHint:
+			"游戏显示整数分，但并不总是把精确分数四舍五入（1671 物量、FC 且 5 个 Good 为 999057.45，显示为 999058）。与目标相差 1 分以内的方案都会列出精确分数和偏差。",
 		noteAccuracy:
 			"准确率按完整精度显示。游戏内和成绩图只显示两位小数，存档中保留更多位数。",
-		none: "该谱面没有与 {score} 分相差 1 分以内的方案。",
+		none: "{notes} 物量下没有与 {score} 分相差 1 分以内的方案。",
 		nearest: "最接近的可达分数",
 		useScore: "改为 {score}",
+		chartsFailedHint: "曲目列表加载失败，暂时无法搜索曲目。请手动输入物量。",
+		notesRange: "物量需在 1 到 5000 之间。",
+		targetRange: "目标分数需在 0 到 1000000 之间。",
+		announce:
+			"最接近的方案：Perfect {perfect}，Good {good}，Bad/Miss {badMiss}。精确分数 {exact}。",
+		rankTitle: "该准确率的排名",
+		rankLoading: "正在查询 phib19 记录…",
+		rankResult: "第 {rank} 名，共 {of} 条 · 前 {percent}%",
+		rankTied: "与 {n} 条记录并列",
+		rankNoData: "phib19 暂无该谱面的记录。",
+		rankBusy: "排名查询没有响应。",
+		rankHint: "按 phib19.top 的匿名记录估算，并计入你自己。",
+	},
+	chartSearch: {
+		label: "搜索曲目",
+		viaAlias: "别名",
+		resultsOne: "找到 1 首曲目",
+		results: "找到 {n} 首曲目",
+		noResults: "没有匹配的曲目",
 	},
 	phira: {
 		title: "Phira 谱面",
 		lede: "搜索曲目，按难度下载 .pez 包。",
-		searchPlaceholder: "搜索曲目…",
+		searchLabel: "曲目",
+		searchPlaceholder: "按曲名、别名或曲师搜索",
 		download: "下载 .pez",
 		empty: "选择一首曲目后会列出各难度。",
+		change: "换一首",
+		notes: "{n} 物量",
+		levels: "难度",
+		downloading: "正在下载…",
+		downloadingPct: "正在下载 {pct}%",
+		downloaded: "已保存 {file}",
+		missing: "这个难度暂时没有 .pez 包。",
+		failed: "下载失败，请检查网络后重试。",
+		chartsFailed: "曲目列表加载失败，暂时无法搜索曲目。",
+		reload: "重新加载页面",
 	},
 	files: {
 		title: "资源",
-		lede: "搜索曲绘、谱面包和资料文件，在线查看或下载。",
-		searchPlaceholder: "曲名或文件名…",
+		lede: "搜索曲绘、谱面包、音乐和资料文件，在线查看、试听或下载。",
+		searchLabel: "搜索文件",
+		searchPlaceholder: "曲名、别名或文件名",
 		kindLabel: "分类",
-		empty: "输入名称，或选择分类浏览。",
+		empty: "暂时没有文件。",
 		loading: "正在加载文件…",
 		failed: "文件列表暂不可用。",
 		none: "没有匹配的文件。",
-		matches: "个结果",
+		matches: "显示 {shown} / {total} 个",
 		view: "查看",
 		download: "下载",
-		close: "关闭",
 		tooBig: "文件太大，无法预览。",
 		previewFailed: "无法预览这个文件。",
+		showMore: "再显示 {n} 个",
+		file: "文件",
+		newTab: "（在新标签页打开）",
+		listen: "试听",
 		kinds: {
 			all: "全部",
 			jacket: "曲绘",
 			low: "低清",
 			blur: "模糊",
 			chart: "谱面",
+			music: "音乐",
 			avatar: "头像",
 			info: "资料",
 			other: "其他",
@@ -698,7 +1240,7 @@ export const zh: Messages = {
 		playerName: "玩家名",
 		playerNamePlaceholder: "显示在成绩图上",
 		addChart: "添加谱面",
-		searchPlaceholder: "搜索曲目，再选择难度…",
+		searchPlaceholder: "按曲名、别名或曲师搜索",
 		empty: "还没有谱面。在上方搜索添加。",
 		acc: "ACC %",
 		score: "分数",
@@ -707,6 +1249,7 @@ export const zh: Messages = {
 		rks: "RKS",
 		remove: "删除",
 		charts: "{n} 张谱面",
+		chartsOne: "1 张谱面",
 		save: "保存并出图",
 		saving: "正在保存…",
 		saveFailed: "保存失败。",
@@ -719,11 +1262,65 @@ export const zh: Messages = {
 			"手动模式：成绩图由你填写的准确率生成。若填的是游戏显示的两位小数，RKS 为近似值。",
 		badge: "手动",
 		invalid: "请检查高亮的行：准确率范围 0–100，分数范围 0–1000000。",
+		accRequired: "请填写准确率。",
+		accInvalid: "准确率范围 0–100，最多 6 位小数。",
+		scoreInvalid: "分数范围 0–1000000，也可以留空。",
+		removeRow: "删除 {chart}",
+		added: "已添加 {chart}。",
+		removed: "已删除 {chart}。",
+		loading: "正在加载谱面…",
+		catalogFailed:
+			"曲目列表加载失败。已保存的成绩仍在下方，也可以继续保存，但曲名和 RKS 可能无法显示。",
+		catalogFailedEmpty: "曲目列表加载失败，暂时无法添加谱面。",
+		full: "最多 {n} 张谱面。",
+		listLabel: "你的谱面",
 	},
 	tags: {
 		title: "谱面标签",
 		lede: "B30 标签画像用的分类。说明来自 phib19。",
 		empty: "暂时无法加载标签列表。",
+		index: "分类",
+		count: "{n} 个标签",
+	},
+	songs: {
+		title: "曲目别名",
+		lede: "用曲名、玩家常用的别名或曲师查找曲目。",
+		label: "曲名、别名或曲师",
+		placeholder: "无限光、ASA、Ad…",
+		search: "搜索",
+		clear: "清空搜索",
+		cleared: "已清空搜索",
+		loading: "正在加载曲目列表…",
+		failed: "曲目列表加载失败。按“搜索”改由服务器查找。",
+		unavailable: "暂时无法搜索曲目，请稍后再试。",
+		countOne: "“{q}”匹配到 1 首曲目",
+		count: "“{q}”匹配到 {n} 首曲目",
+		countTop: "“{q}”共匹配 {n} 首，显示最接近的 {shown} 首",
+		refine: "多输入一些曲名或别名可以缩小范围。",
+		none: "没有与“{q}”匹配的曲目",
+		noneHint:
+			"检查一下拼写，或试试曲名的一部分、曲师名。如果这是还没收录的叫法，可以提交为别名。",
+		shared: "“{q}”是 {n} 首曲目共用的别名，请根据曲师和难度确认是哪一首。",
+		viaAlias: "别名“{text}”",
+		viaId: "曲目 ID",
+		viaComposer: "曲师匹配",
+		viaFuzzy: "与“{text}”相近",
+		composer: "曲师：",
+		levels: "难度与定数",
+		nicknames: "别名",
+		noNicknames: "暂无别名。",
+		matched: "（与搜索匹配）",
+		card: "查看单曲成绩图",
+		cardFor: "查看单曲成绩图：{song}",
+		exampleFinds: "对应",
+		examplesTitle: "试试这些别名",
+		examplesBody: "别名和正式曲名一样能搜到曲目。点一个看看：",
+		aboutTitle: "别名来源",
+		aboutBody:
+			"别名表由 phi-plugin 自带的别名和 phib19.top 社区投票通过的别名合并而成。",
+		proposeBody:
+			"缺少别名？到 phib19.top 提交。提交和投票需要 phib19 账号，本站无法代为提交。",
+		proposeLink: "前往 phib19.top 提交别名",
 	},
 	me: {
 		title: "你的成绩",
@@ -731,10 +1328,18 @@ export const zh: Messages = {
 		rks: "RKS",
 		lastSynced: "上次同步",
 		cachedSave: "缓存存档",
+		timeZone: "你的时区：{zone}",
+		more: "更多",
+		moreLabel: "更多操作",
+		bannedTitle: "无法查看成绩图",
+		noSaveTitle: "还没有存档",
+		noSaveBody:
+			"PhiBot 还没有下载你的 Phigros 存档。点「刷新存档」从 TapTap 拉取，通常只需几秒。",
+		loading: "正在加载你的成绩图…",
 	},
 	bind: {
 		title: "绑定 Phigros",
-		lede: "用 Phigros 登录的那个 TapTap 扫码，或粘贴 25 位代码。不要发给别人。",
+		lede: "用 Phigros 登录的那个 TapTap 扫码，或粘贴你的 sessionToken。不要发给别人。",
 		server: "区服",
 		cn: "国服",
 		gb: "国际服",
@@ -750,7 +1355,15 @@ export const zh: Messages = {
 		tokenLabel: "sessionToken",
 		tokenPlaceholder: "25 位",
 		tokenHint: "只留在服务器。不要发到聊天里。",
-		tokenSubmit: "用代码绑定",
+		tokenSubmit: "用 sessionToken 绑定",
+		binding: "绑定中…",
+		tokenNeeds: "需要 25 位字母或数字 · {n}/25",
+		tokenTooLong: "太长了：sessionToken 是 25 位字母或数字 · {n}/25",
+		tokenInvalid: "只能包含字母和数字 · {n}/25",
+		tokenReady: "25/25 · 可以绑定",
+		qrTitle: "用 TapTap 登录",
+		tokenTitle: "粘贴 sessionToken",
+		openPhoneHint: "也可以用另一台设备扫描这个二维码：",
 		or: "或",
 		failed: "绑定失败。",
 		manualTitle: "无账号模式",
@@ -766,32 +1379,112 @@ export const zh: Messages = {
 	},
 	public: {
 		hint: "这是他们成绩图的公开副本。打开页面不会刷新存档。",
+		cta: "生成你自己的成绩图",
+		ctaLede: "用 Discord 登录并绑定 Phigros，即可生成你的成绩图。",
+		metaDescription: "{player} 的 Phigros {card}。RKS {rks}。",
 	},
 	card: {
+		options: "成绩图选项",
+		optionsSaving: "正在保存…",
+		saveFailed: "设置保存失败，请重试。",
 		charts: "谱面数",
 		quality: "画质",
 		qualityFast: "更快 · 普通",
 		qualityHigh: "高画质 · 较慢",
-		download: "下载 JPEG",
+		background: "背景",
+		backgroundRandom: "随机",
+		backgroundSearch: "搜索曲目",
+		backgroundChange: "更换",
+		backgroundNone: "没有匹配的曲目",
+		backgroundResults: "匹配的曲目：{n} 首",
+		backgroundCurrent: "当前",
+		style: "版式",
+		styleNames: {
+			classic: "经典",
+			table: "表格",
+			portrait: "手机竖版",
+			timeline: "时间线",
+			summary: "摘要",
+		},
+		styleHints: {
+			classic: "曲绘网格，与 Discord 机器人相同",
+			table: "紧凑表格，数字一目了然",
+			portrait: "适合手机的竖向单列",
+			timeline: "按存档日期分组的变化",
+			summary: "最近一次更新的总计与亮点",
+			classicHistory: "最近更新与 RKS 走势，与 Discord 机器人相同",
+			classicInfo: "个人资料、各难度进度与走势",
+		},
+		styleFailed: "版式保存失败，请重试。",
+		show: "图上显示",
+		peer: "与其他玩家对比",
+		peerNames: {
+			none: "关闭",
+			all: "平均",
+			b30: "B30 平均",
+			top: "前百分比",
+			rank: "排名",
+		},
+		peerHints: {
+			none: "谱面行上不显示对比标记。",
+			all: "与你 RKS 相近玩家的平均准确率。",
+			b30: "同样的平均值，只统计他们 B30 内的成绩。",
+			top: "你在 RKS 相近玩家中的前百分比。",
+			rank: "你在所有 phib19.top 记录中的估计名次。",
+		},
+		download: "下载",
+		share: "分享图片",
+		shareFailed: "无法分享图片。",
+		openFull: "打开原图",
+		zoom: "全屏查看",
+		fullScreen: "全屏",
+		original: "原图",
+		zoomTitle: "成绩图查看器",
+		zoomScreen: "适应屏幕",
+		zoomFit: "适应宽度",
+		zoomActual: "100%",
+		zoomHint: "双指缩放或拖动查看。轻点两下放大或还原。",
+		zoomHintMouse: "滚动查看。双击放大或还原。",
+		zoomArea: "成绩图图像，可滚动查看",
+		close: "关闭",
+		size: "{w} × {h} 像素",
 		tagProfile: "谱面标签",
 		recordStats: "完成 / FC / AP 数量",
 		rendering: "正在出图…",
+		elapsed: "{seconds} 秒",
+		slow: "仍在出图。大图可能需要一分钟。",
 		renderFailed: "无法生成这张成绩图",
 		unreachable: "无法连接到出图服务",
-		alt: "{name} 成绩图",
+		retry: "重试",
+		ready: "{name} 成绩图已加载。",
+		failed: "{name} 成绩图加载失败：{error}",
+		alt: "{player} 的 {name} 成绩图，RKS {rks}",
 		titles: {
 			b30: "B30",
 			x30: "x30（1 Good）",
 			fc30: "fc30（Full Combo）",
 			hisb30: "成绩历史",
 			info: "玩家信息",
+			song: "单曲排名",
 		},
+		songChart: "谱面",
+		songSearch: "按曲名、别名或曲师搜索",
+		songLevel: "难度",
+		songNoLevel: "没有 {level} 谱面",
+		songUnknown: "未知谱面",
+		songEmptyTitle: "选择一张谱面",
+		songEmpty: "按准确率估算你在这张谱面的 phib19.top 记录中的位置。",
+		songNotFoundTitle: "找不到这个谱面",
+		songNotFound: "链接里的谱面不在曲目列表中，请在上方重新搜索。",
+		songTitle: "{title}：{song}",
+		diagnostics: "出图详情",
 		stats: "耗时",
 		statsHit: "命中",
 		statsMiss: "未命中",
 		statsCache: "JPEG",
 		statsStoreR2: "R2",
 		statsStoreKv: "KV",
+		statsStoreBrowser: "浏览器缓存",
 		statsRender: "渲染",
 		statsHeight: "高度",
 		statsLookup: "缓存查找",
@@ -831,18 +1524,35 @@ export const zh: Messages = {
 		bypass: "绕过缓存",
 		bypassPending: "正在重绘…",
 		bypassFailed: "无法绕过缓存",
+		bypassHint: "从头重绘所有成绩图。成绩图看起来没更新时使用。",
+		dismiss: "关闭",
 	},
 	share: {
-		menu: "分享",
+		menu: "分享链接",
 		creating: "正在生成…",
 		link: "公开链接",
+		hint: "任何拿到链接的人都能看到你的 B30、历史和玩家信息。",
+		open: "打开",
 		copy: "复制",
 		copied: "已复制",
+		copyFailed: "复制失败。请选中链接手动复制。",
+		failed: "无法创建链接，请重试。",
 		revoke: "停止分享",
+		revokeFailed: "无法停止分享，请重试。",
+		on: "已开启",
 	},
 	notFound: {
 		title: "未找到",
 		body: "该页面或分享链接不存在",
+		home: "返回首页",
+	},
+	error: {
+		code: "错误",
+		title: "页面加载失败",
+		body: "服务端出了点问题。请重试，或返回首页",
+		retry: "重试",
+		home: "返回首页",
+		digest: "错误编号",
 	},
 	errors: {
 		unauthorized: "未登录",

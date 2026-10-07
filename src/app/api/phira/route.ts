@@ -14,11 +14,12 @@ export async function GET(request: Request) {
 		return Response.json(built, { status });
 	}
 	const ascii = built.filename.replace(/[^\x20-\x7E]/g, "_");
-	return new Response(Buffer.from(built.bytes), {
-		headers: {
-			"Content-Type": "application/octet-stream",
-			"Content-Disposition": `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(built.filename)}`,
-			"Cache-Control": "private, no-store",
-		},
-	});
+	const headers: Record<string, string> = {
+		"Content-Type": "application/octet-stream",
+		"Content-Disposition": `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(built.filename)}`,
+		"Cache-Control": "private, no-store",
+	};
+	if (built.length) headers["Content-Length"] = String(built.length);
+	// Piped straight from R2: a buffered body would hit the 4.5 MB function response limit
+	return new Response(built.body, { headers });
 }

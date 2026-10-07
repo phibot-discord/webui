@@ -22,7 +22,7 @@ function tapProxyBase(): string {
 	return (raw || DEFAULT_TAP_PROXY).replace(/\/+$/, "");
 }
 
-/** CN TapTap is a direct Chinese IP; this Next host cannot SYN to it. */
+/** CN TapTap is a direct Chinese IP; this Next host cannot SYN to it */
 export function tapCnProxyUrl(url: string | URL): string | undefined {
 	const base = tapProxyBase();
 	if (!base) return;
@@ -41,13 +41,17 @@ export const tapAgent = {
 	bodyTimeout: TAPAPI_SAVE_TIMEOUT_MS,
 };
 
-const agent = outgoingAgent({
-	connections: 8,
-	pipelining: 1,
-	keepAliveTimeout: 10_000,
-	keepAliveMaxTimeout: 30_000,
-	...tapAgent,
-});
+// tapFetch retries dropped sockets itself; undici only retries 429/5xx here
+const agent = outgoingAgent(
+	{
+		connections: 8,
+		pipelining: 1,
+		keepAliveTimeout: 10_000,
+		keepAliveMaxTimeout: 30_000,
+		...tapAgent,
+	},
+	{ retry: "status" },
+);
 
 type TapHttp = (
 	url: string | URL,
@@ -164,7 +168,7 @@ function errChain(err: unknown): string {
 	return bits.join(" <- ") || String(err);
 }
 
-/** Kernel SYN to TapTap often dies ~15s; undici's 30s connect timer never fires. */
+/** Kernel SYN to TapTap often dies ~15s; undici's 30s connect timer never fires */
 export function isRetryableTapNet(err: unknown): boolean {
 	if (err instanceof TapApiError) return err.timeout;
 	let cur: unknown = err;
@@ -228,7 +232,8 @@ export async function tapFetch(
 				dispatcher: agent,
 			});
 			const ms = Math.round(performance.now() - started);
-			if (res.status >= 500) {
+			// undici already retried these (idempotent methods): TapTap is unavailable
+			if (res.status >= 500 || res.status === 429) {
 				logger.warn(`tap ${method} ${tapUrl(url)} ${res.status} ${ms}ms`);
 				throw new TapApiError(`TapAPI ${res.status} ${res.statusText}`);
 			}

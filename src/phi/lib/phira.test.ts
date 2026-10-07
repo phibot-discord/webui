@@ -19,10 +19,18 @@ test("pez contains the chart, jacket, audio, and info.txt", async () => {
 	const zip = await JSZip.loadAsync(bytes);
 	assert.deepEqual(
 		Object.keys(zip.files).sort(),
-		["Stasis.Maozon.json", "Stasis.Maozon.ogg", "Stasis.Maozon.png", "info.txt"].sort(),
+		[
+			"Stasis.Maozon.json",
+			"Stasis.Maozon.ogg",
+			"Stasis.Maozon.png",
+			"info.txt",
+		].sort(),
 	);
 	const info = await zip.file("info.txt")!.async("string");
 	assert.match(info, /Level: IN Lv\.15\.4/);
 	assert.match(info, /Charter: charter/);
-	assert.equal((await zip.file("Stasis.Maozon.png")!.async("uint8array")).length, 3);
+	assert.equal(
+		(await zip.file("Stasis.Maozon.png")!.async("uint8array")).length,
+		3,
+	);
 });

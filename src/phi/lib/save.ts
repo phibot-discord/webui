@@ -281,7 +281,7 @@ export class Save {
 				)
 					suggest = 100;
 				if (suggest !== -1 && typeof suggest === "number") {
-					row.suggest = `${suggest.toFixed(2)}%`;
+					row.suggest = `${suggest.toFixed(4)}%`;
 					if (suggest < 98.5) row.suggestType = 0;
 					else if (suggest < 99) row.suggestType = 1;
 					else if (suggest < 99.5) row.suggestType = 2;
@@ -352,7 +352,7 @@ export class Save {
 					fCompute.suggest(
 						Number(i < 26 ? x.rks : rkslist[26]!.rks) + minuprks * 30,
 						x.difficulty,
-						2,
+						4,
 					),
 				);
 				if (
@@ -360,7 +360,7 @@ export class Save {
 					(!phi?.[0] || x.rks > (phi[phi.length - 1]?.rks || 0)) &&
 					x.rks < 100
 				) {
-					x.suggest = "100.00%";
+					x.suggest = "100.0000%";
 				}
 			} else {
 				x.suggest = "无法推分";

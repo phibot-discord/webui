@@ -1,6 +1,7 @@
 import type { PhiRuntime } from "@/phi/lib/runtime";
 import { bootPhiRuntime } from "@/phi/lib/runtime";
 import {
+	getBoundToken,
 	getToken,
 	loadSave,
 	loadSaveByToken,
@@ -16,6 +17,7 @@ const dataLib = {
 	loadSaveByToken,
 	updateSave,
 	getToken,
+	getBoundToken,
 };
 
 export type DataHost = {

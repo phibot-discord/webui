@@ -64,6 +64,65 @@ function fixtureHtml(laidOut: string): string {
 	);
 }
 
+async function renderTakumi(
+	html: string,
+	width: number,
+	height: number,
+): Promise<Buffer> {
+	const renderer = new Renderer();
+	const fonts = await loadFontsFromDir(
+		fileURLToPath(
+			new URL("../../../phi-assets/html/common/font", import.meta.url),
+		),
+		PHI_FONT_FILES,
+	);
+	for (const f of fonts) {
+		await renderer.registerFont({
+			name: f.name,
+			data: f.data,
+			weight: f.weight ?? 400,
+			style: f.style ?? "normal",
+			generic: f.generic,
+		});
+	}
+	return Buffer.from(
+		await render(fromHtml(html).node, {
+			renderer,
+			width,
+			height,
+			format: "png",
+			fontFamilies: fonts.map((f) => f.name),
+			css: [
+				readFileSync(
+					new URL("../../../phi-assets/html/b19/b19.css", import.meta.url),
+					"utf8",
+				),
+				readFileSync(new URL("../css/takumi.css", import.meta.url), "utf8"),
+			],
+		} as never),
+	);
+}
+
+async function pixels(bytes: Buffer) {
+	const painted = await sharp(bytes).raw().ensureAlpha().toBuffer({
+		resolveWithObject: true,
+	});
+	const w = painted.info.width;
+	const h = painted.info.height;
+	const at = (x: number, y: number) => {
+		const i = (y * w + x) * 4;
+		return [
+			painted.data[i]!,
+			painted.data[i + 1]!,
+			painted.data[i + 2]!,
+		] as const;
+	};
+	return { w, h, at };
+}
+
+const isCyan = (r: number, g: number, b: number) =>
+	b > 140 && g > 90 && r < 80 && b > r + 40;
+
 test("Takumi paints a single histogram with a left RKS gutter", async () => {
 	const slots = [
 		...[1, 2, 3].map((n) => ({
@@ -111,55 +170,9 @@ test("Takumi paints a single histogram with a left RKS gutter", async () => {
 			.join("") +
 		`</div></div></div>`;
 	const html = fixtureHtml(layoutHistogram(raw));
-	const renderer = new Renderer();
-	const fonts = await loadFontsFromDir(
-		fileURLToPath(
-			new URL("../../../phi-assets/html/common/font", import.meta.url),
-		),
-		PHI_FONT_FILES,
-	);
-	for (const f of fonts) {
-		await renderer.registerFont({
-			name: f.name,
-			data: f.data,
-			weight: f.weight ?? 400,
-			style: f.style ?? "normal",
-			generic: f.generic,
-		});
-	}
-	const parsed = fromHtml(html);
-	const bytes = Buffer.from(
-		await render(parsed.node, {
-			renderer,
-			width: 489,
-			height: 340,
-			format: "png",
-			fontFamilies: fonts.map((f) => f.name),
-			css: [
-				readFileSync(
-					new URL("../../../phi-assets/html/b19/b19.css", import.meta.url),
-					"utf8",
-				),
-				readFileSync(new URL("../css/takumi.css", import.meta.url), "utf8"),
-			],
-		} as never),
-	);
+	const bytes = await renderTakumi(html, 489, 340);
 	writeFileSync("/tmp/phi-histogram-fix.png", bytes);
-	const painted = await sharp(bytes).raw().ensureAlpha().toBuffer({
-		resolveWithObject: true,
-	});
-	const w = painted.info.width;
-	const h = painted.info.height;
-	const at = (x: number, y: number) => {
-		const i = (y * w + x) * 4;
-		return [
-			painted.data[i]!,
-			painted.data[i + 1]!,
-			painted.data[i + 2]!,
-		] as const;
-	};
-	const isCyan = (r: number, g: number, b: number) =>
-		b > 140 && g > 90 && r < 80 && b > r + 40;
+	const { w, h, at } = await pixels(bytes);
 	const isWhiteBar = (r: number, g: number, b: number) =>
 		r > 180 && g > 180 && b > 180 && Math.max(r, g, b) - Math.min(r, g, b) < 40;
 
@@ -206,4 +219,54 @@ test("Takumi paints a single histogram with a left RKS gutter", async () => {
 		firstCyanX > 90,
 		`cyan bars started too far left: firstCyanX=${firstCyanX}`,
 	);
+});
+
+test("a bar at a tick's value reaches that grid line, and every bar stands on the axis", async () => {
+	// 15.50-17.50 axis with a 17.0043 best: the bar used to stop 1px under the 17.00 line
+	const raw =
+		`<div class="histogram-chart"><div class="histogram-plot">` +
+		`<div class="histogram-scale">` +
+		[0, 25, 50, 75, 100]
+			.map(
+				(p) => `<div class="histogram-grid-line" style="bottom: ${p}%;"></div>`,
+			)
+			.join("") +
+		`</div><div class="histogram-bars">` +
+		`<div class="histogram-slot"><div class="histogram-bar-area">` +
+		`<div class="histogram-bar best-bar" style="height: 75.215%;"></div>` +
+		`</div><p class="histogram-slot-label">B1</p></div>` +
+		`</div></div></div>`;
+	const bytes = await renderTakumi(
+		`<div style="width:240px;height:200px;background:#000;">${layoutHistogram(raw)}</div>`,
+		240,
+		200,
+	);
+	const { h, at } = await pixels(bytes);
+	// The bar spans x 68-209; grid lines are dashed, so look along the gap beside it
+	const barX = 140;
+	const lightRows: number[] = [];
+	let barTop = -1;
+	let barBottom = -1;
+	for (let y = 0; y < h; y++) {
+		for (let x = 44; x < 62; x++) {
+			const [r, g, b] = at(x, y);
+			if (r > 40 && g > 40 && b > 40) {
+				lightRows.push(y);
+				break;
+			}
+		}
+		if (isCyan(...at(barX, y))) {
+			if (barTop < 0) barTop = y;
+			barBottom = y;
+		}
+	}
+	// Lines at 17.00 / 16.50 / 16.00 / 15.50 and the axis border; 17.50 sits on the clip edge
+	const axis = lightRows[lightRows.length - 1]!;
+	const line1700 = lightRows[lightRows.length - 5]!;
+	assert.equal(
+		barTop,
+		line1700 + 1,
+		`bar top ${barTop}, 17.00 line ${line1700}`,
+	);
+	assert.equal(barBottom, axis - 1, `bar bottom ${barBottom}, axis ${axis}`);
 });

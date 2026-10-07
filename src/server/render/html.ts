@@ -85,40 +85,22 @@ function renderPrecompiled(
 	return factory(artImports, renderOptions(file))(data);
 }
 
-export function rewriteLegacyPhiPluginPaths(
-	html: string,
-	resources: string,
-): string {
-	const dest = resources.replace(/\\/g, "/").replace(/\/?$/, "/");
-	if (!dest || dest === "/") return html;
-	return html.replace(
-		/(?:file:\/\/)?[^"'<>\s]*[/\\]plugins[/\\]phi-plugin[/\\]resources\/?/gi,
-		dest,
-	);
-}
-
 export function compileArt(
 	file: string,
 	data: Record<string, unknown>,
 ): string {
 	if (!exists(file)) throw new Error(`template not found: ${file}`);
-	const key = artKey(file);
-	let html: string;
-	if (factories[key]) html = renderPrecompiled(file, data);
-	else {
-		html = artEngine().compile({
-			filename: file,
-			source: loadArt(file),
-			loader: loadArt,
-			escape: true,
-			cache: true,
-			debug: false,
-			minimize: false,
-			bail: true,
-		})(data);
-	}
-	const res = typeof data._res_path === "string" ? data._res_path : "";
-	return res ? rewriteLegacyPhiPluginPaths(html, res) : html;
+	if (factories[artKey(file)]) return renderPrecompiled(file, data);
+	return artEngine().compile({
+		filename: file,
+		source: loadArt(file),
+		loader: loadArt,
+		escape: true,
+		cache: true,
+		debug: false,
+		minimize: false,
+		bail: true,
+	})(data);
 }
 
 const SRC_RE = /\b(?:src|href)=["']([^"']+)["']/gi;

@@ -79,7 +79,7 @@ function radarNameAlign(anchor: "start" | "middle" | "end") {
 	return "center";
 }
 
-/** Keep the hyphen on the first line so "Multi-Finger" stacks as Multi- / Finger. */
+/** Keep the hyphen on the first line so "Multi-Finger" stacks as Multi- / Finger */
 function splitRadarName(name: string): string[] {
 	const cut = name.indexOf("-");
 	if (cut <= 0 || cut >= name.length - 1) return [name];
@@ -147,7 +147,7 @@ export async function tagRadarPlotPng(radar: TagRadarPlot) {
 		.toBuffer();
 }
 
-/** Keyed by the SVG source, so an already-plotted radar skips the rasterisation. */
+/** Keyed by the SVG source, so an already-plotted radar skips the rasterisation */
 async function radarPlotFileSrc(radar: TagRadarPlot) {
 	const svg = tagRadarPlotSvg(radar, 2);
 	const dir = join(tmpdir(), "phi-tag-radar");
@@ -167,7 +167,7 @@ async function radarPlotFileSrc(radar: TagRadarPlot) {
 	return pathToFileURL(file).href;
 }
 
-/** Plot is a PNG file so Takumi uses the same image path as song ills. */
+/** Plot is a PNG file so Takumi uses the same image path as song ills */
 export async function tagRadarHtml(radar: TagRadarPlot) {
 	const src = await radarPlotFileSrc(radar);
 	return (
@@ -186,7 +186,7 @@ function paintTagRadarSvg(html: string) {
 	);
 }
 
-/** userinfo.art draws its rks/acc lines as percent-coordinate <line>s; Takumi wants paths. */
+/** userinfo.art draws its rks/acc lines as percent-coordinate <line>s; Takumi wants paths */
 export function polishSvgCharts(html: string) {
 	return paintTagRadarSvg(replacePercentSvgLines(html));
 }

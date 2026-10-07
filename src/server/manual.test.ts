@@ -9,6 +9,7 @@ import {
 	manualSave,
 	manualSavePayload,
 	normalizeManualInput,
+	resetManualMemForTest,
 } from "./manual";
 
 const rt = { Save } as unknown as PhiRuntime;
@@ -188,4 +189,94 @@ test("loadManual tolerates garbage and drops invalid rows", async () => {
 	const got = await loadManual(db, "u");
 	assert.deepEqual(got?.records, [{ id: "X.0", rank: "IN", acc: 99 }]);
 	assert.equal(got?.rks, 12.3);
+});
+
+test("loadManual reads KV unless the caller opts into the 10 s memo", async () => {
+	resetManualMemForTest();
+	const kv = new Map<string, string>();
+	let reads = 0;
+	const db = {
+		get: async (k: string) => {
+			reads += 1;
+			return kv.get(k);
+		},
+	};
+	const profile = (rks: number) =>
+		JSON.stringify({ v: 1, playerId: "P", updatedAt: "x", rks, records: [] });
+	const memo = { memo: true };
+	kv.set("phi:manualSave:m", profile(1));
+	const orig = Date.now;
+	let clock = 70_000_000;
+	Date.now = () => clock;
+	try {
+		assert.equal((await loadManual(db, "m"))?.rks, 1, "a page view");
+		kv.set("phi:manualSave:m", profile(2));
+		assert.equal((await loadManual(db, "m", memo))?.rks, 1, "memo");
+		assert.equal(reads, 1);
+		assert.equal(
+			(await loadManual(db, "m"))?.rks,
+			2,
+			"pages and the editor always read KV",
+		);
+		assert.equal(reads, 2);
+		clock += 10_001;
+		kv.set("phi:manualSave:m", profile(3));
+		assert.equal((await loadManual(db, "m", memo))?.rks, 3, "memo expired");
+		assert.equal(reads, 3);
+	} finally {
+		Date.now = orig;
+		resetManualMemForTest();
+	}
+});
+
+test("clearing a profile while a read is in flight does not bring it back", async () => {
+	resetManualMemForTest();
+	const kv = new Map<string, string>([
+		[
+			"phi:manualSave:gone",
+			JSON.stringify({
+				v: 1,
+				playerId: "P",
+				updatedAt: "x",
+				rks: 1,
+				records: [],
+			}),
+		],
+	]);
+	let release: () => void = () => undefined;
+	const gate = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	let slow = true;
+	let reads = 0;
+	const db = {
+		get: async (k: string) => {
+			reads += 1;
+			const value = kv.get(k);
+			if (slow) await gate;
+			return value;
+		},
+		set: async (k: string, v: string) => {
+			kv.set(k, v);
+		},
+		del: async (...keys: string[]) => {
+			for (const k of keys) kv.delete(k);
+			return keys.length;
+		},
+	};
+	(globalThis as Record<string, unknown>).__phiDataHost = Promise.resolve({
+		db,
+		store: db,
+	});
+	const { clearManual } = await import("./manual");
+	// A card request read the profile before the delete and answers after it
+	const stale = loadManual(db, "gone", { memo: true });
+	slow = false;
+	assert.equal(await clearManual("gone"), true);
+	release();
+	assert.equal((await stale)?.playerId, "P");
+	reads = 0;
+	assert.equal(await loadManual(db, "gone", { memo: true }), undefined);
+	assert.equal(reads, 1, "the late read was not remembered");
+	resetManualMemForTest();
 });

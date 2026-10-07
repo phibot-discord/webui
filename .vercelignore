@@ -4,3 +4,16 @@ data
 .env.local
 .env.*.local
 phi-assets/html/common/font/NotoColorEmoji-Regular.ttf
+# Jackets come from R2 at runtime and are excluded from function traces
+phi-assets/original_ill
+# Local tooling state
+.playwright-mcp
+.claude
+.impeccable
+# Scratch card renders and HTML dumps left at the project root; the kv.ts
+# whole-project trace would ship them inside every function
+/*.jpg
+/*.jpeg
+/*.png
+/*.webp
+/*.html

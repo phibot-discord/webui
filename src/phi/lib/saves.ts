@@ -8,25 +8,80 @@ import type { Save, SavePayload } from "./save";
 import { isTapApiFailure, tapCnProxyUrl } from "./tapapi";
 
 const SAVE = (token: string) => kvKey("save", token);
+const HISB30 = (userId: string) => kvKey("hisb30", userId);
 
-const blobMem = new Map<string, { rev: string; raw: string }>();
-const BLOB_MEM_MAX = 32;
+/**
+ * Raw save JSON by token (never a parsed Save: getB19 mutates rows)
+ * `rev` lets a refresh skip the KV read; plain reads are trusted for SAVE_MEMO_MS, opt-in only
+ */
+const blobMem = new Map<
+	string,
+	{ rev?: string; raw: string; at: number; kvAt: number }
+>();
+const BLOB_MEM_MAX = 64;
+const SAVE_MEMO_MS = 10_000;
+/** How long a refresh trusts `rev` without reading KV (another instance may have deleted the blob) */
+const SAVE_REV_TRUST_MS = 10 * 60_000;
 
-function rememberBlob(token: string, rev: string, raw: string) {
-	blobMem.delete(token);
-	blobMem.set(token, { rev, raw });
-	while (blobMem.size > BLOB_MEM_MAX) {
-		const oldest = blobMem.keys().next().value;
+/** userId → bound token, so a page view and the card request after it share one read */
+const tokenMem = new Map<string, { token: string; at: number }>();
+const TOKEN_MEM_MAX = 1_000;
+/**
+ * Bumped by `forgetBound`: a token read that was already on the wire when a
+ * binding was dropped must not put the old token back in the memo
+ */
+let tokenGen = 0;
+
+/**
+ * Per token, bumped when an unbind deletes `phi:save:<token>`: a refresh or a
+ * blob read already running then must not write the blob back or memo it
+ */
+const saveDrops = new Map<string, number>();
+const SAVE_DROPS_MAX = 1_000;
+
+function saveDropGen(token: string): number {
+	return saveDrops.get(token) ?? 0;
+}
+
+function evictOldest(map: Map<string, unknown>, max: number) {
+	while (map.size > max) {
+		const oldest = map.keys().next().value;
 		if (oldest === undefined) break;
-		blobMem.delete(oldest);
+		map.delete(oldest);
 	}
+}
+
+function rememberBlob(
+	token: string,
+	rev: string | undefined,
+	raw: string,
+	kvAt = Date.now(),
+) {
+	blobMem.delete(token);
+	blobMem.set(token, { rev, raw, at: Date.now(), kvAt });
+	evictOldest(blobMem, BLOB_MEM_MAX);
+}
+
+function rememberToken(userId: string, token: string) {
+	tokenMem.delete(userId);
+	tokenMem.set(userId, { token, at: Date.now() });
+	evictOldest(tokenMem, TOKEN_MEM_MAX);
+}
+
+/** Drop this process's memo of a user's binding (unbind, rebind) */
+export function forgetBound(userId: string, token?: string) {
+	tokenGen += 1;
+	tokenMem.delete(userId);
+	if (token) blobMem.delete(token);
 }
 
 export function resetSaveBlobMemForTest() {
 	blobMem.clear();
+	tokenMem.clear();
+	saveDrops.clear();
 }
 
-/** Which TapTap region answered last, so a refresh tries it first. Only a hint: bounded. */
+/** Which TapTap region answered last, so a refresh tries it first. Only a hint: bounded */
 const sessionRegion = new Map<string, boolean>();
 const SESSION_REGION_MAX = 500;
 
@@ -57,11 +112,26 @@ export function asSessionToken(raw: unknown): string | undefined {
 	}
 }
 
+/** Always reads KV (pages, bind, unbind, refresh), and seeds the memo for the card request */
 export async function getToken(
 	rt: PhiRuntime,
 	userId: string,
 ): Promise<string | undefined> {
-	return asSessionToken(await rt.store.getSessionToken(userId));
+	const gen = tokenGen;
+	const token = asSessionToken(await rt.store.getSessionToken(userId));
+	if (!token) tokenMem.delete(userId);
+	else if (gen === tokenGen) rememberToken(userId, token);
+	return token;
+}
+
+/** `getToken` with a 10 s memo, card route only; misses are not remembered */
+export async function getBoundToken(
+	rt: PhiRuntime,
+	userId: string,
+): Promise<string | undefined> {
+	const hot = tokenMem.get(userId);
+	if (hot && Date.now() - hot.at < SAVE_MEMO_MS) return hot.token;
+	return getToken(rt, userId);
 }
 
 export const ALREADY_BOUND =
@@ -73,23 +143,32 @@ async function setToken(rt: PhiRuntime, userId: string, token: string) {
 	await rt.store.setSessionToken(userId, token);
 }
 
-export async function clearUser(rt: PhiRuntime, db: Kv, userId: string) {
+/**
+ * Removes the binding and, in the background, the token-keyed save blob
+ * Another account sharing the save needs a refresh; score history is kept
+ */
+export async function clearUser(rt: PhiRuntime, userId: string) {
 	sessionRegion.delete(userId);
 	const token = await getToken(rt, userId);
 	await rt.store.clearLocalCredentials(userId);
-	if (!token) return false;
-	runInBackground(reapOrphanSave(rt, db, token), (err) =>
-		logger.warn(
-			`orphan save cleanup skipped: ${err instanceof Error ? err.message : err}`,
-		),
-	);
-	return true;
+	forgetBound(userId, token);
+	if (token) dropSave(rt, token);
+	return Boolean(token);
 }
 
-async function reapOrphanSave(rt: PhiRuntime, db: Kv, token: string) {
-	const held = await rt.store.listSessionCredentials();
-	for (const other of held.values()) if (other === token) return;
-	await db.del(SAVE(token));
+/** Deletes the blob from KV in the background; `forgetBound` already dropped the memo */
+function dropSave(rt: PhiRuntime, token: string) {
+	const gen = saveDropGen(token) + 1;
+	saveDrops.delete(token);
+	saveDrops.set(token, gen);
+	evictOldest(saveDrops, SAVE_DROPS_MAX);
+	runInBackground(
+		Promise.resolve().then(() => rt.store.clearSessionSave(token)),
+		(err) =>
+			logger.warn(
+				`unbound save cleanup failed: ${err instanceof Error ? err.message : err}`,
+			),
+	);
 }
 
 export async function loadSave(rt: PhiRuntime, db: Kv, userId: string) {
@@ -98,9 +177,37 @@ export async function loadSave(rt: PhiRuntime, db: Kv, userId: string) {
 	return loadSaveByToken(rt, db, token);
 }
 
-/** For callers that already hold the token: saves the `phi:userToken` round trip. */
-export async function loadSaveByToken(rt: PhiRuntime, db: Kv, token: string) {
+/**
+ * `memo`: a copy this process read or wrote in the last 10 s will do. Only the
+ * card route opts in, and not when the client says its save just changed
+ */
+export type MemoOpts = { memo?: boolean };
+
+/** Raw save JSON from KV, or from this process's 10 s memo when `opts.memo` */
+export async function readSaveRaw(
+	db: Pick<Kv, "get">,
+	token: string,
+	opts: MemoOpts = {},
+): Promise<string | undefined> {
+	const hot = blobMem.get(token);
+	if (hot && opts.memo && Date.now() - hot.at < SAVE_MEMO_MS) return hot.raw;
+	const drop = saveDropGen(token);
 	const raw = await db.get(SAVE(token));
+	// An unbind deleted the blob during this read: hand it out once, never memo it
+	if (drop !== saveDropGen(token)) return raw;
+	if (raw) rememberBlob(token, hot?.raw === raw ? hot.rev : undefined, raw);
+	else blobMem.delete(token);
+	return raw;
+}
+
+/** For callers that already hold the token: saves the `phi:userToken` round trip */
+export async function loadSaveByToken(
+	rt: PhiRuntime,
+	db: Kv,
+	token: string,
+	opts: MemoOpts = {},
+) {
+	const raw = await readSaveRaw(db, token, opts);
 	if (!raw) return undefined;
 	await ensureSongInfo();
 	return new rt.Save(JSON.parse(raw));
@@ -155,29 +262,51 @@ async function fetchSaveInfo(rt: PhiRuntime, token: string, global: boolean) {
 	return user;
 }
 
+export type UpdateSaveOpts = {
+	/** Token to bind; fails when the user already has one */
+	token?: string;
+	/** The user's current token, already read by the caller: skips that read */
+	bound?: string;
+	global?: boolean;
+};
+
 export async function updateSave(
 	rt: PhiRuntime,
 	db: Kv,
 	userId: string,
-	opts: { token?: string; global?: boolean } = {},
+	opts: UpdateSaveOpts = {},
 ) {
 	return withDiscordUid(userId, () => updateSaveFor(rt, db, userId, opts));
+}
+
+function quiet<T>(job: Promise<T>): Promise<T> {
+	job.catch(() => undefined);
+	return job;
 }
 
 async function updateSaveFor(
 	rt: PhiRuntime,
 	db: Kv,
 	userId: string,
-	opts: { token?: string; global?: boolean } = {},
+	opts: UpdateSaveOpts = {},
 ) {
-	const existing = await getToken(rt, userId);
+	const existing = opts.bound ?? (await getToken(rt, userId));
 	if (opts.token && existing) throw new Error(ALREADY_BOUND);
 	const token = opts.token || existing;
 	if (!token) throw new Error(NOT_BOUND);
 	if (!/[a-z0-9A-Z]{25}/.test(token))
 		throw new Error("SessionToken format is invalid (need 25 alphanumerics).");
-	const bannedJob = rt.store.isSessionTokenBanned(token);
-	bannedJob.catch(() => undefined);
+	// An unbind while this runs (KV round trips, TapTap, the download) deletes the
+	// blob and the memo; this refresh must not bring either back
+	const drop = saveDropGen(token);
+	const gen = tokenGen;
+	const unbound = () => drop !== saveDropGen(token);
+	const bannedJob = quiet(rt.store.isSessionTokenBanned(token));
+	// Read the stored blob during the TapTap call; a recent in-process copy is checked against TapTap's revision first
+	const mem = blobMem.get(token);
+	const hot =
+		mem?.rev && Date.now() - mem.kvAt < SAVE_REV_TRUST_MS ? mem : undefined;
+	const savedJob = hot ? undefined : quiet(readSaveRaw(db, token));
 	const preferred = opts.global ?? sessionRegion.get(userId) ?? false;
 	let user: InstanceType<PhiRuntime["PhigrosUser"]>;
 	try {
@@ -189,24 +318,47 @@ async function updateSaveFor(
 	rememberRegion(userId, user.global);
 	if (await bannedJob) throw new Error("This sessionToken is banned.");
 	const rev = saveRev(user.saveInfo);
+	/** `bound`: the binding was written or re-read here; otherwise only renew a memo getToken made */
+	const remember = (raw: string, bound: boolean, kvAt?: number) => {
+		if (!unbound()) rememberBlob(token, rev, raw, kvAt);
+		if (gen !== tokenGen) return;
+		if (bound || tokenMem.get(userId)?.token === token)
+			rememberToken(userId, token);
+	};
 	const hop = saveZipHop(user.saveInfo?.gameFile?.url);
-	const hot = blobMem.get(token);
-	const cachedRaw =
-		hot && rev && hot.rev === rev ? hot.raw : await db.get(SAVE(token));
+	const memHit = Boolean(hot?.rev && rev && hot.rev === rev);
+	const cachedRaw = memHit
+		? hot?.raw
+		: await (savedJob ?? readSaveRaw(db, token));
 	const cached = cachedRaw ? JSON.parse(cachedRaw) : undefined;
+	const writeToken = () =>
+		token === existing ? undefined : setToken(rt, userId, token);
 	if (cached?.gameRecord && rev && rev === saveRev(cached.saveInfo)) {
-		logger.info(
-			`save cache hit ${rev}${hop}${hot?.rev === rev ? " (mem)" : ""}`,
-		);
-		if (cachedRaw) rememberBlob(token, rev, cachedRaw);
-		await setToken(rt, userId, token);
+		logger.info(`save cache hit ${rev}${hop}${memHit ? " (mem)" : ""}`);
+		await writeToken();
+		if (cachedRaw)
+			remember(cachedRaw, Boolean(opts.token), memHit ? hot?.kvAt : undefined);
 		const save = new rt.Save(cached);
 		if (opts.token) await snapshotB30(db, userId, save);
 		return save;
 	}
 	logger.info(`save cache miss ${rev || "-"}${hop}`);
+	// Only a changed save needs the B30 ring and the history: read them during the download
+	const snapsJob = quiet(db.get(HISB30(userId)));
+	const history = import("./history");
+	const historyJob = quiet(
+		history.then((m) => m.readSaveHistoryRaw(db, token)),
+	);
 	await user.buildRecord();
-	await setToken(rt, userId, token);
+	// The binding may have gone during the download: re-read it before writing the blob back,
+	// or the token outlives the binding (a bind writes its own token)
+	const boundJob = opts.token
+		? Promise.resolve(true)
+		: rt.store.getSessionToken(userId).then(
+				(raw) => asSessionToken(raw) === token,
+				() => true,
+			);
+	const orphaned = async () => unbound() || !(await boundJob);
 	const payload = JSON.stringify({
 		session: user.session,
 		global: user.global,
@@ -218,26 +370,39 @@ async function updateSaveFor(
 		gamesettings: user.gamesettings,
 		Recordver: user.Recordver,
 	});
-	await db.set(SAVE(token), payload);
-	if (rev) rememberBlob(token, rev, payload);
 	const save = new rt.Save(user as unknown as SavePayload);
-	await snapshotB30(db, userId, save);
-	try {
-		const { applySaveToHistory } = await import("./history");
-		await applySaveToHistory(rt, db, token, save);
-	} catch {}
+	await Promise.all([
+		writeToken(),
+		orphaned().then((gone) => {
+			if (gone) logger.info("save not cached: unbound during the refresh");
+			else return db.set(SAVE(token), payload);
+		}),
+		snapshotB30(db, userId, save, snapsJob),
+		history
+			.then((m) => m.applySaveToHistory(rt, db, token, save, historyJob))
+			.catch(() => undefined),
+	]);
+	// Unbound elsewhere: that unbind deleted the blob, so forget the copy read above
+	if (await orphaned()) blobMem.delete(token);
+	else remember(payload, true);
 	return save;
 }
 
-export async function snapshotB30(db: Kv, userId: string, save: Save) {
-	const key = kvKey("hisb30", userId);
+/** `prev`: the `phi:hisb30` read already in flight, if the caller started one */
+export async function snapshotB30(
+	db: Kv,
+	userId: string,
+	save: Save,
+	prev?: Promise<string | undefined>,
+) {
+	const key = HISB30(userId);
 	let b19: Awaited<ReturnType<Save["getB19"]>>;
 	try {
 		b19 = await save.getB19(undefined, 33, { avgType: "none" });
 	} catch {
 		return;
 	}
-	const prev = JSON.parse((await db.get(key)) || "[]") as unknown[];
+	const stored = JSON.parse((await (prev ?? db.get(key))) || "[]") as unknown[];
 	const row = {
 		t: Date.now(),
 		rks: save.saveInfo?.summary?.rankingScore,
@@ -248,7 +413,7 @@ export async function snapshotB30(db: Kv, userId: string, save: Save) {
 			.slice(0, 27)
 			.map((x) => ({ id: x.id, rank: x.rank })),
 	};
-	const next = Array.isArray(prev) ? [...prev, row] : [row];
+	const next = Array.isArray(stored) ? [...stored, row] : [row];
 	while (next.length > 40) next.shift();
 	await db.set(key, JSON.stringify(next));
 }

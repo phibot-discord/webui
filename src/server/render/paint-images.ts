@@ -1,8 +1,8 @@
 import sharp from "sharp";
 
-/** Song tiles are ~95px CSS (~190px at 2×). 640px is still oversampled. */
+/** Song tiles are ~95px CSS (~190px at 2×). 640px is still oversampled */
 export const TILE_MAX_EDGE = 640;
-/** Blurred backgrounds already sit around 1800px and cover the full card. */
+/** Blurred backgrounds already sit around 1800px and cover the full card */
 export const BG_MAX_EDGE = 2048;
 const BG_SRC = /illBlur|phi-web-ill-blur|phi-ill-blur|Star[12]\.png/i;
 
@@ -18,13 +18,13 @@ export function maxEdgeFor(src: string) {
 
 /**
  * Jackets are shared by every card, so the decode + downscale result is kept
- * per source. Keyed by src + byte length (disk assets are immutable per stamp).
+ * per source. Keyed by src + byte length (disk assets are immutable per stamp)
  */
 const fitted = new Map<string, Uint8Array>();
 const FITTED_MAX_BYTES = 64 * 1024 * 1024;
 let fittedBytes = 0;
 
-/** Inline `data:` images are unique per card (radar plot); only file-backed sources are worth keeping. */
+/** Inline `data:` images are unique per card (radar plot); only file-backed sources are worth keeping */
 function fitKey(image: PaintImage): string | undefined {
 	if (/^data:/i.test(image.src)) return;
 	return `${image.src}|${image.data.byteLength}`;

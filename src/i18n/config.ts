@@ -12,7 +12,7 @@ export function localeTag(locale: Locale): string {
 	return locale === "zh" ? "zh-CN" : "en";
 }
 
-/** Cookie wins; otherwise the highest-q zh/en tag in Accept-Language. */
+/** Cookie wins; otherwise the highest-q zh/en tag in Accept-Language */
 export function negotiateLocale(
 	cookie: string | undefined,
 	acceptLanguage: string | null,

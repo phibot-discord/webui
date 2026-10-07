@@ -26,7 +26,7 @@ export function isPhiraLevel(v: string): v is PhiraLevel {
 	return (PHIRA_LEVELS as readonly string[]).includes(v);
 }
 
-/** One chart as a Phira .pez (zip): info.txt, chart, low-res jacket, audio. */
+/** One chart as a Phira .pez (zip): info.txt, chart, low-res jacket, audio */
 export async function packPhiraChart(input: {
 	id: string;
 	name: string;

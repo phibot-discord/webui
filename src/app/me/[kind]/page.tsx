@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -5,19 +6,26 @@ import { BypassCacheButton } from "@/components/BypassCacheButton";
 import { CardNav } from "@/components/CardNav";
 import { CardStage } from "@/components/CardStage";
 import { Desk, MeGate } from "@/components/Desk";
+import { MoreMenu } from "@/components/MoreMenu";
 import { RefreshButton } from "@/components/RefreshButton";
 import { ShareToggle } from "@/components/ShareToggle";
 import { UnbindButton } from "@/components/UnbindButton";
 import { getMessages } from "@/i18n/server";
 import { displayPlayerId, displayRks } from "@/lib/player-display";
-import { getNotes } from "@/phi/lib/notes";
+import {
+	cardStyles,
+	isStyledKind,
+	parseCardStyle,
+} from "@/phi/lib/card-styles";
+import { backgroundOptions, knownBackground } from "@/phi/lib/catalog";
+import { b30AvgKindOf, getNotes } from "@/phi/lib/notes";
 import {
 	bypassCacheCooldownRemaining,
 	lastSyncedIso,
 	loadBound,
 	refreshCooldownRemaining,
 } from "@/server/bound";
-import { clampCount, isCardKind } from "@/server/card-kinds";
+import { clampCount, isCardKind, parseSongLevel } from "@/server/card-kinds";
 import { getDataHost } from "@/server/data-host";
 import { withDiscordUid } from "@/server/logger";
 import { parsePaintQuality } from "@/server/render/paint-budget";
@@ -25,12 +33,29 @@ import { getShareSlug } from "@/server/share";
 
 export const dynamic = "force-dynamic";
 
+/** The card's name only; the root layout appends the site name */
+export async function generateMetadata({
+	params,
+}: {
+	params: Promise<{ kind: string }>;
+}): Promise<Metadata> {
+	const [{ kind }, { m }] = await Promise.all([params, getMessages()]);
+	if (!isCardKind(kind)) return {};
+	return { title: m.card.titles[kind], robots: { index: false } };
+}
+
 export default async function KindPage({
 	params,
 	searchParams,
 }: {
 	params: Promise<{ kind: string }>;
-	searchParams: Promise<{ count?: string; quality?: string }>;
+	searchParams: Promise<{
+		count?: string;
+		quality?: string;
+		style?: string;
+		chart?: string;
+		level?: string;
+	}>;
 }) {
 	const session = await auth();
 	if (!session?.user?.id) redirect("/");
@@ -60,55 +85,71 @@ export default async function KindPage({
 		}
 
 		const q = await searchParams;
-		const count = clampCount(q.count);
 		const counted = kind === "b30" || kind === "x30" || kind === "fc30";
-		const srcBase = `/api/card/${kind}`;
-		const synced = lastSyncedIso(got.save);
+		const player = displayPlayerId(got.save.saveInfo.PlayerId);
+		const rks = displayRks(got.save.saveInfo.summary?.rankingScore);
 		const { m } = await getMessages();
 
 		return (
 			<Desk
-				title={displayPlayerId(got.save.saveInfo.PlayerId)}
-				rks={displayRks(got.save.saveInfo.summary?.rankingScore)}
-				lastSyncedIso={synced}
+				title={player}
+				rks={rks}
+				lastSyncedIso={lastSyncedIso(got.save)}
 				note={got.manual ? m.manual.deskNote : undefined}
 				tools={
-					got.manual ? (
-						<>
+					<>
+						{got.manual ? (
 							<Link
-								className="btn btn-ghost"
+								className="btn btn-primary"
 								href="/me/manual"
 								prefetch={false}
 							>
 								{m.manual.edit}
 							</Link>
-							<BypassCacheButton cooldownMs={bypassCooldown} />
-							<ShareToggle slug={shareSlug} />
-							<UnbindButton manual />
-						</>
-					) : (
-						<>
+						) : (
 							<RefreshButton cooldownMs={cooldown} />
+						)}
+						<ShareToggle slug={shareSlug} />
+						<MoreMenu>
 							<BypassCacheButton cooldownMs={bypassCooldown} />
-							<ShareToggle slug={shareSlug} />
-							<UnbindButton />
-						</>
-					)
+							<UnbindButton manual={got.manual} inline />
+						</MoreMenu>
+					</>
 				}
 				nav={<CardNav current={kind} />}
 			>
 				<CardStage
 					kind={kind}
-					srcBase={srcBase}
+					srcBase={`/api/card/${kind}`}
+					player={player}
+					rks={rks}
 					counted={counted}
-					initialCount={count}
+					initialCount={clampCount(q.count)}
 					initialQuality={parsePaintQuality(q.quality ?? notes.cardQuality)}
-					persistQuality
+					persist
 					tagProfile={
 						counted ? { on: notes.showTagAnalysis !== false } : undefined
 					}
 					recordStats={
 						counted ? { on: notes.showRecordStats !== false } : undefined
+					}
+					// The song card draws the chart's own art, so it has no background
+					backgrounds={kind === "song" ? undefined : backgroundOptions()}
+					initialBackground={knownBackground(notes.cardBackground)}
+					styles={cardStyles(kind)}
+					initialStyle={parseCardStyle(
+						kind,
+						q.style ??
+							(isStyledKind(kind) ? notes.cardStyle?.[kind] : undefined),
+					)}
+					initialPeer={counted ? b30AvgKindOf(notes) : undefined}
+					song={
+						kind === "song"
+							? {
+									chart: (q.chart ?? "").trim(),
+									level: parseSongLevel(q.level),
+								}
+							: undefined
 					}
 				/>
 			</Desk>

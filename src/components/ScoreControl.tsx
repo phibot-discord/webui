@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ChartSearch, useChartCatalog } from "@/components/ChartSearch";
+import { X } from "@phosphor-icons/react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+	ChartSearch,
+	type ChartSearchText,
+	useChartCatalog,
+} from "@/components/ChartSearch";
+import { Announce } from "@/components/Tool";
+import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
 import {
 	type ChartLevel,
@@ -46,10 +53,106 @@ function asMode(raw: string | undefined): ScoreMode {
 	return raw === "challenge" ? "challenge" : "normal";
 }
 
+/** ChartSearch strings from the catalog (messages stay plain strings for the server) */
+export function chartSearchText(m: Messages): ChartSearchText {
+	const t = m.chartSearch;
+	return {
+		label: t.label,
+		viaAlias: t.viaAlias,
+		noResults: t.noResults,
+		results: (n) =>
+			n === 1 ? t.resultsOne : t.results.replaceAll("{n}", String(n)),
+	};
+}
+
+/** Text changes settle for a moment before a screen reader hears them */
+function useSettled(text: string, ms = 700) {
+	const [settled, setSettled] = useState("");
+	useEffect(() => {
+		const id = window.setTimeout(() => setSettled(text), ms);
+		return () => window.clearTimeout(id);
+	}, [text, ms]);
+	return settled;
+}
+
+type RankState =
+	| { status: "idle" | "loading" | "none" | "busy" }
+	| { status: "ok"; rank: number; of: number; percent: number; tied: number };
+
+/** Estimated placement on phib19's records (GET /api/leaderboard) once typing pauses */
+function useChartRank(chart: ChartRef | undefined, acc: number | undefined) {
+	const [state, setState] = useState<RankState>({ status: "idle" });
+	const [attempt, setAttempt] = useState(0);
+	const url =
+		chart && acc != null
+			? `/api/leaderboard?${new URLSearchParams({
+					chart: chart.id,
+					level: chart.rank,
+					acc: acc.toFixed(6),
+				})}`
+			: undefined;
+	// The fragment never reaches the server; bumping it runs the lookup again
+	const request = url ? `${url}#${attempt}` : undefined;
+
+	useEffect(() => {
+		if (!request) {
+			setState({ status: "idle" });
+			return;
+		}
+		setState({ status: "loading" });
+		const ac = new AbortController();
+		const timer = window.setTimeout(() => {
+			fetch(request, { signal: ac.signal })
+				.then(async (res) => {
+					if (res.status === 404) return setState({ status: "none" });
+					if (!res.ok) return setState({ status: "busy" });
+					const body = (await res.json()) as Partial<{
+						rank: number;
+						of: number;
+						percent: number;
+						tied: number;
+					}>;
+					if (
+						typeof body.rank !== "number" ||
+						typeof body.of !== "number" ||
+						typeof body.percent !== "number"
+					) {
+						return setState({ status: "busy" });
+					}
+					setState({
+						status: "ok",
+						rank: body.rank,
+						of: body.of,
+						percent: body.percent,
+						tied: body.tied ?? 0,
+					});
+				})
+				.catch(() => {
+					if (!ac.signal.aborted) setState({ status: "busy" });
+				});
+		}, 600);
+		return () => {
+			window.clearTimeout(timer);
+			ac.abort();
+		};
+	}, [request]);
+
+	return [state, () => setAttempt((n) => n + 1)] as const;
+}
+
 export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 	const { m } = useI18n();
 	const t = m.score;
 	const catalog = useChartCatalog();
+	const ids = useId();
+	const chartLabelId = `${ids}-chart`;
+	const modeLabelId = `${ids}-mode`;
+	const notesHintId = `${ids}-notes-hint`;
+	const notesErrorId = `${ids}-notes-error`;
+	const targetErrorId = `${ids}-target-error`;
+	const modeHintId = `${ids}-mode-hint`;
+	const chartBox = useRef<HTMLDivElement>(null);
+	const targetRef = useRef<HTMLInputElement>(null);
 	const [notes, setNotes] = useState(digits(initial.notes, MAX_NOTES));
 	const [target, setTarget] = useState(digits(initial.target, MAX_SCORE));
 	const [mode, setMode] = useState<ScoreMode>(asMode(initial.mode));
@@ -62,10 +165,16 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 			? findChart(catalog.list, chart)
 			: undefined;
 
-	// A chart restored from the URL fills the note count once the catalog is here.
+	// A chart restored from the URL fills the note count once the catalog is here
 	useEffect(() => {
 		if (picked?.notes != null && !notes) setNotes(String(picked.notes));
 	}, [picked, notes]);
+
+	// An unknown or stale `?chart=` is dropped (from the URL too) once the catalog says so
+	const stale = Boolean(chart) && catalog.status === "ready" && !picked;
+	useEffect(() => {
+		if (stale) setChart(undefined);
+	}, [stale]);
 
 	useEffect(() => {
 		const url = new URL(window.location.href);
@@ -82,10 +191,31 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 
 	const total = Number(notes);
 	const score = Number(target);
-	const ready = notes !== "" && target !== "";
+	// digits() caps the length, not the value: 9999 notes or 9999999 points still get through
+	const notesBad = notes !== "" && (total < 1 || total > MAX_NOTES);
+	const targetBad = target !== "" && score > MAX_SCORE;
+	const ready = notes !== "" && target !== "" && !notesBad && !targetBad;
 	const result = useMemo(
 		() => (ready ? planScore(total, score, mode) : undefined),
 		[ready, total, score, mode],
+	);
+	const best = result?.plans[0];
+	const none = t.none
+		.replaceAll("{notes}", String(total))
+		.replaceAll("{score}", String(score));
+
+	const outcome = !result
+		? ""
+		: best
+			? t.announce
+					.replaceAll("{perfect}", String(best.perfect))
+					.replaceAll("{good}", String(best.good))
+					.replaceAll("{badMiss}", String(best.badMiss))
+					.replaceAll("{exact}", best.exact.toFixed(2))
+			: none;
+	// Range errors are read out too: the result they replace goes quiet
+	const said = useSettled(
+		notesBad ? t.notesRange : targetBad ? t.targetRange : outcome,
 	);
 
 	function pick(song: ChartSummary, rank: ChartLevel) {
@@ -94,65 +224,123 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 		if (cell?.[1] != null) setNotes(String(cell[1]));
 	}
 
+	function clearChart() {
+		setChart(undefined);
+		chartBox.current?.querySelector<HTMLInputElement>("input")?.focus();
+	}
+
 	return (
 		<>
 			<h1>{t.title}</h1>
 			<p className="lede">{t.lede}</p>
 			<section className="callout score-form">
-				<div className="score-chart">
-					<span className="meta-label">{t.chart}</span>
+				<div className="score-chart" ref={chartBox}>
+					<span className="field-label" id={chartLabelId}>
+						{t.chart}
+					</span>
 					<ChartSearch
 						catalog={catalog}
 						placeholder={t.searchPlaceholder}
 						onPick={pick}
+						labelledBy={chartLabelId}
+						text={chartSearchText(m)}
 					/>
+					{catalog.status === "failed" ? (
+						<p className="field-hint score-warn">{t.chartsFailedHint}</p>
+					) : null}
 					{picked && chart ? (
-						<p className="score-picked">
-							<span className={`chart-level chart-level-${chart?.rank}`}>
-								<span>{chart?.rank}</span>
+						<div className="score-picked">
+							<span className={`chart-level chart-level-${chart.rank}`}>
+								<span>{chart.rank}</span>
 								<span>{picked.difficulty.toFixed(1)}</span>
 							</span>
-							<span className="score-picked-title">{picked.song.song}</span>
+							<span className="score-picked-song">
+								<span className="score-picked-title">{picked.song.song}</span>
+								{/* Composer · notes: the dots come from CSS (score.css) */}
+								<span className="score-picked-meta">
+									<span className="score-picked-parts">
+										<span>{picked.song.composer}</span>
+										{picked.notes != null ? (
+											<span className="score-picked-notes">{`${picked.notes} ${t.notesShort}`}</span>
+										) : null}
+									</span>
+								</span>
+							</span>
 							<button
 								type="button"
-								className="btn btn-ghost btn-mini"
-								onClick={() => setChart(undefined)}
+								className="btn btn-quiet btn-icon"
+								onClick={clearChart}
 								aria-label={t.clearChart}
+								title={t.clearChart}
 							>
-								×
+								<X size={18} weight="bold" aria-hidden />
 							</button>
-						</p>
+						</div>
 					) : null}
 				</div>
 				<div className="score-inputs">
-					<label className="field field-col">
-						<span>{t.notes}</span>
+					<div className="field field-col">
+						<label className="field-label" htmlFor={`${ids}-notes`}>
+							{t.notes}
+						</label>
 						<input
+							id={`${ids}-notes`}
 							type="text"
 							inputMode="numeric"
 							pattern="[0-9]*"
+							autoComplete="off"
 							value={notes}
 							placeholder="1234"
+							aria-invalid={notesBad || undefined}
+							aria-describedby={
+								notesBad ? `${notesErrorId} ${notesHintId}` : notesHintId
+							}
 							onChange={(e) => {
 								setNotes(digits(e.target.value, MAX_NOTES));
 								setChart(undefined);
 							}}
 						/>
-					</label>
-					<label className="field field-col">
-						<span>{t.target}</span>
+						{notesBad ? (
+							<span className="field-error" id={notesErrorId}>
+								{t.notesRange}
+							</span>
+						) : null}
+						<span className="field-hint" id={notesHintId}>
+							{t.notesHint}
+						</span>
+					</div>
+					<div className="field field-col">
+						<label className="field-label" htmlFor={`${ids}-target`}>
+							{t.target}
+						</label>
 						<input
+							ref={targetRef}
+							id={`${ids}-target`}
 							type="text"
 							inputMode="numeric"
 							pattern="[0-9]*"
+							autoComplete="off"
 							value={target}
 							placeholder="999999"
+							aria-invalid={targetBad || undefined}
+							aria-describedby={targetBad ? targetErrorId : undefined}
 							onChange={(e) => setTarget(digits(e.target.value, MAX_SCORE))}
 						/>
-					</label>
+						{targetBad ? (
+							<span className="field-error" id={targetErrorId}>
+								{t.targetRange}
+							</span>
+						) : null}
+					</div>
 					<div className="field field-col">
-						<span>{t.mode}</span>
-						<fieldset className="seg" aria-label={t.mode}>
+						<span className="field-label" id={modeLabelId}>
+							{t.mode}
+						</span>
+						<fieldset
+							className="seg"
+							aria-labelledby={modeLabelId}
+							aria-describedby={mode === "challenge" ? modeHintId : undefined}
+						>
 							<button
 								type="button"
 								aria-pressed={mode === "normal"}
@@ -168,22 +356,29 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 								{t.modeChallenge}
 							</button>
 						</fieldset>
+						{mode === "challenge" ? (
+							<span className="field-hint" id={modeHintId}>
+								{t.challengeHint}
+							</span>
+						) : null}
 					</div>
 				</div>
-				<p className="field-hint">
-					{mode === "challenge" ? t.challengeHint : t.notesHint}
-				</p>
-				<p className="field-hint">{t.noteAccuracy}</p>
 			</section>
+
+			<Announce>{said}</Announce>
 
 			{result ? (
 				isNonEmpty(result.plans) ? (
-					<PlanResult plans={result.plans} mode={mode} />
+					<PlanResult
+						plans={result.plans}
+						mode={mode}
+						chart={picked ? chart : undefined}
+					/>
 				) : (
-					<section className="callout score-none" role="status">
-						<p>{t.none.replaceAll("{score}", String(score))}</p>
+					<section className="callout score-none">
+						<p>{none}</p>
 						{result.nearest ? (
-							<p className="score-nearest">
+							<div className="score-nearest">
 								<span className="meta-label">{t.nearest}</span>
 								{[result.nearest.below, result.nearest.above]
 									.filter((n): n is number => n != null)
@@ -192,12 +387,16 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 											key={n}
 											type="button"
 											className="btn btn-ghost"
-											onClick={() => setTarget(String(n))}
+											onClick={() => {
+												// This button goes away with the new plan; the field keeps focus in place
+												setTarget(String(n));
+												targetRef.current?.focus();
+											}}
 										>
 											{t.useScore.replaceAll("{score}", String(n))}
 										</button>
 									))}
-							</p>
+							</div>
 						) : null}
 					</section>
 				)
@@ -206,25 +405,40 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 	);
 }
 
-/** Full-precision accuracy: the game only shows two decimals, the save keeps more. */
+/** Full-precision accuracy: the game only shows two decimals, the save keeps more */
 function fmtAcc(acc: number) {
 	return `${acc.toFixed(6).replace(/\.?0+$/, "")}%`;
 }
 
-function fmtExact(plan: ScorePlan) {
+function fmtDelta(plan: ScorePlan) {
 	const sign = plan.delta > 0 ? "+" : plan.delta < 0 ? "−" : "±";
-	return `${plan.exact.toFixed(2)} (${sign}${Math.abs(plan.delta).toFixed(2)})`;
+	return `${sign}${Math.abs(plan.delta).toFixed(2)}`;
+}
+
+function fmtExact(plan: ScorePlan) {
+	return `${plan.exact.toFixed(2)} (${fmtDelta(plan)})`;
+}
+
+/** "0.05", "5.1": two decimals under 1 %, one above */
+function fmtPercent(p: number) {
+	const v = Math.min(100, Math.max(0.01, p));
+	return v < 1 ? v.toFixed(2) : v.toFixed(1);
 }
 
 function PlanResult({
 	plans,
 	mode,
+	chart,
 }: {
 	plans: [ScorePlan, ...ScorePlan[]];
 	mode: ScoreMode;
+	chart: ChartRef | undefined;
 }) {
 	const { m } = useI18n();
 	const t = m.score;
+	const ids = useId();
+	const planId = `${ids}-plan`;
+	const splitsId = `${ids}-splits`;
 	const best = plans[0];
 	const cells: [string, string][] = [
 		[t.perfect, String(best.perfect)],
@@ -234,11 +448,10 @@ function PlanResult({
 			? ([[t.maxCombo, String(best.maxCombo)]] as [string, string][])
 			: []),
 		[t.acc, fmtAcc(best.acc)],
-		[t.exactScore, fmtExact(best)],
 	];
 	return (
-		<section className="score-result">
-			<h2>{t.plan}</h2>
+		<section className="score-result" aria-labelledby={planId}>
+			<h2 id={planId}>{t.plan}</h2>
 			<dl className="plan-grid">
 				{cells.map(([label, value]) => (
 					<div key={label}>
@@ -246,20 +459,36 @@ function PlanResult({
 						<dd>{value}</dd>
 					</div>
 				))}
+				<div>
+					<dt>{t.exactScore}</dt>
+					<dd>
+						{best.exact.toFixed(2)}{" "}
+						<span className="plan-delta">({fmtDelta(best)})</span>
+					</dd>
+				</div>
 			</dl>
+			{chart ? <ChartRank chart={chart} acc={best.acc} /> : null}
+			<p className="field-hint">{t.noteAccuracy}</p>
 			<p className="field-hint">{t.roundingHint}</p>
-			<h2>{t.allSplits.replaceAll("{n}", String(plans.length))}</h2>
+			<h2 id={splitsId}>
+				{t.allSplits.replaceAll("{n}", String(plans.length))}
+			</h2>
 			<p className="field-hint">{t.tip}</p>
-			<div className="plan-table-wrap">
+			<section
+				className="plan-table-wrap"
+				aria-labelledby={splitsId}
+				// biome-ignore lint/a11y/noNoninteractiveTabindex: a scrolling region must be reachable by keyboard
+				tabIndex={0}
+			>
 				<table className="plan-table">
 					<thead>
 						<tr>
-							<th>{t.perfect}</th>
-							<th>{t.good}</th>
-							<th>{t.badMiss}</th>
-							{mode === "normal" ? <th>{t.maxCombo}</th> : null}
-							<th>{t.acc}</th>
-							<th>{t.exactScore}</th>
+							<th scope="col">{t.perfect}</th>
+							<th scope="col">{t.good}</th>
+							<th scope="col">{t.badMiss}</th>
+							{mode === "normal" ? <th scope="col">{t.maxCombo}</th> : null}
+							<th scope="col">{t.acc}</th>
+							<th scope="col">{t.exactScore}</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -275,7 +504,79 @@ function PlanResult({
 						))}
 					</tbody>
 				</table>
-			</div>
+			</section>
 		</section>
+	);
+}
+
+function ChartRank({ chart, acc }: { chart: ChartRef; acc: number }) {
+	const { m, locale } = useI18n();
+	const t = m.score;
+	const [rank, retry] = useChartRank(chart, acc);
+	const box = useRef<HTMLDivElement>(null);
+	const num = (n: number) => n.toLocaleString(locale === "zh" ? "zh-CN" : "en");
+	const result =
+		rank.status === "ok"
+			? t.rankResult
+					.replaceAll("{rank}", num(rank.rank))
+					.replaceAll("{of}", num(rank.of))
+					.replaceAll("{percent}", fmtPercent(rank.percent))
+			: "";
+	// The lookup lands after the split is read out, so it is announced on its own
+	const said =
+		rank.status === "ok"
+			? `${t.rankTitle}: ${result}`
+			: rank.status === "none"
+				? t.rankNoData
+				: rank.status === "busy"
+					? t.rankBusy
+					: "";
+	return (
+		<>
+			<Announce>{said}</Announce>
+			{rank.status === "idle" ? null : (
+				<div
+					className="score-rank"
+					ref={box}
+					tabIndex={-1}
+					aria-busy={rank.status === "loading"}
+				>
+					<span className="meta-label">{t.rankTitle}</span>
+					{rank.status === "ok" ? (
+						<p className="score-rank-value">
+							{result}
+							{rank.tied > 0 ? (
+								<span className="score-rank-tied">
+									{" · "}
+									{t.rankTied.replaceAll("{n}", num(rank.tied))}
+								</span>
+							) : null}
+						</p>
+					) : rank.status === "loading" ? (
+						<p className="score-rank-note">{t.rankLoading}</p>
+					) : rank.status === "none" ? (
+						<p className="score-rank-note">{t.rankNoData}</p>
+					) : (
+						<p className="score-rank-note">
+							{t.rankBusy}{" "}
+							<button
+								type="button"
+								className="btn btn-ghost btn-sm"
+								onClick={() => {
+									// The button gives way to the loading line; keep focus on the box
+									retry();
+									box.current?.focus();
+								}}
+							>
+								{m.error.retry}
+							</button>
+						</p>
+					)}
+					{rank.status === "ok" ? (
+						<p className="field-hint">{t.rankHint}</p>
+					) : null}
+				</div>
+			)}
+		</>
 	);
 }

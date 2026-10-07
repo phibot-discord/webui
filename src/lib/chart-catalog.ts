@@ -1,4 +1,5 @@
 import type { ChartSummary } from "@/server/charts";
+import { rankSongs } from "./song-search";
 
 export type { ChartSummary } from "@/server/charts";
 
@@ -11,7 +12,8 @@ let pending: Promise<ChartSummary[]> | undefined;
 
 export function loadChartCatalog(): Promise<ChartSummary[]> {
 	if (!pending) {
-		pending = fetch("/api/charts", { cache: "no-store" })
+		// "no-cache" revalidates with the ETag, so an unchanged catalog is a 304
+		pending = fetch("/api/charts", { cache: "no-cache" })
 			.then(async (res) => {
 				if (!res.ok) throw new Error(`charts ${res.status}`);
 				return (await res.json()) as ChartSummary[];
@@ -24,31 +26,13 @@ export function loadChartCatalog(): Promise<ChartSummary[]> {
 	return pending;
 }
 
-function fold(s: string) {
-	return s.toLowerCase().replace(/\s+/g, "");
-}
-
+/** Ranked songs only; use `rankSongs` to also see which title or alias matched */
 export function searchCharts(
 	list: ChartSummary[],
 	query: string,
 	limit = 12,
 ): ChartSummary[] {
-	const q = fold(query);
-	if (!q) return [];
-	const starts: ChartSummary[] = [];
-	const contains: ChartSummary[] = [];
-	for (const song of list) {
-		const title = fold(song.song);
-		if (title.startsWith(q)) starts.push(song);
-		else if (
-			title.includes(q) ||
-			fold(song.id).includes(q) ||
-			fold(song.composer).includes(q)
-		)
-			contains.push(song);
-		if (starts.length >= limit) break;
-	}
-	return [...starts, ...contains].slice(0, limit);
+	return rankSongs(list, query, { limit }).map((m) => m.song);
 }
 
 export function findChart(

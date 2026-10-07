@@ -1,6 +1,7 @@
 import { readFile, stat } from "../vfs";
 
-const MAX_BYTES = 256 * 1024 * 1024;
+/** Raw image bytes by path, saving a /tmp read per image per render */
+const MAX_BYTES = 64 * 1024 * 1024;
 
 const cache = new Map<string, { stamp: string; data: Buffer }>();
 let totalBytes = 0;

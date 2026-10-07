@@ -7,6 +7,7 @@ import {
 } from "./cache";
 import {
 	type CardImageCacheInput,
+	cardCacheInput,
 	cardCacheParts,
 	parseCachedHeight,
 } from "./card-image-cache";
@@ -26,6 +27,8 @@ function sample(over: Partial<CardImageCacheInput> = {}): CardImageCacheInput {
 		tagFlag: "t1",
 		statsFlag: "s1",
 		avgFlag: "avg:all:blue",
+		background: "random",
+		style: "classic",
 		renderVersion: "v32",
 		...over,
 	};
@@ -121,6 +124,10 @@ test("b30 avg bar setting changes get a new JPEG cache id", () => {
 		base,
 		cardEtag(cardCacheParts(sample({ avgFlag: "avg:b30:red" }), "jpeg")),
 	);
+	assert.notEqual(
+		base,
+		cardEtag(cardCacheParts(sample({ background: "Song.0" }), "jpeg")),
+	);
 });
 
 test("parseCachedHeight keeps measured pixel heights", () => {
@@ -149,5 +156,58 @@ test("public object URL is the R2 custom domain plus key", () => {
 			publicBase: "https://r2.example.test",
 		}),
 		"https://r2.example.test/web-cards/phi%3AwebCard%3Apng%3Ab30%3Au%3Aetag.jpg",
+	);
+});
+
+test("classic style adds no key part; other styles get their own JPEG and height ids", () => {
+	const classic = cardCacheParts(sample(), "jpeg");
+	assert.ok(!classic.some((p) => p.startsWith("style:")));
+	assert.deepEqual(classic, cardCacheParts(sample({ style: "" }), "jpeg"));
+	for (const suffix of ["jpeg", "height"] as const) {
+		const a = cardEtag(cardCacheParts(sample(), suffix));
+		const b = cardEtag(cardCacheParts(sample({ style: "table" }), suffix));
+		const c = cardEtag(cardCacheParts(sample({ style: "portrait" }), suffix));
+		assert.notEqual(a, b);
+		assert.notEqual(b, c);
+	}
+});
+
+test("the avg key follows the badge mode the card draws", () => {
+	const flag = (notes: {
+		allowApiUsage?: boolean;
+		b30AvgKind?: string;
+		b30AvgColor?: "red" | "gold" | "blue" | "green";
+	}) =>
+		cardCacheInput({
+			kind: "b30",
+			userId: "u",
+			saveRevision: "s",
+			locale: "en",
+			paintQuality: "fast",
+			epoch: "",
+			count: 33,
+			notes: {
+				theme: "default",
+				showB30Analysis: true,
+				allowApiUsage: notes.allowApiUsage ?? true,
+				b30AvgKind: notes.b30AvgKind ?? "all",
+				b30AvgColor: notes.b30AvgColor ?? "blue",
+			},
+			tagOn: true,
+			statsOn: true,
+		}).avgFlag;
+	assert.equal(flag({}), "avg:all:blue");
+	// A mode only the Discord bot knows is drawn as "all", so it shares that key
+	assert.equal(flag({ b30AvgKind: "botOnly" }), "avg:all:blue");
+	assert.equal(flag({ b30AvgKind: "" }), "avg:all:blue");
+	assert.equal(flag({ b30AvgKind: "rank" }), "avg:rank:blue");
+	assert.equal(flag({ b30AvgKind: "b30", b30AvgColor: "red" }), "avg:b30:red");
+	assert.equal(flag({ b30AvgKind: "none" }), "avg:none:blue");
+	assert.equal(flag({ allowApiUsage: false, b30AvgKind: "rank" }), "avg:none");
+	// API usage off also hides the tag radar and live lookups, and nothing else
+	// in the key records it: it must never share a key with kind "none"
+	assert.notEqual(
+		flag({ allowApiUsage: false, b30AvgKind: "all" }),
+		flag({ b30AvgKind: "none" }),
 	);
 });

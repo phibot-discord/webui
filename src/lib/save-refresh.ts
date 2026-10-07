@@ -135,7 +135,7 @@ export function getBustEpoch(): string {
 export function persistCardReload(_lastSynced?: string) {
 	hydrateFromSession();
 	reloadToken = String(Date.now());
-	clearCardBlobs();
+	clearCardBlobs({ fresh: true });
 	emit();
 }
 

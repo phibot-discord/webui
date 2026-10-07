@@ -2,7 +2,7 @@
 /**
  * Inline src/phi/css/*.css into src/phi/css/bundle.ts so the Takumi renderer
  * needs no CSS files on disk. The .css files are the source of truth; the
- * bundle is generated (and git-ignored) like src/phi/art-compiled.ts.
+ * bundle is generated (and git-ignored) like src/phi/art-compiled.ts
  */
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";

@@ -68,21 +68,31 @@ export type Bound = {
 	manual?: true;
 };
 
+/** `memo`: use the 10 s token / save memo (card route only) */
+export type LoadBoundOpts = { memo?: boolean };
+
 export async function loadBound(
 	host: DataHost,
 	userId: string,
+	opts: LoadBoundOpts = {},
 ): Promise<Bound | BoundErr> {
-	return withDiscordUid(userId, () => loadBoundFor(host, userId));
+	return withDiscordUid(userId, () => loadBoundFor(host, userId, opts));
 }
 
 async function loadBoundFor(
 	host: DataHost,
 	userId: string,
+	opts: LoadBoundOpts,
 ): Promise<Bound | BoundErr> {
-	await ensureSongInfo();
-	const token = await host.lib.getToken(host.rt, userId);
+	const memo = { memo: opts.memo === true };
+	const [, token] = await Promise.all([
+		ensureSongInfo(),
+		memo.memo
+			? host.lib.getBoundToken(host.rt, userId)
+			: host.lib.getToken(host.rt, userId),
+	]);
 	if (!token) {
-		const manual = await loadManual(host.db, userId);
+		const manual = await loadManual(host.db, userId, memo);
 		if (manual) {
 			return {
 				save: manualSave(host.rt, manual, userId),
@@ -95,7 +105,7 @@ async function loadBoundFor(
 	}
 	const [banned, save] = await Promise.all([
 		host.rt.store.isSessionTokenBanned(token),
-		host.lib.loadSaveByToken(host.rt, host.db, token),
+		host.lib.loadSaveByToken(host.rt, host.db, token, memo),
 	]);
 	if (banned) {
 		return { error: "banned", status: 403, reason: "banned" };
@@ -131,6 +141,9 @@ async function refreshSaveFor(
 	| BoundErr
 > {
 	const host = await getDataHost();
+	// The catalog (needed to build the Save) loads during the KV checks below
+	const songInfo = ensureSongInfo();
+	songInfo.catch(() => undefined);
 	const token = await host.lib.getToken(host.rt, userId);
 	if (!token) return { error: "not_bound", status: 409, reason: "not_bound" };
 	if (await host.rt.store.isSessionTokenBanned(token)) {
@@ -147,9 +160,13 @@ async function refreshSaveFor(
 		};
 	}
 	try {
-		await ensureSongInfo();
-		const save = await host.lib.updateSave(host.rt, host.db, userId);
-		const epoch = await getCardEpoch(host.store, userId);
+		const epochJob = getCardEpoch(host.store, userId);
+		epochJob.catch(() => undefined);
+		await songInfo;
+		const save = await host.lib.updateSave(host.rt, host.db, userId, {
+			bound: token,
+		});
+		const epoch = await epochJob;
 		return {
 			ok: true,
 			lastSynced: lastSyncedIso(save),

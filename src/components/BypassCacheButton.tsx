@@ -1,9 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { SteadyButton } from "@/components/Tool";
-import { useActionCooldown } from "@/components/useActionCooldown";
+import {
+	cooldownSeconds,
+	useActionCooldown,
+} from "@/components/useActionCooldown";
 import { useI18n } from "@/i18n/provider";
 import {
 	cooldownMsFromServer,
@@ -13,18 +16,18 @@ import {
 	persistCardReload,
 } from "@/lib/save-refresh";
 
+/** An item of the desk's More menu: redraw every card, skipping the image cache */
 export function BypassCacheButton({ cooldownMs }: { cooldownMs: number }) {
 	const { m } = useI18n();
 	const router = useRouter();
+	const hintId = useId();
 	const [pending, setPending] = useState(false);
-	const { remaining, cooling, message, showError } = useActionCooldown(
-		cooldownMs,
-		getBypassUntil,
-	);
+	const { remaining, cooling, message, showError, clearError } =
+		useActionCooldown(cooldownMs, getBypassUntil);
 
 	const wait = m.refresh.wait.replaceAll(
 		"{seconds}",
-		String(Math.max(1, Math.ceil(remaining / 1000))),
+		cooldownSeconds(remaining),
 	);
 	const waitWide = m.refresh.wait.replaceAll("{seconds}", "300");
 	const live = pending
@@ -35,6 +38,7 @@ export function BypassCacheButton({ cooldownMs }: { cooldownMs: number }) {
 
 	async function onBypass() {
 		if (pending || cooling) return;
+		clearError();
 		setPending(true);
 		try {
 			const res = await fetch("/api/cache/bypass", { method: "POST" });
@@ -65,18 +69,23 @@ export function BypassCacheButton({ cooldownMs }: { cooldownMs: number }) {
 	}
 
 	return (
-		<div className="tool">
+		<div className="menu-item">
 			<SteadyButton
-				className="btn-ghost"
+				className="btn-ghost menu-btn"
 				type="button"
-				disabled={pending || cooling}
+				aria-disabled={pending || cooling || undefined}
+				aria-busy={pending || undefined}
+				aria-describedby={hintId}
 				labels={[m.refresh.bypass, m.refresh.bypassPending, waitWide]}
 				onClick={() => void onBypass()}
 			>
 				{live}
 			</SteadyButton>
+			<p className="menu-hint" id={hintId}>
+				{m.refresh.bypassHint}
+			</p>
 			{message ? (
-				<p className="tool-pop tool-pop-alert" role="alert">
+				<p className="field-error" role="alert">
 					{message}
 				</p>
 			) : null}

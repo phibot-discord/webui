@@ -3,7 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SteadyButton } from "@/components/Tool";
-import { useActionCooldown } from "@/components/useActionCooldown";
+import { ToolAlert } from "@/components/ToolAlert";
+import {
+	cooldownSeconds,
+	useActionCooldown,
+} from "@/components/useActionCooldown";
 import { useI18n } from "@/i18n/provider";
 import { apiErrorText } from "@/lib/api-error";
 import {
@@ -14,19 +18,18 @@ import {
 } from "@/lib/save-refresh";
 import { readJsonWithTapWait, tapWaitFailed } from "@/lib/tap-wait";
 
+/** The desk's primary action: pull the latest save from TapTap */
 export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 	const { m } = useI18n();
 	const router = useRouter();
 	const [pending, setPending] = useState(false);
 	const [waitingTap, setWaitingTap] = useState(false);
-	const { remaining, cooling, message, showError } = useActionCooldown(
-		cooldownMs,
-		getRefreshUntil,
-	);
+	const { remaining, cooling, message, showError, clearError } =
+		useActionCooldown(cooldownMs, getRefreshUntil);
 
 	const wait = m.refresh.wait.replaceAll(
 		"{seconds}",
-		String(Math.max(1, Math.ceil(remaining / 1000))),
+		cooldownSeconds(remaining),
 	);
 	const waitWide = m.refresh.wait.replaceAll("{seconds}", "120");
 	const live = pending
@@ -39,6 +42,7 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 
 	async function onRefresh() {
 		if (pending || cooling) return;
+		clearError();
 		setPending(true);
 		setWaitingTap(false);
 		try {
@@ -76,9 +80,11 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 	return (
 		<div className="tool">
 			<SteadyButton
-				className="btn-ghost"
+				className="btn-primary"
 				type="button"
-				disabled={pending || cooling}
+				// aria-disabled, not disabled: focus stays put and the countdown stays readable
+				aria-disabled={pending || cooling || undefined}
+				aria-busy={pending || undefined}
 				labels={[
 					m.refresh.save,
 					m.refresh.pending,
@@ -89,11 +95,7 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 			>
 				{live}
 			</SteadyButton>
-			{message ? (
-				<p className="tool-pop tool-pop-alert" role="alert">
-					{message}
-				</p>
-			) : null}
+			{message ? <ToolAlert message={message} onDismiss={clearError} /> : null}
 		</div>
 	);
 }

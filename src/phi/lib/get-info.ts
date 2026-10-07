@@ -70,8 +70,32 @@ type VersionInfo = {
 	version?: string;
 };
 
-function withDotZero(id: string) {
+/** Catalog id form (`Song.Composer.0`); idempotent, unlike phi-plugin's helper */
+export function withDotZero(id: string) {
 	return id.endsWith(".0") ? id : `${id}.0`;
+}
+
+/** Chapter → aliases. A malformed or empty file must not take the song catalog down with it */
+function readChapList(file: string): Record<string, string[]> {
+	let raw: unknown;
+	try {
+		raw = readYaml<unknown>(file, {});
+	} catch (err) {
+		logger.warn(
+			`chaplist skipped: ${err instanceof Error ? err.message : err}`,
+		);
+		return {};
+	}
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+	const out: Record<string, string[]> = {};
+	for (const [chap, aliases] of Object.entries(raw)) {
+		if (!Array.isArray(aliases)) continue;
+		out[chap] = aliases
+			.filter((a) => a != null)
+			.map((a) => String(a).trim())
+			.filter(Boolean);
+	}
+	return out;
 }
 
 const AVATAR_FILE: Record<string, string> = {
@@ -325,12 +349,9 @@ class GetInfo {
 			this.idList.push(id);
 		}
 
-		this.chapList = readYaml<Record<string, string[]>>(
-			join(infoPath, "chaplist.yaml"),
-			{},
-		);
+		this.chapList = readChapList(join(infoPath, "chaplist.yaml"));
 		for (const [chap, aliases] of Object.entries(this.chapList)) {
-			for (const alias of aliases || []) {
+			for (const alias of aliases) {
 				this.chapNick[alias] ||= [];
 				this.chapNick[alias]!.push(chap);
 			}
@@ -354,7 +375,7 @@ class GetInfo {
 		);
 	}
 
-	/** Stored row without copying; callers must not mutate it. */
+	/** Stored row without copying; callers must not mutate it */
 	raw(id: string): SongInfo | undefined {
 		return (
 			this.ori_info[id] ||
@@ -374,7 +395,7 @@ class GetInfo {
 		};
 	}
 
-	/** Charts per level with a real constant, for the stats table. Constant per catalog load. */
+	/** Charts per level with a real constant, for the stats table. Constant per catalog load */
 	chartTotals(): [number, number, number, number] {
 		if (this.totals) return this.totals;
 		const tot: [number, number, number, number] = [0, 0, 0, 0];
@@ -399,7 +420,7 @@ class GetInfo {
 		return chapIllPath(this.originalIll, name);
 	}
 
-	/** avatar.txt id → `html/avatar/<name>.png`; unknown ids draw the game's default. */
+	/** avatar.txt id → `html/avatar/<name>.png`; unknown ids draw the game's default */
 	idgetavatar(id: string) {
 		if (!this.avatarid.includes(id)) return "Introduction";
 		return AVATAR_FILE[id] ?? id;

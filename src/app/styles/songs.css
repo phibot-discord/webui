@@ -1,0 +1,431 @@
+/* ------------------------------ song nicknames ------------------------------ */
+
+.songs-page {
+	--page-max: none;
+}
+
+.songs-layout {
+	display: grid;
+	gap: var(--space-10);
+	align-items: start;
+}
+
+@media (min-width: 64em) {
+	.songs-layout {
+		grid-template-columns: minmax(0, 1fr) 17rem;
+		gap: var(--space-12);
+	}
+
+	.songs-about {
+		position: sticky;
+		top: calc(var(--nav-h) + var(--space-6));
+	}
+}
+
+.songs-main {
+	min-width: 0;
+}
+
+/* ---------------------------------- search ---------------------------------- */
+
+.songs-form {
+	display: grid;
+	gap: var(--space-2);
+	margin-bottom: var(--space-8);
+}
+
+.songs-label {
+	font-size: var(--text-sm);
+	font-weight: 500;
+}
+
+.songs-row {
+	display: flex;
+	gap: var(--space-2);
+}
+
+.songs-field {
+	position: relative;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.songs-input {
+	width: 100%;
+	min-height: 3rem;
+	padding-inline-end: 3rem;
+	font-size: var(--text-md);
+}
+
+/* The clear button below replaces the browser's own */
+.songs-input::-webkit-search-cancel-button {
+	appearance: none;
+	display: none;
+}
+
+.songs-clear {
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 3rem;
+	height: 100%;
+	padding: 0;
+	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.songs-clear:focus-visible {
+	outline-offset: -2px;
+}
+
+.songs-submit {
+	flex: none;
+	min-height: 3rem;
+}
+
+/* ------------------------------ states and notes ------------------------------ */
+
+/* Headings, notes and the pending message quote the query, which can be one long word */
+.songs-empty h2,
+.songs-results h2 {
+	font-size: var(--text-md);
+	margin-bottom: var(--space-3);
+	overflow-wrap: anywhere;
+}
+
+/* Takes focus after a search: the ring hugs the text instead of the column */
+.songs-results h2 {
+	width: fit-content;
+	max-width: 100%;
+}
+
+.songs-results h2:focus-visible {
+	outline-offset: 4px;
+	border-radius: var(--radius-xs);
+}
+
+.songs-empty p {
+	color: var(--muted);
+	margin: 0 0 var(--space-4);
+}
+
+.songs-examples {
+	display: grid;
+	gap: var(--space-2);
+	max-width: 40rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* A whole row is the link: nickname, then the songs it finds */
+.songs-example {
+	display: grid;
+	grid-template-columns: minmax(4.5rem, max-content) minmax(0, 1fr);
+	align-items: baseline;
+	align-content: center;
+	gap: var(--space-4);
+	min-height: 3rem;
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-md);
+	color: var(--ink);
+	text-decoration: none;
+	transition:
+		background-color var(--dur) var(--ease),
+		border-color var(--dur) var(--ease);
+}
+
+.songs-example-q {
+	font-weight: 600;
+}
+
+/* Baseline-aligned text, so the row's baseline is the text's and not the icon's */
+.songs-example-to {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-2);
+	min-width: 0;
+	color: var(--muted);
+	font-size: var(--text-sm);
+}
+
+.songs-example-to svg {
+	flex: none;
+	align-self: flex-start;
+	margin-top: 0.2em;
+	color: var(--primary);
+}
+
+@media (hover: hover) {
+	.songs-example:hover {
+		border-color: var(--primary);
+		background: var(--primary-soft);
+		color: var(--ink);
+	}
+}
+
+.songs-example:active {
+	background: var(--primary-soft);
+}
+
+.songs-pending {
+	margin: 0;
+	color: var(--muted);
+	overflow-wrap: anywhere;
+}
+
+.songs-pending.is-error {
+	color: var(--ink);
+	padding: var(--space-4) var(--space-5);
+	border: 1px solid var(--line-strong);
+	border-left: 3px solid var(--danger);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	max-width: none;
+}
+
+.songs-note {
+	display: flex;
+	gap: var(--space-3);
+	align-items: flex-start;
+	margin: 0 0 var(--space-4);
+	padding: var(--space-3) var(--space-4);
+	border-radius: var(--radius-md);
+	background: var(--primary-soft);
+	max-width: none;
+	overflow-wrap: anywhere;
+}
+
+.songs-note span {
+	min-width: 0;
+}
+
+.songs-note svg {
+	flex: none;
+	margin-top: 0.15em;
+	color: var(--primary);
+}
+
+.songs-hint,
+.songs-more {
+	color: var(--muted);
+}
+
+.songs-hint {
+	margin: 0 0 var(--space-2);
+}
+
+.songs-more {
+	margin: var(--space-4) 0 0;
+	font-size: var(--text-sm);
+}
+
+.songs-out {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-weight: 500;
+}
+
+.songs-out svg {
+	flex: none;
+}
+
+@media (pointer: coarse) {
+	.songs-out {
+		min-height: var(--tap);
+	}
+}
+
+/* ---------------------------------- results ---------------------------------- */
+
+.songs-list {
+	display: grid;
+	gap: var(--space-3);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.song-hit {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	grid-template-areas:
+		"head levels"
+		"nicks nicks";
+	gap: var(--space-4) var(--space-6);
+	padding: var(--space-5) var(--space-6);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+
+.song-hit-head {
+	grid-area: head;
+	min-width: 0;
+}
+
+.song-hit-title {
+	margin: 0;
+	font-size: var(--text-lg);
+	line-height: var(--leading-tight);
+	letter-spacing: -0.01em;
+	overflow-wrap: anywhere;
+}
+
+.song-hit-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0 var(--space-3);
+	margin: var(--space-1) 0 0;
+	color: var(--muted);
+	font-size: var(--text-sm);
+	overflow-wrap: anywhere;
+}
+
+.song-hit-via {
+	color: var(--primary);
+	font-weight: 500;
+}
+
+.song-hit-levels {
+	grid-area: levels;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	align-content: flex-start;
+	gap: var(--space-1);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* Labels here, not controls: compact even on touch screens */
+.song-hit-levels .chart-level {
+	min-height: 1.75rem;
+	padding: 3px 8px;
+	font-size: var(--text-xs);
+	cursor: default;
+}
+
+.song-hit-nicks {
+	grid-area: nicks;
+	display: grid;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.song-hit-label {
+	color: var(--muted);
+	font-size: var(--text-xs);
+	font-weight: 500;
+}
+
+.song-nicks {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.song-nick {
+	display: inline-flex;
+	align-items: center;
+	max-width: 100%;
+	padding: 3px 9px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-xs);
+	background: var(--surface-2);
+	font-size: var(--text-sm);
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+
+.song-nick.is-match {
+	border-color: var(--primary);
+	background: var(--primary-soft);
+	box-shadow: inset 0 0 0 1px var(--primary);
+	font-weight: 600;
+}
+
+.song-nick mark {
+	background: none;
+	color: inherit;
+}
+
+.song-hit-none {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-sm);
+}
+
+/* its own row, only when signed in */
+.song-hit-card {
+	grid-column: 1 / -1;
+	justify-self: start;
+}
+
+/* phones: one column, levels under the title */
+@media (max-width: 39.99em) {
+	.song-hit {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas:
+			"head"
+			"levels"
+			"nicks";
+		gap: var(--space-3);
+		padding: var(--space-4);
+	}
+
+	.song-hit-levels {
+		justify-content: flex-start;
+	}
+
+	.song-hit-title {
+		font-size: var(--text-md);
+	}
+
+	.song-hit-card {
+		justify-self: stretch;
+	}
+}
+
+/* ---------------------------------- about ---------------------------------- */
+
+.songs-about {
+	padding-top: var(--space-6);
+	border-top: 1px solid var(--line);
+	font-size: var(--text-sm);
+}
+
+.songs-about h2 {
+	font-size: var(--text-base);
+	letter-spacing: -0.01em;
+}
+
+.songs-about p {
+	margin: 0 0 var(--space-3);
+	color: var(--muted);
+}
+
+@media (min-width: 64em) {
+	.songs-about {
+		padding: 0 0 0 var(--space-6);
+		border-top: 0;
+		border-left: 1px solid var(--line);
+	}
+}
+
+@media (forced-colors: active) {
+	.song-hit,
+	.song-nick,
+	.songs-note {
+		border: 1px solid CanvasText;
+	}
+
+	.song-nick.is-match {
+		border: 2px solid Highlight;
+	}
+}

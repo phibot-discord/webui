@@ -1,0 +1,106 @@
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html {
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
+	/* keep focused and anchored elements clear of the sticky header */
+	scroll-padding-top: calc(var(--nav-h) + var(--space-4));
+}
+
+html,
+body {
+	margin: 0;
+	min-height: 100%;
+	background: var(--bg);
+	color: var(--ink);
+}
+
+body {
+	font-family:
+		var(--font-display), ui-sans-serif, system-ui, "Segoe UI", "PingFang SC",
+		"Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", var(--font-cjk),
+		sans-serif;
+	font-size: var(--text-base);
+	line-height: var(--leading);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	-webkit-tap-highlight-color: transparent;
+}
+
+html[lang="zh-CN"] body {
+	font-family:
+		var(--font-display), "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
+		"Microsoft YaHei", var(--font-cjk), ui-sans-serif, system-ui, sans-serif;
+}
+
+html[lang="zh-CN"] h1,
+html[lang="zh-CN"] h2,
+html[lang="zh-CN"] h3 {
+	letter-spacing: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html {
+		scroll-behavior: smooth;
+	}
+}
+
+a {
+	color: var(--primary);
+	text-underline-offset: 0.18em;
+	text-decoration-thickness: 0.08em;
+}
+
+@media (hover: hover) {
+	a:hover {
+		color: var(--ink);
+	}
+}
+
+:focus-visible {
+	outline: 2px solid var(--focus);
+	outline-offset: 2px;
+}
+
+/* Inside clipping or scrolling containers an outer ring would be cut off */
+:where(.card-nav, .frame, .scroll-x, .plan-table-wrap, .manual-table-wrap)
+:focus-visible {
+	outline-offset: -2px;
+}
+
+::selection {
+	background: color-mix(in srgb, var(--primary) 32%, transparent);
+	color: var(--ink);
+}
+
+/* Zero specificity, so the shared field style (primitives.css) can size text */
+:where(button, input, select, textarea) {
+	font: inherit;
+	color: inherit;
+}
+
+button {
+	touch-action: manipulation;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+	width: 1.125rem;
+	height: 1.125rem;
+	margin: 0;
+	accent-color: var(--primary);
+}
+
+[hidden] {
+	display: none !important;
+}
+
+/* Skip-link and route targets take focus programmatically; no ring needed */
+[tabindex="-1"]:focus:not(:focus-visible),
+main[tabindex="-1"]:focus {
+	outline: none;
+}

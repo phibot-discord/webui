@@ -214,37 +214,80 @@ export async function peekQrBind(
 	return withDiscordUid(userId, () => peekQrBindFor(userId));
 }
 
+/** The QR session is gone: either the bind finished elsewhere (another tab or instance) or it expired */
+async function qrGone(
+	host: Awaited<ReturnType<typeof getDataHost>>,
+	userId: string,
+	bound?: string,
+): Promise<BindOk | BindErr> {
+	await clearQr(userId);
+	const token = bound ?? (await getToken(host.rt, userId));
+	if (token) {
+		const save = await host.lib.loadSaveByToken(host.rt, host.db, token);
+		if (save) return playerFromSave(save);
+		return { error: "already_bound", status: 409 };
+	}
+	return { error: "qr_expired", status: 410 };
+}
+
+/** TapTap answers that mean "not yet": the device code is still usable */
+const QR_PENDING = new Set([
+	"authorization_pending",
+	"authorization_waiting",
+	"slow_down",
+]);
+
+/** A bind done elsewhere leaves our QR session pending, so check the token now and then */
+const QR_TOKEN_CHECK_MS = 10_000;
+const qrTokenCheckedAt = new Map<string, number>();
+const QR_TOKEN_CHECK_MAX = 500;
+
+/** The first poll an instance sees only starts the clock: startQrBind just checked the token */
+function qrTokenCheckDue(userId: string): boolean {
+	const now = Date.now();
+	const last = qrTokenCheckedAt.get(userId);
+	if (last != null && now - last < QR_TOKEN_CHECK_MS) return false;
+	qrTokenCheckedAt.delete(userId);
+	qrTokenCheckedAt.set(userId, now);
+	while (qrTokenCheckedAt.size > QR_TOKEN_CHECK_MAX) {
+		const oldest = qrTokenCheckedAt.keys().next().value;
+		if (oldest === undefined) break;
+		qrTokenCheckedAt.delete(oldest);
+	}
+	return last != null;
+}
+
+export function resetQrPollForTest() {
+	qrTokenCheckedAt.clear();
+}
+
+/** Polled while the QR shows: reads the QR session and asks TapTap; the token only when needed */
 async function peekQrBindFor(
 	userId: string,
 ): Promise<{ status: "waiting" | "scanned" } | BindOk | BindErr | QrResume> {
 	const host = await getDataHost();
-	if (await getToken(host.rt, userId)) {
-		await clearQr(userId);
-		const save = await host.lib.loadSave(host.rt, host.db, userId);
-		if (save) return playerFromSave(save);
-		return { error: "already_bound", status: 409 };
-	}
 	const raw = await host.db.get(QR_KEY(userId));
-	if (!raw) {
-		await clearQr(userId);
-		return { error: "qr_expired", status: 410 };
-	}
+	if (!raw) return qrGone(host, userId);
 	let stored: QrStored;
 	try {
 		stored = JSON.parse(raw) as QrStored;
 	} catch {
-		await clearQr(userId);
-		return { error: "qr_expired", status: 410 };
+		return qrGone(host, userId);
 	}
 
 	const useGlobal = isGlobalTapLogin(stored, stored.global);
 	const result = await host.rt.getQRcode.checkQRCodeResult(stored, useGlobal);
-	if (!qrSucceeded(result) || !result) {
-		const err = result?.data?.error;
-		if (err === "authorization_waiting") return { status: "scanned" };
-		return { status: "waiting" };
+	if (qrSucceeded(result) && result) return { resume: { result, useGlobal } };
+	const err = result?.data?.error;
+	// A dead code (expired, denied, or used by another tab's bind) with no binding
+	// yet keeps waiting: that bind may still be saving, else the session expires
+	const dead = err != null && !QR_PENDING.has(err);
+	if (dead || qrTokenCheckDue(userId)) {
+		const token = await getToken(host.rt, userId);
+		if (token) return qrGone(host, userId, token);
 	}
-	return { resume: { result, useGlobal } };
+	if (err === "authorization_waiting") return { status: "scanned" };
+	return { status: "waiting" };
 }
 
 export async function finishQrBind(
@@ -259,6 +302,9 @@ async function finishQrBindFor(
 	resume: QrResume["resume"],
 ): Promise<BindOk | BindErr> {
 	const host = await getDataHost();
+	// The catalog (needed to build the Save) loads during the TapTap login
+	const songInfo = ensureSongInfo();
+	songInfo.catch(() => undefined);
 	let token: string;
 	try {
 		token = String(
@@ -276,7 +322,7 @@ async function finishQrBindFor(
 		return { error: "invalid_token", status: 400 };
 	}
 	try {
-		await ensureSongInfo();
+		await songInfo;
 		const save = await updateSave(host.rt, host.db, userId, {
 			token,
 			global: resume.useGlobal,
@@ -290,7 +336,7 @@ async function finishQrBindFor(
 	}
 }
 
-/** A real bind replaces a manual profile; its hand-typed B30 snapshots go with it. */
+/** A real bind replaces a manual profile; its hand-typed B30 snapshots go with it */
 async function leaveManualMode(userId: string) {
 	try {
 		await clearManual(userId);
@@ -319,13 +365,15 @@ async function bindWithTokenFor(
 	globalFlag?: unknown,
 ): Promise<BindOk | BindErr> {
 	const host = await getDataHost();
+	const songInfo = ensureSongInfo();
+	songInfo.catch(() => undefined);
 	if (await getToken(host.rt, userId))
 		return { error: "already_bound", status: 409 };
 	const token = String(rawToken || "").replace(/\s/g, "");
 	if (!/[a-z0-9A-Z]{25}/.test(token))
 		return { error: "invalid_token", status: 400 };
 	try {
-		await ensureSongInfo();
+		await songInfo;
 		const save = await updateSave(host.rt, host.db, userId, {
 			token,
 			global: asServer(server, globalFlag) === "gb",
@@ -354,7 +402,7 @@ async function unbindAccountFor(
 ): Promise<{ ok: true } | BindErr> {
 	const host = await getDataHost();
 	try {
-		const had = await clearUser(host.rt, host.db, userId);
+		const had = await clearUser(host.rt, userId);
 		await clearQr(userId);
 		if (!had && !(await clearManual(userId)))
 			return { error: "not_bound", status: 409 };

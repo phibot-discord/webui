@@ -1,0 +1,65 @@
+/* Level chip: rank and chart constant on the level's colour. Static by
+   default; options (ChartSearch) and buttons get the pointer and touch size */
+.chart-level {
+	appearance: none;
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	gap: 4px;
+	min-width: 1.5rem;
+	min-height: 1.5rem;
+	padding: 3px 7px;
+	border: 1px solid transparent;
+	border-radius: var(--radius);
+	font: inherit;
+	font-size: 0.75rem;
+	font-weight: 600;
+	line-height: 1.2;
+	white-space: nowrap;
+	color: oklch(1 0 0);
+	font-variant-numeric: tabular-nums;
+	/* ranks without a level class (legacy, unknown) get the AT neutral */
+	background: var(--level, oklch(0.42 0.02 260));
+}
+
+.chart-level span:last-child {
+	font-weight: 400;
+}
+
+:is(button, [role="option"]).chart-level {
+	cursor: pointer;
+}
+
+.chart-level[aria-disabled="true"] {
+	opacity: 0.35;
+	cursor: not-allowed;
+}
+
+.chart-level-EZ {
+	--level: oklch(0.5 0.15 145);
+}
+
+.chart-level-HD {
+	--level: oklch(0.5 0.13 235);
+}
+
+.chart-level-IN {
+	--level: oklch(0.55 0.2 27);
+}
+
+.chart-level-AT {
+	--level: oklch(0.42 0.02 260);
+}
+
+@media (pointer: coarse) {
+	:is(button, [role="option"]).chart-level {
+		min-height: var(--tap);
+		padding-inline: 10px;
+	}
+}
+
+@media (forced-colors: active) {
+	.chart-level {
+		border-color: CanvasText;
+	}
+}

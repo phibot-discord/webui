@@ -37,6 +37,44 @@
 .accLower path {
 	fill: #ffe566 !important;
 }
+/* b30AvgKind "rank": "#3,611 / 70,388 · Top 5.1%" (score-avg applyRowRanks) */
+.accRank {
+	--bkgColor: rgba(8, 12, 19, 0.86);
+	--lineColor: #62d2ff;
+}
+.accRank.accRankAp {
+	--lineColor: #ffd25e;
+}
+.accAvg.accRank {
+	padding: 0 9px 0 14px !important;
+}
+.accRank p {
+	margin: 0 !important;
+	font-size: 12px !important;
+	line-height: 17px !important;
+	white-space: nowrap !important;
+}
+/* Margins, not gap: the badge ignores flex gap */
+.accRank .accRankOf {
+	margin-left: 4px !important;
+}
+.accRank .accRankPct {
+	margin-left: 9px !important;
+}
+.accRankPos {
+	font-weight: 700 !important;
+	color: #ffffff !important;
+}
+.accRankOf {
+	color: #b8c3d0 !important;
+}
+.accRankPct {
+	color: #62d2ff !important;
+}
+.accRankAp .accRankPos,
+.accRankAp .accRankPct {
+	color: #ffd25e !important;
+}
 .ill-box {
 	position: relative !important;
 	z-index: 1 !important;
@@ -103,7 +141,7 @@
 	justify-content: center !important;
 	gap: 0 !important;
 	margin-left: 0 !important;
-	padding: 2px 8px 2px 12px !important;
+	padding: 1px 0 !important;
 	box-sizing: border-box !important;
 	clip-path: polygon(
 		100% 0,
@@ -116,18 +154,29 @@
 .rel {
 	height: auto !important;
 	margin: 0 !important;
-	width: auto !important;
+	width: 100% !important;
+	box-sizing: border-box !important;
 	display: flex !important;
 	align-items: center !important;
 	justify-content: center !important;
 	flex: none !important;
 }
+.org {
+	padding: 0 calc(var(--b30-rank-clip-in) * 0.3) 0
+		calc(var(--b30-rank-clip-in) * 0.7) !important;
+}
+.rel {
+	padding: 0 calc(var(--b30-rank-clip-in) * 0.7) 0
+		calc(var(--b30-rank-clip-in) * 0.3) !important;
+}
 .org p,
 .rel p {
+	width: 100% !important;
 	font-size: 10px !important;
 	line-height: 1.25 !important;
 	color: #fff !important;
 	margin: 0 !important;
+	text-align: center !important;
 	white-space: nowrap !important;
 }
 

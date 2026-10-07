@@ -1,18 +1,29 @@
 "use client";
 
+import { GlobeSimple } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { SteadyButton, ToolPop, useToolDismiss } from "@/components/Tool";
+import {
+	Announce,
+	SteadyButton,
+	ToolPop,
+	useToolDismiss,
+} from "@/components/Tool";
+import { ToolAlert } from "@/components/ToolAlert";
 import { useI18n } from "@/i18n/provider";
 
+/** Public link to the player's cards (/p/<slug>): create, copy, open, revoke */
 export function ShareToggle({ slug }: { slug?: string | null }) {
 	const { m } = useI18n();
 	const router = useRouter();
 	const root = useRef<HTMLDivElement>(null);
+	const field = useRef<HTMLInputElement>(null);
 	const titleId = useId();
+	const hintId = useId();
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);
-	const [copied, setCopied] = useState(false);
+	const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
+	const [error, setError] = useState<string>();
 	const [liveSlug, setLiveSlug] = useState(slug || "");
 	const [prevSlug, setPrevSlug] = useState(slug);
 	if (slug !== prevSlug) {
@@ -32,14 +43,23 @@ export function ShareToggle({ slug }: { slug?: string | null }) {
 
 	async function enable() {
 		setPending(true);
+		setError(undefined);
 		try {
 			const res = await fetch("/api/share", { method: "POST" });
-			const data = (await res.json().catch(() => ({}))) as { slug?: string };
-			if (res.ok && data.slug) {
-				setLiveSlug(data.slug);
-				setOpen(true);
+			const data = (await res.json().catch(() => ({}))) as {
+				slug?: string;
+				error?: string;
+			};
+			if (!res.ok || !data.slug) {
+				setError(data.error || m.share.failed);
+				return;
 			}
+			setLiveSlug(data.slug);
+			setCopy("idle");
+			setOpen(true);
 			router.refresh();
+		} catch {
+			setError(m.share.failed);
 		} finally {
 			setPending(false);
 		}
@@ -47,60 +67,110 @@ export function ShareToggle({ slug }: { slug?: string | null }) {
 
 	async function disable() {
 		setPending(true);
+		setError(undefined);
 		try {
 			const res = await fetch("/api/share", { method: "DELETE" });
-			if (res.ok) {
-				setLiveSlug("");
-				setOpen(false);
-				router.refresh();
+			if (!res.ok) {
+				setError(m.share.revokeFailed);
+				return;
 			}
+			setLiveSlug("");
+			setOpen(false);
+			router.refresh();
+		} catch {
+			setError(m.share.revokeFailed);
 		} finally {
 			setPending(false);
 		}
 	}
 
-	async function copy() {
+	async function copyLink() {
 		if (!liveSlug) return;
-		await navigator.clipboard.writeText(
-			`${window.location.origin}/p/${liveSlug}`,
-		);
-		setCopied(true);
 		window.clearTimeout(copiedTimer.current);
-		copiedTimer.current = window.setTimeout(() => setCopied(false), 1500);
+		try {
+			await navigator.clipboard.writeText(field.current?.value ?? "");
+			setCopy("copied");
+			copiedTimer.current = window.setTimeout(() => setCopy("idle"), 2000);
+		} catch {
+			// No clipboard (insecure context, permission): leave the link selected
+			setCopy("failed");
+			field.current?.focus();
+			field.current?.select();
+		}
 	}
 
 	return (
 		<div className="tool" ref={root}>
+			{/* While a link exists: tinted, a globe, and ", on" in its name
+			    Not aria-pressed, as the button opens a popover */}
 			<SteadyButton
-				className="btn-ghost"
+				className={
+					liveSlug ? "btn-ghost share-btn is-on" : "btn-ghost share-btn"
+				}
 				type="button"
-				aria-expanded={open}
-				aria-haspopup="dialog"
-				aria-pressed={Boolean(liveSlug) || undefined}
-				disabled={pending}
+				aria-label={liveSlug ? `${m.share.menu}, ${m.share.on}` : undefined}
+				aria-expanded={liveSlug ? open : undefined}
+				aria-haspopup={liveSlug ? "dialog" : undefined}
+				aria-disabled={pending || undefined}
+				aria-busy={pending || undefined}
 				labels={[m.share.menu, m.share.creating]}
 				onClick={() => {
+					if (pending) return;
+					setError(undefined);
 					if (liveSlug) setOpen((v) => !v);
 					else void enable();
 				}}
 			>
+				{liveSlug ? (
+					<GlobeSimple aria-hidden="true" size={18} weight="bold" />
+				) : null}
 				{pending && !liveSlug ? m.share.creating : m.share.menu}
 			</SteadyButton>
 			{open && liveSlug ? (
 				<ToolPop labelledBy={titleId}>
-					<p className="tool-pop-copy" id={titleId}>
+					<p className="tool-pop-title" id={titleId}>
 						{m.share.link}
 					</p>
-					<p className="share-url">{path}</p>
+					<p className="tool-pop-copy" id={hintId}>
+						{m.share.hint}
+					</p>
+					<input
+						ref={field}
+						className="input share-url"
+						type="text"
+						readOnly
+						value={`${window.location.origin}${path}`}
+						aria-labelledby={titleId}
+						aria-describedby={hintId}
+						onFocus={(e) => e.currentTarget.select()}
+					/>
+					{copy === "failed" ? (
+						<p className="field-error tool-pop-error" role="alert">
+							{m.share.copyFailed}
+						</p>
+					) : null}
+					{error ? (
+						<p className="field-error tool-pop-error" role="alert">
+							{error}
+						</p>
+					) : null}
 					<div className="tool-pop-actions">
 						<SteadyButton
 							className="btn-ghost"
 							type="button"
 							labels={[m.share.copy, m.share.copied]}
-							onClick={() => void copy()}
+							onClick={() => void copyLink()}
 						>
-							{copied ? m.share.copied : m.share.copy}
+							{copy === "copied" ? m.share.copied : m.share.copy}
 						</SteadyButton>
+						<a
+							className="btn btn-ghost"
+							href={path}
+							target="_blank"
+							rel="noopener"
+						>
+							{m.share.open}
+						</a>
 						<button
 							className="btn btn-danger"
 							type="button"
@@ -110,7 +180,11 @@ export function ShareToggle({ slug }: { slug?: string | null }) {
 							{m.share.revoke}
 						</button>
 					</div>
+					<Announce>{copy === "copied" ? m.share.copied : ""}</Announce>
 				</ToolPop>
+			) : null}
+			{error && !open ? (
+				<ToolAlert message={error} onDismiss={() => setError(undefined)} />
 			) : null}
 		</div>
 	);

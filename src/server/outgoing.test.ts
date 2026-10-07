@@ -3,9 +3,11 @@ import { createServer } from "node:http";
 import test from "node:test";
 import { cfAgent, isNoResponseError } from "./cf-fetch";
 import {
+	outgoingAgent,
 	outgoingAgentDefaults,
 	outgoingFetch,
 	REQUEST_TIMEOUT_MS,
+	RETRY_AFTER_CAP_MS,
 	socketTimeouts,
 } from "./outgoing";
 
@@ -64,6 +66,37 @@ test("urlencoded bodies keep oauth fields; Node FormData does not", async () => 
 		assert.match(seen[1]!.body, /client_id=rAK3FfdieFob2Nn8Am/);
 		assert.match(seen[1]!.ct || "", /application\/x-www-form-urlencoded/);
 	} finally {
+		server.close();
+	}
+});
+
+test("the retry interceptor waits at most the cap for Retry-After", async () => {
+	let n = 0;
+	const server = createServer((_req, res) => {
+		n += 1;
+		if (n === 1) {
+			res.writeHead(429, { "retry-after": "120" });
+			res.end();
+			return;
+		}
+		res.end("ok");
+	});
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const { port } = server.address() as { port: number };
+	try {
+		const t0 = performance.now();
+		const res = await outgoingFetch(`http://127.0.0.1:${port}/`, {
+			dispatcher: outgoingAgent(),
+		});
+		const waited = performance.now() - t0;
+		assert.equal(res.status, 200);
+		assert.equal(n, 2);
+		assert.ok(
+			waited >= RETRY_AFTER_CAP_MS - 50 && waited < RETRY_AFTER_CAP_MS + 1_500,
+			`waited ${Math.round(waited)}ms`,
+		);
+	} finally {
+		server.closeAllConnections();
 		server.close();
 	}
 });

@@ -54,7 +54,7 @@ test("textEm never underestimates what Takumi lays out", async () => {
 			generic: f.generic,
 		});
 	}
-	// Song titles use the card body stack, player names put NotoSansSC first.
+	// Song titles use the card body stack, player names put NotoSansSC first
 	const stacks = ["PHI, NotoSansSC, Aldrich", "NotoSansSC, PHI, Aldrich"];
 	for (const stack of stacks) {
 		for (const text of TITLES) {

@@ -1,0 +1,138 @@
+/* Tokens: blue-black stage, cyan accent, gold for achievements
+   Colours are light-dark(); [data-theme] overrides the OS preference */
+:root {
+	color-scheme: dark light;
+
+	/* surfaces, back to front */
+	--bg: light-dark(oklch(0.978 0.004 240), oklch(0.16 0.02 256));
+	--surface: light-dark(oklch(0.952 0.007 240), oklch(0.195 0.022 254));
+	--surface-2: light-dark(oklch(0.915 0.011 242), oklch(0.24 0.024 252));
+	/* text inputs and selects sit slightly inset from the page */
+	--control-bg: light-dark(oklch(1 0 0), oklch(0.135 0.018 256));
+
+	/* text */
+	--ink: light-dark(oklch(0.2 0.03 256), oklch(0.965 0.006 240));
+	--muted: light-dark(oklch(0.45 0.03 250), oklch(0.74 0.02 245));
+
+	/* lines: --line for dividers, --line-strong (≥3:1) for control edges */
+	--line: light-dark(oklch(0.87 0.013 245), oklch(0.3 0.02 252));
+	--line-strong: light-dark(oklch(0.6 0.02 248), oklch(0.54 0.025 250));
+
+	/* interactive accent */
+	--primary: light-dark(oklch(0.46 0.1 215), oklch(0.87 0.085 204));
+	--primary-hover: light-dark(oklch(0.4 0.1 215), oklch(0.93 0.07 204));
+	--on-primary: light-dark(oklch(0.99 0 0), oklch(0.17 0.03 240));
+	/* tinted fill for selected and pressed items */
+	--primary-soft: light-dark(
+		oklch(0.46 0.1 215 / 0.12),
+		oklch(0.87 0.085 204 / 0.14)
+	);
+	--focus: var(--primary);
+
+	/* achievement gold: phi, AP, highlights. Not for controls */
+	--accent: light-dark(oklch(0.5 0.12 75), oklch(0.85 0.14 88));
+	--on-accent: light-dark(oklch(0.99 0 0), oklch(0.2 0.05 88));
+
+	--danger: light-dark(oklch(0.52 0.19 25), oklch(0.72 0.17 25));
+	--on-danger: light-dark(oklch(0.99 0 0), oklch(0.17 0.03 25));
+	--danger-soft: light-dark(
+		oklch(0.52 0.19 25 / 0.1),
+		oklch(0.72 0.17 25 / 0.14)
+	);
+
+	/* shadows carry the surface hue */
+	--shadow-sm: 0 1px 2px
+		light-dark(oklch(0.35 0.04 248 / 0.12), oklch(0.08 0.03 258 / 0.5));
+	--shadow: 0 16px 40px -12px
+		light-dark(oklch(0.35 0.05 245 / 0.24), oklch(0.06 0.03 258 / 0.7));
+	--shadow-lg: 0 24px 60px -16px
+		light-dark(oklch(0.35 0.05 245 / 0.3), oklch(0.05 0.03 258 / 0.8));
+	/* dims the page behind an open menu or sheet */
+	--scrim: light-dark(oklch(0.3 0.04 250 / 0.28), oklch(0.06 0.02 258 / 0.62));
+
+	/* spacing (4 px grid) */
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.25rem;
+	--space-6: 1.5rem;
+	--space-8: 2rem;
+	--space-10: 2.5rem;
+	--space-12: 3rem;
+	--space-16: 4rem;
+	--space: var(--space-1);
+
+	/* radius: tighter inside, softer on containers */
+	--radius-xs: 3px;
+	--radius-sm: 5px;
+	--radius-md: 8px;
+	--radius-lg: 14px;
+	--radius: var(--radius-sm);
+
+	/* type scale (rem, so the visitor's font size setting applies) */
+	--text-xs: 0.8125rem;
+	--text-sm: 0.875rem;
+	--text-base: 1rem;
+	--text-md: 1.0625rem;
+	--text-lg: 1.25rem;
+	--text-xl: 1.5rem;
+	--text-2xl: clamp(1.75rem, 1.45rem + 1.2vw, 2.25rem);
+	--leading-tight: 1.2;
+	--leading: 1.5;
+
+	/* layers: header < dropdowns < toasts < sheets < modals < skip link */
+	--z-sticky: 20;
+	--z-dropdown: 30;
+	--z-toast: 40;
+	--z-sheet: 50;
+	--z-modal: 60;
+	--z-skip: 70;
+
+	/* layout */
+	--gutter: 1rem;
+	--wrap: min(75rem, calc(100% - 2 * var(--gutter)));
+	--nav-h: 3.5rem;
+	--control-h: 2.5rem;
+	--tap: 2.75rem;
+	--safe-bottom: env(safe-area-inset-bottom, 0px);
+
+	--ease: cubic-bezier(0.22, 1, 0.36, 1);
+	--dur: 180ms;
+}
+
+[data-theme="dark"] {
+	color-scheme: dark;
+}
+
+[data-theme="light"] {
+	color-scheme: light;
+}
+
+@media (min-width: 768px) {
+	:root {
+		--gutter: 1.5rem;
+		--nav-h: 4rem;
+	}
+}
+
+@media (min-width: 1280px) {
+	:root {
+		--gutter: 2rem;
+	}
+}
+
+@media (pointer: coarse) {
+	:root {
+		--control-h: var(--tap);
+	}
+}
+
+/* Raise text and edge contrast when the visitor asks for it */
+@media (prefers-contrast: more) {
+	:root {
+		--muted: light-dark(oklch(0.32 0.03 250), oklch(0.86 0.015 245));
+		--line: light-dark(oklch(0.6 0.02 248), oklch(0.54 0.025 250));
+		--line-strong: light-dark(oklch(0.4 0.03 250), oklch(0.75 0.02 248));
+	}
+}

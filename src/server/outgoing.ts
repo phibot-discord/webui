@@ -20,15 +20,29 @@ export function socketTimeouts(
 	};
 }
 
-/** Undici ALPN-h2 against TapTap closes the stream with NGHTTP2_PROTOCOL_ERROR. */
+/** Undici ALPN-h2 against TapTap closes the stream with NGHTTP2_PROTOCOL_ERROR */
 export const outgoingAgentDefaults = { allowH2: false as const };
 
-export function outgoingAgent(opts?: ConstructorParameters<typeof Agent>[0]) {
-	return new Agent({ ...outgoingAgentDefaults, ...opts }).compose(
+/** Longest Retry-After the retry interceptor waits; past that the caller sees the 429/5xx */
+export const RETRY_AFTER_CAP_MS = 2_000;
+
+/**
+ * Which layer retries: by default undici retries idempotent requests; "status" only 429/5xx
+ * (tapFetch retries the rest); false none (cfFetch retries everything)
+ */
+export function outgoingAgent(
+	opts?: ConstructorParameters<typeof Agent>[0],
+	{ retry = true }: { retry?: boolean | "status" } = {},
+): Dispatcher {
+	const agent = new Agent({ ...outgoingAgentDefaults, ...opts });
+	if (!retry) return agent;
+	return agent.compose(
 		interceptors.retry({
 			maxRetries: 2,
 			minTimeout: 100,
+			maxTimeout: RETRY_AFTER_CAP_MS,
 			methods: ["GET", "HEAD", "OPTIONS", "PUT", "DELETE"],
+			...(retry === "status" ? { errorCodes: [], throwOnError: false } : {}),
 		}),
 	);
 }
@@ -54,10 +68,10 @@ export type OutgoingInit = {
 };
 
 /**
- * Use undici's `fetch` (not Next's, not `request()`).
- * Next.js `fetch` drops `dispatcher` (10s connect).
- * `request()` skips fetch headers and TapTap RST the socket ("other side closed").
- * Node `FormData` is not undici's brand — it is sent as the text `[object FormData]`.
+ * Use undici's `fetch` (not Next's, not `request()`)
+ * Next.js `fetch` drops `dispatcher` (10s connect)
+ * `request()` skips fetch headers and TapTap RST the socket ("other side closed")
+ * Node `FormData` is not undici's brand — it is sent as the text `[object FormData]`
  */
 export async function outgoingFetch(
 	url: string | URL,

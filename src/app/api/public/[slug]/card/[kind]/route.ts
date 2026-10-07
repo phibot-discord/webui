@@ -1,7 +1,6 @@
 import { resolvePhiLocale } from "@/phi/lib/card-i18n";
 import { cardDownloadFilename } from "@/server/cache";
 import { isPublicKind, renderCard } from "@/server/cards";
-import { getDataHost } from "@/server/data-host";
 import { cardResultResponse } from "@/server/http";
 import {
 	localizedError,
@@ -25,35 +24,35 @@ export async function GET(
 ) {
 	const { slug, kind } = await ctx.params;
 	if (!isPublicKind(kind)) return localizedError(404, "unknown_card");
+	// Before the slug lookup, so guessing slugs is limited too
+	const limited = rateLimit({ ip: clientIp(request.headers) });
+	if (!limited.ok) return localizedRetryAfter(limited.retryAfter, "rate_limit");
 	const userId = await userIdForSlug(slug);
 	if (!userId) return localizedError(404, "share_not_found");
 
 	return withDiscordUid(userId, async () => {
-		const host = await getDataHost();
-		const limited = await rateLimit(host.store, {
-			ip: clientIp(request.headers),
-		});
-		if (!limited.ok)
-			return localizedRetryAfter(limited.retryAfter, "rate_limit");
-
 		const url = new URL(request.url);
 		const qualityParam = url.searchParams.get("quality");
 		const download = url.searchParams.get("download") === "1";
+		const localeParam = url.searchParams.get("locale");
 		const result = await renderCard(userId, kind, {
 			locale: resolvePhiLocale(
-				url.searchParams.get("locale"),
+				localeParam,
 				request.headers.get("accept-language"),
 			),
 			ifNoneMatch: download ? null : request.headers.get("if-none-match"),
 			paintQuality:
 				qualityParam == null ? undefined : parsePaintQuality(qualityParam),
 			download,
+			style: url.searchParams.get("style") ?? undefined,
 		});
 		if ("error" in result) return localizedRenderError(result);
 		return cardResultResponse(result, {
-			cacheControl: PUBLIC_CACHE,
+			cacheControl: result.transient ? "no-store" : PUBLIC_CACHE,
 			request,
 			filename: download ? cardDownloadFilename(kind) : undefined,
+			// Shared for 5 min by the CDN: without ?locale the language comes from the viewer
+			vary: localeParam ? undefined : "Accept-Language",
 		});
 	});
 }

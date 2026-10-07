@@ -4,6 +4,7 @@ import {
 	assetContentType,
 	assetDisposition,
 	assetKind,
+	assetThumbKey,
 	isPublicAssetKey,
 	publicAssetUrl,
 	readAssetPage,
@@ -75,5 +76,15 @@ test("public asset urls stay on the R2 host", () => {
 	assert.equal(
 		publicAssetUrl("https://r2.example.test/", "original_ill/ill/Song A&B.png"),
 		"https://r2.example.test/original_ill/ill/Song%20A%26B.png",
+	);
+});
+
+test("music is a public tree; its rows show the song's jacket", () => {
+	assert.equal(isPublicAssetKey("music/Stasis.Maozon.ogg"), true);
+	assert.equal(assetKind("music/Stasis.Maozon.ogg"), "music");
+	assert.equal(assetContentType("music/Stasis.Maozon.ogg"), "audio/ogg");
+	assert.equal(
+		assetThumbKey("music/Stasis.Maozon.ogg"),
+		"original_ill/illLow/Stasis.Maozon.png",
 	);
 });

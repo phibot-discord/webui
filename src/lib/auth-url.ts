@@ -67,7 +67,7 @@ export function configuredAuthOrigins(): readonly string[] {
 	return parseAuthOrigins();
 }
 
-/** Auth.js parses AUTH_URL as a single origin. Drop it when several are set. */
+/** Auth.js parses AUTH_URL as a single origin. Drop it when several are set */
 export function stripCanonicalAuthUrlIfMany() {
 	if (parseAuthOrigins().length > 1) {
 		delete process.env.AUTH_URL;

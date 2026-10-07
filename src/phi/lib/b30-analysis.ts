@@ -46,6 +46,7 @@ export function getB30AnalysisRecords(b30: {
 	});
 }
 
+/** Population SD: the P3 + B27 slots are the whole set that defines RKS */
 export function equivRksStddev(values: number[]): number {
 	if (values.length < 2) return 0;
 	const average = values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -159,7 +160,15 @@ export type TagRadar = {
 	categories: RadarCategory[];
 };
 
+/**
+ * phib19 `/chartsTag/get/b30Analysis`. The server does not analyse the B30 slots: it
+ * pools every EZ–AT score with rks ≥ `threshold` (RKS − 0.25, one decimal)
+ */
 export type TagAnalysis = {
+	/** Absent from servers older than the threshold pool */
+	threshold?: number;
+	/** Scores in the pool, not the 30 B30 slots */
+	recordCount: number;
 	totalVotes: number;
 	minimumVotes: number;
 	averageRks: number;

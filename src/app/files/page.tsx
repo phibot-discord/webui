@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const { m } = await getMessages();
-	return { title: `${m.files.title} · ${m.brand}`, description: m.files.lede };
+	return { title: m.files.title, description: m.files.lede };
 }
 
 export default function FilesPage() {

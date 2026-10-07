@@ -1,8 +1,12 @@
 "use client";
 
+import { ArrowUpRight } from "@phosphor-icons/react";
+import Link from "next/link";
 import { signInDiscord } from "@/auth-actions";
+import { LandingLookups } from "@/components/landing/Lookups";
 import { PlayStage } from "@/components/landing/PlayStage";
 import { LandingScoreboard } from "@/components/landing/Scoreboard";
+import { SignInButton, SignInStatus } from "@/components/landing/SignIn";
 import { useI18n } from "@/i18n/provider";
 
 const BOT_INVITE =
@@ -18,22 +22,25 @@ export function LandingView({
 	const { m } = useI18n();
 	return (
 		<main id="content" className="landing">
-			<section className="hero">
+			<section className="hero" aria-labelledby="hero-title">
 				<div className="hero-copy">
 					<p className="hero-kicker">{m.home.kicker}</p>
-					<h1 className="hero-title">{m.home.title}</h1>
-					<p className="hero-lede">{m.home.lede}</p>
+					<h1 id="hero-title" className="hero-title">
+						{m.home.title}
+					</h1>
+					<p className="hero-lede">
+						{signedIn ? m.home.ledeSignedIn : m.home.lede}
+					</p>
 					<div className="hero-actions">
 						{signedIn ? (
-							<a className="btn btn-primary btn-skew" href="/me">
+							<Link className="btn btn-primary btn-skew" href="/me/b30">
 								<span>{m.home.openDesk}</span>
-							</a>
+							</Link>
 						) : (
 							<form action={signInDiscord}>
 								<input type="hidden" name="next" value={next} />
-								<button className="btn btn-primary btn-skew" type="submit">
-									<span>{m.signIn}</span>
-								</button>
+								<SignInButton />
+								<SignInStatus />
 							</form>
 						)}
 						<a
@@ -42,34 +49,24 @@ export function LandingView({
 							rel="noopener noreferrer"
 							target="_blank"
 						>
-							<span>{m.invite}</span>
+							<span>
+								{m.invite}
+								<ArrowUpRight size={16} aria-hidden="true" />
+								<span className="sr-only"> ({m.home.newTab})</span>
+							</span>
 						</a>
 					</div>
 				</div>
 				<PlayStage />
 			</section>
 
-			<LandingScoreboard
-				title={m.home.boardTitle}
-				lede={m.home.boardLede}
-				linkLabel={m.home.showFull}
-			/>
+			<LandingScoreboard />
 
-			<section className="lookups" aria-labelledby="lookups-title">
-				<h2 id="lookups-title">{m.home.lookupsTitle}</h2>
-				<ul className="lookup-grid">
-					{m.home.lookups.map((item, i) => (
-						<li key={item.name} style={{ ["--i" as string]: i }}>
-							<span className="lookup-name">{item.name}</span>
-							<p className="lookup-blurb">{item.blurb}</p>
-						</li>
-					))}
-				</ul>
-			</section>
+			<LandingLookups signedIn={signedIn} />
 
-			<footer className="landing-foot">
+			<div className="landing-foot">
 				<p>{m.home.footer}</p>
-			</footer>
+			</div>
 		</main>
 	);
 }

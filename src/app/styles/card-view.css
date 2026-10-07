@@ -1,0 +1,434 @@
+/* ------------------------------- card view ------------------------------- */
+
+.card-view {
+	margin: 0;
+}
+
+/* The phone layout is very tall: a narrower column reads better */
+.card-view[data-tall] {
+	max-width: 40rem;
+	margin-inline: auto;
+}
+
+/* Grid: the status pill sits over the image in the same cell. overflow:clip
+   (not hidden) keeps the pill sticky against the page scroll */
+.frame {
+	position: relative;
+	display: grid;
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	overflow: clip;
+}
+
+.frame > * {
+	grid-area: 1 / 1;
+	min-width: 0;
+}
+
+/* Focus waits here while a retried card renders */
+.frame:focus {
+	outline: none;
+}
+
+.frame:focus-visible {
+	outline: 2px solid var(--focus);
+	outline-offset: 2px;
+}
+
+/* Clicking the card opens the full-screen viewer (pointer shortcut; the
+   caption has the button) */
+.frame-zoom {
+	position: relative;
+	cursor: zoom-in;
+}
+
+/* Focus comes back here when full screen closes; .frame clips outside */
+.frame-zoom:focus {
+	outline: none;
+}
+
+.frame-zoom:focus-visible {
+	outline: 2px solid var(--focus);
+	outline-offset: -2px;
+}
+
+.frame-zoom img {
+	display: block;
+	width: 100%;
+	height: auto;
+	transition:
+		opacity var(--dur) var(--ease),
+		filter var(--dur) var(--ease);
+}
+
+/* The previous card stays visible, dimmed, while the next one renders */
+.frame[data-phase="loading"] .frame-zoom img {
+	opacity: 0.45;
+	filter: saturate(0.6);
+}
+
+.frame-zoom-hint {
+	position: absolute;
+	top: var(--space-3);
+	right: var(--space-3);
+	display: none;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 10px;
+	border-radius: var(--radius-sm);
+	background: oklch(0.16 0.02 256 / 0.78);
+	color: oklch(0.97 0.005 240);
+	font-size: var(--text-xs);
+	font-weight: 500;
+	pointer-events: none;
+}
+
+@media (hover: hover) {
+	.frame-zoom:hover .frame-zoom-hint {
+		display: inline-flex;
+	}
+}
+
+.frame-status {
+	position: sticky;
+	top: calc(var(--nav-h) + var(--space-3));
+	z-index: 1;
+	align-self: start;
+	justify-self: center;
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-1) var(--space-3);
+	max-width: calc(100% - 2 * var(--space-4));
+	margin-block: var(--space-4);
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	box-shadow: var(--shadow-sm);
+	color: var(--ink);
+	font-size: var(--text-sm);
+	font-weight: 500;
+}
+
+.frame-elapsed {
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.frame-slow {
+	flex-basis: 100%;
+	color: var(--muted);
+	font-size: var(--text-xs);
+	font-weight: 400;
+	text-align: center;
+}
+
+.frame-spinner {
+	flex: none;
+	width: 0.875rem;
+	height: 0.875rem;
+	border: 2px solid var(--line-strong);
+	border-top-color: var(--primary);
+	border-radius: 50%;
+}
+
+/* No image yet: the placeholder keeps the card's last known shape */
+.frame[data-phase="loading"]:not(:has(.frame-zoom)) {
+	background: var(--surface-2);
+}
+
+.frame-error {
+	align-self: start;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-12) var(--space-5);
+	text-align: center;
+}
+
+.frame-error svg {
+	color: var(--danger);
+}
+
+.frame-error p {
+	margin: 0;
+	color: var(--ink);
+}
+
+.frame-error-title {
+	font-weight: 600;
+}
+
+.frame-error .frame-error-detail {
+	max-width: 48ch;
+	margin-top: var(--space-1);
+	color: var(--muted);
+	font-size: var(--text-sm);
+	overflow-wrap: anywhere;
+}
+
+/* Failed while an older card is still on screen */
+.card-alert {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+	margin: 0 0 var(--space-3);
+	padding: var(--space-2) var(--space-3);
+	border: 1px solid var(--danger);
+	border-radius: var(--radius-md);
+	background: var(--danger-soft);
+}
+
+.card-alert svg {
+	flex: none;
+	color: var(--danger);
+}
+
+.card-alert p {
+	flex: 1 1 12rem;
+	max-width: none;
+	margin: 0;
+	color: var(--ink);
+	font-size: var(--text-sm);
+}
+
+/* Song card before a chart is picked */
+.card-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-12) var(--space-5);
+	border: 1px dashed var(--line-strong);
+	border-radius: var(--radius-md);
+	color: var(--muted);
+	text-align: center;
+}
+
+.card-empty svg {
+	color: var(--primary);
+}
+
+.card-empty h2 {
+	margin: var(--space-2) 0 0;
+	color: var(--ink);
+}
+
+.card-empty p {
+	margin: 0;
+	max-width: 40ch;
+}
+
+/* ------------------------------- full screen ------------------------------- */
+
+html:has(.lightbox[open]) {
+	overflow: hidden;
+}
+
+.lightbox {
+	position: fixed;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	max-height: none;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: var(--bg);
+	color: var(--ink);
+}
+
+.lightbox[open] {
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.lightbox::backdrop {
+	background: var(--scrim);
+}
+
+.lightbox-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2) var(--space-3);
+	padding: var(--space-2) max(var(--space-3), env(safe-area-inset-right))
+		var(--space-2) max(var(--space-4), env(safe-area-inset-left));
+	border-bottom: 1px solid var(--line);
+	background: var(--surface);
+}
+
+.lightbox-title {
+	min-width: 0;
+	margin: 0;
+	font-size: var(--text-md);
+	overflow-wrap: anywhere;
+}
+
+.lightbox-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.lightbox-zoom {
+	display: inline-flex;
+	gap: var(--space-1);
+}
+
+/* A grid, so a short image (a wide card on a phone) sits in the middle;
+   auto margins drop to 0 once it is larger, keeping every edge reachable */
+.lightbox-scroll {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	overflow: auto;
+	overscroll-behavior: contain;
+	touch-action: pan-x pan-y pinch-zoom;
+	cursor: zoom-in;
+}
+
+.lightbox-scroll:focus-visible {
+	outline-offset: -3px;
+}
+
+.lightbox[data-zoom="actual"] .lightbox-scroll {
+	cursor: zoom-out;
+}
+
+.lightbox-scroll img {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	margin: auto;
+	user-select: none;
+}
+
+.lightbox[data-zoom="actual"] .lightbox-scroll img {
+	max-width: none;
+}
+
+/* The whole card on screen: one row as tall as the area, and the image
+   shrinks to fit both ways, keeping its shape */
+.lightbox[data-zoom="screen"] .lightbox-scroll {
+	grid-template-rows: minmax(0, 1fr);
+}
+
+.lightbox[data-zoom="screen"] .lightbox-scroll img {
+	width: auto;
+	max-height: 100%;
+	min-height: 0;
+}
+
+.lightbox-hint {
+	margin: 0;
+	padding: var(--space-2) var(--space-4)
+		calc(var(--space-2) + var(--safe-bottom));
+	border-top: 1px solid var(--line);
+	background: var(--surface);
+	color: var(--muted);
+	font-size: var(--text-xs);
+	text-align: center;
+	max-width: none;
+}
+
+.lightbox-hint-mouse {
+	display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.lightbox-hint-touch {
+		display: none;
+	}
+
+	.lightbox-hint-mouse {
+		display: inline;
+	}
+}
+
+/* Phones: two rows, the title with Close, then the zoom and Open */
+@media (max-width: 29.99em) {
+	.lightbox-bar {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-areas:
+			"title close"
+			"zoom open";
+	}
+
+	.lightbox-actions {
+		display: contents;
+	}
+
+	.lightbox-title {
+		grid-area: title;
+	}
+
+	.lightbox-zoom {
+		grid-area: zoom;
+	}
+
+	.lightbox-open {
+		grid-area: open;
+	}
+
+	.lightbox-close {
+		grid-area: close;
+	}
+
+	.lightbox-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.frame[data-phase="loading"]:not(:has(.frame-zoom)) {
+		background: linear-gradient(
+			90deg,
+			var(--surface) 0%,
+			var(--surface-2) 45%,
+			var(--surface) 100%
+		);
+		background-size: 200% 100%;
+		animation: shimmer 1.4s var(--ease) infinite;
+	}
+
+	.frame-spinner {
+		animation: spin 0.8s linear infinite;
+	}
+
+	.lightbox[open] {
+		animation: toast-in 200ms var(--ease) both;
+	}
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@media (forced-colors: active) {
+	.frame,
+	.frame-status,
+	.card-alert,
+	.card-empty {
+		border-color: CanvasText;
+	}
+
+	.frame-zoom-hint {
+		border: 1px solid CanvasText;
+	}
+}

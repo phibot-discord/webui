@@ -6,6 +6,7 @@ import {
 	buildRksHistogram,
 	equivRksStddev,
 	getB30AnalysisRecords,
+	type TagAnalysis,
 } from "./b30-analysis";
 import {
 	cardCopy,
@@ -14,9 +15,11 @@ import {
 	localizeSuggestFields,
 	type PhiLocale,
 	resolvePhiLocale,
+	tagAnalysisMeta,
+	tagPoolNote,
 } from "./card-i18n";
-import type { Catalog } from "./catalog";
-import { tagAnalysisFor } from "./chart-tags-api";
+import { type Catalog, chosenIll } from "./catalog";
+import { CHART_TAG_RENDER_BUDGET_MS, tagAnalysisFor } from "./chart-tags-api";
 import { tagRadarHtml } from "./charts";
 import {
 	accRksLines,
@@ -24,11 +27,16 @@ import {
 	loadSaveHistory,
 	rksLineFor,
 } from "./history";
-import { getNotes, tagAnalysisEnabled, type UserNotes } from "./notes";
+import {
+	b30AvgKindOf,
+	getNotes,
+	tagAnalysisEnabled,
+	type UserNotes,
+} from "./notes";
 import type { PhiRuntime } from "./runtime";
 import type { Save } from "./save";
 import { getToken, moneyText, saveIdentity } from "./saves";
-import { attachB19AccAvg } from "./score-avg";
+import { attachB19AccAvg, rankLegend } from "./score-avg";
 
 function htmlImage(rt: PhiRuntime, rel: string) {
 	return join(rt.getInfo.resources, "html", rel);
@@ -54,7 +62,8 @@ function iconImages(
 }
 
 async function b30AnalysisFor(
-	save_b19: { phi?: unknown[]; b19_list?: unknown[] },
+	records: ReturnType<typeof getB30AnalysisRecords>,
+	withPhi: boolean,
 	notes: UserNotes,
 	nnum: number,
 	locale: PhiLocale,
@@ -62,10 +71,10 @@ async function b30AnalysisFor(
 	save: Save,
 ) {
 	if (notes.showB30Analysis === false || nnum !== 33) return null;
-	const records = getB30AnalysisRecords(save_b19);
+	const t = cardCopy(locale);
 	const histogram = buildRksHistogram(records);
 	const showTags = tagAnalysisEnabled(notes);
-	let tagAnalysis = null;
+	let tagAnalysis: TagAnalysis | null = null;
 	let tagLookupFailed = false;
 	if (showTags && records.length) {
 		try {
@@ -73,6 +82,7 @@ async function b30AnalysisFor(
 				await tagAnalysisFor(save, {
 					saveRevision: saveIdentity(save.saveInfo),
 					db,
+					budgetMs: CHART_TAG_RENDER_BUDGET_MS,
 				}),
 				locale,
 			);
@@ -86,7 +96,12 @@ async function b30AnalysisFor(
 	}
 	return {
 		histogram,
+		// x30/fc30 lists have no P slots (getBestWithLimit(…, false))
+		histogramPhiSlots: withPhi,
 		tagAnalysis,
+		tagMeta: tagAnalysisMeta(tagAnalysis, t),
+		tagPoolNote: tagPoolNote(tagAnalysis, t),
+		tagMessage: tagLookupFailed ? t.tagUnavailable : t.tagInsufficient,
 		radarHtml: tagAnalysis?.radar.categories.length
 			? await tagRadarHtml(tagAnalysis.radar)
 			: "",
@@ -94,6 +109,15 @@ async function b30AnalysisFor(
 		histogramWide: !showTags,
 		tagLookupFailed,
 	};
+}
+
+/** attachB19AccAvg may report `{ partial: true }` when its lookup timed out */
+export function isPartialResult(value: unknown): boolean {
+	return (
+		value != null &&
+		typeof value === "object" &&
+		(value as { partial?: unknown }).partial === true
+	);
 }
 
 export async function b19Card(
@@ -166,13 +190,17 @@ export async function b19Card(
 		const b19 = await save.getB19(undefined, nnum, { avgType: "none" });
 		save_b19 = b19;
 		if (notes.allowApiUsage !== false) {
+			const avgType = b30AvgKindOf(notes);
 			avgJob = attachB19AccAvg(b19, {
-				avgType: notes.b30AvgKind || "all",
+				avgType,
 				color: notes.b30AvgColor,
+				db,
 			});
+			// "#rank / records" needs its population spelled out on the card
+			if (avgType === "rank") spInfo.push(rankLegend(locale));
 		}
 	}
-	const background = catalog.randomIll("blur");
+	const background = chosenIll(catalog, notes.cardBackground, "blur");
 	const rows = [...(save_b19.phi || []), ...(save_b19.b19_list || [])] as Array<
 		{ illustration?: string; Rating?: string } | undefined
 	>;
@@ -181,8 +209,18 @@ export async function b19Card(
 		background,
 		...iconImages(rt, save, rows),
 	]);
-	const [b30Analysis] = await Promise.all([
-		b30AnalysisFor(save_b19, notes, nnum, locale, db, save),
+	// P1–P3 + B1–B27 of the displayed list: the histogram and the header ± SD
+	const slots = getB30AnalysisRecords(save_b19);
+	const [b30Analysis, avgResult] = await Promise.all([
+		b30AnalysisFor(
+			slots,
+			Array.isArray(save_b19.phi),
+			notes,
+			nnum,
+			locale,
+			db,
+			save,
+		),
 		avgJob,
 	]);
 	localizeSuggestFields(
@@ -220,12 +258,11 @@ export async function b19Card(
 		stats,
 		spInfo,
 		locale,
-		rksStddev: equivRksStddev(
-			[...(save_b19.phi || []), ...(save_b19.b19_list || [])]
-				.map((row) => Number((row as { rks?: number } | undefined)?.rks))
-				.filter((n) => Number.isFinite(n)),
-		),
+		rksStddev: equivRksStddev(slots.map((slot) => slot.rks)),
 		b30Analysis,
+		// A lookup timed out or failed: the server serves this no-store and never caches it
+		renderPartial:
+			b30Analysis?.tagLookupFailed === true || isPartialResult(avgResult),
 	};
 }
 
@@ -252,9 +289,12 @@ export async function infoCard(
 		/* optional */
 	}
 	if (!backgroundurl || /^(https?:|data:)/i.test(backgroundurl)) {
-		backgroundurl = catalog.randomIll("low") || catalog.fallbackIll || "";
+		backgroundurl =
+			chosenIll(catalog, notes.cardBackground, "low") ||
+			catalog.fallbackIll ||
+			"";
 	}
-	const background = catalog.randomIll("blur");
+	const background = chosenIll(catalog, notes.cardBackground, "blur");
 	prefetchIlls([backgroundurl, background, ...iconImages(rt, save, [])]);
 	const gameuser = {
 		avatar: rt.getInfo.idgetavatar(save.gameuser.avatar),

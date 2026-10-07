@@ -105,12 +105,35 @@
 }
 .playerInfo .dataBox,
 .playerInfo .dataBox.clip-box {
+	/* Short corners of the slant sit on the avatar: top-left and bottom-right */
+	left: calc(var(--b30-avatar-max-width) * -3 / 44) !important;
+	width: calc(var(--b30-avatar-max-width) * 25 / 22) !important;
+	min-width: calc(var(--b30-avatar-max-width) * 25 / 22) !important;
+	box-sizing: border-box !important;
+	padding-left: 12px !important;
+	padding-right: 18px !important;
+	justify-content: flex-start !important;
 	clip-path: polygon(
 		100% 0,
 		var(--b30-bar-clip-out) 100%,
 		0 100%,
 		var(--b30-bar-clip-in) 0
 	) !important;
+}
+.playerInfo .dataBox img {
+	height: 12px !important;
+	width: 20px !important;
+	flex: none !important;
+	max-width: none !important;
+	padding: 0 !important;
+	margin: 0 8px 0 0 !important;
+	box-sizing: content-box !important;
+	object-fit: contain !important;
+}
+.playerInfo .dataBox p {
+	flex: none !important;
+	margin: 0 !important;
+	white-space: nowrap !important;
 }
 
 .recordInfo,

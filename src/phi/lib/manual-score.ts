@@ -1,6 +1,6 @@
 /**
- * "No account" mode: scores typed by hand instead of pulled from TapTap.
- * Pure helpers shared by the browser editor and the server-side save builder.
+ * "No account" mode: scores typed by hand instead of pulled from TapTap
+ * Pure helpers shared by the browser editor and the server-side save builder
  */
 
 import { LEVEL, type LevelKind } from "./const";
@@ -60,7 +60,7 @@ export function effectiveScore(
 	return rec.score ?? estimateScore(rec.acc, rec.fc === true || rec.acc >= 100);
 }
 
-/** In-game RKS: three best AP charts plus the best 27 overall, over 30. */
+/** In-game RKS: three best AP charts plus the best 27 overall, over 30 */
 export function rankingScoreOf(rows: { acc: number; rks: number }[]) {
 	const sorted = rows
 		.filter((r) => Number.isFinite(r.rks))

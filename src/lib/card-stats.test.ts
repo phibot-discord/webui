@@ -58,3 +58,43 @@ test("cardSource splits R2, KV, and rendering", () => {
 		"r2",
 	);
 });
+
+test("parseCardStats keeps the prep phase and revalidation flag, and older headers still parse", () => {
+	const parsed = parseCardStats(
+		encodeCardStats({
+			cache: "hit",
+			revalidated: true,
+			prepMs: 85,
+			cacheMs: 0,
+			totalMs: 90,
+		}),
+	);
+	assert.ok(parsed);
+	assert.equal(parsed.prepMs, 85);
+	assert.equal(parsed.revalidated, true);
+	assert.equal(
+		cardSource(parsed),
+		"browser",
+		"a 304: the browser showed its own copy",
+	);
+	const legacy = parseCardStats(
+		JSON.stringify({ cache: "hit", store: "r2", cacheMs: 3, totalMs: 9 }),
+	);
+	assert.equal(legacy?.prepMs, undefined);
+});
+
+test("a joined request's stats keep the shared flag", () => {
+	const parsed = parseCardStats(
+		encodeCardStats({
+			cache: "miss",
+			shared: true,
+			prepMs: 40,
+			cacheMs: 6000,
+			totalMs: 6100,
+		}),
+	);
+	assert.ok(parsed);
+	assert.equal(parsed.shared, true);
+	assert.equal(parsed.dataMs, undefined);
+	assert.equal(cardSource(parsed), "render");
+});

@@ -9,13 +9,18 @@ import { applyIllPaths } from "../../server/ill";
 import { rewriteLocalUrls } from "../../server/render/html";
 import {
 	buildRksHistogram,
+	equivRksStddev,
+	getB30AnalysisRecords,
 	type RadarCategory,
 	type TagRadar,
 } from "./b30-analysis";
 import { localizeChartTagLabels, localizeChartTagName } from "./card-i18n";
 import { tagRadarHtml, tagRadarPlotPng, tagRadarPlotSvg } from "./charts";
 
-/** Radar geometry as phib19 returns it (pentagon, top-first, 0–17 rks radius). */
+/**
+ * Radar geometry as phib19 returns it: pentagon, top-first, r=55 around (100,92),
+ * radius 0.5 + 0.5·(rks − average category rks)
+ */
 function radarFixture(
 	categories: { name: string; rks: number; votes: number; hasVotes: boolean }[],
 ): TagRadar {
@@ -23,6 +28,9 @@ function radarFixture(
 	const cy = 92;
 	const r = 55;
 	const n = Math.max(3, categories.length);
+	const averageRks =
+		categories.reduce((sum, c) => sum + c.rks, 0) /
+		Math.max(1, categories.length);
 	const at = (index: number, t: number) => {
 		const ang = -Math.PI / 2 + (index / n) * Math.PI * 2;
 		return { x: cx + Math.cos(ang) * r * t, y: cy + Math.sin(ang) * r * t };
@@ -30,7 +38,9 @@ function radarFixture(
 	const round = (v: number) => Math.round(v * 100) / 100;
 	const pair = (p: { x: number; y: number }) => `${round(p.x)},${round(p.y)}`;
 	const placed = categories.map((category, i) => {
-		const t = category.hasVotes ? Math.min(1, category.rks / 17) : 0.08;
+		const t = category.hasVotes
+			? Math.min(1, Math.max(0, 0.5 + 0.5 * (category.rks - averageRks)))
+			: 0.08;
 		const point = at(i, t);
 		const label = at(i, 1.42);
 		const anchor: RadarCategory["anchor"] =
@@ -64,6 +74,91 @@ const rec = (id: string, rank: string, rks: number) => ({
 	rks,
 	kind: "best" as const,
 	slot: "B1",
+});
+
+// Ported from phi-plugin tests/b30Analysis.test.js
+const record = (id: string, rank: string, rks: number) => ({ id, rank, rks });
+
+test("uses P3 and B27 for the local RKS histogram", () => {
+	const records = getB30AnalysisRecords({
+		phi: [
+			record("song-a", "IN", 16),
+			record("song-b", "AT", 15.8),
+			record("legacy-song", "LEGACY", 15.7),
+		],
+		b19_list: [
+			record("song-a", "IN", 15.7),
+			record("song-a", "HD", 15.5),
+			...Array.from({ length: 30 }, (_, i) =>
+				record(`song-${i}`, "IN", 15 - i / 100),
+			),
+		],
+	});
+	assert.equal(records.filter((item) => item.kind === "phi").length, 3);
+	assert.equal(records.filter((item) => item.kind === "best").length, 27);
+	assert.deepEqual(
+		records.slice(0, 4).map((item) => item.slot),
+		["P1", "P2", "P3", "B1"],
+	);
+});
+
+test("builds a slot-based histogram with a horizontal average marker", () => {
+	const records = [
+		{ ...record("a", "IN", 15), kind: "phi" as const, slot: "P1" },
+		{ ...record("b", "IN", 15.5), kind: "best" as const, slot: "B1" },
+		{ ...record("c", "IN", 16), kind: "best" as const, slot: "B2" },
+	];
+
+	const histogram = buildRksHistogram(records);
+	assert.equal(histogram.count, 3);
+	assert.equal(histogram.average, 15.5);
+	assert.ok(histogram.averagePosition > 0 && histogram.averagePosition < 100);
+	assert.deepEqual(
+		histogram.slots.map((slot) => slot.label),
+		["P1", "B1", "B2"],
+	);
+	assert.deepEqual(
+		histogram.slots.map((slot) => slot.rks),
+		[15, 15.5, 16],
+	);
+	assert.ok(histogram.ticks.length >= 3);
+
+	const singleValue = buildRksHistogram([
+		{ ...record("only", "LEGACY", 15.5), kind: "best", slot: "B1" },
+	]);
+	assert.ok(Math.abs(singleValue.averagePosition - 50) < 1e-9);
+});
+
+test("x30/fc30 lists (no phi) give 27 B slots and no P slots", () => {
+	const records = getB30AnalysisRecords({
+		b19_list: Array.from({ length: 30 }, (_, i) =>
+			record(`s-${i}`, "IN", 15 - i / 100),
+		),
+	});
+	assert.equal(records.length, 27);
+	assert.equal(records[0]?.slot, "B1");
+	assert.ok(records.every((item) => item.kind === "best"));
+});
+
+test("stddev covers the 30 analysed slots only (population SD)", () => {
+	const phi = [record("p1", "IN", 16), record("p2", "AT", 15.9), undefined];
+	const best = Array.from({ length: 27 }, (_, i) =>
+		record(`b-${i}`, "IN", 15.5 - i / 50),
+	);
+	// Rows 28+ of a 33/99-row card are shown but do not define RKS
+	const extra = Array.from({ length: 6 }, (_, i) =>
+		record(`x-${i}`, "EZ", 3 + i),
+	);
+	const slots = getB30AnalysisRecords({ phi, b19_list: [...best, ...extra] });
+	assert.equal(slots.length, 29);
+	const values = slots.map((slot) => slot.rks);
+	const mean = values.reduce((a, b) => a + b, 0) / values.length;
+	const population = Math.sqrt(
+		values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length,
+	);
+	assert.ok(Math.abs(equivRksStddev(values) - population) < 1e-12);
+	assert.equal(buildRksHistogram(slots).stddev, equivRksStddev(values));
+	assert.equal(equivRksStddev([15]), 0);
 });
 
 test("histogram reports population stddev of song equivalent rks", () => {

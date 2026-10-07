@@ -9,6 +9,8 @@ const nextAuth = NextAuth({
 	session: { strategy: "jwt" },
 	providers: [
 		Discord({
+			// Discord sends `iss` on the callback (RFC 9207); without it Auth.js fails with "unexpected iss"
+			issuer: "https://discord.com",
 			authorization: { params: { scope: "identify" } },
 		}),
 	],

@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { type CardKind, isCardKind } from "@/server/card-kinds";
 import { applyIllPaths, hydrateIlls } from "@/server/ill";
 import { logger } from "@/server/logger";
 import { phiCssHref } from "@/server/paths";
@@ -14,8 +15,9 @@ import { polishSvgCharts } from "./lib/charts";
 import { fCompute } from "./lib/fcompute";
 import { layoutHistogram } from "./lib/histogram";
 import { knobNum } from "./lib/knobs";
-import { bootPhiRuntime } from "./lib/runtime";
+import { bootPhiRuntime, type PhiRuntime } from "./lib/runtime";
 import { fitEm, fitFontPx, splitTwoLines, textEm } from "./lib/text-fit";
+import { cardVariant } from "./lib/variants";
 import { readPhiVersion } from "./lib/version";
 
 function cssLink(file: string) {
@@ -120,7 +122,7 @@ function polishCardHtml(
 	out = out.replace(/&ensp;/g, "&nbsp;");
 	out = stripDivsWithClass(out, "snow-box");
 	out = stripDivsWithClass(out, "createdbox");
-	// The C / FC / Phi counts in the top right of b30 / x30 / fc30.
+	// The C / FC / Phi counts in the top right of b30 / x30 / fc30
 	if (opts.hideRecordStats) out = stripDivsWithClass(out, "recordInfo");
 	out = ensureTipFooter(out, tip);
 	out = tagStarBackgrounds(out);
@@ -335,7 +337,7 @@ function shrinkSongTitles(html: string) {
 			if (px >= minPx) {
 				return `<div class="songname"><p name="pvis" style="font-size:${px}px;">${raw}</p>`;
 			}
-			// Too long for one readable line: two balanced lines, each still shrunk to fit.
+			// Too long for one readable line: two balanced lines, each still shrunk to fit
 			const lines = splitTwoLines(name).filter(Boolean);
 			const linePx = Math.min(
 				...lines.map((line) => fitFontPx(line, width, wrapPx)),
@@ -351,13 +353,13 @@ function shrinkSongTitles(html: string) {
 	);
 }
 
-// .playerInfo is 50% of the 1200px card; .playerId sits at right 6% with width 51%.
+// .playerInfo is 50% of the 1200px card; .playerId sits at right 6% with width 51%
 const PLAYER_BAR_W = 600;
 const NAME_LEFT = PLAYER_BAR_W * (1 - 0.06 - 0.51);
 const NAME_RIGHT = PLAYER_BAR_W * (1 - 0.06);
 const NAME_BOX_H = 64;
 
-/** Right edge of the white rks box (.playerInfo coordinates); it sizes to its text. */
+/** Right edge of the white rks box (.playerInfo coordinates); it sizes to its text */
 function rksBoxRight(html: string) {
 	const m =
 		/<div class="rks clip-box">\s*<p>([^<]*)(?:<span class="rks-sd">([^<]*)<\/span>)?/.exec(
@@ -378,7 +380,7 @@ function rksBoxRight(html: string) {
 
 /**
  * Shrink the player name to fit the bar. Names that fit stay centred where
- * they always were; wider ones take the whole bar right of the rks box.
+ * they always were; wider ones take the whole bar right of the rks box
  */
 function fitPlayerName(html: string) {
 	const left = Math.max(
@@ -398,7 +400,7 @@ function fitPlayerName(html: string) {
 			const centred = 2 * Math.min(centre - left, NAME_RIGHT - centre);
 			const tallPx = NAME_BOX_H / (lines.length * 1.3);
 			if (em * maxPx <= centred && maxPx <= tallPx) return m;
-			// 2px slack: CJK may break between any two glyphs if the fit is exact.
+			// 2px slack: CJK may break between any two glyphs if the fit is exact
 			const px = Math.min(fitEm(em, NAME_RIGHT - left - 2, maxPx), tallPx);
 			const shift = Math.round(left - NAME_LEFT);
 			return `${open} style="font-size:${px.toFixed(1)}px;padding-left:${shift}px;">${inner}</p>`;
@@ -557,7 +559,7 @@ function layoutUpdateCard(html: string) {
 		/<div class="rks">\s*<p>([^<]*)<\/p>/g,
 		`<div class="rks" style="position:static;left:auto;height:auto;min-width:0;min-height:0;width:auto;padding:0;overflow:visible;flex:none;margin-left:6px;"><p style="font-size:9px;margin:0;color:#fff;line-height:1.1;">$1</p>`,
 	);
-	// Collapse rank / score / acc / rks into two plain text lines per tile.
+	// Collapse rank / score / acc / rks into two plain text lines per tile
 	out = out.replace(
 		/<div class="songsinfo"[^>]*>\s*<div class="rank"[^>]*>\s*<p[^>]*>([^<]*)<\/p>\s*<\/div>\s*<div class="score"[^>]*>\s*<p[^>]*>([^<]*)<\/p>\s*<\/div>\s*<div class="acc"[^>]*>\s*<div class="acc_1"[^>]*>\s*<p[^>]*>([^<]*)<\/p>\s*<\/div>\s*<div class="acc_2"[^>]*>\s*<p[^>]*>([^<]*)<\/p>\s*<\/div>\s*<\/div>\s*(?:<div class="rks"[^>]*>\s*<p[^>]*>([^<]*)<\/p>\s*<\/div>\s*)?<\/div>/g,
 		(
@@ -584,6 +586,19 @@ const TEMPLATE_MAX_RATIO: Record<string, number> = {
 	update: 3,
 };
 
+/**
+ * Alternative card layouts (see lib/variants) are self-contained templates: they get
+ * only variant-base.css plus their own <tpl>.css, none of the classic markup rewrites
+ */
+function polishVariantHtml(html: string, tpl: string) {
+	let out = html.replace(/<title>[^<]*<\/title>/gi, "<title>phi</title>");
+	out = out.replace(/<script\b[\s\S]*?<\/script>/gi, "");
+	out = stripInlineFilters(out);
+	const links = cssLink("variant-base.css") + cssLink(`${tpl}.css`);
+	if (out.includes("</head>")) return out.replace("</head>", `${links}</head>`);
+	return links + out;
+}
+
 function screenshotTheme(theme: unknown) {
 	const t = String(theme || "default");
 	if (t === "snow" || t === "topText" || t === "foolsDay") return "default";
@@ -600,9 +615,11 @@ export async function setupPhi(app: App) {
 	app.service("phi.catalog", catalog);
 	app.service("phi.resources", resources);
 	logger.ok(`phi catalog: ${catalog.size} songs`);
+	let runtime: PhiRuntime | undefined;
 	try {
 		const rt = await bootPhiRuntime(app);
 		app.service("phi.runtime", rt);
+		runtime = rt;
 	} catch (err) {
 		logger.error(
 			`phi runtime failed: ${err instanceof Error ? err.message : err}`,
@@ -618,47 +635,70 @@ export async function setupPhi(app: App) {
 
 	for (const { app: kind, tpl } of pages) {
 		const id = `phi/${kind}/${tpl}`;
+		const variant = cardVariant(tpl);
 		app.template(
 			defineTemplate({
 				id,
-				width: TEMPLATE_WIDTH[tpl] || TEMPLATE_WIDTH[kind] || width,
-				format: ["b19", "update", "userinfo"].includes(kind) ? "jpeg" : format,
+				width:
+					variant?.width ||
+					TEMPLATE_WIDTH[tpl] ||
+					TEMPLATE_WIDTH[kind] ||
+					width,
+				format: ["b19", "update", "userinfo", "song"].includes(kind)
+					? "jpeg"
+					: format,
 				quality,
-				maxRatio: TEMPLATE_MAX_RATIO[tpl] ?? TEMPLATE_MAX_RATIO[kind],
-				html: async (data, helpers) => {
-					const d = data as {
+				maxRatio: variant
+					? variant.maxRatio
+					: (TEMPLATE_MAX_RATIO[tpl] ?? TEMPLATE_MAX_RATIO[kind]),
+				html: async (raw, helpers) => {
+					const d = raw as {
 						theme?: unknown;
 						tips?: unknown;
 						locale?: unknown;
 						hideRecordStats?: unknown;
+						cardKind?: unknown;
 					};
 					const locale = resolvePhiLocale(d.locale);
 					const t = cardCopy(locale);
 					const tips = String(d.tips || pickTip(catalog.tips));
-					let html = polishCardHtml(
-						helpers.compileArt(`${kind}/${tpl}`, {
-							isMaster: false,
-							cmdHead: "phi",
-							_plugin: "phi",
-							Version: readPhiVersion(),
-							sys: {
-								scale: `style="transform:scale(${scale})"`,
-								copyright: "",
-							},
-							Math,
-							fCompute,
-							themeInfo: null,
-							_imgPath: `${res}/html/otherimg/`,
-							...data,
-							locale,
-							lang: locale === "zh" ? "zh-cn" : "en",
-							t,
-							tips,
-							theme: screenshotTheme(d.theme),
-						}),
+					const data = variant?.prepare
+						? await variant.prepare(raw, {
+								kind: (typeof d.cardKind === "string" && isCardKind(d.cardKind)
+									? d.cardKind
+									: kind === "update"
+										? "hisb30"
+										: "b30") as CardKind,
+								locale,
+								catalog,
+								rt: runtime,
+							})
+						: raw;
+					const compiled = helpers.compileArt(`${kind}/${tpl}`, {
+						isMaster: false,
+						cmdHead: "phi",
+						_plugin: "phi",
+						Version: readPhiVersion(),
+						sys: {
+							scale: `style="transform:scale(${scale})"`,
+							copyright: "",
+						},
+						Math,
+						fCompute,
+						themeInfo: null,
+						_imgPath: `${res}/html/otherimg/`,
+						...data,
+						locale,
+						lang: locale === "zh" ? "zh-cn" : "en",
+						t,
 						tips,
-						{ hideRecordStats: d.hideRecordStats === true },
-					);
+						theme: screenshotTheme(d.theme),
+					});
+					let html = variant
+						? polishVariantHtml(compiled, tpl)
+						: polishCardHtml(compiled, tips, {
+								hideRecordStats: d.hideRecordStats === true,
+							});
 					const map = await hydrateIlls(
 						collectLocalAssetPaths(html, resources),
 					);

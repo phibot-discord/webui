@@ -7,6 +7,8 @@ import {
 const CARD_FETCH_REUSE_MS = 2_500;
 const CARD_FETCH_MAX = 8;
 const CARD_FETCH_TIMEOUT_MS = 80_000;
+/** Covers the server's 10 s per-process memo of the token and save, plus slack */
+const CARD_FRESH_MS = 15_000;
 
 type CardBlob = {
 	url: string;
@@ -20,15 +22,21 @@ type Slot = {
 };
 
 const slots = new Map<string, Slot>();
+let freshUntil = 0;
 
-export function clearCardBlobs() {
+/** Drops every loaded card; `fresh` also skips the browser cache and the server memo briefly */
+export function clearCardBlobs(opts: { fresh?: boolean } = {}) {
 	for (const slot of slots.values()) {
 		if (slot.value) forgetUrl(slot.value.url);
 	}
 	slots.clear();
+	if (opts.fresh) freshUntil = Date.now() + CARD_FRESH_MS;
 }
 
-export const resetCardFetchCacheForTest = clearCardBlobs;
+export function resetCardFetchCacheForTest() {
+	clearCardBlobs();
+	freshUntil = 0;
+}
 
 export function peekCardBlob(src: string): CardBlob | undefined {
 	const slot = slots.get(src);
@@ -93,7 +101,11 @@ async function fetchCard(src: string): Promise<CardBlob> {
 			if (attempt > 0) {
 				await new Promise((r) => setTimeout(r, attempt === 1 ? 400 : 1000));
 			}
-			const res = await fetch(src, { cache: "no-store", signal: ctrl.signal });
+			// A revisit is a 304 answered from the browser's copy; right after a save change, "reload" skips it
+			const res = await fetch(src, {
+				cache: Date.now() < freshUntil ? "reload" : "no-cache",
+				signal: ctrl.signal,
+			});
 			if (res.ok) return cardFromResponse(res, t0);
 			const data = (await res.json().catch(() => ({
 				error: res.statusText,

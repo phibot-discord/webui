@@ -1,10 +1,11 @@
-/** ponytail: public trees only. Add a prefix when a new public tree lands in the bucket. */
+/** ponytail: public trees only. Add a prefix when a new public tree lands in the bucket */
 export const PUBLIC_ASSET_PREFIXES = [
 	"original_ill/",
 	"html/avatar/",
 	"html/otherimg/",
 	"info/",
 	"phira/",
+	"music/",
 ] as const;
 
 const KINDS = {
@@ -12,6 +13,7 @@ const KINDS = {
 	low: "original_ill/illLow/",
 	blur: "original_ill/illBlur/",
 	chart: "phira/",
+	music: "music/",
 	avatar: "html/avatar/",
 	info: "info/",
 } as const;
@@ -28,6 +30,7 @@ export const ASSET_KINDS = [
 	"low",
 	"blur",
 	"chart",
+	"music",
 	"avatar",
 	"info",
 	"other",
@@ -89,14 +92,17 @@ export function assetContentType(key: string): string {
 	}
 }
 
-export function assetCanPreview(key: string): "image" | "text" | false {
+export function assetCanPreview(
+	key: string,
+): "image" | "text" | "audio" | false {
 	const ext = assetExt(key);
 	if (IMAGE_EXT.has(ext)) return "image";
 	if (TEXT_EXT.has(ext)) return "text";
+	if (ext === "ogg") return "audio";
 	return false;
 }
 
-/** Browser-facing URL. The file bytes stay on R2; this app only hands out the address. */
+/** Browser-facing URL. The file bytes stay on R2; this app only hands out the address */
 export function publicAssetUrl(base: string, key: string): string {
 	const root = base.replace(/\/+$/, "");
 	const path = key
@@ -114,12 +120,14 @@ export function assetDisposition(key: string, download: boolean): string {
 	return `${mode}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(file)}`;
 }
 
-/** Low-res jacket when one exists, so a result row does not pull the full illustration. */
+/** Low-res jacket when one exists, so a result row does not pull the full illustration (music shows its song's) */
 export function assetThumbKey(key: string): string {
 	if (key.startsWith("original_ill/ill/"))
 		return `original_ill/illLow/${key.slice("original_ill/ill/".length)}`;
 	if (key.startsWith("original_ill/illBlur/"))
 		return `original_ill/illLow/${key.slice("original_ill/illBlur/".length)}`;
+	if (key.startsWith("music/"))
+		return `original_ill/illLow/${key.slice("music/".length).replace(/\.ogg$/, ".png")}`;
 	return key;
 }
 

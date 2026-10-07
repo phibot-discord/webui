@@ -38,9 +38,10 @@ export function layoutHistogram(html: string): string {
 		/<div class="histogram-y-ticks">/g,
 		`<div class="histogram-y-ticks" style="position:absolute;left:0;top:0;width:${GUTTER_W}px;height:${plot}px;">`,
 	);
+	// content-box: the scale's 1px axis border must sit below the grid frame, not shrink it, or grid lines float 1px above the bars
 	out = out.replace(
 		/<div class="histogram-scale">/g,
-		`<div class="histogram-scale" style="position:absolute;left:${GUTTER_W}px;right:0;top:0;height:${plot}px;">`,
+		`<div class="histogram-scale" style="position:absolute;left:${GUTTER_W}px;right:0;top:0;height:${plot}px;box-sizing:content-box;">`,
 	);
 	out = out.replace(
 		/<div class="histogram-bars">/g,

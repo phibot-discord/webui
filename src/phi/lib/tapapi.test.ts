@@ -211,3 +211,97 @@ test("authorization_pending 400 is a wait, not a tap warning", async () => {
 		setTapHttpForTest();
 	}
 });
+
+async function withTapServer(
+	handle: (
+		n: number,
+		req: import("node:http").IncomingMessage,
+		res: import("node:http").ServerResponse,
+	) => void,
+	fn: (url: string, hits: () => number) => Promise<void>,
+) {
+	const { createServer } = await import("node:http");
+	let n = 0;
+	const server = createServer((req, res) => {
+		n += 1;
+		handle(n, req, res);
+	});
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const { port } = server.address() as { port: number };
+	try {
+		await fn(`http://127.0.0.1:${port}/1.1/users/me`, () => n);
+	} finally {
+		server.closeAllConnections();
+		server.close();
+	}
+}
+
+test("a dropped socket is retried by tapFetch alone, not again by undici", async () => {
+	await withTapServer(
+		(_n, req) => req.socket.destroy(),
+		async (url, hits) => {
+			await assert.rejects(() => tapFetch(url), TapApiError);
+			assert.equal(hits(), 4, "four tapFetch attempts, one request each");
+		},
+	);
+});
+
+test("a 5xx is retried by undici twice, then reported", async () => {
+	await withTapServer(
+		(_n, _req, res) => {
+			res.writeHead(503, { "retry-after": "0" });
+			res.end();
+		},
+		async (url, hits) => {
+			await assert.rejects(() => tapFetch(url), /TapAPI 503/);
+			assert.equal(hits(), 3);
+		},
+	);
+});
+
+test("a 429 that outlasts the retries is a TapAPI failure, not a plain response", async () => {
+	await withTapServer(
+		(_n, _req, res) => {
+			res.writeHead(429, { "retry-after": "0" });
+			res.end();
+		},
+		async (url, hits) => {
+			await assert.rejects(() => tapFetch(url), TapApiError);
+			assert.equal(hits(), 3);
+		},
+	);
+});
+
+test("ordinary responses and POST bodies pass through the tap agent intact", async () => {
+	const big = "x".repeat(512 * 1024);
+	await withTapServer(
+		(_n, req, res) => {
+			const chunks: Buffer[] = [];
+			req.on("data", (c: Buffer) => chunks.push(c));
+			req.on("end", () => {
+				const body = Buffer.concat(chunks).toString();
+				if (req.method === "POST") {
+					res.writeHead(400, { "content-type": "application/json" });
+					res.end(
+						JSON.stringify({ data: { error: "authorization_pending" }, body }),
+					);
+					return;
+				}
+				res.end(big);
+			});
+		},
+		async (url, hits) => {
+			const got = await tapFetch(url);
+			assert.equal(got.status, 200);
+			assert.equal((await got.text()).length, big.length);
+			const pending = await tapFetch(url, {
+				method: "POST",
+				body: new URLSearchParams({ device_code: "d" }),
+			});
+			assert.equal(pending.status, 400);
+			const parsed = (await pending.json()) as { body?: string };
+			assert.equal(parsed.body, "device_code=d");
+			assert.equal(hits(), 2);
+		},
+	);
+});

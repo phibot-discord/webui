@@ -68,7 +68,7 @@ test("update card packs date groups into rows of five tiles", async () => {
 	);
 	assert.equal(card.show, 10);
 	assert.equal(card.update_ans, "Updated 10 scores");
-	// Newest save first: 7 songs → 5 + 2, then the 2- and 1-song saves fill the second row.
+	// Newest save first: 7 songs → 5 + 2, then the 2- and 1-song saves fill the second row
 	assert.deepEqual(
 		card.box_line.map((line) => line.map((box) => box.song.length)),
 		[[5], [2, 2, 1]],
@@ -79,7 +79,7 @@ test("update card packs date groups into rows of five tiles", async () => {
 	assert.equal(second?.[0]?.update_num, 7, "last box of a group counts it");
 	assert.equal(second?.[1]?.update_num, 2);
 	assert.equal(second?.[0]?.width, 2 * 135 + 20 * 2 - 20);
-	// Within a save, tiles are ordered by the new RKS, best first.
+	// Within a save, tiles are ordered by the new RKS, best first
 	const rks = first?.[0]?.song.map((s) => s.rks_new) ?? [];
 	assert.deepEqual(
 		rks,
@@ -170,4 +170,46 @@ test("updateCardImages lists every jacket, grade icon, the challenge icon and ba
 	assert.ok(images.includes("/res/html/otherimg/phi.png"));
 	assert.ok(images.includes("/ill/low/phi.0.png"));
 	assert.equal(images.filter((i) => i.startsWith("/ill/low/")).length, 4);
+});
+
+test("the summary layout also prefetches the jackets of charts that entered or left the B30", async () => {
+	const card = await buildUpdateCard(
+		mockRt(),
+		mockSave(),
+		catalog,
+		new SaveHistory({ version: 3, scoreHistory: {} } as never),
+		notes,
+		[],
+	);
+	const row = (id: string, rank = "IN") => ({ id, rank });
+	const snaps = [
+		{ t: 1, rks: 15, phi: [row("p.0")], b27: [row("old.0"), row("kept.0")] },
+		{
+			t: 2,
+			rks: 15.1,
+			phi: [row("p.0")],
+			// kept.0 changed level: its IN left and its AT entered
+			b27: [row("kept.0", "AT"), row("new.0")],
+		},
+	];
+	const jackets = (cardStyle?: string) =>
+		updateCardImages(mockRt(), { ...card, cardStyle, hisb30Snaps: snaps })
+			.filter((i) => i.startsWith("/ill/low/"))
+			.sort();
+	assert.deepEqual(jackets("summary"), [
+		"/ill/low/kept.0.png",
+		"/ill/low/new.0.png",
+		"/ill/low/old.0.png",
+	]);
+	assert.deepEqual(jackets("classic"), []);
+	assert.deepEqual(jackets(), []);
+	assert.deepEqual(
+		updateCardImages(mockRt(), {
+			...card,
+			cardStyle: "summary",
+			hisb30Snaps: snaps.slice(1),
+		}).filter((i) => i.startsWith("/ill/low/")),
+		[],
+		"one snapshot: no movement to show",
+	);
 });

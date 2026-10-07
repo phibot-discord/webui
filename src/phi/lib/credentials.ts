@@ -23,16 +23,12 @@ class CredentialStore {
 		);
 	}
 
-	async listSessionCredentials() {
-		const result = new Map<string, string>();
-		const prefix = `${PHI_KV}:userToken:`;
-		const keys = await this.kv.keys(`${prefix}*`);
-		const values = await Promise.all(keys.map((key) => this.kv.get(key)));
-		keys.forEach((key, index) => {
-			const value = values[index];
-			if (value) result.set(key.slice(prefix.length), value);
-		});
-		return result;
+	/**
+	 * Deletes `phi:save:<token>`: its key is the TapTap session token and the
+	 * blob holds it again (`session`), so it must not outlive the binding
+	 */
+	clearSessionSave(sessionToken: string) {
+		return this.kv.del(credentialKey("save", sessionToken));
 	}
 
 	async isSessionTokenBanned(sessionToken?: string | null) {

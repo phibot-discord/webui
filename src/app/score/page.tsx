@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const { m } = await getMessages();
-	return { title: `${m.score.title} · ${m.brand}`, description: m.score.lede };
+	return { title: m.score.title, description: m.score.lede };
 }
 
 export default async function ScorePage({

@@ -36,15 +36,56 @@ export type ManualErr = {
 	detail?: string;
 };
 
+/**
+ * Raw manual profiles, 10 s per process: the card request right after a page
+ * view reads KV once. Writes in this process update it; only valid JSON is kept
+ */
+const manualMem = new Map<string, { raw: string; at: number }>();
+const MANUAL_MEMO_MS = 10_000;
+const MANUAL_MEM_MAX = 256;
+/** Bumped by every write and delete: a read already on the wire then is not remembered */
+let manualGen = 0;
+
+function rememberManual(userId: string, raw: string) {
+	manualMem.delete(userId);
+	manualMem.set(userId, { raw, at: Date.now() });
+	while (manualMem.size > MANUAL_MEM_MAX) {
+		const oldest = manualMem.keys().next().value;
+		if (oldest === undefined) break;
+		manualMem.delete(oldest);
+	}
+}
+
+function forgetManual(userId: string) {
+	manualGen += 1;
+	manualMem.delete(userId);
+}
+
+export function resetManualMemForTest() {
+	manualMem.clear();
+}
+
+/**
+ * Reads KV and refills the memo. `opts.memo`: a copy from the last 10 s will do
+ * (the card route only; pages and the editor must see writes from other instances)
+ */
 export async function loadManual(
 	db: Pick<Kv, "get">,
 	userId: string,
+	opts: { memo?: boolean } = {},
 ): Promise<ManualSaveData | undefined> {
-	const raw = await db.get(MANUAL(userId));
-	if (!raw) return;
+	const hot = manualMem.get(userId);
+	const hit = hot && opts.memo && Date.now() - hot.at < MANUAL_MEMO_MS;
+	const gen = manualGen;
+	const raw = hit ? hot.raw : await db.get(MANUAL(userId));
+	if (!raw) {
+		manualMem.delete(userId);
+		return;
+	}
 	try {
 		const parsed = JSON.parse(raw) as Partial<ManualSaveData>;
 		if (parsed?.v !== 1 || !Array.isArray(parsed.records)) return;
+		if (!hit && gen === manualGen) rememberManual(userId, raw);
 		return {
 			v: 1,
 			playerId: String(parsed.playerId || "").slice(0, MANUAL_NAME_MAX),
@@ -76,7 +117,7 @@ function displayName(raw: unknown, fallback: string) {
 	return name || fallback;
 }
 
-/** Validates the browser payload against the live catalog. */
+/** Validates the browser payload against the live catalog */
 export function normalizeManualInput(
 	input: ManualInput,
 	fallbackName: string,
@@ -165,7 +206,7 @@ export function manualSavePayload(
 /**
  * Synthetic `Save` for a manual profile. When the catalog is loaded the RKS
  * and the background follow the current constants; otherwise the stored RKS is
- * shown (pages that only print the header do not load the catalog).
+ * shown (pages that only print the header do not load the catalog)
  */
 export function manualSave(
 	rt: PhiRuntime,
@@ -201,7 +242,10 @@ export async function saveManual(
 		};
 		const save = manualSave(host.rt, data, userId);
 		data.rks = save.saveInfo.summary.rankingScore;
-		await host.db.set(MANUAL(userId), JSON.stringify(data));
+		const raw = JSON.stringify(data);
+		await host.db.set(MANUAL(userId), raw);
+		forgetManual(userId);
+		rememberManual(userId, raw);
 		await snapshotB30(host.db, userId, save);
 		logger.info(
 			`manual save ${data.records.length} charts rks ${data.rks.toFixed(4)}`,
@@ -210,12 +254,15 @@ export async function saveManual(
 	});
 }
 
-/** Removes the manual profile and its B30 snapshots. Returns whether one existed. */
+/** Removes the manual profile and its B30 snapshots. Returns whether one existed */
 export async function clearManual(userId: string): Promise<boolean> {
 	const host = await getDataHost();
+	forgetManual(userId);
 	const had = await hasManual(host.db, userId);
 	if (!had) return false;
 	await host.db.del(MANUAL(userId));
+	// A read that started before the delete must not bring the profile back
+	forgetManual(userId);
 	await host.db.del(HISB30(userId));
 	return true;
 }

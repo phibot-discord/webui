@@ -33,7 +33,7 @@ export class LevelRecordInfo {
 		this.id = id;
 		this.rank = ALL_LEVEL[rank] || String(rank);
 		this.Rating = fCompute.rate(this.score, this.fc);
-		// Read-only lookup: a save has ~1k records and `info()` clones per call.
+		// Read-only lookup: a save has ~1k records and `info()` clones per call
 		const info = getInfo.raw(id);
 		if (!info) {
 			this.difficulty = 0;

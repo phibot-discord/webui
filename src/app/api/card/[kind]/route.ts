@@ -1,5 +1,6 @@
-import { getMessages } from "@/i18n/server";
-import { resolvePhiLocale } from "@/phi/lib/card-i18n";
+import { negotiateLocale } from "@/i18n/config";
+import { cookieLocale, localeSetCookie } from "@/i18n/server";
+import { parsePhiLocale } from "@/phi/lib/card-i18n";
 import { authed } from "@/server/authed";
 import { cardDownloadFilename } from "@/server/cache";
 import {
@@ -8,8 +9,7 @@ import {
 	RENDER_VERSION,
 	renderCard,
 } from "@/server/cards";
-import { getDataHost } from "@/server/data-host";
-import { cardResultResponse } from "@/server/http";
+import { cardResultResponse, wantsReload } from "@/server/http";
 import {
 	localizedError,
 	localizedRenderError,
@@ -22,7 +22,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 90;
 
-const PRIVATE_CACHE = "no-store";
+/** Stored by the browser but revalidated every time: a revisit is a 304 against the ETag */
+const PRIVATE_CACHE = "private, no-cache";
 
 export async function GET(
 	request: Request,
@@ -32,11 +33,7 @@ export async function GET(
 		const { kind } = await ctx.params;
 		if (!isCardKind(kind)) return localizedError(404, "unknown_card");
 
-		const host = await getDataHost();
-		const limited = await rateLimit(host.store, {
-			userId,
-			ip: clientIp(request.headers),
-		});
+		const limited = rateLimit({ userId, ip: clientIp(request.headers) });
 		if (!limited.ok)
 			return localizedRetryAfter(limited.retryAfter, "rate_limit");
 
@@ -46,14 +43,17 @@ export async function GET(
 		const stats = url.searchParams.get("stats");
 		const qualityParam = url.searchParams.get("quality");
 		const download = url.searchParams.get("download") === "1";
-		const locale = resolvePhiLocale(
-			url.searchParams.get("locale"),
-			request.headers.get("accept-language"),
-			(await getMessages()).locale,
-		);
+		const acceptLanguage = request.headers.get("accept-language");
+		const uiCookie = cookieLocale(request.headers);
 		const result = await renderCard(userId, kind, {
 			count,
-			locale,
+			// ?locale, Accept-Language, the UI cookie, then (inside renderCard) the
+			// saved notes locale, then the negotiated Accept-Language
+			locale:
+				parsePhiLocale(url.searchParams.get("locale")) ??
+				parsePhiLocale(acceptLanguage) ??
+				uiCookie,
+			fallbackLocale: negotiateLocale(undefined, acceptLanguage),
 			ifNoneMatch: download ? null : request.headers.get("if-none-match"),
 			paintQuality:
 				qualityParam == null ? undefined : parsePaintQuality(qualityParam),
@@ -61,13 +61,24 @@ export async function GET(
 			showRecordStats: stats === "1" ? true : stats === "0" ? false : undefined,
 			download,
 			epoch: url.searchParams.get("epoch") ?? undefined,
+			style: url.searchParams.get("style") ?? undefined,
+			chart: url.searchParams.get("chart") ?? undefined,
+			level: url.searchParams.get("level") ?? undefined,
+			// Sent right after a refresh or manual save: another instance may still
+			// remember the old save for a few seconds
+			fresh: wantsReload(request.headers),
 		});
 		if ("error" in result) return localizedRenderError(result);
-		return cardResultResponse(result, {
-			cacheControl: PRIVATE_CACHE,
+		const res = cardResultResponse(result, {
+			cacheControl: result.transient ? "no-store" : PRIVATE_CACHE,
 			request,
 			filename: download ? cardDownloadFilename(kind) : undefined,
 			renderVersion: RENDER_VERSION,
 		});
+		// Pages pick the chrome locale from this cookie only; seed it from the notes we just read
+		if (!uiCookie && result.uiLocale) {
+			res.headers.append("Set-Cookie", localeSetCookie(result.uiLocale));
+		}
+		return res;
 	});
 }

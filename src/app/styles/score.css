@@ -1,0 +1,321 @@
+/* ---------------------------------- score ---------------------------------- */
+
+.score-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-5);
+	margin-bottom: var(--space-8);
+}
+
+.score-form .field-label {
+	color: var(--ink);
+	font-size: var(--text-sm);
+	font-weight: 500;
+}
+
+.score-form .field-hint {
+	margin: 0;
+	max-width: 60ch;
+}
+
+.score-chart {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.score-warn {
+	color: var(--danger);
+}
+
+/* the picked chart: level chip, title and composer, clear */
+.score-picked {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	margin-top: var(--space-1);
+	padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-sm);
+	background: var(--bg);
+}
+
+.score-picked-song {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.score-picked-title {
+	font-weight: 600;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+
+/* Composer · notes: each part brings its own dot and the row is pulled left by one dot,
+   so a wrapped line never starts or ends with "·" */
+.score-picked-meta {
+	overflow: hidden;
+	color: var(--muted);
+	font-size: var(--text-xs);
+}
+
+.score-picked-parts {
+	display: flex;
+	flex-wrap: wrap;
+	margin-left: -1em;
+}
+
+/* Hanging indent: wrapped lines start inside the box, the dot sits in the gutter */
+.score-picked-parts > span {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	padding-left: 1em;
+	text-indent: -1em;
+}
+
+.score-picked-parts > span::before {
+	content: "·" / "";
+	display: inline-block;
+	width: 1em;
+	text-align: center;
+}
+
+@supports not (content: "·" / "") {
+	.score-picked-parts > span::before {
+		content: "·";
+	}
+}
+
+/* "1300 notes" never splits from its unit */
+.score-picked-notes {
+	white-space: nowrap;
+}
+
+.score-picked .btn-icon {
+	flex: none;
+}
+
+/* Notes · Target · Mode: one row on desktop, stacked on phones. Fields
+   align to the top so a hint under one does not push the others down */
+.score-inputs {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+	gap: var(--space-4);
+	align-items: start;
+}
+
+.score-inputs input {
+	width: 100%;
+	font-variant-numeric: tabular-nums;
+}
+
+.score-inputs .seg {
+	align-self: start;
+	margin: 0;
+}
+
+.score-inputs .seg button {
+	min-height: calc(var(--control-h) - 6px);
+	padding: 0 var(--space-4);
+}
+
+/* full 44 px targets on touch (.seg drops its inner padding there, bind.css) */
+@media (pointer: coarse) {
+	.score-inputs .seg button {
+		min-height: var(--tap);
+	}
+}
+
+/* --------------------------------- results --------------------------------- */
+
+.score-result h2 {
+	margin-top: var(--space-6);
+}
+
+.score-result h2:first-child {
+	margin-top: 0;
+}
+
+.score-result .field-hint {
+	max-width: 68ch;
+}
+
+.plan-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--space-3);
+	margin: 0 0 var(--space-4);
+}
+
+.plan-grid div {
+	min-width: 0;
+	padding: var(--space-3) var(--space-4);
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+}
+
+.plan-grid dt {
+	color: var(--muted);
+	font-size: var(--text-xs);
+	margin-bottom: var(--space-1);
+}
+
+.plan-grid dd {
+	margin: 0;
+	font-size: var(--text-xl);
+	font-weight: 600;
+	line-height: 1.2;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: -0.02em;
+	overflow-wrap: anywhere;
+}
+
+/* the offset sits under the exact score instead of wrapping mid-number */
+.plan-delta {
+	display: block;
+	color: var(--muted);
+	font-size: var(--text-sm);
+	font-weight: 500;
+	letter-spacing: 0;
+}
+
+/* where this accuracy lands among phib19's records */
+.score-rank {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0 0 var(--space-4);
+	padding: var(--space-3) var(--space-4);
+	border-left: 3px solid var(--accent);
+	background: var(--surface);
+	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.score-rank p {
+	margin: 0;
+}
+
+.score-rank-value {
+	font-size: var(--text-md);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.score-rank-tied {
+	color: var(--muted);
+	font-weight: 500;
+	font-size: var(--text-sm);
+}
+
+.score-rank-note {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	color: var(--muted);
+}
+
+.score-rank[aria-busy="true"] .score-rank-note {
+	font-style: italic;
+}
+
+/* Edge shadows hint that the table scrolls sideways (they ride the scroll)
+   A long list scrolls inside its own box so the header row stays in view */
+.plan-table-wrap {
+	--edge: color-mix(in srgb, var(--ink) 16%, transparent);
+	max-height: min(28rem, 60dvh);
+	overflow: auto;
+	-webkit-overflow-scrolling: touch;
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	background:
+		linear-gradient(to right, var(--bg) 30%, transparent) left / 2rem 100%
+		no-repeat local,
+		linear-gradient(to left, var(--bg) 30%, transparent) right / 2rem 100%
+		no-repeat local,
+		radial-gradient(farthest-side at 0 50%, var(--edge), transparent) left /
+		0.75rem 100% no-repeat scroll,
+		radial-gradient(farthest-side at 100% 50%, var(--edge), transparent) right /
+		0.75rem 100% no-repeat scroll;
+}
+
+.plan-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-variant-numeric: tabular-nums;
+	font-size: 0.9375rem;
+	white-space: nowrap;
+}
+
+.plan-table th,
+.plan-table td {
+	text-align: right;
+	padding: var(--space-2) var(--space-3);
+	border-bottom: 1px solid var(--line);
+}
+
+.plan-table tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+.plan-table tbody tr:first-child td {
+	font-weight: 600;
+}
+
+/* Collapsed borders don't stick with the cell, so the rule under the
+   header is an inset shadow instead */
+.plan-table th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	color: var(--muted);
+	font-weight: 500;
+	font-size: var(--text-xs);
+	background: var(--surface);
+	border-bottom: 0;
+	box-shadow: inset 0 -1px 0 var(--line);
+}
+
+.score-none {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+}
+
+.score-none p {
+	margin: 0;
+}
+
+.score-nearest {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.score-nearest .meta-label {
+	flex-basis: 100%;
+}
+
+@media (max-width: 599px) {
+	.plan-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 420px) {
+	.plan-grid {
+		gap: var(--space-2);
+	}
+
+	.plan-grid div {
+		padding: var(--space-3);
+	}
+
+	.plan-grid dd {
+		font-size: var(--text-lg);
+	}
+}

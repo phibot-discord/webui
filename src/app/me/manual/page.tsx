@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const { m } = await getMessages();
-	return { title: `${m.manual.title} · ${m.brand}` };
+	return { title: m.manual.title, robots: { index: false } };
 }
 
 export default async function ManualPage() {
@@ -21,7 +21,7 @@ export default async function ManualPage() {
 	const name = session.user.name?.trim() || "";
 	return withDiscordUid(userId, async () => {
 		const host = await getDataHost();
-		// A bound TapTap account always wins over hand-typed scores.
+		// A bound TapTap account always wins over hand-typed scores
 		if (await host.lib.getToken(host.rt, userId)) redirect("/me/b30");
 		const data = await loadManual(host.db, userId);
 		return (

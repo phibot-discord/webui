@@ -139,11 +139,11 @@ async function readApi(
 	return undefined;
 }
 
-/** After a public-domain failure fall back to the API for a while, then try the fast path again. */
+/** After a public-domain failure fall back to the API for a while, then try the fast path again */
 let publicBrokenUntil = 0;
 const PUBLIC_RETRY_MS = 60_000;
 
-/** `false` = definitely absent (404), `undefined` = unknown/error. */
+/** `false` = definitely absent (404), `undefined` = unknown/error */
 async function loadR2Object(key: string): Promise<Buffer | false | undefined> {
 	const cfg = r2Config();
 	if (cfg.publicBase && Date.now() >= publicBrokenUntil) {
@@ -151,7 +151,7 @@ async function loadR2Object(key: string): Promise<Buffer | false | undefined> {
 			const pub = await readPublic(cfg, key);
 			if (Buffer.isBuffer(pub) || pub === false) return pub;
 		} catch (err) {
-			// Requests already in flight all fail together; report the outage once.
+			// Requests already in flight all fail together; report the outage once
 			if (Date.now() >= publicBrokenUntil) {
 				logger.warn(
 					`r2 public paused ${PUBLIC_RETRY_MS / 1000}s: ${err instanceof Error ? err.message : err}`,
@@ -161,6 +161,73 @@ async function loadR2Object(key: string): Promise<Buffer | false | undefined> {
 		}
 	}
 	return readApi(cfg, key);
+}
+
+export type R2Stream = {
+	body: ReadableStream<Uint8Array>;
+	length?: number;
+};
+
+async function openStream(
+	url: string,
+	headers?: Record<string, string>,
+): Promise<R2Stream | false | undefined> {
+	// fetch inflates a compressed body, so its Content-Length would be the wrong
+	// size: ask for the bytes as stored, and drop the length if they still come encoded
+	const res = await cfFetch(url, {
+		headers: { ...headers, "Accept-Encoding": "identity" },
+		stream: true,
+	});
+	if (res.ok && res.body) {
+		const encoding = (res.headers.get("content-encoding") || "identity")
+			.trim()
+			.toLowerCase();
+		const length = Number(res.headers.get("content-length"));
+		return {
+			body: res.body,
+			length:
+				encoding === "identity" && Number.isFinite(length) && length > 0
+					? length
+					: undefined,
+		};
+	}
+	await res.body?.cancel().catch(() => undefined);
+	if (res.status === 404) return false;
+	logger.warn(`r2 stream ${res.status} ${url.replace(/^.*\/objects\//, "")}`);
+	return undefined;
+}
+
+/**
+ * Large objects (Phira packs): the body is piped to the client instead of being
+ * buffered, so a response is not held to the 4.5 MB function body limit
+ */
+export async function streamR2Object(
+	key: string,
+): Promise<R2Stream | undefined> {
+	const k = key.replace(/^\//, "");
+	if (knownMissing(k)) return undefined;
+	const cfg = r2Config();
+	const pub = publicObjectUrl(k, cfg);
+	if (pub && Date.now() >= publicBrokenUntil) {
+		try {
+			const got = await openStream(pub);
+			if (got === false) {
+				rememberMissing(k);
+				return undefined;
+			}
+			if (got) return got;
+		} catch (err) {
+			logger.warn(
+				`r2 public stream failed: ${err instanceof Error ? err.message : err}`,
+			);
+		}
+	}
+	if (!r2WriteReady(cfg)) return undefined;
+	const got = await openStream(objectUrl(cfg, k), {
+		Authorization: `Bearer ${cfg.apiToken}`,
+	});
+	if (got === false) rememberMissing(k);
+	return got || undefined;
 }
 
 export async function fetchR2Object(
@@ -198,7 +265,12 @@ export async function putR2Object(
 	key: string,
 	body: Buffer,
 	contentType = "application/octet-stream",
-	extra: { contentDisposition?: string; cache?: CacheMode } = {},
+	extra: {
+		contentDisposition?: string;
+		cache?: CacheMode;
+		/** Best-effort cache write: no backoff on 429/5xx */
+		background?: boolean;
+	} = {},
 ): Promise<void> {
 	const cfg = r2Config();
 	if (!r2WriteReady(cfg)) {
@@ -216,6 +288,7 @@ export async function putR2Object(
 		method: "PUT",
 		headers,
 		body,
+		background: extra.background,
 	});
 	if (!res.ok) {
 		const text = await res.text().catch(() => "");

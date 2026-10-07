@@ -9,19 +9,22 @@ export function SiteFooter() {
 	const { m } = useI18n();
 	return (
 		<footer className="site-foot">
-			<p>
-				{m.credit.before}
-				<Heart
-					className="site-foot-heart"
-					weight="fill"
-					size={14}
-					aria-label={m.credit.heart}
-				/>
-				{m.credit.after}
-				<a href={GITHUB} rel="noopener noreferrer" target="_blank">
-					{m.credit.name}
-				</a>
-			</p>
+			<div className="site-foot-inner">
+				<p>
+					{m.credit.before}
+					<Heart
+						className="site-foot-heart"
+						weight="fill"
+						size={14}
+						role="img"
+						aria-label={m.credit.heart}
+					/>
+					{m.credit.after}
+					<a href={GITHUB} rel="noopener noreferrer" target="_blank">
+						{m.credit.name}
+					</a>
+				</p>
+			</div>
 		</footer>
 	);
 }

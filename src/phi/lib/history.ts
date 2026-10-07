@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import type { Kv } from "@/server/sdk";
 import { cardCopy, fill, resolvePhiLocale } from "./card-i18n";
-import type { Catalog } from "./catalog";
+import { type Catalog, chosenIll } from "./catalog";
 import type { LineSeg } from "./charts";
 import { kvKey } from "./const";
 import { fCompute } from "./fcompute";
@@ -9,6 +9,7 @@ import type { UserNotes } from "./notes";
 import type { PhiRuntime } from "./runtime";
 import type { Save } from "./save";
 import { openHistory, SaveHistory } from "./save-history";
+import { b30Movement } from "./variants/update-summary";
 
 const LEVELS = ["EZ", "HD", "IN", "AT"] as const;
 const HISTORY_DAY = 10;
@@ -50,10 +51,7 @@ function serializeHistory(h: {
 	};
 }
 
-export async function loadSaveHistory(_rt: PhiRuntime, db: Kv, token: string) {
-	// Manual ("no account") profiles have no TapTap token and no score history.
-	if (!token) return new SaveHistory(null);
-	const raw = await db.get(historyKey(token));
+function parseSaveHistory(raw: string | undefined) {
 	if (raw) {
 		try {
 			return new SaveHistory(JSON.parse(raw));
@@ -64,13 +62,31 @@ export async function loadSaveHistory(_rt: PhiRuntime, db: Kv, token: string) {
 	return new SaveHistory(null);
 }
 
+/** The stored history blob, for callers that want to start the read early */
+export function readSaveHistoryRaw(
+	db: Pick<Kv, "get">,
+	token: string,
+): Promise<string | undefined> {
+	return db.get(historyKey(token));
+}
+
+export async function loadSaveHistory(_rt: PhiRuntime, db: Kv, token: string) {
+	// Manual ("no account") profiles have no TapTap token and no score history
+	if (!token) return new SaveHistory(null);
+	return parseSaveHistory(await readSaveHistoryRaw(db, token));
+}
+
+/** `raw`: the history read already in flight (see `readSaveHistoryRaw`) */
 export async function applySaveToHistory(
 	rt: PhiRuntime,
 	db: Kv,
 	token: string,
 	save: Save,
+	raw?: Promise<string | undefined>,
 ) {
-	const history = await loadSaveHistory(rt, db, token);
+	const history = raw
+		? parseSaveHistory(await raw)
+		: await loadSaveHistory(rt, db, token);
 	history.update(save);
 	await db.set(historyKey(token), JSON.stringify(serializeHistory(history)));
 	return history;
@@ -469,10 +485,23 @@ export function updateCardImages(
 	data: Pick<
 		Awaited<ReturnType<typeof buildUpdateCard>>,
 		"box_line" | "task_data" | "background" | "ChallengeMode"
-	>,
+	> & { cardStyle?: string; hisb30Snaps?: unknown },
 ) {
 	const html = (rel: string) => join(rt.getInfo.resources, "html", rel);
 	const out = new Set<string>();
+	if (data.cardStyle === "summary") {
+		// The summary layout's own B30 movement rows, so these are the jackets it draws
+		try {
+			const move = b30Movement(data.hisb30Snaps, rt.getInfo);
+			if (move.state === "changed") {
+				for (const row of [...move.entered, ...move.left]) {
+					if (row.ill) out.add(row.ill);
+				}
+			}
+		} catch {
+			/* a prefetch hint only: the layout reports its own errors */
+		}
+	}
 	if (data.background) out.add(data.background);
 	out.add(html(`otherimg/${data.ChallengeMode}.png`));
 	for (const line of data.box_line) {
@@ -532,7 +561,7 @@ export async function buildUpdateCard(
 		Date: formatHistoryDate(rt, save.saveInfo.summary.updatedAt),
 		ChallengeMode: Math.floor(save.saveInfo.summary.challengeModeRank / 100),
 		ChallengeModeRank: save.saveInfo.summary.challengeModeRank % 100,
-		background: catalog.randomIll("blur"),
+		background: chosenIll(catalog, notes.cardBackground, "blur"),
 		box_line,
 		show,
 		tips: "",

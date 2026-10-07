@@ -1,7 +1,5 @@
 import { Analytics } from "@vercel/analytics/next";
-import type { Metadata } from "next";
-import localFont from "next/font/local";
-import Script from "next/script";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { auth } from "@/auth";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -12,36 +10,58 @@ import { localeTag } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/provider";
 import { getMessages } from "@/i18n/server";
 import { withDiscordUid } from "@/server/logger";
-import { THEME_BOOT } from "@/theme/config";
+import { THEME_COLORS } from "@/theme/config";
+import { fontClasses } from "@/theme/fonts";
 import { getRequestTheme } from "@/theme/server";
 import "./globals.css";
 
-const cjk = localFont({
-	src: [
-		{ path: "../fonts/noto-sans-sc-400.woff2", weight: "400" },
-		{ path: "../fonts/noto-sans-sc-500.woff2", weight: "500" },
-		{ path: "../fonts/noto-sans-sc-600.woff2", weight: "600" },
-	],
-	display: "swap",
-	preload: false,
-	variable: "--font-cjk",
-	adjustFontFallback: false,
-});
+/** Public origin for absolute OpenGraph URLs; the first AUTH_URLS entry in production */
+function siteOrigin(): URL | undefined {
+	const raw = process.env.AUTH_URLS?.split(",")[0] || process.env.AUTH_URL;
+	if (!raw) return undefined;
+	try {
+		return new URL(raw.trim());
+	} catch {
+		return undefined;
+	}
+}
 
-const display = localFont({
-	src: [
-		{ path: "../fonts/outfit-latin-400.woff2", weight: "400" },
-		{ path: "../fonts/outfit-latin-500.woff2", weight: "500" },
-		{ path: "../fonts/outfit-latin-600.woff2", weight: "600" },
-		{ path: "../fonts/outfit-latin-700.woff2", weight: "700" },
-	],
-	display: "swap",
-	variable: "--font-display",
-});
-
+/** Pages return plain titles; the template adds the brand */
 export async function generateMetadata(): Promise<Metadata> {
-	const { m } = await getMessages();
-	return { title: m.meta.title, description: m.meta.description };
+	const { locale, m } = await getMessages();
+	return {
+		metadataBase: siteOrigin(),
+		title: { default: m.meta.title, template: `%s · ${m.brand}` },
+		description: m.meta.description,
+		applicationName: m.brand,
+		openGraph: {
+			type: "website",
+			siteName: m.brand,
+			locale: locale === "zh" ? "zh_CN" : "en_US",
+		},
+		twitter: { card: "summary_large_image" },
+		formatDetection: { telephone: false },
+	};
+}
+
+/** theme-color follows the visitor's pick when there is one, else the OS */
+export async function generateViewport(): Promise<Viewport> {
+	const theme = await getRequestTheme();
+	return {
+		colorScheme: theme ?? "dark light",
+		themeColor: theme
+			? THEME_COLORS[theme]
+			: [
+					{
+						media: "(prefers-color-scheme: dark)",
+						color: THEME_COLORS.dark,
+					},
+					{
+						media: "(prefers-color-scheme: light)",
+						color: THEME_COLORS.light,
+					},
+				],
+	};
 }
 
 export default async function RootLayout({
@@ -56,25 +76,24 @@ export default async function RootLayout({
 		return (
 			<html
 				lang={localeTag(locale)}
-				className={`${cjk.variable} ${display.variable}`}
+				className={fontClasses}
 				data-theme={theme ?? undefined}
 				style={theme ? { colorScheme: theme } : undefined}
 				suppressHydrationWarning
 			>
 				<body>
-					<Script id="phi-theme" strategy="beforeInteractive">
-						{THEME_BOOT}
-					</Script>
 					<I18nProvider locale={locale} m={m}>
 						<SkipLink />
-						<VersionNotice />
 						<div className="shell">
 							<SiteHeader
 								signedIn={Boolean(session?.user?.id)}
 								name={session?.user?.name}
 								image={session?.user?.image}
+								theme={theme ?? "system"}
 							/>
 							{children}
+							{/* before the footer, so keyboard users meet it after the page */}
+							<VersionNotice />
 							<SiteFooter />
 						</div>
 					</I18nProvider>

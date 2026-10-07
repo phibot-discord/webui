@@ -1,0 +1,543 @@
+/* ---------------------------------- layout ---------------------------------- */
+
+main {
+	flex: 1;
+	width: 100%;
+	margin: 0;
+	padding: 0;
+}
+
+/* Pages share the header's --wrap so left edges line up. Content keeps a
+   readable column unless a page sets --page-max (the desk uses none) */
+.page {
+	width: var(--wrap);
+	margin: 0 auto;
+	padding: clamp(1.75rem, 1rem + 2.5vw, 3rem) 0 var(--space-16);
+}
+
+:where(.page > *) {
+	max-width: var(--page-max, 60rem);
+}
+
+/* -------------------------------- typography -------------------------------- */
+
+h1,
+h2,
+h3 {
+	text-wrap: balance;
+	letter-spacing: -0.03em;
+}
+
+h1 {
+	font-size: var(--text-2xl);
+	line-height: 1.15;
+	margin: 0 0 var(--space-3);
+	font-weight: 600;
+}
+
+h2 {
+	font-size: var(--text-lg);
+	line-height: var(--leading-tight);
+	margin: 0 0 var(--space-2);
+	font-weight: 600;
+}
+
+h3 {
+	font-weight: 600;
+}
+
+p {
+	text-wrap: pretty;
+	max-width: 68ch;
+}
+
+.lede {
+	color: var(--muted);
+	margin: 0 0 var(--space-6);
+	font-size: var(--text-md);
+}
+
+.meta-label {
+	color: var(--muted);
+	font-size: var(--text-xs);
+}
+
+.meta-value {
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+	font-weight: 500;
+}
+
+/* Visually hidden but read by screen readers. Pair with role="status" for
+   polite announcements (see Announce in components/Tool.tsx) */
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* --------------------------------- buttons --------------------------------- */
+
+.btn {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	min-height: var(--control-h);
+	padding: 0 var(--space-4);
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--ink);
+	font: inherit;
+	font-size: 0.9375rem;
+	font-weight: 500;
+	line-height: 1.25;
+	text-align: center;
+	text-decoration: none;
+	white-space: nowrap;
+	cursor: pointer;
+	user-select: none;
+	-webkit-tap-highlight-color: transparent;
+	transition:
+		background-color var(--dur) var(--ease),
+		border-color var(--dur) var(--ease),
+		box-shadow var(--dur) var(--ease),
+		color var(--dur) var(--ease),
+		transform 120ms var(--ease);
+}
+
+.btn:active:not(:disabled) {
+	transform: scale(0.98);
+}
+
+.btn-primary {
+	background: var(--primary);
+	color: var(--on-primary);
+}
+
+.btn-ghost {
+	background: transparent;
+	color: var(--ink);
+	border-color: var(--line-strong);
+}
+
+.btn-quiet {
+	background: transparent;
+	color: var(--muted);
+}
+
+.btn-danger {
+	background: transparent;
+	color: var(--danger);
+	border-color: var(--danger);
+}
+
+@media (hover: hover) {
+	.btn-primary:hover:not(:disabled) {
+		background: var(--primary-hover);
+		color: var(--on-primary);
+	}
+
+	.btn-ghost:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+		border-color: var(--muted);
+		color: var(--ink);
+	}
+
+	.btn[aria-pressed="true"]:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--primary) 22%, transparent);
+		border-color: var(--primary);
+	}
+
+	.btn-quiet:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+		color: var(--ink);
+	}
+
+	.btn-danger:hover:not(:disabled) {
+		background: var(--danger);
+		color: var(--on-danger);
+	}
+}
+
+.btn-danger:active:not(:disabled) {
+	background: var(--danger-soft);
+}
+
+/* Selected / on: tinted fill plus a 2 px edge, not colour alone */
+.btn[aria-pressed="true"] {
+	background: var(--primary-soft);
+	border-color: var(--primary);
+	box-shadow: inset 0 0 0 1px var(--primary);
+	color: var(--ink);
+}
+
+.btn-sm {
+	min-height: 2rem;
+	padding: 0 var(--space-3);
+	font-size: var(--text-sm);
+}
+
+/* still at least 24 × 24 px (WCAG 2.5.8) */
+.btn-mini {
+	min-height: 1.5rem;
+	min-width: 1.5rem;
+	padding: 2px var(--space-2);
+	font-size: var(--text-sm);
+	line-height: 1.2;
+}
+
+.btn-icon {
+	width: var(--control-h);
+	padding: 0;
+}
+
+.btn-icon.btn-sm {
+	width: 2rem;
+}
+
+/* Disabled keeps its label readable (muted, ≥4.5:1) instead of fading out */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+	background: transparent;
+	border-color: var(--line);
+	box-shadow: none;
+	color: var(--muted);
+	cursor: not-allowed;
+}
+
+.btn-primary:disabled,
+.btn-primary[aria-disabled="true"] {
+	background: var(--surface-2);
+	border-color: transparent;
+}
+
+.btn[aria-disabled="true"] {
+	pointer-events: none;
+}
+
+/* Keeps a button's width steady while its label changes (Tool.tsx) */
+.btn-steady {
+	display: inline-grid;
+	justify-items: center;
+	align-items: center;
+	font-variant-numeric: tabular-nums;
+}
+
+.btn-steady-sizer,
+.btn-steady-live {
+	grid-area: 1 / 1;
+}
+
+.btn-steady-sizer {
+	display: grid;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.btn-steady-sizer > span {
+	grid-area: 1 / 1;
+	white-space: nowrap;
+}
+
+.btn-steady-live {
+	white-space: nowrap;
+}
+
+/* ---------------------------------- fields ---------------------------------- */
+
+/* .field: label text and control on one row. .field-col: stacked */
+.field {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	color: var(--muted);
+	font-size: var(--text-sm);
+}
+
+.field-col {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+	font-size: var(--text-xs);
+}
+
+.field-hint {
+	margin: 0 0 var(--space-3);
+	font-size: var(--text-xs);
+	color: var(--muted);
+}
+
+.field-error {
+	color: var(--danger);
+	font-size: var(--text-xs);
+}
+
+/* One look for every text input and select. Zero specificity, so a page
+   rule can still adjust width or alignment. Prefer the .input class */
+:where(
+	.input,
+	.field input:not([type="checkbox"], [type="radio"]),
+	.field select,
+	.chart-search input,
+	.asset-search,
+	.manual-table input[type="text"]
+) {
+	appearance: none;
+	min-height: var(--control-h);
+	padding: 0 var(--space-3);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-sm);
+	background-color: var(--control-bg);
+	color: var(--ink);
+	font: inherit;
+	/* typed text stays readable inside small-print labels */
+	font-size: var(--text-base);
+	transition:
+		border-color var(--dur) var(--ease),
+		background-color var(--dur) var(--ease);
+}
+
+:where(select.input, .field select) {
+	padding-right: 2.25rem;
+	background-image:
+		linear-gradient(45deg, transparent 50%, currentColor 50%),
+		linear-gradient(135deg, currentColor 50%, transparent 50%);
+	background-position:
+		calc(100% - 18px) 50%,
+		calc(100% - 13px) 50%;
+	background-size:
+		5px 5px,
+		5px 5px;
+	background-repeat: no-repeat;
+	cursor: pointer;
+}
+
+:where(
+	.input,
+	.field input,
+	.chart-search input,
+	.asset-search,
+	.manual-table input
+)::placeholder {
+	color: var(--muted);
+	opacity: 1;
+}
+
+@media (hover: hover) {
+	:where(
+		.input,
+		.field input:not([type="checkbox"], [type="radio"]),
+		.field select,
+		.chart-search input,
+		.asset-search,
+		.manual-table input[type="text"]
+	):hover:not(:disabled, :focus) {
+		border-color: var(--muted);
+	}
+}
+
+:where(
+	.input,
+	.field input:not([type="checkbox"], [type="radio"]),
+	.field select,
+	.chart-search input,
+	.asset-search,
+	.manual-table input[type="text"]
+):focus {
+	border-color: var(--primary);
+}
+
+:where(
+	.input,
+	.field input,
+	.field select,
+	.chart-search input,
+	.asset-search,
+	.manual-table input
+)[aria-invalid="true"] {
+	border-color: var(--danger);
+}
+
+:where(
+	.input,
+	.field input,
+	.field select,
+	.chart-search input,
+	.asset-search,
+	.manual-table input
+):disabled {
+	background-color: var(--surface);
+	border-color: var(--line);
+	color: var(--muted);
+	cursor: not-allowed;
+}
+
+/* --------------------------------- surfaces --------------------------------- */
+
+.callout {
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	padding: var(--space-5) var(--space-6);
+}
+
+/* phones: keep the content width close to the page's */
+@media (max-width: 29.99em) {
+	.callout {
+		padding-inline: var(--space-4);
+	}
+}
+
+.callout code {
+	font-family: ui-monospace, Menlo, Monaco, monospace;
+	font-size: 0.9em;
+	color: var(--primary);
+}
+
+/* popovers: .tool-pop hangs under its trigger, and is a bottom sheet on phones */
+
+.tool {
+	position: relative;
+	flex: 0 0 auto;
+}
+
+.tool-pop {
+	position: absolute;
+	top: calc(100% + var(--space-2));
+	right: 0;
+	z-index: var(--z-dropdown);
+	width: max-content;
+	max-width: min(22rem, calc(100vw - 2 * var(--gutter)));
+	padding: var(--space-4);
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow);
+}
+
+.tool-pop-copy {
+	margin: 0 0 var(--space-3);
+	color: var(--muted);
+	font-size: var(--text-sm);
+	max-width: none;
+}
+
+.tool-pop-alert {
+	width: max-content;
+	max-width: min(18rem, calc(100vw - 2 * var(--gutter)));
+	margin: 0;
+	color: var(--danger);
+	font-size: var(--text-xs);
+}
+
+.tool-pop-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+@media (max-width: 767px) {
+	.tool-pop {
+		position: fixed;
+		top: auto;
+		right: var(--space-3);
+		bottom: calc(var(--space-3) + var(--safe-bottom));
+		left: var(--space-3);
+		z-index: var(--z-sheet);
+		width: auto;
+		max-width: none;
+		max-height: calc(100dvh - var(--nav-h) - var(--space-6));
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		padding: var(--space-5) var(--space-4) var(--space-4);
+		border-color: var(--line-strong);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-lg);
+	}
+
+	.tool-pop-alert {
+		width: auto;
+		max-width: none;
+		font-size: var(--text-sm);
+	}
+
+	.tool-pop-actions > * {
+		flex: 1 1 0;
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.tool-pop {
+		animation: tool-pop-in 180ms var(--ease) both;
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) and (max-width: 767px) {
+	.tool-pop {
+		animation-name: sheet-in;
+		animation-duration: 220ms;
+	}
+}
+
+/* ----------------------------- touch and contrast ----------------------------- */
+
+@media (pointer: coarse) {
+	.btn-sm,
+	.btn-mini {
+		min-height: var(--tap);
+		min-width: var(--tap);
+	}
+
+	/* iOS zooms into fields under 16 px */
+	:where(
+		.input,
+		.field input:not([type="checkbox"], [type="radio"]),
+		.field select,
+		.chart-search input,
+		.asset-search,
+		.manual-table input[type="text"]
+	) {
+		font-size: max(1rem, 16px);
+	}
+}
+
+@media (forced-colors: active) {
+	.btn,
+	.btn-primary,
+	.btn-quiet {
+		border-color: ButtonText;
+	}
+
+	.btn[aria-pressed="true"] {
+		outline: 2px solid Highlight;
+		outline-offset: 1px;
+	}
+
+	.btn:disabled,
+	.btn[aria-disabled="true"] {
+		border-color: GrayText;
+		color: GrayText;
+	}
+
+	.tool-pop,
+	.callout {
+		border-color: CanvasText;
+	}
+
+	/* the gradient chevron is dropped in forced colours; use the native one */
+	:where(select.input, .field select) {
+		appearance: auto;
+		background-image: none;
+		padding-right: var(--space-2);
+	}
+}

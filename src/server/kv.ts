@@ -1,9 +1,15 @@
+import { readFileSync } from "node:fs";
 import { runInBackground } from "./background";
 import { cfFetch } from "./cf-fetch";
 import { logger } from "./logger";
 import type { Kv } from "./sdk";
 
-type KvSetOptions = { ttlMs?: number; nx?: boolean };
+type KvSetOptions = {
+	ttlMs?: number;
+	nx?: boolean;
+	/** Best-effort cache write: no backoff on 429/5xx */
+	background?: boolean;
+};
 type KvIncrOptions = {
 	ttlMs?: number;
 	blocking?: boolean;
@@ -89,8 +95,13 @@ function globToRegExp(pattern: string): RegExp {
 export type RemoteKv = {
 	label: string;
 	getRaw: (key: string) => Promise<string | undefined>;
-	putRaw: (key: string, value: string, ttlSec?: number) => Promise<void>;
-	delRaw: (key: string) => Promise<void>;
+	putRaw: (
+		key: string,
+		value: string,
+		ttlSec?: number,
+		opts?: { background?: boolean },
+	) => Promise<void>;
+	delRaw: (key: string, opts?: { background?: boolean }) => Promise<void>;
 	listRaw: (prefix: string) => Promise<string[]>;
 	ping: () => Promise<void>;
 };
@@ -122,7 +133,7 @@ function restRemote(cfg: KvConfig): RemoteKv {
 			}
 			return (await res.text()) || undefined;
 		},
-		putRaw: async (key, value, ttlSec) => {
+		putRaw: async (key, value, ttlSec, opts) => {
 			const url = ttlSec
 				? `${base}/values/${encodeURIComponent(key)}?expiration_ttl=${ttlSec}`
 				: `${base}/values/${encodeURIComponent(key)}`;
@@ -130,6 +141,7 @@ function restRemote(cfg: KvConfig): RemoteKv {
 				method: "PUT",
 				headers: { ...headers, "Content-Type": "text/plain; charset=utf-8" },
 				body: value,
+				background: opts?.background,
 			});
 			if (!res.ok) {
 				const text = await res.text().catch(() => "");
@@ -138,10 +150,11 @@ function restRemote(cfg: KvConfig): RemoteKv {
 				);
 			}
 		},
-		delRaw: async (key) => {
+		delRaw: async (key, opts) => {
 			const res = await cfFetch(`${base}/values/${encodeURIComponent(key)}`, {
 				method: "DELETE",
 				headers,
+				background: opts?.background,
 			});
 			if (!res.ok && res.status !== 404) {
 				const text = await res.text().catch(() => "");
@@ -193,20 +206,62 @@ const OVERLAY_MAX = 1_000;
 const OVERLAY_MAX_AGE_MS = 60_000;
 const OVERLAY_WRITE_MS = 5_000;
 const MISS_TTL_MS = 3_000;
+/** Bans are rare and set by the bot; a missing ban key is trusted for a minute */
+const BAN_MISS_TTL_MS = 60_000;
+const BAN_KEY = /:banSessionToken:/;
 const MISS_MAX = 2_000;
 const BIND_KEY =
 	/:userToken:|:save:|:notes:|:hisb30:|:history:|:manualSave:|:webShare/;
 
-export async function connectKv(cfg: KvConfig): Promise<KvBundle> {
-	const bundle = createKv(restRemote(cfg));
-	runInBackground(
-		bundle.db.ping().then((pong) => logger.ok(`kv ${pong} ${bundle.label}`)),
-		(err) =>
-			logger.error(
-				`kv ping failed: ${err instanceof Error ? err.message : err}`,
-			),
+/** Dev only: `PHI_LOCAL_DATA=1` swaps Cloudflare KV for an in-memory store */
+export function localDataMode(): boolean {
+	return (
+		process.env.PHI_LOCAL_DATA === "1" && process.env.NODE_ENV !== "production"
 	);
-	return bundle;
+}
+
+/** Dev-only in-memory KV with one bound user, seeded from PHI_LOCAL_SAVE */
+function localRemote(): RemoteKv {
+	const mem = new Map<string, string>();
+	const uid = process.env.PHI_LOCAL_UID?.trim() || "local-dev";
+	const token = "localdevtoken000000000000";
+	const savePath = process.env.PHI_LOCAL_SAVE?.trim() || "data/raw-save.json";
+	try {
+		mem.set(
+			`phi:save:${token}`,
+			readFileSync(/*turbopackIgnore: true*/ savePath, "utf8"),
+		);
+		mem.set(`phi:userToken:${uid}`, token);
+	} catch (err) {
+		logger.warn(
+			`local kv: no save at ${savePath} (${err instanceof Error ? err.message : err})`,
+		);
+	}
+	return {
+		label: "local",
+		getRaw: async (key) => mem.get(key),
+		putRaw: async (key, value) => {
+			mem.set(key, value);
+		},
+		delRaw: async (key) => {
+			mem.delete(key);
+		},
+		listRaw: async (prefix) =>
+			[...mem.keys()].filter((k) => k.startsWith(prefix)),
+		ping: async () => {},
+	};
+}
+
+/** No ping on connect: a KV LIST per cold start is a wasted API call; the first read reports problems */
+export async function connectKv(
+	cfg: KvConfig,
+	remote: (cfg: KvConfig) => RemoteKv = restRemote,
+): Promise<KvBundle> {
+	if (localDataMode()) {
+		logger.warn("kv: PHI_LOCAL_DATA=1, using the in-memory dev store");
+		return createKv(localRemote());
+	}
+	return createKv(remote(cfg));
 }
 
 export function createKv(remote: RemoteKv): KvBundle & { label: string } {
@@ -232,7 +287,10 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 	const markMiss = (key: string) => {
 		if (/:userToken:|:save:/.test(key)) return;
 		knownMissing.delete(key);
-		knownMissing.set(key, Date.now() + MISS_TTL_MS);
+		knownMissing.set(
+			key,
+			Date.now() + (BAN_KEY.test(key) ? BAN_MISS_TTL_MS : MISS_TTL_MS),
+		);
 		evictOldest(knownMissing, MISS_MAX);
 	};
 	const clearMiss = (key: string) => {
@@ -271,15 +329,20 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 		return next;
 	};
 
-	const putRemote = async (key: string, envl: Envelope) => {
+	const putRemote = async (
+		key: string,
+		envl: Envelope,
+		opts?: { background?: boolean },
+	) => {
 		const ttlSec =
 			envl.e != null
 				? Math.max(CF_MIN_TTL_SEC, Math.ceil((envl.e - Date.now()) / 1000))
 				: undefined;
-		await remote.putRaw(key, encodeEnvelope(envl), ttlSec);
+		await remote.putRaw(key, encodeEnvelope(envl), ttlSec, opts);
 	};
 
-	const delRemote = (key: string) => remote.delRaw(key);
+	const delRemote = (key: string, opts?: { background?: boolean }) =>
+		remote.delRaw(key, opts);
 
 	const getRemote = async (key: string): Promise<Envelope | undefined> => {
 		const pending = readInflight.get(key);
@@ -291,7 +354,7 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 			if (!alive(envl)) {
 				forget(key);
 				markMiss(key);
-				delRemote(key).catch(() => undefined);
+				delRemote(key, { background: true }).catch(() => undefined);
 				return undefined;
 			}
 			clearMiss(key);
@@ -333,7 +396,7 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 			}
 			rememberWrite(key, env);
 			try {
-				await putRemote(key, env);
+				await putRemote(key, env, { background: options?.background });
 			} catch (err) {
 				forget(key);
 				throw err;
@@ -411,7 +474,7 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 			runInBackground(
 				enqueue(key, async () => {
 					try {
-						await putRemote(key, next);
+						await putRemote(key, next, { background: true });
 					} catch (err) {
 						forget(key);
 						throw err;

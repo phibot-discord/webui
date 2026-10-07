@@ -29,7 +29,7 @@ function checkPlans(total: number, target: number, mode: ScoreMode) {
 }
 
 test("Spasmodic AT 999058: the real FC + 5 Good split is listed with its exact values", () => {
-	// In game: 1671 notes, score 999058, accuracy shown as 99.90.
+	// In game: 1671 notes, score 999058, accuracy shown as 99.90
 	const { plans } = planScore(1671, 999_058);
 	const mine = plans.find((p) => p.perfect === 1666 && p.good === 5);
 	assert.ok(mine, "split missing");
@@ -38,9 +38,9 @@ test("Spasmodic AT 999058: the real FC + 5 Good split is listed with its exact v
 	assert.equal(mine.exact.toFixed(2), "999057.45");
 	assert.equal(mine.acc.toFixed(5), "99.89527");
 	assert.equal(mine.acc.toFixed(2), "99.90");
-	// It is the closest split, so it comes first.
+	// It is the closest split, so it comes first
 	assert.equal(plans[0], mine);
-	// The same split is also offered for 999057.
+	// The same split is also offered for 999057
 	assert.ok(
 		planScore(1671, 999_057).plans.some(
 			(p) => p.perfect === 1666 && p.good === 5,
@@ -156,7 +156,7 @@ test("every reachable score is found for a mid-size chart", () => {
 });
 
 test("unreachable targets report the nearest reachable scores", () => {
-	// 1000 notes: FC with one Good is exactly 999685; nothing lies near 999999.
+	// 1000 notes: FC with one Good is exactly 999685; nothing lies near 999999
 	const res = planScore(1000, 999_999);
 	assert.equal(res.plans.length, 0);
 	assert.ok(res.nearest);

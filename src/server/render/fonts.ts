@@ -1,7 +1,5 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { exists, readFile } from "@/server/vfs";
+import { join, resolve } from "node:path";
+import { exists, readFileAsync } from "@/server/vfs";
 import { logger } from "../logger";
 import type { FontEntry } from "../sdk";
 
@@ -21,58 +19,10 @@ export const PHI_FONT_FILES: Record<string, string> = {
 	"noto-sans-sc-400.woff2": "NotoSansSC",
 };
 
-const BUNDLED_FONT_URLS: Record<string, URL> = {
-	"phi.woff2": new URL(
-		"../../../phi-assets/html/common/font/phi.woff2",
-		import.meta.url,
-	),
-	"Aldrich-Regular.woff2": new URL(
-		"../../../phi-assets/html/common/font/Aldrich-Regular.woff2",
-		import.meta.url,
-	),
-	"NotoSans-Regular.woff2": new URL(
-		"../../../phi-assets/html/common/font/NotoSans-Regular.woff2",
-		import.meta.url,
-	),
-	"NotoSansJP.woff2": new URL(
-		"../../../phi-assets/html/common/font/NotoSansJP.woff2",
-		import.meta.url,
-	),
-	"NotoSansSymbols2.woff2": new URL(
-		"../../../phi-assets/html/common/font/NotoSansSymbols2.woff2",
-		import.meta.url,
-	),
-	"NotoSansArabic.woff2": new URL(
-		"../../../phi-assets/html/common/font/NotoSansArabic.woff2",
-		import.meta.url,
-	),
-	"NotoSansKannada.woff2": new URL(
-		"../../../phi-assets/html/common/font/NotoSansKannada.woff2",
-		import.meta.url,
-	),
-	"NotoSansCanadianAboriginal.woff2": new URL(
-		"../../../phi-assets/html/common/font/NotoSansCanadianAboriginal.woff2",
-		import.meta.url,
-	),
-	"NotoSansMath-Regular.woff2": new URL(
-		"../../../phi-assets/html/common/font/NotoSansMath-Regular.woff2",
-		import.meta.url,
-	),
-	"HIMALAYA.woff2": new URL(
-		"../../../phi-assets/html/common/font/HIMALAYA.woff2",
-		import.meta.url,
-	),
-	"吞弥恰俊.woff2": new URL(
-		"../../../phi-assets/html/common/font/吞弥恰俊.woff2",
-		import.meta.url,
-	),
-	"noto-sans-sc-400.woff2": new URL(
-		"../../fonts/noto-sans-sc-400.woff2",
-		import.meta.url,
-	),
-};
+/** Faces shipped from src/fonts (traced by next.config.ts) */
+const APP_FONTS = new Set(["noto-sans-sc-400.woff2"]);
 
-/** Default Takumi fallback after CSS `font-family`. NotoSansSC before PHI so CJK never tofus. */
+/** Default Takumi fallback after CSS `font-family`. NotoSansSC before PHI so CJK never tofus */
 export const PHI_FONT_FAMILIES = [
 	"NotoSansSC",
 	"PHI",
@@ -88,49 +38,54 @@ export const PHI_FONT_FAMILIES = [
 	"NotoSansMath-Regular",
 ] as const;
 
-function readBundled(file: string): Buffer | undefined {
-	const url = BUNDLED_FONT_URLS[file];
-	if (!url) return;
-	try {
-		return readFileSync(fileURLToPath(url));
-	} catch {
-		return;
-	}
+/** `<app root>/src/fonts`, ignored by the tracer; next.config.ts lists the file */
+export function appFontDir(): string {
+	const root = process.env.PHI_APP_ROOT?.trim();
+	const base = root ? resolve(root) : process.cwd();
+	return join(/*turbopackIgnore: true*/ base, "src/fonts");
 }
 
-function readDisk(dir: string, name: string): Buffer | undefined {
-	const file = join(dir, name);
-	try {
-		if (!exists(file)) return;
-		return readFile(file);
-	} catch {
-		return;
+async function readFont(
+	dirs: string[],
+	name: string,
+): Promise<Buffer | undefined> {
+	for (const dir of dirs) {
+		const file = join(dir, name);
+		try {
+			if (exists(file)) return await readFileAsync(file);
+		} catch {}
 	}
+	return undefined;
 }
 
 export async function loadFontsFromDir(
 	dir: string,
 	map: Record<string, string> = PHI_FONT_FILES,
+	appDir = appFontDir(),
 ): Promise<FontEntry[]> {
+	const entries = Object.entries(map);
+	// ~11 MB of woff2, read in parallel off the event loop
+	const data = await Promise.all(
+		entries.map(([name]) =>
+			readFont(APP_FONTS.has(name) ? [appDir, dir] : [dir, appDir], name),
+		),
+	);
 	const out: FontEntry[] = [];
-	for (const [name, family] of Object.entries(map)) {
-		const data =
-			name === "noto-sans-sc-400.woff2"
-				? (readBundled(name) ?? readDisk(dir, name))
-				: (readDisk(dir, name) ?? readBundled(name));
-		if (!data) {
+	entries.forEach(([name, family], i) => {
+		const bytes = data[i];
+		if (!bytes) {
 			logger.warn(`font miss ${name}`);
-			continue;
+			return;
 		}
 		out.push({
 			name: family,
-			data,
+			data: bytes,
 			weight: 400,
 			style: "normal",
 			generic:
 				family === "PHI" || family === "NotoSansSC" ? "sans-serif" : undefined,
 		});
-	}
+	});
 	if (!out.some((f) => f.name === "PHI")) {
 		logger.error("PHI font missing — CJK will render as missing glyphs");
 	} else {

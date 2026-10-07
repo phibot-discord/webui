@@ -12,17 +12,45 @@ export function jsonError(status: number, error: string, code?: string) {
 	});
 }
 
+/** If-None-Match against our strong ETag: a list, weak tags and `*` count (weak comparison) */
 export function etagMatches(
 	ifNoneMatch: string | null | undefined,
 	etag: string,
 ) {
 	if (!ifNoneMatch) return false;
-	return ifNoneMatch.replace(/W\//, "") === `"${etag}"`;
+	const want = `"${etag}"`;
+	return ifNoneMatch.split(",").some((tag) => {
+		const t = tag.trim().replace(/^W\//, "");
+		return t === want || t === "*";
+	});
+}
+
+/** The client asked for nothing cached (no-cache / Pragma); a plain revalidation does not count */
+export function wantsReload(headers: Headers): boolean {
+	const cc = headers.get("cache-control") ?? "";
+	if (/(^|,)\s*no-cache\s*(,|$)/i.test(cc)) return true;
+	return /(^|,)\s*no-cache\s*(,|$)/i.test(headers.get("pragma") ?? "");
 }
 
 export function attachmentDisposition(filename: string): string {
 	const safe = filename.replace(/["\\\r\n]+/g, "_");
 	return `attachment; filename="${safe}"`;
+}
+
+/** 304 for a card the client already holds; carries the stats so a revalidated view still reports them */
+export function notModifiedResponse(opts: {
+	etag: string;
+	cacheControl: string;
+	stats?: CardStats;
+}) {
+	return new NextResponse(null, {
+		status: 304,
+		headers: {
+			ETag: `"${opts.etag}"`,
+			"Cache-Control": opts.cacheControl,
+			...statsHeaders(opts.stats),
+		},
+	});
 }
 
 export function cardImageResponse(
@@ -46,14 +74,7 @@ export function cardImageResponse(
 		cacheable &&
 		etagMatches(opts.request.headers.get("if-none-match"), opts.etag)
 	) {
-		return new NextResponse(null, {
-			status: 304,
-			headers: {
-				ETag: tag,
-				"Cache-Control": opts.cacheControl,
-				...extra,
-			},
-		});
+		return notModifiedResponse(opts);
 	}
 	const headers: Record<string, string> = {
 		"Content-Type": mime,
@@ -102,12 +123,21 @@ function statsHeaders(stats?: CardStats): Record<string, string> {
 export function cardResultResponse(
 	result:
 		| { redirect: string; etag: string; stats?: CardStats }
-		| { bytes: Buffer; etag: string; mime?: string; stats?: CardStats },
+		| {
+				bytes: Buffer;
+				etag: string;
+				mime?: string;
+				stats?: CardStats;
+				/** The request's If-None-Match already matched: no bytes were loaded */
+				notModified?: boolean;
+		  },
 	opts: {
 		cacheControl: string;
 		request: Request;
 		filename?: string;
 		renderVersion?: string;
+		/** Request headers the card depends on (shared caches key on them); 304s carry it too */
+		vary?: string;
 	},
 ) {
 	const stats = result.stats;
@@ -118,15 +148,22 @@ export function cardResultResponse(
 					cacheControl: opts.cacheControl,
 					stats,
 				})
-			: cardImageResponse(result.bytes, {
-					etag: result.etag,
-					cacheControl: opts.cacheControl,
-					request: opts.request,
-					mime: result.mime,
-					stats,
-					filename: opts.filename,
-				});
+			: result.notModified
+				? notModifiedResponse({
+						etag: result.etag,
+						cacheControl: opts.cacheControl,
+						stats,
+					})
+				: cardImageResponse(result.bytes, {
+						etag: result.etag,
+						cacheControl: opts.cacheControl,
+						request: opts.request,
+						mime: result.mime,
+						stats,
+						filename: opts.filename,
+					});
 	if (opts.renderVersion) res.headers.set("X-Phi-Render", opts.renderVersion);
+	if (opts.vary) res.headers.append("Vary", opts.vary);
 	return res;
 }
 

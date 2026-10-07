@@ -1,11 +1,22 @@
+/**
+ * Characters phi-plugin strips before fuzzy matching. Global flag: use it only
+ * with `.replace`, never `.test`/`.exec` (they keep `lastIndex` between calls)
+ */
+export const JARO_PUNCT =
+	/[\s~`!@#$%^&*()\-=_+[\]「」『』{}|;:'",<.>/?！￥…（）—【】、；‘’：“”，《。》？↑↓←→]/g;
+
 export function jaroWinklerDistance(a: string, b: string): number {
-	let s1 = a.trim();
-	let s2 = b.trim();
+	const s1 = a.trim();
+	const s2 = b.trim();
 	if (s1 === s2) return 1;
-	const pattern =
-		/[\s~`!@#$%^&*()\-=_+[\]「」『』{}|;:'",<.>/?！￥…（）—【】、；‘’：“”，《。》？↑↓←→]/g;
-	s1 = s1.replace(pattern, "").toLowerCase();
-	s2 = s2.replace(pattern, "").toLowerCase();
+	return jaroWinkler(
+		s1.replace(JARO_PUNCT, "").toLowerCase(),
+		s2.replace(JARO_PUNCT, "").toLowerCase(),
+	);
+}
+
+/** Jaro-Winkler on strings the caller already folded (no trim, case or punctuation handling) */
+export function jaroWinkler(s1: string, s2: string): number {
 	if (s1.length === 0 || s2.length === 0) return 0;
 	if (s1 === s2) return 1;
 

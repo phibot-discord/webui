@@ -1,9 +1,10 @@
 import { join } from "node:path";
+import { loadedCatalogRevision } from "@/server/song-info";
 import { getInfo } from "./get-info";
 
 /**
  * Card-facing view of the song catalog. Reads `getInfo` (already parsed by
- * `ensureSongInfo`) instead of parsing info.csv / notesInfo.json a second time.
+ * `ensureSongInfo`) instead of parsing info.csv / notesInfo.json a second time
  */
 export class Catalog {
 	readonly fallbackIll: string;
@@ -26,4 +27,73 @@ export class Catalog {
 		const id = list[Math.floor(Math.random() * list.length)]!;
 		return getInfo.getill(id, kind);
 	}
+
+	ill(
+		id: string,
+		kind: "common" | "blur" | "low" = "common",
+	): string | undefined {
+		const key = knownBackground(id);
+		if (!key) return;
+		return getInfo.getill(key, kind);
+	}
+}
+
+/** Canonical illustration id, or "" when the choice is missing or unknown */
+export function knownBackground(id: string | undefined): string {
+	const raw = id?.trim() ?? "";
+	if (!raw) return "";
+	const key = raw.endsWith(".0") ? raw : `${raw}.0`;
+	if (getInfo.illlist.includes(key)) return key;
+	if (getInfo.illlist.includes(raw)) return raw;
+	return "";
+}
+
+export type BackgroundOption = { id: string; song: string };
+
+let optionsMemo:
+	| { rev: string; list: string[]; options: BackgroundOption[] }
+	| undefined;
+
+/** Illustrations with song names for the background picker, built once per catalog revision (shared: don't mutate) */
+export function backgroundOptions(): BackgroundOption[] {
+	const rev = loadedCatalogRevision();
+	const list = getInfo.illlist;
+	if (optionsMemo && optionsMemo.rev === rev && optionsMemo.list === list) {
+		return optionsMemo.options;
+	}
+	const options = buildBackgroundOptions(list);
+	optionsMemo = { rev, list, options };
+	return options;
+}
+
+function buildBackgroundOptions(list: string[]): BackgroundOption[] {
+	const seen = new Set<string>();
+	const out: BackgroundOption[] = [];
+	for (const id of list) {
+		if (seen.has(id)) continue;
+		seen.add(id);
+		out.push({
+			id,
+			song: getInfo.ori_info[id]?.song || getInfo.sp_info[id]?.song || id,
+		});
+	}
+	out.sort(
+		(a, b) =>
+			a.song.localeCompare(b.song, undefined, { sensitivity: "base" }) ||
+			a.id.localeCompare(b.id),
+	);
+	return out;
+}
+
+/** Saved jacket, or a random one when none is chosen or the id is gone */
+export function chosenIll(
+	catalog: Pick<Catalog, "randomIll"> & Partial<Pick<Catalog, "ill">>,
+	id: string | undefined,
+	kind: "common" | "blur" | "low",
+): string {
+	if (id) {
+		const picked = catalog.ill?.(id, kind);
+		if (picked) return picked;
+	}
+	return catalog.randomIll(kind);
 }

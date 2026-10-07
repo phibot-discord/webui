@@ -1,31 +1,51 @@
-import { kvKey } from "@/phi/lib/const";
-
-type KvCounter = {
-	incr(
-		key: string,
-		options?: { ttlMs?: number; blocking?: boolean },
-	): Promise<number>;
-};
-
 const USER_PER_MIN = 10;
 const IP_PER_MIN = 30;
 const WINDOW_MS = 60_000;
+const KEYS_MAX = 10_000;
 
-export async function rateLimit(
-	kv: KvCounter,
-	opts: { userId?: string; ip: string },
-): Promise<{ ok: true } | { ok: false; retryAfter: number }> {
-	const window = Math.floor(Date.now() / WINDOW_MS);
-	const bump = (key: string) =>
-		kv.incr(key, { ttlMs: WINDOW_MS, blocking: false });
-	const ipN = await bump(kvKey("webRl", "ip", opts.ip, window));
-	if (ipN > IP_PER_MIN) return { ok: false, retryAfter: 60 };
+/** Per-instance sliding window (the old KV counters were per instance in practice too) */
+const hits = new Map<string, number[]>();
 
-	if (opts.userId) {
-		const userN = await bump(kvKey("webRl", "user", opts.userId, window));
-		if (userN > USER_PER_MIN) return { ok: false, retryAfter: 60 };
+function take(
+	key: string,
+	limit: number,
+	now: number,
+): { ok: true } | { ok: false; retryAfter: number } {
+	const since = now - WINDOW_MS;
+	const prev = hits.get(key) ?? [];
+	const live =
+		prev[0] != null && prev[0] <= since ? prev.filter((t) => t > since) : prev;
+	if (live.length >= limit) {
+		hits.set(key, live);
+		const oldest = live[0] ?? now;
+		return {
+			ok: false,
+			retryAfter: Math.max(1, Math.ceil((oldest + WINDOW_MS - now) / 1000)),
+		};
+	}
+	live.push(now);
+	hits.delete(key);
+	hits.set(key, live);
+	while (hits.size > KEYS_MAX) {
+		const oldest = hits.keys().next().value;
+		if (oldest === undefined) break;
+		hits.delete(oldest);
 	}
 	return { ok: true };
+}
+
+export function rateLimit(
+	opts: { userId?: string; ip: string },
+	now = Date.now(),
+): { ok: true } | { ok: false; retryAfter: number } {
+	const ip = take(`ip:${opts.ip}`, IP_PER_MIN, now);
+	if (!ip.ok) return ip;
+	if (opts.userId) return take(`user:${opts.userId}`, USER_PER_MIN, now);
+	return ip;
+}
+
+export function resetRateLimitForTest() {
+	hits.clear();
 }
 
 export function clientIp(headers: Headers): string {

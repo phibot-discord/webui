@@ -1,7 +1,11 @@
 "use client";
 
+import { SegRadio } from "@/components/SegRadio";
 import { useI18n } from "@/i18n/provider";
 
+const COUNTS = [33, 40, 50, 60, 80, 99] as const;
+
+/** How many charts the B30-style cards list */
 export function CountSelect({
 	value,
 	onChange,
@@ -10,17 +14,17 @@ export function CountSelect({
 	onChange: (next: number) => void;
 }) {
 	const { m } = useI18n();
-
+	// A count typed into the URL (?count=45) still shows as chosen
+	const counts: number[] = COUNTS.includes(value as (typeof COUNTS)[number])
+		? [...COUNTS]
+		: [...COUNTS, value].sort((a, b) => a - b);
 	return (
-		<label className="field">
-			{m.card.charts}
-			<select value={value} onChange={(e) => onChange(Number(e.target.value))}>
-				{[33, 40, 50, 60, 80, 99].map((n) => (
-					<option key={n} value={n}>
-						{n}
-					</option>
-				))}
-			</select>
-		</label>
+		<SegRadio
+			legend={m.card.charts}
+			value={value}
+			options={counts.map((n) => ({ value: n, label: n }))}
+			onChange={onChange}
+			className="opt-count"
+		/>
 	);
 }

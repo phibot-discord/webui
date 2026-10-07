@@ -137,3 +137,65 @@ test("clearCardBlobs drops a finished card so the next load refetches", async ()
 		resetCardFetchCacheForTest();
 	}
 });
+
+test("card fetches revalidate with the browser cache instead of bypassing it", async () => {
+	resetCardFetchCacheForTest();
+	const seen: RequestCache[] = [];
+	const orig = globalThis.fetch;
+	globalThis.fetch = (async (_src: string, init?: RequestInit) => {
+		seen.push(init?.cache ?? "default");
+		// What the browser hands back after a 304: the stored body, the 304's stats
+		return new Response(new Uint8Array([7]), {
+			headers: {
+				"content-type": "image/jpeg",
+				[CARD_STATS_HEADER]: encodeCardStats({
+					cache: "hit",
+					revalidated: true,
+					prepMs: 40,
+					cacheMs: 0,
+					totalMs: 42,
+				}),
+			},
+		});
+	}) as typeof fetch;
+	try {
+		const blob = await loadCardBlob("/api/card/b30?_=revalidate");
+		assert.deepEqual(seen, ["no-cache"]);
+		assert.equal(blob.stats?.revalidated, true);
+		assert.equal(blob.stats?.prepMs, 40);
+		assert.ok((blob.stats?.waitMs ?? -1) >= 0);
+	} finally {
+		globalThis.fetch = orig;
+		resetCardFetchCacheForTest();
+	}
+});
+
+test("right after a save change cards are fetched with reload, then revalidated again", async () => {
+	resetCardFetchCacheForTest();
+	const seen: RequestCache[] = [];
+	const orig = globalThis.fetch;
+	const origNow = Date.now;
+	let clock = 90_000_000;
+	Date.now = () => clock;
+	globalThis.fetch = (async (_src: string, init?: RequestInit) => {
+		seen.push(init?.cache ?? "default");
+		return new Response(new Uint8Array([1]), {
+			headers: { "content-type": "image/jpeg" },
+		});
+	}) as typeof fetch;
+	try {
+		clearCardBlobs({ fresh: true });
+		await loadCardBlob("/api/card/b30?_=fresh");
+		// A cache bypass (plain clear) inside the window does not end it
+		clearCardBlobs();
+		await loadCardBlob("/api/card/b30?_=fresh");
+		clock += 15_001;
+		clearCardBlobs();
+		await loadCardBlob("/api/card/b30?_=fresh");
+		assert.deepEqual(seen, ["reload", "reload", "no-cache"]);
+	} finally {
+		globalThis.fetch = orig;
+		Date.now = origNow;
+		resetCardFetchCacheForTest();
+	}
+});

@@ -17,42 +17,70 @@ export function TagGlossary({ tree }: { tree: ChartTagTreeNode[] }) {
 			</>
 		);
 	}
+	const cats = tree.map((cat, i) => ({
+		// Short, stable anchors: a category link can be shared
+		id: `cat-${i + 1}`,
+		name: localizeChartTagName(cat.name, locale),
+		description: localizeChartTagDescription(cat.name, cat.description, locale),
+		tags: (cat.children ?? []).map((tag) => ({
+			key: tag.name,
+			name: localizeChartTagName(tag.name, locale),
+			description: localizeChartTagDescription(
+				tag.name,
+				tag.description,
+				locale,
+			),
+		})),
+	}));
 	return (
 		<>
 			<h1>{m.tags.title}</h1>
 			<p className="lede">{m.tags.lede}</p>
-			<div className="tag-glossary">
-				{tree.map((cat) => {
-					const catDesc = localizeChartTagDescription(
-						cat.name,
-						cat.description,
-						locale,
-					);
-					const kids = cat.children?.length ? cat.children : [];
-					return (
-						<section className="tag-cat" key={cat.name}>
-							<h2>{localizeChartTagName(cat.name, locale)}</h2>
-							{catDesc ? <p className="tag-cat-desc">{catDesc}</p> : null}
-							{kids.length ? (
+			<div className="tag-layout">
+				<nav className="tag-index" aria-label={m.tags.index}>
+					<ul>
+						{cats.map((cat) => (
+							<li key={cat.id}>
+								<a href={`#${cat.id}`}>
+									<span>{cat.name}</span>
+									<span className="tag-index-count" aria-hidden="true">
+										{cat.tags.length}
+									</span>
+								</a>
+							</li>
+						))}
+					</ul>
+				</nav>
+				<div className="tag-glossary">
+					{cats.map((cat) => (
+						<section
+							className="tag-cat"
+							key={cat.id}
+							id={cat.id}
+							aria-labelledby={`${cat.id}-h`}
+						>
+							<div className="tag-cat-head">
+								<h2 id={`${cat.id}-h`}>{cat.name}</h2>
+								<span className="tag-cat-count">
+									{m.tags.count.replaceAll("{n}", String(cat.tags.length))}
+								</span>
+							</div>
+							{cat.description ? (
+								<p className="tag-cat-desc">{cat.description}</p>
+							) : null}
+							{cat.tags.length ? (
 								<dl className="tag-list">
-									{kids.map((tag) => {
-										const desc = localizeChartTagDescription(
-											tag.name,
-											tag.description,
-											locale,
-										);
-										return (
-											<div key={tag.name}>
-												<dt>{localizeChartTagName(tag.name, locale)}</dt>
-												{desc ? <dd>{desc}</dd> : null}
-											</div>
-										);
-									})}
+									{cat.tags.map((tag) => (
+										<div key={tag.key}>
+											<dt>{tag.name}</dt>
+											{tag.description ? <dd>{tag.description}</dd> : null}
+										</div>
+									))}
 								</dl>
 							) : null}
 						</section>
-					);
-				})}
+					))}
+				</div>
 			</div>
 		</>
 	);

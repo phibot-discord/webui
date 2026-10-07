@@ -15,11 +15,17 @@
 	overflow: visible !important;
 	text-align: left !important;
 }
+/* Two lines at most, so a random tip never changes the cached height
+   Takumi drops line-clamp / text-overflow marked !important */
 .tips p {
 	font-size: var(--footer-font-size) !important;
 	line-height: 1.3 !important;
 	margin: 0 !important;
 	font-family: NotoSansSC, PHI, Aldrich, NotoSansJP, sans-serif !important;
+	line-clamp: 2;
+	text-overflow: ellipsis;
+	overflow: hidden !important;
+	max-height: 2.6em !important;
 }
 
 .tips-abs {
@@ -37,7 +43,8 @@ body {
 	background-image: none !important;
 	background-color: #071018 !important;
 	position: relative !important;
-	padding-bottom: 40px !important;
+	/* The footer's own bottom margin and the engine's measure slack space the bottom */
+	padding-bottom: 0 !important;
 	box-sizing: border-box !important;
 	font-family: PHI, NotoSansSC, Aldrich, NotoSansJP, sans-serif !important;
 }
@@ -112,11 +119,12 @@ body {
 	height: 31px !important;
 	overflow: hidden !important;
 }
+/* text-wrap-mode, not white-space: Takumi drops `white-space: nowrap !important` */
 .dataBox,
 .spInfoBox {
 	height: 20px !important;
 	overflow: visible !important;
-	white-space: nowrap !important;
+	text-wrap-mode: nowrap !important;
 }
 .dataBox {
 	bottom: var(--b30-databox-bottom) !important;
@@ -339,14 +347,14 @@ img.tag-radar-plot,
 	color: #ffffff !important;
 	font-size: 10px !important;
 	line-height: 1.15 !important;
-	white-space: nowrap !important;
+	text-wrap-mode: nowrap !important;
 }
 .tag-radar-html-score {
 	margin: 2px 0 0 !important;
 	color: #00b7f0 !important;
 	font-size: 8px !important;
 	line-height: 1 !important;
-	white-space: nowrap !important;
+	text-wrap-mode: nowrap !important;
 }
 .tag-result-row {
 	height: 20px !important;
@@ -363,7 +371,7 @@ img.tag-radar-plot,
 	flex: 1 !important;
 	min-width: 0 !important;
 	overflow: hidden !important;
-	white-space: nowrap !important;
+	text-wrap-mode: nowrap !important;
 }
 .tag-rks {
 	width: 37px !important;
@@ -389,7 +397,7 @@ img.tag-radar-plot,
 .histogram-panel .analysis-title {
 	font-size: 16px !important;
 	line-height: 1.2 !important;
-	white-space: nowrap !important;
+	text-wrap-mode: nowrap !important;
 }
 .histogram-summary {
 	text-align: right !important;
@@ -436,6 +444,8 @@ img.tag-radar-plot,
 	right: 0 !important;
 	left: 40px !important;
 	height: 136px !important;
+	/* Takumi sizes border-box, so the axis border would cut the grid frame to 135px and float every line 1px above the bars */
+	box-sizing: content-box !important;
 	overflow: hidden !important;
 }
 .histogram-bars {
@@ -477,7 +487,7 @@ img.tag-radar-plot,
 }
 .average-marker p {
 	font-size: 9px !important;
-	white-space: nowrap !important;
+	text-wrap-mode: nowrap !important;
 }
 .histogram-legend p {
 	font-size: 11px !important;
