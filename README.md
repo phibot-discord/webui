@@ -1,6 +1,7 @@
 # PhiBot WebUI
 
 ![Coding with Cursor](https://cwab.nuclearrockstone.xyz/api/badge?name=Cursor&line1=Built+together+with&theme=dark)
+![Coding with Claude](https://cwab.nuclearrockstone.xyz/api/badge?name=Claude&line1=Co-engineered+with&theme=dark)
 
 Renders b30/hisb30/Player Info/x30/fc30 in web
 Uses [Takumi](https://takumi.kane.tw/) as renderer!
