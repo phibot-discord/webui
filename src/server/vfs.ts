@@ -49,7 +49,6 @@ export function readFile(p: string, encoding?: "utf8"): Buffer | string {
 		: fsRead(/*turbopackIgnore: true*/ p);
 }
 
-/** Like `readFile`, without blocking the event loop on a disk read */
 export async function readFileAsync(p: string): Promise<Buffer> {
 	const data = lookup(p);
 	if (data) return Buffer.from(data.buffer, data.byteOffset, data.byteLength);
@@ -92,12 +91,10 @@ export function rename(from: string, to: string) {
 	fsRename(/*turbopackIgnore: true*/ from, /*turbopackIgnore: true*/ to);
 }
 
-/** Deletes a file; a missing one is fine */
 export function remove(p: string) {
 	fsRm(/*turbopackIgnore: true*/ p, { force: true });
 }
 
-/** Sets a file's mtime to now (marks a disk-cache entry as recently used) */
 export function touch(p: string) {
 	const now = new Date();
 	fsUtimes(/*turbopackIgnore: true*/ p, now, now);

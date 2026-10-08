@@ -1,4 +1,3 @@
-/** "Timeline" history layout: header, RKS trend, then updates per day with before → after */
 import type { PhiLocale } from "../card-i18n";
 import { getInfo } from "../get-info";
 import { fitEm, textEm } from "../text-fit";
@@ -90,7 +89,6 @@ const NAME_H = 100;
 const TITLE_W = 202;
 const TASK_TITLE_W = 228;
 const WAS_PX = 16;
-/** "Before" lines: a right-aligned old-value box, an 8px gap, then the delta box */
 const SCORE_OLD_W = 56;
 const SCORE_DELTA_W = 58;
 const ACC_OLD_W = 60;
@@ -113,28 +111,23 @@ export type TimelineEntry = {
 	ill: string;
 	titleLines: string[];
 	titlePx: number;
-	/** Two-line title: tighter leading keeps the tags row clear of the row edge */
 	twoLine: boolean;
 	rank: string;
 	rankCls: string;
 	constText: string;
 	grade: string;
-	/** φ (all perfect): the new score is shown in gold */
 	ap: boolean;
 	isNew: boolean;
 	inB30: boolean;
 	scoreLead: string;
 	scoreMain: string;
-	/** Previous score without leading zeros; "" for a first record */
 	scoreOld: string;
 	scoreDelta: Delta;
 	scoreWasPx: number;
 	acc: string;
 	accOld: string;
-	/** In percentage points */
 	accDelta: Delta;
 	accWasPx: number;
-	/** "" when the chart constant is unknown (a known one below 70% gives 0.0000) */
 	rks: string;
 	rksDelta: Delta;
 	rksWasPx: number;
@@ -152,10 +145,8 @@ export type TimelineDay = {
 };
 
 export type TimelineChart = {
-	/** Only one RKS record so far: no line, just the value and its date */
 	single: boolean;
 	svg: string;
-	/** "" when every point has the same value (the range around it is padding) */
 	max: string;
 	mid: string;
 	min: string;
@@ -192,7 +183,6 @@ export type TimelineView = {
 	empty: boolean;
 };
 
-/** Chart constant for a song (id, else title) + difficulty, when the catalog has it */
 export type ConstLookup = (
 	songId: string,
 	rank: string,
@@ -218,7 +208,6 @@ function list(v: unknown): unknown[] {
 	return Array.isArray(v) ? v : [];
 }
 
-/** Ellipsize `text` so it fits `capEm` ems */
 export function clipEm(text: string, capEm: number): string {
 	if (textEm(text) <= capEm) return text;
 	const room = capEm - textEm("…");
@@ -233,7 +222,6 @@ export function clipEm(text: string, capEm: number): string {
 	return `${out.trimEnd()}…`;
 }
 
-/** Greedy wrap into two lines of at most `capEm` ems each (the second ellipsized) */
 function wrapTwo(text: string, capEm: number): [string, string] {
 	const words = text.split(" ");
 	let head = "";
@@ -244,7 +232,6 @@ function wrapTwo(text: string, capEm: number): [string, string] {
 		head = next;
 	}
 	if (!head) {
-		// The first word alone is too wide: break it by characters
 		let w = 0;
 		const chars = [...text];
 		let cut = 0;
@@ -259,10 +246,6 @@ function wrapTwo(text: string, capEm: number): [string, string] {
 	return [head, clipEm(words.slice(i).join(" "), capEm)];
 }
 
-/**
- * Two-line split that balances widths: at a space when there is one, anywhere
- * when `anywhere` (CJK text, which wraps between any two characters)
- */
 function balancedSplit(
 	text: string,
 	anywhere = false,
@@ -292,10 +275,6 @@ function balancedSplit(
 
 const CJK = /[\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/;
 
-/**
- * Fit a title in `widthPx`: one line down to `min1`, then two balanced lines
- * down to `min2`, then two lines at `min2` with the second ellipsized
- */
 export function fitTitle(
 	text: string,
 	widthPx: number,
@@ -330,7 +309,7 @@ export function fitTitle(
 	return { lines: b ? [a, b] : [a], px: opts.min2 };
 }
 
-/** Typographic minus (U+2212): as wide as "+" in the numeric font */
+// As wide as "+" in the numeric font
 const MINUS = "\u2212";
 
 function delta(d: number | undefined, digits: number, unit = ""): Delta {
@@ -343,27 +322,20 @@ function delta(d: number | undefined, digits: number, unit = ""): Delta {
 		: { text: `${MINUS}${Math.abs(d).toFixed(digits)}${unit}`, cls: "tl-down" };
 }
 
-/**
- * Accuracy change in percentage points, at 2 dp like the game shows accuracy; a
- * non-zero change below 0.005 keeps 4 dp so it never reads as ±0.00%
- */
+// A non-zero change below 0.005 keeps 4 dp so it never reads as ±0.00%
 function accDelta(d: number | undefined): Delta {
 	if (d != null && Math.abs(d) >= 0.00005 && Math.abs(d) < 0.005)
 		return delta(d, 4, "%");
 	return delta(d, 2, "%");
 }
 
-/** Score as Phigros shows it: 7 digits, the leading zeros dimmed */
 function scoreParts(score: number): { lead: string; main: string } {
 	const full = String(Math.max(0, Math.round(score))).padStart(7, "0");
 	const main = full.replace(/^0+/, "") || "0";
 	return { lead: full.slice(0, full.length - main.length), main };
 }
 
-/**
- * Advance widths (em) in the numeric font (NOTO, tabular figures) for what the
- * number columns show; anything else falls back to the text-fit table
- */
+// Advance widths (em) in the numeric font (NOTO, tabular figures); anything else falls back to text-fit
 const NUM_EM: Record<string, number> = {
 	".": 0.268,
 	"%": 0.831,
@@ -380,7 +352,6 @@ export function numEm(text: string): number {
 	return em;
 }
 
-/** Font size for a "before" line: shrinks only when a value overflows its box */
 function wasPx(parts: [string, number][]) {
 	let px = WAS_PX;
 	for (const [text, boxPx] of parts)
@@ -483,7 +454,6 @@ function weekday(day: string, copy: Copy): string {
 
 type RawGroup = { stamp: string; updates: number; tiles: unknown[] };
 
-/** Regroup box_line rows (5 tiles each) into one group per upload */
 export function regroupBoxLine(boxLine: unknown): RawGroup[] {
 	const groups: RawGroup[] = [];
 	for (const row of list(boxLine)) {
@@ -504,7 +474,6 @@ export function regroupBoxLine(boxLine: unknown): RawGroup[] {
 	return groups;
 }
 
-/** Merge upload groups (already newest first) that share a calendar day */
 export function groupDays(
 	groups: RawGroup[],
 ): { day: string; times: string[]; updates: number; tiles: unknown[] }[] {
@@ -528,7 +497,6 @@ export function groupDays(
 	return days;
 }
 
-/** Upload times as HH:MM, newest first */
 function timesLabel(times: string[]) {
 	const short = times.map((t) => t.slice(0, 5));
 	return short.length > 3
@@ -540,7 +508,7 @@ function f(n: number) {
 	return Number(n.toFixed(2));
 }
 
-/** RKS trend as inline SVG; segment y is measured up from rks_range[0] */
+// Segment y is measured up from rks_range[0]
 export function chartOf(
 	segs: unknown,
 	range: unknown,
@@ -635,7 +603,6 @@ export function chartOf(
 	};
 }
 
-/** "song id|rank" pairs of the newest B30 snapshot (P3 + B27) */
 function latestB30(snaps: unknown): Set<string> {
 	const all = list(snaps);
 	const last = rec(all[all.length - 1]);
@@ -647,10 +614,6 @@ function latestB30(snaps: unknown): Set<string> {
 	return out;
 }
 
-/**
- * Split PlayerId's rich-text HTML at <br> into self-contained lines: tags still open
- * at a break are closed there and reopened on the next line
- */
 export function splitRichLines(html: string): string[] {
 	const lines: string[] = [];
 	const open: { name: string; tag: string }[] = [];
@@ -685,7 +648,6 @@ export function splitRichLines(html: string): string[] {
 	return lines;
 }
 
-/** Visible text of PlayerId's rich-text HTML, one entry per line */
 export function richTextLines(html: string): string[] {
 	return html
 		.replace(/<br\s*\/?>/gi, "\n")
@@ -733,7 +695,6 @@ export function defaultConstLookup(
 	};
 }
 
-/** Name size per visible line, so it stays inside the header */
 export function nameFontPx(lines: string[]): number {
 	const em = Math.max(0, ...lines.map(textEm)) * BOLD_SLACK;
 	const rows = Math.max(1, lines.length);
@@ -744,7 +705,6 @@ export function nameFontPx(lines: string[]): number {
 	return Math.max(16, Math.min(byHeight(2), fitEm(em * 0.54, NAME_W, 26)));
 }
 
-/** Everything the template shows, derived from the classic hisb30 data */
 export function buildTimeline(
 	data: CardData,
 	locale: PhiLocale,

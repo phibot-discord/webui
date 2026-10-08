@@ -22,7 +22,6 @@ const I18nContext = createContext<{
 } | null>(null);
 
 function writeLocaleCookie(locale: Locale) {
-	// Instant client cookie so the next navigation does not wait on /api/locale
 	// biome-ignore lint/suspicious/noDocumentCookie: not httpOnly; Cookie Store is not universal
 	document.cookie = `${LOCALE_COOKIE}=${locale}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`;
 }
@@ -54,7 +53,6 @@ export function I18nProvider({
 				keepalive: true,
 			})
 				.catch(() => {})
-				// Server-rendered text (page copy, <title>) re-renders in the new language
 				.finally(() => router.refresh());
 		},
 		[locale, router],

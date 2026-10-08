@@ -1,4 +1,4 @@
-/** Takumi 2.13 pixmap budget (`MAX_PIXMAP_PIXELS = 16 << 20`) */
+/** Takumi 2.13's own MAX_PIXMAP_PIXELS */
 export const MAX_PIXMAP_PIXELS = 16 << 20;
 export const PIXEL_RATIO = 2;
 
@@ -21,7 +21,6 @@ function exact(w: number, h: number, ratio: number): PaintSize {
 	};
 }
 
-/** Largest paint ≤ `maxRatio` that stays under the pixmap cap */
 function fillCap(w: number, h: number, maxRatio: number): PaintSize {
 	const target = Math.min(maxRatio, Math.sqrt(MAX_PIXMAP_PIXELS / (w * h)));
 	const pw = Math.max(1, Math.floor(w * target));
@@ -33,15 +32,7 @@ function fillCap(w: number, h: number, maxRatio: number): PaintSize {
 	return { width: pw, height: ph, ratio: scale };
 }
 
-/**
- * CSS-space layout → device pixmap
- *
- * `fast`: exact `ratio` (2×) under the cap, else 1× CSS pixels
- * `high`: exact `maxRatio` when it fits, else the sharpest paint the cap allows
- * (≤ `maxRatio`). `maxRatio` defaults to `ratio`, so templates that do not opt
- * in keep the 2× ceiling; narrow cards (the 800px update card) pass a higher
- * ceiling and use the headroom the cap leaves them
- */
+/** `maxRatio` defaults to `ratio`, so templates that do not opt in keep the 2× ceiling */
 export function fitPaint(
 	cssWidth: number,
 	cssHeight: number,

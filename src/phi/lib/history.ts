@@ -62,7 +62,7 @@ function parseSaveHistory(raw: string | undefined) {
 	return new SaveHistory(null);
 }
 
-/** The stored history blob, for callers that want to start the read early */
+/** For callers that want to start the history read early */
 export function readSaveHistoryRaw(
 	db: Pick<Kv, "get">,
 	token: string,
@@ -76,7 +76,6 @@ export async function loadSaveHistory(_rt: PhiRuntime, db: Kv, token: string) {
 	return parseSaveHistory(await readSaveHistoryRaw(db, token));
 }
 
-/** `raw`: the history read already in flight (see `readSaveHistoryRaw`) */
 export async function applySaveToHistory(
 	rt: PhiRuntime,
 	db: Kv,

@@ -22,13 +22,10 @@
 	border: 1px solid var(--line-strong);
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow);
-	/* not the small muted text of a surrounding .field label */
 	color: var(--ink);
 	font-size: var(--text-base);
 }
 
-/* Title and composer first; the level chips wrap under them on narrow
-   screens instead of squeezing the title to nothing */
 .chart-search-list li {
 	display: flex;
 	flex-wrap: wrap;
@@ -49,7 +46,6 @@
 	}
 }
 
-/* the row the arrow keys are on */
 .chart-search-list li:has(.chart-level[aria-selected="true"]) {
 	background: var(--surface-2);
 }
@@ -85,8 +81,6 @@
 	gap: 6px;
 }
 
-/* Options are reached with aria-activedescendant, so :focus-visible never
-   fires on them: draw the ring for the active one */
 .chart-search-levels .chart-level[aria-selected="true"],
 .chart-search-levels .chart-level.is-active {
 	outline: 2px solid var(--focus);

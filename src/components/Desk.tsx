@@ -9,7 +9,6 @@ import { useI18n } from "@/i18n/provider";
 
 const noSubscribe = () => () => {};
 
-/** Sync time in the visitor's time zone; the server render shows UTC+8 until hydration */
 function SyncTime({ iso }: { iso: string }) {
 	const { locale, m } = useI18n();
 	const client = useSyncExternalStore(
@@ -57,7 +56,6 @@ export function Desk({
 		<main id="content" className="page desk">
 			<header className="desk-mast">
 				<div className="desk-id">
-					{/* Long names wrap instead of being cut off */}
 					<h1 className="desk-name">{title}</h1>
 					{rks != null ? (
 						<p className="desk-meta">
@@ -80,7 +78,6 @@ export function Desk({
 					{publicHint ? (
 						<p className="desk-note">
 							{m.public.hint}{" "}
-							{/* Phones: the masthead's call to action, inline (desk.css) */}
 							<Link className="desk-note-cta" href="/" prefetch={false}>
 								{m.public.cta}
 							</Link>
@@ -96,7 +93,6 @@ export function Desk({
 	);
 }
 
-/** Banned accounts and bound accounts whose save was never downloaded */
 export function MeGate({
 	reason,
 	cooldown,

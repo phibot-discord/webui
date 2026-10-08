@@ -18,7 +18,6 @@ const OPTIONS = [
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
-/** Keeps the browser theme-color in step with the page background */
 function syncThemeColor(theme: Theme | null) {
 	const dark = window.matchMedia(DARK_QUERY).matches;
 	const scheme = document.querySelector<HTMLMetaElement>(
@@ -40,10 +39,6 @@ function syncThemeColor(theme: Theme | null) {
 	}
 }
 
-/**
- * Light, dark, or follow the OS. The cookie is written only when the visitor
- * picks a theme ("system" deletes it), and the next server render reads it
- */
 function applyTheme(choice: ThemeChoice) {
 	const root = document.documentElement;
 	if (choice === "system") {

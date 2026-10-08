@@ -195,7 +195,6 @@ test("an aborted render rejects and leaves the raster lock free", async () => {
 		}),
 		/card timed out/,
 	);
-	// Both slots busy: a render queued behind them leaves the queue on abort
 	let release!: () => void;
 	const held = new Promise<void>((resolve) => {
 		release = resolve;

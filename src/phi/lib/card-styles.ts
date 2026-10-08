@@ -1,7 +1,4 @@
-/**
- * Card layouts per kind; pure, the client imports it
- * "classic" is the default (for info, the redesigned profile)
- */
+/** Card layouts per kind; pure, since the client imports it */
 
 export const CARD_STYLES = {
 	b30: ["classic", "table", "portrait"],
@@ -20,12 +17,10 @@ export function isStyledKind(kind: string): kind is StyledKind {
 	return Object.hasOwn(CARD_STYLES, kind);
 }
 
-/** Styles offered for a kind, or undefined when the kind has a single layout */
 export function cardStyles(kind: string): readonly CardStyle[] | undefined {
 	return isStyledKind(kind) ? CARD_STYLES[kind] : undefined;
 }
 
-/** Unknown kinds or styles fall back to classic */
 export function parseCardStyle(kind: string, raw: unknown): CardStyle {
 	const styles = cardStyles(kind);
 	if (!styles || typeof raw !== "string") return DEFAULT_CARD_STYLE;
@@ -34,7 +29,7 @@ export function parseCardStyle(kind: string, raw: unknown): CardStyle {
 		: DEFAULT_CARD_STYLE;
 }
 
-/** Keeps only valid kind → style pairs (stored notes may be stale or hand-edited) */
+/** Keeps only valid kind → style pairs: stored notes may be stale or hand-edited */
 export function sanitizeCardStyles(
 	raw: unknown,
 ): Partial<Record<StyledKind, CardStyle>> | undefined {
@@ -48,7 +43,6 @@ export function sanitizeCardStyles(
 	return Object.keys(out).length ? out : undefined;
 }
 
-/** Art template id for a kind + style; undefined means "use the kind's classic template" */
 export function cardStyleTemplate(
 	kind: string,
 	style: string,

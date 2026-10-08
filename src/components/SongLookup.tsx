@@ -34,23 +34,19 @@ export type SongLookupInitial = {
 	q: string;
 	total: number;
 	hits: SongMatch<ChartSummary>[];
-	/** The server could not load the song list */
 	failed?: true;
 };
 
-/** A suggested query and the titles it finds exactly */
 export type SongLookupExample = { q: string; songs: string[] };
 
 type Ranked = Omit<SongLookupInitial, "failed">;
 type Text = Messages["songs"];
 
 const PHIB19 = "https://www.phib19.top";
-/** Typing has paused this long before the URL and the screen reader catch up */
 const SETTLE_MS = 400;
 
 const noSubscribe = () => () => {};
 
-/** False in the server HTML and until hydration, then true */
 function useHydrated(): boolean {
 	return useSyncExternalStore(
 		noSubscribe,
@@ -75,14 +71,12 @@ function fill(text: string, values: Record<string, string | number>): string {
 	return out;
 }
 
-/** Updates `?q=` in place: no history entry and no server round trip */
 function replaceQuery(written: RefObject<string>, q: string) {
 	if (q === written.current) return;
 	written.current = q;
 	window.history.replaceState(null, "", songsHref(q));
 }
 
-/** Kana reads as Japanese, other Han text as Chinese, so screen readers pick a voice */
 function langOf(text: string): string | undefined {
 	if (/[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(text)) return "ja";
 	if (/\p{Script=Han}/u.test(text)) return "zh-CN";
@@ -97,7 +91,6 @@ function heading(t: Text, r: Ranked): string {
 	return fill(r.total === 1 ? t.countOne : t.count, { q: r.q, n: r.total });
 }
 
-/** Exact hits that carry the query as a nickname: "Ad" names three songs */
 function sharedBy(r: Ranked): number {
 	const key = looseFold(r.q);
 	return r.hits.filter(
@@ -106,7 +99,6 @@ function sharedBy(r: Ranked): number {
 	).length;
 }
 
-/** Why a song is listed, unless the title itself matched */
 function viaLabel(t: Text, hit: SongMatch<ChartSummary>): string | undefined {
 	const { tier, via } = hit;
 	if (tier === 4) return fill(t.viaFuzzy, { text: via.text });
@@ -120,7 +112,6 @@ function hardest(song: ChartSummary) {
 	return [...CHART_LEVELS].reverse().find((rank) => song.charts[rank]);
 }
 
-/** Song lookup: ranks in the browser as you type; the server renders the same for ?q= */
 export function SongLookup({
 	initial,
 	examples,
@@ -138,21 +129,15 @@ export function SongLookup({
 	const t = m.songs;
 	const catalog = useChartCatalog();
 	const urlQ = clip(useSearchParams().get("q"), maxLength);
-	// From the address bar, not `initial`: Back can replay a server payload
-	// rendered for another `?q=`
 	const [query, setQuery] = useState(urlQ);
-	// Nothing is announced for the query the page loaded with
 	const [typed, setTyped] = useState(false);
 	const [spoken, setSpoken] = useState("");
-	// What the results heading read out when it took focus
 	const heard = useRef("");
-	// The `?q=` this component last wrote or saw
 	const written = useRef(urlQ);
 	const wantFocus = useRef(false);
 	const input = useRef<HTMLInputElement>(null);
 	const resultsHeading = useRef<HTMLHeadingElement>(null);
 	const ids = useId();
-	// The clear button needs JavaScript; without it, the server HTML leaves it out
 	const hydrated = useHydrated();
 	const list = catalog.status === "ready" ? catalog.list : undefined;
 	const trimmed = query.trim();
@@ -185,7 +170,6 @@ export function SongLookup({
 					.join(locale === "zh" ? "。" : ". ")
 			: pending;
 
-	// Back, forward or a nav link changed `?q=` under us
 	useEffect(() => {
 		if (urlQ === written.current) return;
 		written.current = urlQ;
@@ -201,7 +185,6 @@ export function SongLookup({
 	useEffect(() => {
 		if (!typed) return;
 		const timer = setTimeout(() => {
-			// Skip what the focused results heading has just said
 			const repeat = summary === heard.current;
 			heard.current = "";
 			setSpoken(repeat ? "" : summary);
@@ -209,7 +192,6 @@ export function SongLookup({
 		return () => clearTimeout(timer);
 	}, [summary, typed]);
 
-	/** Takes the reader (and on phones, the closed keyboard) to the results */
 	const focusResults = () => {
 		const target = resultsHeading.current;
 		if (!target) return;
@@ -217,7 +199,6 @@ export function SongLookup({
 		target.focus();
 	};
 
-	// After picking an example, the results heading takes focus once it renders
 	useEffect(() => {
 		if (!wantFocus.current) return;
 		wantFocus.current = false;
@@ -231,10 +212,8 @@ export function SongLookup({
 	};
 
 	const onSubmit = (e: FormEvent<HTMLFormElement>) => {
-		// Without the song list, <Form> asks the server instead
 		if (!list) return;
 		e.preventDefault();
-		// An empty box keeps the examples on screen
 		if (!trimmed) return;
 		show(query);
 		focusResults();
@@ -411,7 +390,6 @@ export function SongLookup({
 	);
 }
 
-/** Proposals need a phib19 account, so they happen on phib19.top itself */
 function ProposeLink({ t }: { t: Text }) {
 	return (
 		<a className="songs-out" href={PHIB19}>
@@ -467,7 +445,6 @@ function SongHit({
 				})}
 			</ul>
 			<div className="song-hit-nicks">
-				{/* Hidden here: it names the list, which would say it twice */}
 				<span className="song-hit-label" id={`${id}-n`} aria-hidden>
 					{t.nicknames}
 				</span>

@@ -20,7 +20,7 @@ import { useI18n } from "@/i18n/provider";
 import type { CardStats } from "@/lib/card-stats";
 import { bumpCardReload } from "@/lib/save-refresh";
 import type { CardStyle } from "@/phi/lib/card-styles";
-import type { B30AvgKind } from "@/phi/lib/notes";
+import type { B30AvgKind, RankBandShow, RankScope } from "@/phi/lib/notes";
 import {
 	type CardKind,
 	clampCount,
@@ -32,7 +32,6 @@ import {
 	parsePaintQuality,
 } from "@/server/render/paint-budget";
 
-/** Sets or drops one query parameter without a navigation */
 function setParam(key: string, value: string | undefined) {
 	const url = new URL(window.location.href);
 	if (value === undefined) url.searchParams.delete(key);
@@ -40,7 +39,6 @@ function setParam(key: string, value: string | undefined) {
 	window.history.replaceState(null, "", `${url.pathname}${url.search}`);
 }
 
-/** File-name safe, keeping CJK and other letters */
 function fileSafe(s: string) {
 	return (
 		s
@@ -59,7 +57,6 @@ function today() {
 type StageProps = {
 	kind: CardKind;
 	srcBase: string;
-	/** Player name and RKS for the image's alt text and file name */
 	player: string;
 	rks: string;
 	counted: boolean;
@@ -67,16 +64,15 @@ type StageProps = {
 	tagProfile?: { on: boolean };
 	recordStats?: { on: boolean };
 	initialQuality?: PaintQuality;
-	/** Signed-in desk: choices are saved to the user's notes */
 	persist?: boolean;
 	backgrounds?: BackgroundOption[];
 	initialBackground?: string;
-	/** Layouts offered for this kind (first is the default) */
 	styles?: readonly CardStyle[];
 	initialStyle?: CardStyle;
-	/** Peer comparison mode; omit to hide the setting */
 	initialPeer?: B30AvgKind;
-	/** Per-song rank card: chart id ("" until picked) and level */
+	initialRankScope?: RankScope;
+	initialRankBandShow?: RankBandShow;
+	initialPeerWait?: boolean;
 	song?: { chart: string; level: SongLevel };
 };
 
@@ -85,7 +81,6 @@ export function CardStage(props: StageProps) {
 	return <StageBody {...props} />;
 }
 
-/** The song card: chart picker first, then the card once a chart is chosen */
 function SongStage(
 	props: StageProps & { song: { chart: string; level: SongLevel } },
 ) {
@@ -95,12 +90,9 @@ function SongStage(
 	const [picked, setLevel] = useState(props.song.level);
 	const song =
 		catalog.status === "ready"
-			? // Links may leave out the catalog's trailing ".0"
-				catalog.list.find((s) => s.id === chart || s.id === `${chart}.0`)
+			? catalog.list.find((s) => s.id === chart || s.id === `${chart}.0`)
 			: undefined;
-	// A link to a chart the catalog lacks would only fetch a 404
 	const missing = Boolean(chart) && catalog.status === "ready" && !song;
-	// A link's level the chart lacks: its hardest one instead
 	const level =
 		song && !song.charts[picked]
 			? (SONG_LEVELS.findLast((l) => song.charts[l]) ?? picked)
@@ -133,8 +125,6 @@ function SongStage(
 					{...props}
 					song={{ chart, level }}
 					songName={`${song?.song ?? chart} ${level}`}
-					// The catalog checks the chart and level first, so a bad link
-					// costs no render
 					hold={catalog.status === "loading"}
 				/>
 			) : (
@@ -164,6 +154,9 @@ function StageBody({
 	styles,
 	initialStyle = "classic",
 	initialPeer,
+	initialRankScope = "all",
+	initialRankBandShow = "place",
+	initialPeerWait = false,
 	song,
 	songName,
 	hold,
@@ -202,7 +195,6 @@ function StageBody({
 		recordStats?.on ?? true,
 		save((on: boolean) => ({ showRecordStats: on })),
 	);
-	// The server reads these two from the notes, so the card reloads once saved
 	const background = useNoteSetting(
 		initialBackground,
 		save((id: string) => ({ cardBackground: id })),
@@ -211,6 +203,21 @@ function StageBody({
 	const peer = useNoteSetting<B30AvgKind>(
 		initialPeer ?? "all",
 		save((k: B30AvgKind) => ({ b30AvgKind: k })),
+		{ onApply: () => bumpCardReload() },
+	);
+	const rankScope = useNoteSetting<RankScope>(
+		initialRankScope,
+		save((s: RankScope) => ({ rankScope: s })),
+		{ onApply: () => bumpCardReload() },
+	);
+	const rankBandShow = useNoteSetting<RankBandShow>(
+		initialRankBandShow,
+		save((s: RankBandShow) => ({ rankBandShow: s })),
+		{ onApply: () => bumpCardReload() },
+	);
+	const peerWait = useNoteSetting(
+		initialPeerWait,
+		save((on: boolean) => ({ peerWait: on })),
 		{ onApply: () => bumpCardReload() },
 	);
 
@@ -223,7 +230,6 @@ function StageBody({
 	const u = new URL(srcBase, "http://local.invalid");
 	if (counted) u.searchParams.set("count", String(count));
 	u.searchParams.set("locale", locale);
-	// Saved choices only: a setting that fails to save never costs a render
 	u.searchParams.set("quality", quality.applied);
 	if (tagProfile) u.searchParams.set("tags", tags.applied ? "1" : "0");
 	if (recordStats) u.searchParams.set("stats", recStats.applied ? "1" : "0");
@@ -270,7 +276,6 @@ function StageBody({
 		.join(" · ");
 	const shape = styles ? style.applied : "classic";
 
-	// Web Share with files: phones, and some desktop browsers
 	useEffect(() => {
 		try {
 			const probe = new File([new Uint8Array(1)], "card.jpg", {
@@ -285,7 +290,6 @@ function StageBody({
 		}
 	}, []);
 
-	// Build the File ahead of the tap: iOS only shares inside the tap's activation
 	useEffect(() => {
 		setShareFile(undefined);
 		if (!canShare || !file) return;
@@ -424,6 +428,9 @@ function StageBody({
 					tags={tagProfile ? tags : undefined}
 					recordStats={recordStats ? recStats : undefined}
 					peer={persist && initialPeer ? peer : undefined}
+					rankScope={persist && initialPeer ? rankScope : undefined}
+					rankBandShow={persist && initialPeer ? rankBandShow : undefined}
+					peerWait={persist && initialPeer ? peerWait : undefined}
 					stats={stats}
 					diagnostics={persist}
 				/>

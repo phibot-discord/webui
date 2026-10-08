@@ -6,11 +6,8 @@ import {
 } from "./outgoing";
 
 const CF_TIMEOUT_MS = 12_000;
-/** Extra attempts after no response at all (abort, reset, connect timeout) */
 const CF_NET_RETRIES = 1;
-/** Extra attempts after 429 / 5xx. Background writes get none */
 const CF_HTTP_RETRIES = 2;
-/** Longest pause we accept from Retry-After; past that the caller sees the error */
 export const CF_RETRY_CAP_MS = 2_000;
 const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
 
@@ -31,9 +28,7 @@ export type CfFetchInit = {
 	method?: string;
 	headers?: Record<string, string>;
 	body?: string | Buffer | Uint8Array;
-	/** Best-effort cache write: fail on the first 429/5xx instead of backing off */
 	background?: boolean;
-	/** Hand back the unread body: no overall deadline (the agent's header/idle timeouts still apply) */
 	stream?: boolean;
 };
 
@@ -47,7 +42,6 @@ export type CfResponse = {
 	json: () => Promise<unknown>;
 };
 
-/** No response at all (abort, socket reset, connect timeout) — never an HTTP status */
 export function isNoResponseError(err: unknown): boolean {
 	for (let cur = err, depth = 0; cur && depth < 4; depth++) {
 		const e = cur as { name?: string; code?: string; cause?: unknown };
@@ -70,7 +64,6 @@ export function isNoResponseError(err: unknown): boolean {
 	return false;
 }
 
-/** Wait before retry `n` (0-based): Retry-After (seconds or HTTP date) when given, capped */
 export function retryDelayMs(
 	retryAfter: string | null | undefined,
 	n: number,

@@ -200,7 +200,6 @@ test("a cached pool analysis renders the upstream meta line and is cacheable", a
 	);
 	assert.equal(analysis.histogramPhiSlots, true);
 	assert.equal(analysis.histogram.count, 30);
-	// Header ± SD and the histogram describe the same 30 slots
 	assert.equal(data.rksStddev, analysis.histogram.stddev);
 });
 
@@ -247,8 +246,7 @@ test("peer-average results only mark the card partial when they say so", () => {
 	assert.equal(isPartialResult(undefined), false);
 });
 
-test("rank badges add the population legend to the classic card's chips and keep their rows in KV", async () => {
-	const { rankLegend } = await import("./score-avg");
+test("rank badges draw no legend chip and keep the user's rows in KV", async () => {
 	for (const locale of ["en", "zh"] as const) {
 		const { db } = memoryDb();
 		const reads: string[] = [];
@@ -271,12 +269,16 @@ test("rank badges add the population legend to the classic card's chips and keep
 				notes: { ...notes, b30AvgKind: "rank" },
 			},
 		);
-		assert.deepEqual(data.spInfo, [rankLegend(locale)]);
-		// The first card's lookup reads the row blob (the second finds phib19 paused)
+		assert.deepEqual(data.spInfo, []);
+		assert.equal("rankLegend" in data, false);
+		assert.deepEqual(data.missing, ["peers"]);
+		assert.equal(data.renderPartial, true);
+		assert.equal(typeof data.externalMs, "number");
+		// Only the first card reads the user's row blob; the second finds phib19 paused
 		if (locale === "en") {
 			assert.ok(
-				reads.some((key) => key.startsWith("phi:lb:rank:")),
-				"the rank lookup got the KV handle",
+				reads.includes("phi:lb:rank:v2:u1:all"),
+				"the rank lookup got the KV handle and the owner",
 			);
 		}
 	}
@@ -294,5 +296,5 @@ test("rank badges add the population legend to the classic card's chips and keep
 			notes: { ...notes, b30AvgKind: "rank", allowApiUsage: false },
 		},
 	);
-	assert.deepEqual(off.spInfo, [], "no badges, no legend");
+	assert.deepEqual(off.spInfo, []);
 });

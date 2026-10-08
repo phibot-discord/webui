@@ -3,6 +3,7 @@ export type Messages = {
 	brand: string;
 	skip: string;
 	signIn: string;
+	signInTaptap: string;
 	invite: string;
 	signOut: string;
 	signedIn: string;
@@ -10,14 +11,13 @@ export type Messages = {
 	locale: { en: string; zh: string; label: string };
 	theme: { label: string; light: string; dark: string; system: string };
 	home: {
-		kicker: string;
+		eyebrow: string;
 		title: string;
 		lede: string;
 		ledeSignedIn: string;
 		lookupsTitle: string;
 		lookupsSignedIn: string;
 		lookupsSignedOut: string;
-		/** Keyed by card kind; LandingLookups sets the order */
 		lookups: Record<
 			"b30" | "hisb30" | "info" | "x30" | "fc30" | "song",
 			{ name: string; blurb: string }
@@ -26,15 +26,66 @@ export type Messages = {
 		signInHint: string;
 		signingIn: string;
 		newLabel: string;
-		footer: string;
 		boardTitle: string;
+		layoutsTitle: string;
 		boardLede: string;
-		layouts: string;
-		sampleAlt: string;
+		layouts: Record<
+			"classic" | "table" | "phone",
+			{ name: string; blurb: string; alt: string }
+		>;
+		layoutsLabel: string;
 		showFull: string;
 		newTab: string;
+		closingTitle: string;
+		closingCaption: string;
 		openDesk: string;
 		pauseMotion: string;
+	};
+	legal: {
+		nav: string;
+		terms: string;
+		privacy: string;
+		updated: string;
+		contents: string;
+		agree: {
+			before: string;
+			terms: string;
+			and: string;
+			privacy: string;
+			after: string;
+		};
+	};
+	status: {
+		title: string;
+		lede: string;
+		overall: Record<"up" | "degraded" | "down" | "unavailable", string>;
+		updated: string;
+		range: string;
+		range30d: string;
+		range24h: string;
+		targets: Record<
+			"workers" | "rust" | "kv" | "assets",
+			{ name: string; blurb: string }
+		>;
+		states: Record<"up" | "degraded" | "down" | "unknown", string>;
+		uptime: string;
+		latency: string;
+		latencyNow: string;
+		latencyAvg: string;
+		p95: string;
+		checks: string;
+		noData: string;
+		errors: Record<"timeout" | "network" | "not_configured" | "http", string>;
+		cpu: string;
+		memory: string;
+		load: string;
+		cores: string;
+		upFor: string;
+		days: string;
+		usage: string;
+		showTable: string;
+		time: string;
+		utcNote: string;
 	};
 	notice: {
 		title: string;
@@ -52,6 +103,7 @@ export type Messages = {
 		phira: string;
 		files: string;
 		score: string;
+		account: string;
 		b30: string;
 		hisb30: string;
 		info: string;
@@ -101,7 +153,6 @@ export type Messages = {
 		rankBusy: string;
 		rankHint: string;
 	};
-	/** ChartSearch: `{n}` is the number of songs */
 	chartSearch: {
 		label: string;
 		viaAlias: string;
@@ -212,7 +263,6 @@ export type Messages = {
 		placeholder: string;
 		search: string;
 		clear: string;
-		/** announced after the search box is emptied */
 		cleared: string;
 		loading: string;
 		failed: string;
@@ -228,16 +278,13 @@ export type Messages = {
 		viaId: string;
 		viaComposer: string;
 		viaFuzzy: string;
-		/** screen-reader prefix before the composer's name */
 		composer: string;
 		levels: string;
 		nicknames: string;
 		noNicknames: string;
 		matched: string;
 		card: string;
-		/** the card link's accessible name: "{song}" is the title */
 		cardFor: string;
-		/** screen-reader word between an example nickname and the songs it finds */
 		exampleFinds: string;
 		examplesTitle: string;
 		examplesBody: string;
@@ -252,7 +299,6 @@ export type Messages = {
 		rks: string;
 		lastSynced: string;
 		cachedSave: string;
-		/** title on the sync time: "{zone}" is the visitor's time zone */
 		timeZone: string;
 		more: string;
 		moreLabel: string;
@@ -300,11 +346,38 @@ export type Messages = {
 		unbinding: string;
 		unbindFailed: string;
 	};
+	tapLogin: {
+		title: string;
+		lede: string;
+		qrTitle: string;
+		signingIn: string;
+		failed: string;
+		discordTitle: string;
+		discordLede: string;
+	};
+	account: {
+		title: string;
+		lede: string;
+		discord: string;
+		taptap: string;
+		thisLogin: string;
+		linked: string;
+		notLinked: string;
+		linkDiscord: string;
+		linkDiscordLede: string;
+		tapLinked: string;
+		tapHint: string;
+		discordHere: string;
+		tapHere: string;
+		linkedOk: string;
+		discord_taken: string;
+		link_expired: string;
+		link_failed: string;
+	};
 	public: {
 		hint: string;
 		cta: string;
 		ctaLede: string;
-		/** {player}, {card}, {rks} */
 		metaDescription: string;
 	};
 	card: {
@@ -320,16 +393,13 @@ export type Messages = {
 		backgroundSearch: string;
 		backgroundChange: string;
 		backgroundNone: string;
-		/** {n} */
 		backgroundResults: string;
-		/** screen-reader suffix on the chosen background in the list */
 		backgroundCurrent: string;
 		style: string;
 		styleNames: Record<
 			"classic" | "table" | "portrait" | "timeline" | "summary",
 			string
 		>;
-		/** one line per layout; classicHistory is the history card's classic */
 		styleHints: Record<
 			| "classic"
 			| "table"
@@ -343,8 +413,17 @@ export type Messages = {
 		styleFailed: string;
 		show: string;
 		peer: string;
-		peerNames: Record<"none" | "all" | "b30" | "top" | "rank", string>;
-		peerHints: Record<"none" | "all" | "b30" | "top" | "rank", string>;
+		peerNames: Record<"none" | "all" | "top" | "rank", string>;
+		peerHints: Record<"none" | "all" | "top" | "rank", string>;
+		rankScope: string;
+		rankScopeNames: Record<"all" | "band" | "both", string>;
+		rankScopeHints: Record<"all" | "band" | "both", string>;
+		rankBandShow: string;
+		rankBandShowNames: Record<"place" | "percent", string>;
+		rankBandShowHints: Record<"place" | "percent", string>;
+		peerWaitLegend: string;
+		peerWait: string;
+		peerWaitHint: string;
 		download: string;
 		share: string;
 		shareFailed: string;
@@ -353,47 +432,41 @@ export type Messages = {
 		fullScreen: string;
 		original: string;
 		zoomTitle: string;
-		/** the whole card inside the screen */
 		zoomScreen: string;
 		zoomFit: string;
 		zoomActual: string;
-		/** touch screens */
 		zoomHint: string;
-		/** mouse and trackpad */
 		zoomHintMouse: string;
-		/** the scrollable image area's name */
 		zoomArea: string;
 		close: string;
-		/** {w} × {h} */
 		size: string;
 		tagProfile: string;
 		recordStats: string;
 		rendering: string;
-		/** {seconds} */
+		waitingPhib19: string;
+		missingData: string;
+		missingParts: Record<"peers" | "tags" | "song", string>;
+		missingJoin: string;
+		staleData: string;
+		emptyData: string;
 		elapsed: string;
 		slow: string;
 		renderFailed: string;
 		unreachable: string;
 		retry: string;
-		/** {name} */
 		ready: string;
-		/** {name}, {error} */
 		failed: string;
-		/** {name}, {player}, {rks} */
 		alt: string;
 		titles: Record<"b30" | "x30" | "fc30" | "hisb30" | "info" | "song", string>;
 		songChart: string;
 		songSearch: string;
 		songLevel: string;
-		/** {level} */
 		songNoLevel: string;
 		songUnknown: string;
 		songEmptyTitle: string;
 		songEmpty: string;
-		/** a ?chart= link to a chart the catalog lacks */
 		songNotFoundTitle: string;
 		songNotFound: string;
-		/** {title} (the card), {song} (chart and level) */
 		songTitle: string;
 		diagnostics: string;
 		stats: string;
@@ -414,6 +487,7 @@ export type Messages = {
 		statsEncode: string;
 		statsPaint: string;
 		statsServer: string;
+		statsExternal: string;
 		statsWait: string;
 		statsHintCache: string;
 		statsHintHeight: string;
@@ -426,6 +500,7 @@ export type Messages = {
 		statsHintEncode: string;
 		statsHintPaint: string;
 		statsHintServer: string;
+		statsHintExternal: string;
 		statsHintWait: string;
 		statsHintStoreR2: string;
 		statsHintStoreKv: string;
@@ -455,7 +530,6 @@ export type Messages = {
 		failed: string;
 		revoke: string;
 		revokeFailed: string;
-		/** read after the button name while a link exists */
 		on: string;
 	};
 	notFound: { title: string; body: string; home: string };
@@ -500,6 +574,7 @@ export const en: Messages = {
 	brand: "PhiBot",
 	skip: "Skip to content",
 	signIn: "Continue with Discord",
+	signInTaptap: "Continue with TapTap",
 	invite: "Add to Discord",
 	signOut: "Sign out",
 	signedIn: "signed in",
@@ -517,12 +592,12 @@ export const en: Messages = {
 		system: "System",
 	},
 	home: {
-		kicker: "Phigros cards · Discord bot",
-		title: "After the last chart.",
-		lede: "Sign in with Discord and bind TapTap once. Then your B30, history and player card open here, or in Discord with /b30.",
+		eyebrow: "Phigros cards for Discord and the web",
+		title: "After the last chart.\nYour *B30* is ready.",
+		lede: "Sign in with *TapTap* and your save is bound on the way in. Or use *Discord* and bind TapTap once. Your B30, history and player card open here, or in Discord with */b30*.",
 		ledeSignedIn:
-			"Your B30, history and player card open here, or in Discord with /b30.",
-		lookupsTitle: "What you can open",
+			"Your *B30*, history and player card open here, or in Discord with */b30*.",
+		lookupsTitle: "What you can open.",
 		lookupsSignedIn: "Each one opens your own card.",
 		lookupsSignedOut:
 			"Pick one to sign in with Discord. You come back to that card afterwards.",
@@ -549,19 +624,111 @@ export const en: Messages = {
 		signInHint: "Sign in",
 		signingIn: "Opening Discord…",
 		newLabel: "New",
-		footer:
-			"PhiBot draws Phigros cards from a save bound to your Discord login.",
-		boardTitle: "Your B30, drawn for you",
+		boardTitle: "Your B30, drawn for you.",
+		layoutsTitle: "Three layouts.",
 		boardLede:
 			"Player card, best 30 with overflow, and an RKS breakdown in one image. Run /b30 in Discord or open it here.",
-		layouts:
-			"Three layouts: Classic (shown here), Table with one row per chart, and Phone, a narrow card you can read on a phone without zooming.",
-		sampleAlt:
-			"Sample B30 card in the Classic layout: a player header with RKS 16.3243, then rows of chart tiles, each with jacket art, score and accuracy.",
+		layouts: {
+			classic: {
+				name: "Classic",
+				blurb: "Chart tiles with jacket art, score and accuracy.",
+				alt: "Sample B30 card in the Classic layout: a player header with RKS 16.7073, then rows of chart tiles, each with jacket art, score and accuracy.",
+			},
+			table: {
+				name: "Table",
+				blurb: "One row per chart, with the accuracy you need to push.",
+				alt: "Sample B30 card in the Table layout: a player header with RKS 16.7073, then one row per chart with its level, score, accuracy, RKS and push accuracy.",
+			},
+			phone: {
+				name: "Phone",
+				blurb: "A narrow card you can read on a phone without zooming.",
+				alt: "Sample B30 card in the Phone layout: a narrow player header with RKS 16.7073, then one chart per row in a single column.",
+			},
+		},
+		layoutsLabel: "Card layouts",
 		showFull: "See the full render",
 		newTab: "opens in a new tab",
+		closingTitle: "Open your B30",
+		closingCaption: "one more chart, then sleep.",
 		openDesk: "Open your cards",
 		pauseMotion: "Pause animation",
+	},
+	legal: {
+		nav: "Legal",
+		terms: "Terms of use",
+		privacy: "Privacy policy",
+		updated: "Last updated",
+		contents: "On this page",
+		agree: {
+			before: "By signing in, you agree to the ",
+			terms: "terms of use",
+			and: " and the ",
+			privacy: "privacy policy",
+			after: ".",
+		},
+	},
+	status: {
+		title: "Status",
+		lede: "Live health of the services behind PhiBot, checked every minute.",
+		overall: {
+			up: "All systems are working.",
+			degraded: "Some systems are slow.",
+			down: "Some systems are down.",
+			unavailable:
+				"Status data is unavailable right now. Try again in a minute.",
+		},
+		updated: "Updated",
+		range: "Range",
+		range30d: "30 days",
+		range24h: "24 hours",
+		targets: {
+			workers: {
+				name: "Workers",
+				blurb:
+					"The Cloudflare Worker that syncs song art and relays TapTap requests.",
+			},
+			rust: {
+				name: "Rust workers",
+				blurb: "Unpacks the game files when Phigros updates.",
+			},
+			kv: {
+				name: "KV storage",
+				blurb: "Cloudflare KV, where bindings, saves and settings are kept.",
+			},
+			assets: {
+				name: "Assets worker",
+				blurb: "The machine that runs the asset pipeline.",
+			},
+		},
+		states: {
+			up: "Operational",
+			degraded: "Degraded",
+			down: "Down",
+			unknown: "No data",
+		},
+		uptime: "Uptime",
+		latency: "Latency",
+		latencyNow: "Now",
+		latencyAvg: "Average",
+		p95: "p95",
+		checks: "checks",
+		noData: "No data",
+		errors: {
+			timeout: "Timed out",
+			network: "Unreachable",
+			not_configured: "Not configured",
+			http: "HTTP {code}",
+		},
+		cpu: "CPU",
+		memory: "Memory",
+		load: "Load",
+		cores: "Cores",
+		upFor: "Up for",
+		days: "{n} days",
+		usage: "CPU and memory",
+		showTable: "Show as table",
+		time: "Time",
+		utcNote: "Times are in UTC. Checks run every minute.",
 	},
 	notice: {
 		title: "Cards load faster now",
@@ -579,6 +746,7 @@ export const en: Messages = {
 		phira: "Phira",
 		files: "Files",
 		score: "Score control",
+		account: "Account",
 		b30: "B30",
 		hisb30: "History",
 		info: "Info",
@@ -713,7 +881,7 @@ export const en: Messages = {
 		saveFailed: "Could not save.",
 		edit: "Edit scores",
 		clear: "Delete manual scores",
-		clearConfirm: "Delete every manually entered score for this Discord login?",
+		clearConfirm: "Delete every manually entered score for this login?",
 		clearing: "Deleting…",
 		clearFailed: "Could not delete.",
 		deskNote:
@@ -833,16 +1001,50 @@ export const en: Messages = {
 			"Skip TapTap. Type the accuracy you see in game for each chart and the same cards are drawn from that.",
 		manualStart: "Enter scores by hand",
 		unbind: "Unbind",
-		unbindConfirm: "Remove the Phigros bind from this Discord login?",
+		unbindConfirm: "Remove the Phigros bind from this login?",
 		unbindYes: "Unbind",
 		unbindNo: "Keep",
 		unbinding: "Unbinding…",
 		unbindFailed: "Could not unbind.",
 	},
+	tapLogin: {
+		title: "Sign in with TapTap",
+		lede: "Scan with the TapTap account Phigros uses. That signs you in and binds your save in one step, no Discord needed.",
+		qrTitle: "TapTap QR code",
+		signingIn: "Signing in…",
+		failed: "Sign-in failed. Scan again.",
+		discordTitle: "Use Discord instead",
+		discordLede:
+			"Already use the Discord bot? Sign in with Discord. A TapTap login can link Discord later from Account.",
+	},
+	account: {
+		title: "Account",
+		lede: "How you sign in to PhiBot.",
+		discord: "Discord",
+		taptap: "TapTap",
+		thisLogin: "Signed in",
+		linked: "Linked",
+		notLinked: "Not linked",
+		linkDiscord: "Link Discord",
+		linkDiscordLede:
+			"Your Phigros bind, card settings, B30 history and share link move to that Discord account. After that both TapTap and Discord sign in to it, and /b30 works in the Discord bot.",
+		tapLinked: "Signing in with TapTap opens this account.",
+		tapHint:
+			"Bind your Phigros save, here or in the Discord bot, and signing in with TapTap opens this account too.",
+		discordHere: "You signed in with Discord.",
+		tapHere: "You signed in with TapTap. Your save is bound to this login.",
+		linkedOk:
+			"Discord linked. TapTap and Discord both sign in to this account now.",
+		discord_taken:
+			"That Discord account has a different Phigros save bound. Unbind it there first, then link again.",
+		link_expired: "The link request expired. Try again.",
+		link_failed: "Could not link Discord. Try again.",
+	},
 	public: {
 		hint: "This is a public copy of their cards. Opening the page does not refresh their save.",
 		cta: "Get your own cards",
-		ctaLede: "Sign in with Discord and bind Phigros to draw yours.",
+		ctaLede:
+			"Sign in with TapTap, or with Discord and bind Phigros, to draw yours.",
 		metaDescription: "{player}'s Phigros {card}. RKS {rks}.",
 	},
 	card: {
@@ -883,17 +1085,40 @@ export const en: Messages = {
 		peerNames: {
 			none: "Off",
 			all: "Average",
-			b30: "B30 average",
 			top: "Top %",
 			rank: "Rank",
 		},
 		peerHints: {
 			none: "No comparison badge on the chart rows.",
 			all: "Average accuracy of players near your RKS.",
-			b30: "The same average, counting only charts in their B30.",
 			top: "Your top percentage among players near your RKS.",
-			rank: "Your estimated place among all phib19.top records.",
+			rank: "Your estimated place among phib19.top records.",
 		},
+		rankScope: "Ranked among",
+		rankScopeNames: {
+			all: "All records",
+			band: "±0.05 RKS",
+			both: "Both",
+		},
+		rankScopeHints: {
+			all: "Your place among every phib19.top record of the chart.",
+			band: "Your place among players whose RKS is within about 0.05 of yours.",
+			both: "Two lines per chart: all records, then players within about 0.05 RKS.",
+		},
+		rankBandShow: "±0.05 badge shows",
+		rankBandShowNames: {
+			place: "#Place / players",
+			percent: "Top %",
+		},
+		rankBandShowHints: {
+			place: "Your place among players near your RKS, e.g. #12 / 400.",
+			percent:
+				"Your top percentage among players near your RKS, e.g. Top 3.0%.",
+		},
+		peerWaitLegend: "Slow lookups",
+		peerWait: "Wait for every badge",
+		peerWaitHint:
+			"When phib19.top is slow, wait up to about a minute instead of drawing the card after 2.5 s with some badges missing.",
 		download: "Download",
 		share: "Share image",
 		shareFailed: "Couldn't share the image.",
@@ -913,6 +1138,19 @@ export const en: Messages = {
 		tagProfile: "Tag profile",
 		recordStats: "Clear / FC / AP counts",
 		rendering: "Rendering card…",
+		waitingPhib19: "Waiting for phib19.top…",
+		missingData:
+			"phib19.top didn't answer in time, so this card is missing {list}. Try again in a minute to fill them in.",
+		missingParts: {
+			peers: "some comparison badges",
+			tags: "the chart tag analysis",
+			song: "some leaderboard numbers",
+		},
+		missingJoin: " and ",
+		staleData:
+			"phib19.top didn't answer in time, so some ranks come from an earlier lookup and may be out of date. Try again in a minute to refresh them.",
+		emptyData:
+			"phib19.top has no figures for this peer comparison right now, so the card has no comparison badges. Pick another one in Card options, or check again later.",
 		elapsed: "{seconds}s",
 		slow: "Still drawing. Large cards can take up to a minute.",
 		renderFailed: "Could not render this card.",
@@ -960,6 +1198,7 @@ export const en: Messages = {
 		statsEncode: "Encode",
 		statsPaint: "Paint",
 		statsServer: "Server",
+		statsExternal: "phib19.top",
 		statsWait: "Request",
 		statsHintCache:
 			"Finished JPEG. Hit returns the stored image. Miss paints it this request. Same save, language, and quality reuse it.",
@@ -975,6 +1214,8 @@ export const en: Messages = {
 		statsHintEncode: "Encoding the JPEG.",
 		statsHintPaint: "Measure, raster, and encode together.",
 		statsHintServer: "Server time for this request.",
+		statsHintExternal:
+			"Time the card waited for phib19.top: comparison badges, ranks and chart tags.",
 		statsHintWait: "Your wait, including download.",
 		statsHintStoreR2: "Served from R2 object storage.",
 		statsHintStoreKv: "Served from KV.",
@@ -1056,6 +1297,7 @@ export const zh: Messages = {
 	brand: "PhiBot",
 	skip: "跳到正文",
 	signIn: "使用 Discord 继续",
+	signInTaptap: "使用 TapTap 继续",
 	invite: "邀请到 Discord",
 	signOut: "退出",
 	signedIn: "已登录",
@@ -1068,11 +1310,11 @@ export const zh: Messages = {
 		system: "跟随系统",
 	},
 	home: {
-		kicker: "Phigros 成绩图 · Discord 机器人",
-		title: "打完最后一首",
-		lede: "用 Discord 登录，绑定一次 TapTap。之后 B30、成绩历史和玩家信息都能在这里打开，也可以在 Discord 里发 /b30",
+		eyebrow: "Discord 和网页都能用的 Phigros 查分器",
+		title: "打完一首\n快速\n查询你的 *B30*",
+		lede: "用 *TapTap* 登录，存档随登录一起绑定。也可以用 *Discord* 登录，再绑定一次 TapTap。B30、成绩历史和玩家信息都能在这里打开，也可以在 Discord 里发 */b30*",
 		ledeSignedIn:
-			"B30、成绩历史和玩家信息都能在这里打开，也可以在 Discord 里发 /b30",
+			"*B30*、成绩历史和玩家信息都能在这里打开，也可以在 Discord 里发 */b30*",
 		lookupsTitle: "能查什么",
 		lookupsSignedIn: "点一项，直接打开你的成绩图",
 		lookupsSignedOut: "点一项会先用 Discord 登录，登录后回到这张图",
@@ -1095,18 +1337,100 @@ export const zh: Messages = {
 		signInHint: "登录",
 		signingIn: "正在前往 Discord…",
 		newLabel: "新",
-		footer: "PhiBot 用绑定到你 Discord 登录的存档出 Phigros 成绩图",
 		boardTitle: "一张图看完你的 B30",
+		layoutsTitle: "三种版式",
 		boardLede:
 			"玩家信息、Best 30 与溢出曲目、RKS 分析全在一张图里。在 Discord 里发 /b30，或直接在这里查看",
-		layouts:
-			"三种版式：经典（如图）、每行一首的表格，以及手机竖版：窄版成绩图，手机上不用放大也能看清",
-		sampleAlt:
-			"经典版式的 B30 成绩图示例：顶部是玩家信息和 RKS 16.3243，下面每格一张谱面，显示曲绘、分数和准确率",
+		layouts: {
+			classic: {
+				name: "经典",
+				blurb: "每格一张谱面，显示曲绘、分数和准确率",
+				alt: "经典版式的 B30 成绩图示例：顶部是玩家信息和 RKS 16.7073，下面每格一张谱面，显示曲绘、分数和准确率",
+			},
+			table: {
+				name: "表格",
+				blurb: "每行一首，附带推分需要的准确率",
+				alt: "表格版式的 B30 成绩图示例：顶部是玩家信息和 RKS 16.7073，下面每行一张谱面，显示定数、分数、准确率、RKS 和推分准确率",
+			},
+			phone: {
+				name: "手机",
+				blurb: "窄版成绩图，手机上不用放大也能看清",
+				alt: "手机版式的 B30 成绩图示例：窄版玩家信息和 RKS 16.7073，下面单列排列每张谱面",
+			},
+		},
+		layoutsLabel: "成绩图版式",
 		showFull: "查看完整成绩图",
 		newTab: "在新标签页打开",
+		closingTitle: "查看你的 B30",
+		closingCaption: "再打一首就睡",
 		openDesk: "查看成绩图",
 		pauseMotion: "暂停动画",
+	},
+	legal: {
+		nav: "条款与隐私",
+		terms: "使用条款",
+		privacy: "隐私政策",
+		updated: "最后更新",
+		contents: "本页目录",
+		agree: {
+			before: "登录即表示你同意",
+			terms: "使用条款",
+			and: "和",
+			privacy: "隐私政策",
+			after: "",
+		},
+	},
+	status: {
+		title: "运行状态",
+		lede: "PhiBot 背后各项服务的实时状态，每分钟检查一次",
+		overall: {
+			up: "所有服务运行正常",
+			degraded: "部分服务响应较慢",
+			down: "部分服务不可用",
+			unavailable: "暂时无法获取状态数据，请稍后再试",
+		},
+		updated: "更新于",
+		range: "范围",
+		range30d: "30 天",
+		range24h: "24 小时",
+		targets: {
+			workers: {
+				name: "Workers",
+				blurb: "同步曲绘、转发 TapTap 请求的 Cloudflare Worker",
+			},
+			rust: { name: "Rust Workers", blurb: "Phigros 更新时解包游戏文件" },
+			kv: { name: "KV 存储", blurb: "保存绑定、存档和设置的 Cloudflare KV" },
+			assets: { name: "资源 Worker", blurb: "运行资源处理流程的机器" },
+		},
+		states: {
+			up: "正常",
+			degraded: "缓慢",
+			down: "不可用",
+			unknown: "无数据",
+		},
+		uptime: "可用率",
+		latency: "延迟",
+		latencyNow: "当前",
+		latencyAvg: "平均",
+		p95: "p95",
+		checks: "次检查",
+		noData: "无数据",
+		errors: {
+			timeout: "超时",
+			network: "无法连接",
+			not_configured: "未配置",
+			http: "HTTP {code}",
+		},
+		cpu: "CPU",
+		memory: "内存",
+		load: "负载",
+		cores: "核心",
+		upFor: "已运行",
+		days: "{n} 天",
+		usage: "CPU 和内存",
+		showTable: "以表格显示",
+		time: "时间",
+		utcNote: "时间均为 UTC，每分钟检查一次",
 	},
 	notice: {
 		title: "成绩图加载更快了",
@@ -1124,6 +1448,7 @@ export const zh: Messages = {
 		phira: "Phira",
 		files: "资源",
 		score: "控分",
+		account: "账号",
 		b30: "B30",
 		hisb30: "历史",
 		info: "信息",
@@ -1255,7 +1580,7 @@ export const zh: Messages = {
 		saveFailed: "保存失败。",
 		edit: "编辑成绩",
 		clear: "删除手动成绩",
-		clearConfirm: "删除这个 Discord 登录下所有手动录入的成绩？",
+		clearConfirm: "删除当前登录下所有手动录入的成绩？",
 		clearing: "正在删除…",
 		clearFailed: "无法删除。",
 		deskNote:
@@ -1371,16 +1696,49 @@ export const zh: Messages = {
 			"不用 TapTap。按游戏内显示逐谱面填写准确率，就能生成同样的成绩图。",
 		manualStart: "手动录入成绩",
 		unbind: "解绑",
-		unbindConfirm: "从这个 Discord 登录解除 Phigros 绑定？",
+		unbindConfirm: "从当前登录解除 Phigros 绑定？",
 		unbindYes: "解绑",
 		unbindNo: "取消",
 		unbinding: "正在解绑…",
 		unbindFailed: "无法解绑。",
 	},
+	tapLogin: {
+		title: "用 TapTap 登录",
+		lede: "用 Phigros 登录的那个 TapTap 扫码。登录和绑定存档一步完成，不需要 Discord。",
+		qrTitle: "TapTap 二维码",
+		signingIn: "正在登录…",
+		failed: "登录失败，请重新扫码。",
+		discordTitle: "改用 Discord",
+		discordLede:
+			"已经在用 Discord 机器人？用 Discord 登录即可。TapTap 登录之后也可以在「账号」里关联 Discord。",
+	},
+	account: {
+		title: "账号",
+		lede: "你登录 PhiBot 的方式。",
+		discord: "Discord",
+		taptap: "TapTap",
+		thisLogin: "当前登录",
+		linked: "已关联",
+		notLinked: "未关联",
+		linkDiscord: "关联 Discord",
+		linkDiscordLede:
+			"Phigros 绑定、成绩图设置、B30 历史和分享链接会转到那个 Discord 账号。之后用 TapTap 或 Discord 都会登录到它，Discord 机器人里的 /b30 也能用。",
+		tapLinked: "用 TapTap 登录会打开这个账号。",
+		tapHint:
+			"在这里或 Discord 机器人里绑定 Phigros 存档后，用 TapTap 登录也会打开这个账号。",
+		discordHere: "你是用 Discord 登录的。",
+		tapHere: "你是用 TapTap 登录的，存档已绑定到这个登录。",
+		linkedOk: "已关联 Discord。现在用 TapTap 或 Discord 都会登录到这个账号。",
+		discord_taken:
+			"那个 Discord 账号绑定了另一个 Phigros 存档。请先在那边解绑，再来关联。",
+		link_expired: "关联请求已过期，请重试。",
+		link_failed: "无法关联 Discord，请重试。",
+	},
 	public: {
 		hint: "这是他们成绩图的公开副本。打开页面不会刷新存档。",
 		cta: "生成你自己的成绩图",
-		ctaLede: "用 Discord 登录并绑定 Phigros，即可生成你的成绩图。",
+		ctaLede:
+			"用 TapTap 登录，或用 Discord 登录并绑定 Phigros，即可生成你的成绩图。",
 		metaDescription: "{player} 的 Phigros {card}。RKS {rks}。",
 	},
 	card: {
@@ -1421,17 +1779,39 @@ export const zh: Messages = {
 		peerNames: {
 			none: "关闭",
 			all: "平均",
-			b30: "B30 平均",
 			top: "前百分比",
 			rank: "排名",
 		},
 		peerHints: {
 			none: "谱面行上不显示对比标记。",
 			all: "与你 RKS 相近玩家的平均准确率。",
-			b30: "同样的平均值，只统计他们 B30 内的成绩。",
 			top: "你在 RKS 相近玩家中的前百分比。",
-			rank: "你在所有 phib19.top 记录中的估计名次。",
+			rank: "你在 phib19.top 记录中的估计名次。",
 		},
+		rankScope: "排名范围",
+		rankScopeNames: {
+			all: "全部记录",
+			band: "±0.05 RKS",
+			both: "两者",
+		},
+		rankScopeHints: {
+			all: "你在该谱面所有 phib19.top 记录中的名次。",
+			band: "只与 RKS 和你相差约 0.05 以内的玩家比较。",
+			both: "每个谱面两行：全部记录，以及 RKS 相近（约 ±0.05）的玩家。",
+		},
+		rankBandShow: "±0.05 标记显示",
+		rankBandShowNames: {
+			place: "#名次 / 人数",
+			percent: "前百分比",
+		},
+		rankBandShowHints: {
+			place: "你在 RKS 相近玩家中的名次，如 #12 / 400。",
+			percent: "你在 RKS 相近玩家中的前百分比，如 Top 3.0%。",
+		},
+		peerWaitLegend: "查询较慢时",
+		peerWait: "等待全部标记",
+		peerWaitHint:
+			"phib19.top 较慢时最多等待约一分钟，而不是 2.5 秒后先画出缺少部分标记的图片。",
 		download: "下载",
 		share: "分享图片",
 		shareFailed: "无法分享图片。",
@@ -1451,6 +1831,18 @@ export const zh: Messages = {
 		tagProfile: "谱面标签",
 		recordStats: "完成 / FC / AP 数量",
 		rendering: "正在出图…",
+		waitingPhib19: "正在等待 phib19.top…",
+		missingData: "phib19.top 未及时响应，这张图缺少{list}。请稍后重试以补全。",
+		missingParts: {
+			peers: "部分对比标记",
+			tags: "谱面标签分析",
+			song: "部分排行数据",
+		},
+		missingJoin: "和",
+		staleData:
+			"phib19.top 未及时响应，部分排名来自较早的查询，可能已过时。请稍后重试以更新。",
+		emptyData:
+			"phib19.top 暂时没有这种对比方式的数据，所以图上没有对比标记。可在出图选项中换一种，或稍后再看。",
 		elapsed: "{seconds} 秒",
 		slow: "仍在出图。大图可能需要一分钟。",
 		renderFailed: "无法生成这张成绩图",
@@ -1496,6 +1888,7 @@ export const zh: Messages = {
 		statsEncode: "编码",
 		statsPaint: "绘制",
 		statsServer: "服务端",
+		statsExternal: "phib19.top",
 		statsWait: "请求",
 		statsHintCache:
 			"成品 JPEG。命中直接返回已存图片；未命中则当场绘制。存档、语言、画质不变即可复用。",
@@ -1510,6 +1903,8 @@ export const zh: Messages = {
 		statsHintEncode: "编码 JPEG。",
 		statsHintPaint: "测量、栅格和编码合计。",
 		statsHintServer: "本次请求的服务端耗时。",
+		statsHintExternal:
+			"出图时等待 phib19.top 的时间：对比标记、排名与谱面标签。",
 		statsHintWait: "等到图片的总时间，含下载。",
 		statsHintStoreR2: "从 R2 对象存储读取。",
 		statsHintStoreKv: "从 KV 读取。",

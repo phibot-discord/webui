@@ -2,6 +2,7 @@ import { kvKey } from "@/phi/lib/const";
 import type { Save } from "@/phi/lib/save";
 import { saveIdentity } from "@/phi/lib/saves";
 import { isTapApiFailure } from "@/phi/lib/tapapi";
+import { noteTokenUser } from "./account-link";
 import { cardEpochKey, getCardEpoch } from "./card-image-cache";
 import {
 	BYPASS_CACHE_COOLDOWN_MS,
@@ -68,7 +69,6 @@ export type Bound = {
 	manual?: true;
 };
 
-/** `memo`: use the 10 s token / save memo (card route only) */
 export type LoadBoundOpts = { memo?: boolean };
 
 export async function loadBound(
@@ -166,6 +166,7 @@ async function refreshSaveFor(
 		const save = await host.lib.updateSave(host.rt, host.db, userId, {
 			bound: token,
 		});
+		await noteTokenUser(userId, token);
 		const epoch = await epochJob;
 		return {
 			ok: true,

@@ -22,7 +22,6 @@ type Download =
 	| { status: "done"; file: string }
 	| { status: "failed"; missing: boolean };
 
-/** `filename*=UTF-8''…` first, then the plain `filename="…"` */
 function fileNameOf(res: Response, fallback: string) {
 	const cd = res.headers.get("content-disposition") ?? "";
 	const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
@@ -42,7 +41,6 @@ function saveBlob(blob: Blob, file: string) {
 	document.body.append(a);
 	a.click();
 	a.remove();
-	// Safari reads the blob after click() returns
 	window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
@@ -62,7 +60,6 @@ export function PhiraPack() {
 	>({});
 	const [said, setSaid] = useState("");
 
-	// Picking a level in the search moves focus to that level's download
 	useEffect(() => {
 		const next = focusLevel.current;
 		if (!next) return;
@@ -133,7 +130,6 @@ export function PhiraPack() {
 					if (done) break;
 					chunks.push(value);
 					loaded += value.byteLength;
-					// Re-render on each whole percent, not every network chunk
 					const pct = total ? Math.floor((loaded / total) * 100) : 0;
 					if (pct !== shown) {
 						shown = pct;
@@ -209,7 +205,6 @@ export function PhiraPack() {
 											)
 										: undefined;
 								const statusId = `${ids}-${rank}-status`;
-								// A 404 won't change on a second press
 								const missing = state?.status === "failed" && state.missing;
 								return (
 									<li key={rank} className="phira-level">
@@ -243,7 +238,6 @@ export function PhiraPack() {
 													? t.downloadingPct.replaceAll("{pct}", String(pct))
 													: t.downloading
 												: t.download}
-											{/* Four levels, four distinct names in a screen reader's button list */}
 											<span className="sr-only">
 												{` · ${song.song} ${rank} ${cell[0].toFixed(1)}`}
 											</span>

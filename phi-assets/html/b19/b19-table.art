@@ -145,10 +145,12 @@
 				<div class="c-acc">
 					{{if it.acc}}<p class="tbl-num{{if it.accAp}} is-ap{{/if}}">{{it.acc}}</p>{{else}}<p class="tbl-dash">—</p>{{/if}}
 					{{if it.peerRank}}
-					<div class="tbl-rank{{if it.peerRank.ap}} is-ap{{/if}}" style="font-size:{{it.peerRank.px}}px;">
-						<p class="tbl-rank-pos">{{it.peerRank.pos}}</p>
-						{{if it.peerRank.showOf}}<p class="tbl-rank-of">{{it.peerRank.of}}</p>{{/if}}
-						<p class="tbl-rank-pct">{{it.peerRank.pct}}</p>
+					{{set pr = it.peerRank}}
+					<div class="tbl-rank{{if pr.ap}} is-ap{{/if}}" style="font-size:{{pr.px}}px;">
+						{{if pr.tag}}<p class="tbl-rank-tag">{{pr.tag}}</p>{{/if}}
+						{{if pr.pos}}<p class="tbl-rank-pos">{{pr.pos}}</p>{{/if}}
+						{{if pr.showOf}}<p class="tbl-rank-of">{{pr.of}}</p>{{/if}}
+						{{if pr.pct}}<p class="tbl-rank-pct{{if !pr.pos}} is-lead{{/if}}">{{pr.pct}}</p>{{/if}}
 					</div>
 					{{else if it.avg}}
 					<div class="tbl-avg is-{{it.avg.dir || 'flat'}}">
@@ -161,14 +163,20 @@
 				{{if bt.hasPush}}
 				<div class="c-push">
 					{{if it.push}}<p class="tbl-num tbl-push-{{it.pushTier || 'mid'}}">{{it.push}}</p>{{else if it.pushText}}<p class="tbl-nopush">{{it.pushText}}</p>{{else}}<p class="tbl-dash">—</p>{{/if}}
+					{{if it.peerRankSide}}
+					{{set ps = it.peerRankSide}}
+					<div class="tbl-rank is-side{{if ps.ap}} is-ap{{/if}}" style="font-size:{{ps.px}}px;">
+						{{if ps.tag}}<p class="tbl-rank-tag">{{ps.tag}}</p>{{/if}}
+						{{if ps.pos}}<p class="tbl-rank-pos">{{ps.pos}}</p>{{/if}}
+						{{if ps.showOf}}<p class="tbl-rank-of">{{ps.of}}</p>{{/if}}
+						{{if ps.pct}}<p class="tbl-rank-pct{{if !ps.pos}} is-lead{{/if}}">{{ps.pct}}</p>{{/if}}
+					</div>
+					{{/if}}
 				</div>
 				{{/if}}
 			</div>
 			{{/if}}
 			{{/each}}
-			{{if bt.rankNote.length}}
-			<div class="tbl-rank-note">{{each bt.rankNote line}}<p>{{line}}</p>{{/each}}</div>
-			{{/if}}
 		</div>
 
 		{{if bt.analysis}}

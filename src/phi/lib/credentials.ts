@@ -23,10 +23,7 @@ class CredentialStore {
 		);
 	}
 
-	/**
-	 * Deletes `phi:save:<token>`: its key is the TapTap session token and the
-	 * blob holds it again (`session`), so it must not outlive the binding
-	 */
+	/** The key is the TapTap session token and the blob holds it too, so it must not outlive the binding */
 	clearSessionSave(sessionToken: string) {
 		return this.kv.del(credentialKey("save", sessionToken));
 	}

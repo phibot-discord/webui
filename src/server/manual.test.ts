@@ -269,7 +269,6 @@ test("clearing a profile while a read is in flight does not bring it back", asyn
 		store: db,
 	});
 	const { clearManual } = await import("./manual");
-	// A card request read the profile before the delete and answers after it
 	const stale = loadManual(db, "gone", { memo: true });
 	slow = false;
 	assert.equal(await clearManual("gone"), true);

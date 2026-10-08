@@ -1,7 +1,6 @@
 import { infoView } from "./info-common";
 import type { CardVariant } from "./types";
 
-/** Player info in one tall column, sized to be read on a phone unzoomed */
 export const variant: CardVariant = {
 	tpl: "info-portrait",
 	width: 720,

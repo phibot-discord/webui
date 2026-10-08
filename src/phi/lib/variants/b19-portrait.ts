@@ -1,72 +1,53 @@
-/**
- * "Phone" layout for b30 / x30 / fc30: one chart per row on a 640 px card
- * prepare() derives everything the template prints (`pv`) and its copy (`vt`)
- */
 import type { CardKind } from "@/server/card-kinds";
 import { cardCopy, type PhiLocale } from "../card-i18n";
 import { fitEm, textEm } from "../text-fit";
 import {
 	type FittedTip,
 	fitTip,
-	isRankLegend,
 	pickTip,
 	type RankParts,
-	rankNote,
-	rankParts,
-	wrapLines,
+	rankLines,
 } from "./b19-common";
 import type { CardData, CardVariant, VariantContext } from "./types";
 
-/** Card geometry in CSS px; keep in sync with b19-portrait.css */
+// CSS px; keep in sync with b19-portrait.css
 export const GEOMETRY = {
 	cardW: 640,
-	/** Player-name box: 600 px content minus the 132 px avatar and its 20 px gap */
+	// 600 px content minus the 132 px avatar and its 20 px gap
 	nameW: 448,
-	/** Inner width of a chart row's text column (600 - 156 jacket - 16 - 18 padding) */
+	// 600 - 156 jacket - 16 - 18 padding
 	infoW: 410,
-	/** Font sizes on the third row line (accuracy, push target / peer average) */
 	accPx: 22,
 	pushPx: 20,
-	/** Push marker plus its gap; peer arrow plus its gap; gap between items */
 	pushMarkW: 16,
 	peerMarkW: 17,
 	metaGap: 12,
-	/** Horizontal padding of the peer-average badge */
 	peerPadW: 16,
-	/** Histogram plot area inside the analysis panel */
 	plotW: 496,
 	plotH: 184,
-	/** Histogram x-label box, centred under its bar */
 	xLabelW: 60,
-	/** Inner width of an analysis panel (600 - 2 x 20 padding) */
+	// 600 - 2 x 20 padding
 	panelW: 560,
-	/** Tag-name text width in the strengths / weaknesses columns (the CSS box is 176 px) */
+	// The CSS box is 176 px
 	tagNameW: 172,
-	/** Difficulty chip text box on the jacket (the jacket's slant limits it) */
+	// The jacket's slant limits it
 	chipTextW: 114,
-	/** Header kicker: content width, gap between chips, mode-chip padding */
 	kickerW: 600,
 	kickerGap: 12,
 	chipPadW: 36,
-	/** Card-title chip: 22 px bold, 3 px letter-spacing, 40 px padding */
 	kindPx: 22,
 	kindTrackPx: 3,
 	kindPadW: 40,
-	/** Rank line: gap between "#3,611" and "/ 70,388", then before the share */
+	rankTagGapW: 8,
 	rankGapW: 6,
 	rankPctGapW: 14,
-	/** Tip text box in the footer (600 - 36 padding - label - 14 gap) */
+	// 600 - 36 padding - label - 14 gap
 	tipW: 480,
-	/** Rank population note under the list */
-	noteW: 600,
 } as const;
 
 const TITLE_MAX_PX = 30;
 const TITLE_MIN_PX = 28;
-/**
- * Two-line titles may go a little smaller than one-line ones: 26 px on this
- * 640 px card is still larger on a phone than 28 px on a 720 px card
- */
+// 26 px on this 640 px card is still larger on a phone than 28 px on a 720 px card
 const TITLE_TWO_MIN_PX = 26;
 const NAME_MAX_PX = 42;
 const NAME_MIN_PX = 28;
@@ -82,12 +63,8 @@ const BOLD_SLACK = 0.88;
 const RATINGS = new Set(["phi", "V", "S", "A", "B", "C", "F", "FC", "NEW"]);
 const RANKS = new Set(["EZ", "HD", "IN", "AT", "LEGACY"]);
 
-/**
- * Block heights in CSS px for the height estimate, measured on renders; keep in
- * sync with b19-portrait.css. `rows.compact` is the `.is-compact` chart row
- */
+// Measured on renders; keep in sync with b19-portrait.css (`rows.compact` is `.is-compact`)
 const HEIGHTS = {
-	/** Header top padding, kicker line and wrap gap, id block top margin */
 	headTop: 28,
 	kickerLine: 36,
 	kickerGap: 10,
@@ -101,37 +78,24 @@ const HEIGHTS = {
 	empty: 64,
 	overflow: 88,
 	none: 120,
-	/** Analysis: margin, heading and gap; summary panel; histogram and legend */
 	analysisHead: 77,
 	summary: 114,
 	histogram: 266,
-	/** Tag panel: gap, padding, heading; column top; one tag row; note line */
 	tagsTop: 77,
 	tagsMeta: 28,
 	tagsCols: 54,
 	tagRow: 36,
 	noteLine: 27,
 	foot: 158,
-	/** Rank population note: top margin, one 18 px line */
-	rankNoteTop: 10,
-	rankNoteLine: 24,
-	/**
-	 * Chart rows: min-height, padding plus score and meta lines, the rank line,
-	 * list gap, title line-height
-	 */
+	// `base`: padding plus the score and meta lines
 	rows: {
 		normal: { min: 112, base: 80, rank: 26, gap: 6, lh: 1.1 },
 		compact: { min: 104, base: 66, rank: 24, gap: 3, lh: 1.05 },
 	},
 };
-/** Tip sizes, largest first; the footer holds two lines of any of them */
 const TIP_PX = [22, 20, 18];
 const RANK_PX = [20, 18];
-const NOTE_PX = 18;
-/**
- * Paint stays 2x while 640 x height x 4 <= 16 Mi pixels (6553 px). The estimate
- * leaves room for the 24-64 px of measure slack and its own error
- */
+// Paint stays 2x while 640 x height x 4 <= 16 Mi px (6553 px); the rest is room for measure slack and estimate error
 const SHARP_MAX_H = 6460;
 
 const COPY = {
@@ -207,6 +171,7 @@ type Row = {
 	suggest?: unknown;
 	accAvg?: unknown;
 	accRank?: unknown;
+	accRanks?: unknown;
 };
 
 export type ChartRowView = {
@@ -214,21 +179,17 @@ export type ChartRowView = {
 	label: string;
 	gold: boolean;
 	over: boolean;
-	/** A Phi (AP) score: gold score digits */
 	ap: boolean;
 	ill: string;
 	rankCls: string;
 	rankText: string;
 	constText: string;
 	chipPx: number;
-	/** The chip only fits at 18 px without synthesized bold */
 	chipThin: boolean;
 	titleLines: string[];
 	titlePx: number;
 	rating: string;
-	/** "—" without a score; otherwise the digits come from `digits` */
 	score: string;
-	/** Seven digits, zero-padded like the game; leading zeros are `pad` */
 	digits: { c: string; pad: boolean }[];
 	acc: string;
 	rks: string;
@@ -237,8 +198,7 @@ export type ChartRowView = {
 	peer: string;
 	peerDir: "" | "up" | "down";
 	peerPx: number;
-	/** Peer rank ("rank" mode): its own line under the accuracy */
-	peerRank: RankView | null;
+	peerRanks: RankView[];
 };
 
 export type RankView = RankParts & { px: number; showOf: boolean };
@@ -259,7 +219,6 @@ const fixed = (v: unknown, dp: number, fallback = "—") => {
 	return n == null ? fallback : n.toFixed(dp);
 };
 
-/** Cut `text` to at most `widthEm` ems, ending with "…" when it was cut */
 export function truncateEm(text: string, widthEm: number): string {
 	if (textEm(text) <= widthEm) return text;
 	const budget = widthEm - textEm("…");
@@ -276,16 +235,13 @@ export function truncateEm(text: string, widthEm: number): string {
 
 const CJK =
 	/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/;
-/** Never start a line with these (closing punctuation, CJK and Latin) */
 const NO_LINE_START = /^[、。，．・：；！？）」』】〕〉》ー～,.:;!?)\]}]/;
 const OPENERS = "([（【「『《〔〈";
 const CLOSERS = ")]）】」』》〕〉";
-/** A first line ending in one of these ends a phrase ("Silence is Golden,") */
 const PHRASE_END = /[,:;!?/，：；！？、／]$/;
 
 export type TitleSplit = { head: string; tail: string; widest: number };
 
-/** Phrase open/close marks (brackets, "~ … ~", spaced " -…-") and depth per character */
 function phraseMarks(chars: string[]) {
 	const opens: boolean[] = [];
 	const closes: boolean[] = [];
@@ -320,7 +276,6 @@ function phraseMarks(chars: string[]) {
 	return { opens, closes, depth };
 }
 
-/** Two-line title splits, best first: prefer spaces and phrase boundaries, then balance */
 export function titleSplits(text: string, fitEm = 0): TitleSplit[] {
 	const chars = [...text];
 	const { opens, closes, depth } = phraseMarks(chars);
@@ -328,7 +283,6 @@ export function titleSplits(text: string, fitEm = 0): TitleSplit[] {
 	for (let i = 1; i < chars.length; i++) {
 		const prev = chars[i - 1]!;
 		const next = chars[i]!;
-		// First character of the second line, last one of the first
 		let j = i;
 		while (chars[j] === " ") j++;
 		let k = i - 1;
@@ -336,7 +290,6 @@ export function titleSplits(text: string, fitEm = 0): TitleSplit[] {
 		const atSpace = prev === " " || next === " ";
 		const atOpener = opens[j] === true;
 		if (!atSpace && !atOpener && !CJK.test(prev) && !CJK.test(next)) continue;
-		// Never end a line on an opener or start one on a closer
 		if (opens[k] || closes[j]) continue;
 		const head = chars.slice(0, i).join("").trimEnd();
 		const tail = chars.slice(i).join("").trimStart();
@@ -355,13 +308,11 @@ export function titleSplits(text: string, fitEm = 0): TitleSplit[] {
 		.map(({ head, tail, widest }) => ({ head, tail, widest }));
 }
 
-/** The best two-line split of `text` (see titleSplits), or the text and "" */
 export function splitTitle(text: string, fitEm = 0): [string, string] {
 	const [best] = titleSplits(text, fitEm);
 	return best ? [best.head, best.tail] : [text, ""];
 }
 
-/** Title lines and size: one line at 30–28 px, else the best two-line split at ≥ 26 px, else ellipsized */
 export function fitTitle(
 	raw: string,
 	widthPx: number = GEOMETRY.infoW,
@@ -381,7 +332,6 @@ export function fitTitle(
 	};
 }
 
-/** Fill line one, rest on line two (ellipsized); break at a space only if line one stays ≥ 70% full */
 export function fillTwoLines(text: string, lineEm: number): string[] {
 	const chars = [...text];
 	let cut = 0;
@@ -392,7 +342,6 @@ export function fillTwoLines(text: string, lineEm: number): string[] {
 	}
 	const prev = chars[cut - 1] ?? " ";
 	const next = chars[cut] ?? " ";
-	// Already at a space or a CJK boundary: nothing to back off from
 	const atBreak =
 		prev === " " || next === " " || CJK.test(prev) || CJK.test(next);
 	const space = chars.slice(0, cut).lastIndexOf(" ");
@@ -418,7 +367,6 @@ function decodeEntities(s: string) {
 		.replace(/&amp;/g, "&");
 }
 
-/** Visible text lines of a rich-text player name (tags dropped, <br> splits) */
 export function nameLines(html: string): string[] {
 	return html
 		.split(/<br\s*\/?>/i)
@@ -426,10 +374,6 @@ export function nameLines(html: string): string[] {
 		.filter(Boolean);
 }
 
-/**
- * Rich-text HTML with a <br> inserted before the visible character `index`
- * (tags skipped, entities counted as nameLines decodes them)
- */
 export function breakHtmlAt(html: string, index: number): string {
 	let seen = 0;
 	let i = 0;
@@ -452,10 +396,7 @@ export function breakHtmlAt(html: string, index: number): string {
 	return html;
 }
 
-/**
- * Two balanced lines for a name: at a space or CJK boundary, or mid-word when
- * that is more than 2 em better balanced (names are often one long "word")
- */
+// Names are often one long "word": break mid-word when that is more than 2 em better balanced
 export function splitName(text: string): [string, string] {
 	const chars = [...text];
 	const half = textEm(text) / 2;
@@ -476,7 +417,6 @@ export function splitName(text: string): [string, string] {
 	return tail && widest([head, tail]) <= widest(mid) + 2 ? [head, tail] : mid;
 }
 
-/** Player name (rich text): one line at 42–28 px, else two balanced lines via an inserted <br> */
 export function fitPlayerName(
 	raw: string,
 	widthPx: number = GEOMETRY.nameW,
@@ -494,7 +434,6 @@ export function fitPlayerName(
 		);
 		if (px >= SMALL_MIN_PX) return { px, multi: true, html };
 	}
-	// Too many or too wide explicit lines are joined and fitted as plain text
 	const single = lines.length === 1;
 	const text = lines.join(" ");
 	const one = fitEm(textEm(text), width, NAME_MAX_PX);
@@ -534,7 +473,6 @@ function escapeHtml(s: string) {
 		.replace(/"/g, "&quot;");
 }
 
-/** Peer-average candidates from `accAvg` (formats in score-avg.ts) and whether the player is above them */
 export function peerAverage(
 	accAvg: unknown,
 	acc: number | undefined,
@@ -566,7 +504,6 @@ export function peerAverage(
 	return { texts: top && top[1] !== s ? [s, top[1]!] : [s], dir: "" };
 }
 
-/** First candidate that fits `widthPx` at 18–20 px; the last one is ellipsized otherwise */
 export function fitSmall(
 	texts: string[],
 	widthPx: number,
@@ -580,7 +517,6 @@ export function fitSmall(
 	return { text: truncateEm(last, width / SMALL_MIN_PX), px: SMALL_MIN_PX };
 }
 
-/** Difficulty chip on the jacket: 22 px bold, down to 18 px, then 18 px regular */
 export function fitChip(text: string): { px: number; thin: boolean } {
 	const em = textEm(text);
 	const bold = fitEm(em, GEOMETRY.chipTextW * BOLD_SLACK, CHIP_MAX_PX);
@@ -588,31 +524,24 @@ export function fitChip(text: string): { px: number; thin: boolean } {
 	return { px: SMALL_MIN_PX, thin: true };
 }
 
-/**
- * Score digits in fixed cells so place values line up from row to row, padded
- * to seven like the game (0977992); nothing for a missing or oversized score
- */
+// Fixed cells so place values line up row to row, padded to seven like the game (0977992)
 export function scoreDigits(score: string): { c: string; pad: boolean }[] {
 	if (!/^\d{1,7}$/.test(score)) return [];
 	const padded = score.padStart(7, "0");
 	return [...padded].map((c, i) => ({ c, pad: i < 7 - score.length }));
 }
 
-/**
- * The rank line: "#3,611" (bold), "/ 70,388" and the "Top 5.1%" share at 20 px,
- * else 18 px, else 18 px without the record count
- */
 export function fitRank(
 	parts: RankParts,
 	widthPx: number = GEOMETRY.infoW,
 ): RankView {
-	const { rankGapW, rankPctGapW } = GEOMETRY;
+	const { rankTagGapW, rankGapW, rankPctGapW } = GEOMETRY;
 	const width = widthPx * SLACK;
 	const lineW = (px: number, withOf: boolean) =>
+		(parts.tag ? textEm(parts.tag) * px + rankTagGapW : 0) +
 		(textEm(parts.pos) * px) / BOLD_SLACK +
 		(withOf ? textEm(parts.of) * px + rankGapW : 0) +
-		rankPctGapW +
-		textEm(parts.pct) * px;
+		(parts.pct ? (parts.pos ? rankPctGapW : 0) + textEm(parts.pct) * px : 0);
 	const showOf = Boolean(parts.of);
 	for (const px of RANK_PX)
 		if (lineW(px, showOf) <= width) return { ...parts, px, showOf };
@@ -640,9 +569,8 @@ function chartRow(
 	const perfect = (score ?? 0) >= 1e6 || (acc ?? 0) >= 100;
 	const push = opts.showPush && !perfect ? suggest : "";
 	const pushMuted = Boolean(push) && !push.endsWith("%");
-	// "rank" mode rows carry the badge pieces; they get a line of their own
-	const rankIn = rankParts(row.accRank);
-	const peer = rankIn
+	const ranks = rankLines(row);
+	const peer = ranks.length
 		? { texts: [], dir: "" as const }
 		: peerAverage(row.accAvg, acc, opts.vt);
 	let peerText = "";
@@ -692,11 +620,10 @@ function chartRow(
 		peer: peerText,
 		peerDir: peerText ? peer.dir : "",
 		peerPx,
-		peerRank: rankIn ? fitRank(rankIn) : null,
+		peerRanks: ranks.map((r) => fitRank(r)),
 	};
 }
 
-/** Chart rows in display order with the empty P slots and the OVERFLOW divider */
 export function buildRows(
 	data: { phi?: unknown; b19_list?: unknown },
 	kind: CardKind,
@@ -754,7 +681,6 @@ type HistogramIn = {
 	count?: unknown;
 };
 
-/** Pixel geometry for the compact histogram (bars, grid lines, sparse x labels) */
 export function buildHistogram(h: HistogramIn, kind: CardKind) {
 	const slots = Array.isArray(h.slots) ? h.slots : [];
 	const { plotW, plotH, xLabelW } = GEOMETRY;
@@ -783,8 +709,6 @@ export function buildHistogram(h: HistogramIn, kind: CardKind) {
 			label: String(tick.label ?? ""),
 		};
 	});
-	// Label the first slot of each kind, every 5th best slot and the last one,
-	// dropping labels that would collide
 	const xLabels: {
 		center: number;
 		left: number;
@@ -806,8 +730,6 @@ export function buildHistogram(h: HistogramIn, kind: CardKind) {
 			if (i !== n - 1) return;
 			xLabels.pop();
 		}
-		// Labels that would overhang the plot start at their bar's left edge (or end
-		// at its right edge) instead of being centred on it
 		const bar = bars[i]!;
 		const align =
 			center - xLabelW / 2 < 0
@@ -848,7 +770,6 @@ export function buildHistogram(h: HistogramIn, kind: CardKind) {
 
 type TagIn = { name?: unknown; rks?: unknown };
 
-/** Tag-name lines: one line, else the best two-line split, else ellipsized */
 export function tagNameLines(name: string, px: number): string[] {
 	const text = name.replace(/\s+/g, " ").trim() || "—";
 	const lineEm = (GEOMETRY.tagNameW * SLACK) / px;
@@ -859,7 +780,7 @@ export function tagNameLines(name: string, px: number): string[] {
 
 type TagRow = { rank: number; lines: string[]; rks: string };
 
-/** Strength / weakness rows in pairs, so a wrapped name keeps both columns level */
+// Paired so a wrapped name keeps both columns level
 export function buildTags(strongRaw: unknown, weakRaw: unknown) {
 	const list = (raw: unknown) =>
 		(Array.isArray(raw) ? (raw as TagIn[]) : [])
@@ -893,10 +814,6 @@ export function buildTags(strongRaw: unknown, weakRaw: unknown) {
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
-/**
- * Analysis panel view. `tagTitle` is the tag panel's heading (t.tagAbility);
- * it decides whether the meta line fits beside it
- */
 export function buildAnalysis(
 	raw: unknown,
 	kind: CardKind,
@@ -933,7 +850,6 @@ export function buildAnalysis(
 				? vt.analysisB30
 				: vt.analysis.replace("{n}", String(count)),
 		average: fixed(h.average, 4),
-		// Two decimals, like the ± beside the header RKS (the same spread on b30)
 		stddev: `±${fixed(h.stddev, 2)}`,
 		count: String(count),
 		hist: buildHistogram(h, kind),
@@ -970,7 +886,6 @@ export function buildStats(raw: unknown, vt: PortraitCopy) {
 	return { cols, rows };
 }
 
-/** Width of the card-title chip in the header kicker */
 export function kindChipW(title: string): number {
 	const { kindPx, kindTrackPx, kindPadW } = GEOMETRY;
 	return (
@@ -982,11 +897,9 @@ export function kindChipW(title: string): number {
 
 export type Chip = { lines: string[]; px: number };
 
-/** Outer width of a mode chip */
 const chipW = (chip: Chip) =>
 	Math.max(0, ...chip.lines.map(textEm)) * chip.px + GEOMETRY.chipPadW;
 
-/** Mode chips after the title, fitted to the kicker line; a chip that doesn't fit gets its own line */
 export function buildChips(raw: unknown, title: string): Chip[] {
 	if (!Array.isArray(raw)) return [];
 	const { kickerW, kickerGap, chipPadW } = GEOMETRY;
@@ -1020,10 +933,7 @@ const LEGACY_MODE_LABELS = [
 	"Full Combo 模式",
 ];
 
-/**
- * spInfo without the x30 / fc30 mode labels (the card title already names the
- * mode) and without the rank population legend (a footnote under the list)
- */
+// Drops the x30 / fc30 mode labels (the title names the mode) and the rank legend (a footnote under the list)
 export function modeChips(raw: unknown): string[] {
 	if (!Array.isArray(raw)) return [];
 	// The older long labels too ("1 Good Mode", "Full Combo 模式")
@@ -1034,7 +944,7 @@ export function modeChips(raw: unknown): string[] {
 	}
 	return raw
 		.map((s) => String(s ?? "").trim())
-		.filter((text) => text && !modes.has(text) && !isRankLegend(text));
+		.filter((text) => text && !modes.has(text));
 }
 
 type ViewParts = {
@@ -1046,15 +956,9 @@ type ViewParts = {
 	dataSize: string;
 	stats: ReturnType<typeof buildStats>;
 	rows: RowView[];
-	/** Rank population note under the list, one entry per line */
-	rankNote: string[];
 	analysis: ReturnType<typeof buildAnalysis>;
 };
 
-/**
- * Kicker height: the card title plus mode chips, wrapping like the flex row
- * (36 px lines, taller for a two-line chip, 10 px between lines)
- */
 export function kickerHeight(title: string, chips: Chip[]): number {
 	const { kickerW, kickerGap } = GEOMETRY;
 	const lines = [HEIGHTS.kickerLine];
@@ -1076,7 +980,6 @@ export function kickerHeight(title: string, chips: Chip[]): number {
 	);
 }
 
-/** Estimated card height in CSS px (without the engine's measure slack) */
 export function estimateHeight(v: ViewParts, compact = false): number {
 	const H = HEIGHTS;
 	const row = compact ? H.rows.compact : H.rows.normal;
@@ -1101,13 +1004,11 @@ export function estimateHeight(v: ViewParts, compact = false): number {
 				row.min,
 				// Takumi rounds each line box up to a whole pixel
 				row.base +
-					(r.peerRank ? row.rank : 0) +
+					r.peerRanks.length * row.rank +
 					r.titleLines.length * Math.ceil(r.titlePx * row.lh),
 			);
 		else h += r.type === "empty" ? H.empty : H.overflow;
 	}
-	if (v.rankNote.length)
-		h += H.rankNoteTop + v.rankNote.length * H.rankNoteLine;
 	const a = v.analysis;
 	if (a) {
 		h += H.analysisHead + H.summary + (a.hist ? H.histogram : 0);
@@ -1132,10 +1033,7 @@ export function estimateHeight(v: ViewParts, compact = false): number {
 	return Math.round(h + H.foot);
 }
 
-/**
- * Tighter chart rows when that is what keeps the card under the 2x paint
- * budget; cards too tall either way (count 99) keep the normal spacing
- */
+// Only when that keeps the card under the 2x paint budget; cards too tall either way keep normal spacing
 export function wantsCompact(v: ViewParts): boolean {
 	return (
 		estimateHeight(v) > SHARP_MAX_H && estimateHeight(v, true) <= SHARP_MAX_H
@@ -1162,8 +1060,7 @@ export function buildView(data: CardData, ctx: VariantContext) {
 	const title = titles[kind] ?? vt.kindTitle.b30;
 	const rows = buildRows(data, kind, vt);
 	const charts = rows.filter((row) => row.type === "chart");
-	const hasRank = charts.some((row) => row.peerRank);
-	const note = rankNote(data, ctx.locale, hasRank);
+	const hasRank = charts.some((row) => row.peerRanks.length);
 	const dataSize = str(user.data);
 	const parts: ViewParts = {
 		title,
@@ -1175,9 +1072,6 @@ export function buildView(data: CardData, ctx: VariantContext) {
 		dataSize: dataSize === "0KiB" ? "" : dataSize,
 		stats: data.hideRecordStats === true ? null : buildStats(data.stats, vt),
 		rows,
-		rankNote: note
-			? wrapLines(note, (GEOMETRY.noteW * SLACK) / NOTE_PX, 6).lines
-			: [],
 		analysis: buildAnalysis(
 			data.b30Analysis,
 			kind,
@@ -1194,8 +1088,7 @@ export function buildView(data: CardData, ctx: VariantContext) {
 			avatar: str(user.avatar),
 			nameMulti: name.multi,
 			rks: fixed(user.rks ?? data.Rks, 4),
-			// On x30 / fc30 the spread is of the filtered list, not of the B30 behind
-			// the RKS; the analysis panel shows it there
+			// On x30 / fc30 the spread is of the filtered list, not the B30 behind the RKS
 			sd: kind === "b30" && sd != null && sd > 0 ? `±${sd.toFixed(2)}` : "",
 			// Manual-mode saves carry rank 0: no challenge badge then
 			challenge:
@@ -1214,7 +1107,7 @@ export function buildView(data: CardData, ctx: VariantContext) {
 	};
 }
 
-/** Footer tip in at most two lines, so the footer height never depends on the tip */
+// At most two lines, so the footer height never depends on the tip
 export function portraitTip(tips: unknown, catalogTips?: string[]): FittedTip {
 	return fitTip(pickTip(tips, catalogTips), GEOMETRY.tipW * SLACK, TIP_PX, 2);
 }

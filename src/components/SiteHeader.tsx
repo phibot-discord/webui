@@ -32,16 +32,13 @@ export function SiteHeader({
 	const root = useRef<HTMLElement>(null);
 	const toggle = useRef<HTMLButtonElement>(null);
 	const scrim = useRef<HTMLDivElement>(null);
-	// Path a menu link was followed from; focus moves into the new page
 	const leftFrom = useRef<string | null>(null);
 	const [open, setOpen] = useState(false);
 	const [openedOn, setOpenedOn] = useState(path);
-	// Close the narrow-screen menu after navigating
 	if (open && openedOn !== path) {
 		setOpen(false);
 	}
 
-	// The followed link was hidden with the menu, so focus fell to <body>
 	useEffect(() => {
 		if (leftFrom.current === null || leftFrom.current === path) return;
 		leftFrom.current = null;
@@ -55,14 +52,12 @@ export function SiteHeader({
 		const onPointer = (e: PointerEvent) => {
 			if (!root.current?.contains(e.target as Node)) setOpen(false);
 		};
-		// Closing on click (not pointerdown) keeps the tap from reaching the page
 		const onScrim = () => setOpen(false);
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key !== "Escape") return;
 			setOpen(false);
 			toggle.current?.focus();
 		};
-		// Tabbing past the last item would otherwise leave focus hidden under the panel
 		const onFocusOut = (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;
 			if (next && !root.current?.contains(next)) setOpen(false);
@@ -86,7 +81,10 @@ export function SiteHeader({
 		{ href: "/phira", match: "/phira", label: m.nav.phira },
 		{ href: "/files", match: "/files", label: m.nav.files },
 		...(signedIn
-			? [{ href: "/me/b30", match: "/me", label: m.nav.cards, heavy: true }]
+			? [
+					{ href: "/me/b30", match: "/me", label: m.nav.cards, heavy: true },
+					{ href: "/account", match: "/account", label: m.nav.account },
+				]
 			: []),
 	];
 

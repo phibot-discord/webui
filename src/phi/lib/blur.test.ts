@@ -69,7 +69,6 @@ test("date and tip use white on a dark card background", async () => {
 test("one small sample gives the top and bottom band luma", async () => {
 	const dir = mkdtempSync(join(tmpdir(), "phi-ink-"));
 	const file = join(dir, "split.png");
-	// Light top 10%, dark rest: the top band is light, the bottom band dark
 	await sharp({
 		create: { width: 300, height: 1000, channels: 3, background: "#101010" },
 	})

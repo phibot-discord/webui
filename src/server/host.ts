@@ -14,7 +14,6 @@ type RenderOpts = {
 	heightKey?: string;
 	height?: number;
 	paintQuality?: PaintQuality;
-	/** Abort to stop the render at its next stage and free its raster-lock slot */
 	signal?: AbortSignal;
 };
 
@@ -110,8 +109,7 @@ async function bootRender(): Promise<WebHost> {
 			fromDir: async (dir, map) => {
 				for (const f of await loadFontsFromDir(dir, map))
 					engine.registerFont(f);
-				// Decode the fonts now, alongside the rest of the boot and the card's
-				// data loading, instead of inside the first render
+				// Decode the fonts during boot and data loading, not inside the first render
 				engine.warmFonts().catch((err) => {
 					logger.error(
 						`font registration failed: ${err instanceof Error ? err.message : err}`,

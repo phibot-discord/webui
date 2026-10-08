@@ -3,7 +3,6 @@
 import { X } from "@phosphor-icons/react";
 import { useI18n } from "@/i18n/provider";
 
-/** An action's error under its trigger; stays until dismissed or retried */
 export function ToolAlert({
 	message,
 	onDismiss,

@@ -357,7 +357,6 @@ test("hydrateSongInfo does not remount an unchanged cached set", async () => {
 	assert.equal(again.fresh, false);
 	assert.equal(readFile(join(assets, "info", "info.csv"), "utf8"), "one");
 
-	// A new process (fresh module state) mounts the /tmp copy once
 	resetSongInfoForTest();
 	const cold = await hydrateSongInfo({
 		getObject: objects({ [INFO_STATE_KEY]: state }),
@@ -431,13 +430,11 @@ test("applyKvLevels downloads notesInfo once per csv sha", async () => {
 		'{"n":1}',
 	);
 
-	// A fresh R2 download of notesInfo.json is already current: no second fetch
 	const v2 = infoCache("sha2", v1.csv);
 	await applyKvLevels(v2, { mounted: ["notesInfo.json"], fresh: true }, deps);
 	assert.equal(downloads, 1);
 	assert.equal(catalogRevision(), "bundled:sha2");
 
-	// A remount from /tmp replaces both overlays, so they are applied again
 	writeFileSync(join(assets, "info", "info.csv"), "r2-csv");
 	await hydrateSongInfo({
 		getObject: objects({
@@ -475,7 +472,6 @@ test("loadedCatalogRevision trails catalogRevision until getInfo re-parses", asy
 	assert.equal(await reloadCatalog(assets), false);
 	assert.equal(reloads, 1);
 
-	// A refresh mounted a newer csv; getInfo still holds the old one
 	applyLevelsCsv(
 		assets,
 		infoCache("sha2", `${CSV_HEAD}C.d\tSong C\td\tx\t\t\t\t\t1\t2\t3\t\n`),
@@ -555,7 +551,6 @@ test("a file R2 fails to send keeps the last complete set and is the only one fe
 	assert.equal(readFile(join(assets, "info", "tips.txt"), "utf8"), "new-tips");
 	assert.match(readFileSync(join(cache, "_meta.json"), "utf8"), /"new"/);
 
-	// Complete now: the next check reads only the sync state
 	keys.length = 0;
 	await hydrateSongInfo({
 		getObject,
@@ -601,7 +596,6 @@ test("a file still missing after five checks is mounted without marking the revi
 		"/tmp keeps sets whole",
 	);
 
-	// Checks 6-9 do not ask R2; the 10th retries only the missing file
 	keys.length = 0;
 	for (let i = 6; i < 10; i++) {
 		const r = await hydrateSongInfo(opts);
@@ -680,7 +674,6 @@ test("a partial set the last complete set was remounted over is mounted again", 
 	for (let i = 1; i < 5; i++) await hydrateSongInfo(opts);
 	assert.equal((await hydrateSongInfo(opts)).commit, "new+partial");
 	assert.equal(readFile(join(assets, "info", "info.csv"), "utf8"), "new-csv");
-	// ill-sync starts another copy: the last complete set comes back
 	state = JSON.stringify({ commit: "new", pending: 3 });
 	const back = await hydrateSongInfo(opts);
 	assert.equal(back.commit, "old");

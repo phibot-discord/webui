@@ -5,7 +5,6 @@ import { loadBound } from "@/server/bound";
 import { getDataHost } from "@/server/data-host";
 import { userIdForSlug } from "@/server/share";
 
-/** The shared player's save and notes (undefined for an unknown slug); one lookup per request */
 export const loadShared = cache(async (slug: string) => {
 	const userId = await userIdForSlug(slug);
 	if (!userId) return;

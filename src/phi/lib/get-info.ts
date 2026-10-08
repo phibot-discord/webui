@@ -75,7 +75,7 @@ export function withDotZero(id: string) {
 	return id.endsWith(".0") ? id : `${id}.0`;
 }
 
-/** Chapter → aliases. A malformed or empty file must not take the song catalog down with it */
+/** A malformed or empty file must not take the song catalog down with it */
 function readChapList(file: string): Record<string, string[]> {
 	let raw: unknown;
 	try {
@@ -395,7 +395,7 @@ class GetInfo {
 		};
 	}
 
-	/** Charts per level with a real constant, for the stats table. Constant per catalog load */
+	/** Only charts with a real constant; fixed per catalog load */
 	chartTotals(): [number, number, number, number] {
 		if (this.totals) return this.totals;
 		const tot: [number, number, number, number] = [0, 0, 0, 0];
@@ -420,7 +420,6 @@ class GetInfo {
 		return chapIllPath(this.originalIll, name);
 	}
 
-	/** avatar.txt id → `html/avatar/<name>.png`; unknown ids draw the game's default */
 	idgetavatar(id: string) {
 		if (!this.avatarid.includes(id)) return "Introduction";
 		return AVATAR_FILE[id] ?? id;

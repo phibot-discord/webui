@@ -1,5 +1,3 @@
-/* "Phone" layout for b30 / x30 / fc30, 640 px wide: text ≥ 18 px, main numbers ≥ 28 px
-   Geometry shared with prepare() is in src/phi/lib/variants/b19-portrait.ts */
 :root {
 	--b19p-bg: #0b111a;
 	--b19p-panel: #121a27;
@@ -45,8 +43,6 @@ body {
 	line-height: 1.2;
 	white-space: nowrap;
 }
-
-/* ---------- hero backdrop: the blurred art, held well under the text ---------- */
 
 .b19p-hero-bg {
 	position: absolute;
@@ -106,8 +102,6 @@ body {
 	);
 	clip-path: polygon(92% 0, 100% 0, 8% 100%, 0 100%);
 }
-
-/* ---------- header ---------- */
 
 .b19p-head {
 	position: relative;
@@ -302,7 +296,6 @@ body {
 	color: var(--b19p-text-2);
 }
 
-/* C / FC / Phi counts */
 .b19p-stats {
 	display: flex;
 	flex-direction: column;
@@ -355,7 +348,6 @@ body {
 	color: var(--b19p-gold);
 }
 
-/* Difficulty chips (stats header and jackets) and the row spines */
 .b19p-diff {
 	padding: 1px 14px 2px;
 	background: var(--b19p-at);
@@ -388,8 +380,6 @@ body {
 .b19p-diff-legacy {
 	background: var(--b19p-legacy);
 }
-
-/* ---------- chart list ---------- */
 
 .b19p-list {
 	position: relative;
@@ -443,7 +433,6 @@ body {
 	background: linear-gradient(90deg, #111824 0%, #0e1520 100%);
 }
 
-/* The jacket sits on a strip of its difficulty colour that shows along the slant */
 .b19p-spine {
 	position: relative;
 	display: flex;
@@ -554,7 +543,6 @@ body {
 	justify-content: space-between;
 }
 
-/* Score and chart RKS share a baseline: both bottom-aligned */
 .b19p-line-score {
 	height: 41px;
 	align-items: flex-end;
@@ -583,7 +571,6 @@ body {
 	object-fit: contain;
 }
 
-/* One fixed cell per digit, so place values line up down the list */
 .b19p-digits {
 	display: flex;
 	width: 161px;
@@ -612,7 +599,6 @@ body {
 	color: var(--b19p-muted);
 }
 
-/* line-height 1 plus 2.5 px puts its baseline on the 36 px score's (measured) */
 .b19p-card .b19p-rks-val {
 	width: 124px;
 	padding-bottom: 2.5px;
@@ -644,7 +630,6 @@ body {
 	color: var(--b19p-text-2);
 }
 
-/* Peer average: a badge, so a bare "99.99%" never reads as a second accuracy */
 .b19p-peer {
 	display: flex;
 	align-items: center;
@@ -695,10 +680,14 @@ body {
 	clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
-/* Peer rank ("rank" mode): "#3,611 / 70,388  Top 5.1%"; sized in prepare() (fitRank) */
 .b19p-line.b19p-line-rank {
 	height: 26px;
 	justify-content: flex-start;
+}
+
+.b19p-line-rank .b19p-rank-tag {
+	margin-right: 8px;
+	color: var(--b19p-muted);
 }
 
 .b19p-rank-pos {
@@ -706,7 +695,6 @@ body {
 	color: var(--b19p-text);
 }
 
-/* Beats `.b19p-card p { margin: 0 }` */
 .b19p-line-rank .b19p-rank-of {
 	margin-left: 6px;
 	color: var(--b19p-muted);
@@ -717,26 +705,15 @@ body {
 	color: var(--b19p-accent);
 }
 
+.b19p-line-rank .b19p-rank-pct.is-lead {
+	margin-left: 0;
+}
+
 .b19p-line-rank.is-ap .b19p-rank-pos,
 .b19p-line-rank.is-ap .b19p-rank-pct {
 	color: var(--b19p-gold);
 }
 
-/* Who the rank is counted among; one <p> per line from prepare() */
-.b19p-rank-note {
-	display: flex;
-	flex-direction: column;
-	width: 600px;
-	margin-top: 10px;
-}
-
-.b19p-rank-note p {
-	font-size: 18px;
-	line-height: 24px;
-	color: var(--b19p-muted);
-}
-
-/* Empty P slot */
 .b19p-row.b19p-empty {
 	min-height: 64px;
 	align-items: center;
@@ -754,7 +731,6 @@ body {
 	color: var(--b19p-muted);
 }
 
-/* Compact rows: only when they keep a tall card at 2x paint (see wantsCompact) */
 .b19p-card.is-compact .b19p-list {
 	gap: 3px;
 }
@@ -791,7 +767,6 @@ body {
 	height: 24px;
 }
 
-/* No chart matches the mode filter */
 .b19p-none {
 	display: flex;
 	align-items: center;
@@ -813,7 +788,6 @@ body {
 	color: var(--b19p-muted);
 }
 
-/* OVERFLOW divider */
 .b19p-over {
 	display: flex;
 	align-items: center;
@@ -852,8 +826,6 @@ body {
 	font-size: 20px;
 	color: var(--b19p-muted);
 }
-
-/* ---------- analysis ---------- */
 
 .b19p-analysis {
 	display: flex;
@@ -1056,7 +1028,6 @@ body {
 	background: #ffffff;
 }
 
-/* Tag profile */
 .b19p-tags-head {
 	display: flex;
 	flex-wrap: wrap;
@@ -1075,7 +1046,6 @@ body {
 	color: var(--b19p-muted);
 }
 
-/* One row per rank holds both columns, so a wrapped name keeps them level */
 .b19p-tags-grid {
 	display: flex;
 	flex-direction: column;
@@ -1157,8 +1127,6 @@ body {
 	font-size: 22px;
 }
 
-/* ---------- footer ---------- */
-
 .b19p-foot {
 	display: flex;
 	align-items: center;
@@ -1190,7 +1158,6 @@ body {
 	color: #08121c;
 }
 
-/* Two lines at most, broken in prepare(): a CSS clamp breaks on colour emoji */
 .b19p-foot-tip {
 	display: flex;
 	flex-direction: column;

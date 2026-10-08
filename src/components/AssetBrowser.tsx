@@ -111,10 +111,6 @@ function Preview({
 	return null;
 }
 
-/**
- * A file key with soft breaks after `/`, `.`, `_` and `-`, so it wraps at a
- * separator first. No spans: a screen reader reads it as one piece of text
- */
 function KeyPath({ value }: { value: string }) {
 	const parts = value.split(/(?<=[/._-])/);
 	return parts.map((part, i) => (
@@ -126,7 +122,6 @@ function KeyPath({ value }: { value: string }) {
 	));
 }
 
-/** Lazy thumbnail; a missing one falls back to the extension badge */
 function Thumb({ src, ext }: { src: string | undefined; ext: string }) {
 	const [broken, setBroken] = useState(false);
 	if (!src || broken)
@@ -166,16 +161,13 @@ export function AssetBrowser() {
 	const [open, setOpen] = useState<string | undefined>();
 	const listRef = useRef<HTMLUListElement>(null);
 	const searchRef = useRef<HTMLInputElement>(null);
-	// Loading and failed share one box, so "Try again" can hand focus to it
 	const stateRef = useRef<HTMLDivElement>(null);
 	const retried = useRef(false);
-	// After "Show more", focus lands on the first new row instead of staying below them
 	const focusRow = useRef<number | undefined>(undefined);
 
 	useEffect(() => {
 		const ac = new AbortController();
 		setFailed(false);
-		// "Try again" went away with the failure; focus waits in the loading box
 		if (retried.current) stateRef.current?.focus();
 		fetch(`/api/assets${attempt ? `?r=${attempt}` : ""}`, {
 			signal: ac.signal,
@@ -207,7 +199,6 @@ export function AssetBrowser() {
 		return map;
 	}, [catalog]);
 
-	// Which kinds exist at all; a kind with no files is never offered
 	const present = useMemo(
 		() => new Set((files ?? []).map((file) => assetKind(file.key))),
 		[files],
@@ -215,7 +206,6 @@ export function AssetBrowser() {
 
 	const trimmed = query.trim();
 	const q = fold(trimmed);
-	// Songs the query names by title, nickname or composer (typos included)
 	const named = useMemo(
 		() =>
 			catalog.status === "ready" && trimmed
@@ -237,7 +227,6 @@ export function AssetBrowser() {
 			}),
 		[files, q, songs, named],
 	);
-	// Counts follow the search, so each kind says how many matches it holds
 	const counts = useMemo(() => {
 		const out: Partial<Record<AssetFilter, number>> = { all: matched.length };
 		for (const file of matched) {
@@ -268,14 +257,12 @@ export function AssetBrowser() {
 					.replaceAll("{total}", String(hits.length))
 			: t.none
 		: "";
-	// Announced once typing pauses, not on every keystroke
 	const [said, setSaid] = useState("");
 	useEffect(() => {
 		const id = window.setTimeout(() => setSaid(count), 700);
 		return () => window.clearTimeout(id);
 	}, [count]);
 
-	// After a retry the state box goes away with the list's arrival: the search takes focus
 	useEffect(() => {
 		if (!files || !retried.current) return;
 		retried.current = false;
@@ -310,7 +297,6 @@ export function AssetBrowser() {
 						spellCheck={false}
 						value={query}
 						placeholder={t.searchPlaceholder}
-						// nothing to filter until the list is here
 						disabled={!files}
 						onChange={(event) => {
 							setQuery(event.target.value);
@@ -321,7 +307,6 @@ export function AssetBrowser() {
 				{files?.length ? (
 					<fieldset className="asset-kinds">
 						<legend>{t.kindLabel}</legend>
-						{/* Kinds with no files are left out (unless picked) */}
 						{ASSET_KINDS.filter(
 							(id) => id === "all" || id === kind || present.has(id),
 						).map((id) => (
@@ -385,7 +370,6 @@ export function AssetBrowser() {
 				) : null}
 				<Announce>{said}</Announce>
 
-				{/* Only while there is something to list: an empty list is still read as "list, 0 items" */}
 				{shown.length ? (
 					<ul className="asset-list" ref={listRef}>
 						{shown.map((file) => {
@@ -417,7 +401,6 @@ export function AssetBrowser() {
 									</div>
 									<div className="asset-actions">
 										{preview ? (
-											// One label either way; aria-expanded and the caret carry open/closed
 											<button
 												className="btn btn-ghost btn-sm asset-view"
 												type="button"
@@ -431,7 +414,6 @@ export function AssetBrowser() {
 											</button>
 										) : null}
 										{music && src ? (
-											// Served as an attachment, so it saves without leaving the page
 											<a
 												className="btn btn-ghost btn-sm"
 												href={src}

@@ -1,5 +1,3 @@
-/* ---------------------------------- manual ---------------------------------- */
-
 .manual-notice {
 	margin: 0 0 var(--space-6);
 	padding: var(--space-3) var(--space-4);
@@ -34,7 +32,6 @@
 	color: var(--ink);
 }
 
-/* Chart list failed with nothing saved: say so and offer a reload */
 .manual-failed {
 	display: flex;
 	flex-wrap: wrap;
@@ -75,9 +72,6 @@
 	font-size: var(--text-lg);
 }
 
-/* ------------------------------- rows (desktop) ------------------------------- */
-
-/* One grid for the column heads and every row; on phones each row becomes a card */
 .manual-cols,
 .manual-row {
 	display: grid;
@@ -117,7 +111,6 @@
 	padding-left: var(--space-3);
 }
 
-/* cells that are text, not fields, sit on the fields' centre line */
 .manual-song,
 .manual-fc,
 .manual-rks,
@@ -158,7 +151,6 @@
 	font-variant-numeric: tabular-nums;
 }
 
-/* the estimated score shows as the placeholder; keep it apart from typed values */
 .manual-row input::placeholder {
 	font-style: italic;
 }
@@ -174,7 +166,6 @@
 	color: var(--muted);
 }
 
-/* The label wraps the box so the whole cell is the hit area */
 .manual-fc-toggle {
 	display: inline-flex;
 	align-items: center;
@@ -201,8 +192,6 @@
 	justify-content: flex-end;
 }
 
-/* Column heads name the fields on desktop; the per-cell labels are for
-   screen readers there and become visible on the phone cards */
 .manual-label,
 .manual-fc-toggle span {
 	position: absolute;
@@ -266,8 +255,6 @@
 	gap: var(--space-2);
 }
 
-/* --------------------------------- loading --------------------------------- */
-
 .manual-loading {
 	display: grid;
 	gap: var(--space-2);
@@ -305,8 +292,6 @@
 		opacity: 0.45;
 	}
 }
-
-/* ------------------------------- phones: cards ------------------------------- */
 
 @media (max-width: 767px) {
 	.manual-head {

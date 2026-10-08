@@ -1,7 +1,4 @@
-/**
- * "No account" mode: scores typed by hand instead of pulled from TapTap
- * Pure helpers shared by the browser editor and the server-side save builder
- */
+/** "No account" mode: hand-typed scores; pure helpers shared by the browser editor and the server */
 
 import { LEVEL, type LevelKind } from "./const";
 import { fCompute } from "./fcompute";

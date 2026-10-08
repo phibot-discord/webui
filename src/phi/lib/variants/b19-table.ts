@@ -1,57 +1,42 @@
-/** "Table" layout for b30 / x30 / fc30: prepare() makes display-ready rows so the template only prints */
 import { cardCopy, type PhiLocale } from "../card-i18n";
 import { fCompute } from "../fcompute";
 import { fitEm, splitTwoLines, textEm } from "../text-fit";
 import {
 	type FittedTip,
 	fitTip,
-	isRankLegend,
 	pickTip,
 	type RankParts,
-	rankNote,
-	rankParts,
-	wrapLines,
+	rankLines,
 } from "./b19-common";
 import type { CardData, CardVariant, VariantContext } from "./types";
 
 const WIDTH = 1200;
 
-/**
- * Song column width (CSS px) with and without the push column, less ~3% slack for
- * the text-fit estimate; the columns are 326 / 440 px in b19-table.css
- */
+// Song column (326 / 440 px in b19-table.css) with and without the push column, less ~3% text-fit slack
 export const TITLE_W = { push: 316, wide: 428 };
 const TITLE_MAX_PX = 18;
 const TITLE_ONE_LINE_MIN_PX = 14;
 const TITLE_MIN_PX = 12;
-/**
- * Player name box less slack: ~544px beside the C / FC / Phi table; without it the
- * badges take the right edge, and a long data size ("1TiB 2GiB …") can claim 300px
- */
+// ~544 px beside the C / FC / Phi table, less slack; without it badges and a long data size can claim 300 px
 export const NAME_W = { stats: 520, wide: 580 };
 const NAME_MAX_PX = 40;
 const NAME_MIN_PX = 16;
-/** Tip text box (820px in b19-table.css) less slack */
+// 820 px in b19-table.css, less slack
 const TIP_W = 800;
-/** Tip sizes, largest first; the footer holds two lines of any of them */
 const TIP_PX = [15, 14, 13];
-/**
- * The rank line hangs under the acc and may reach left under the score: the acc
- * (106px) and score (96px) cells and the 14px gap between them, less slack
- */
+// Hangs under the acc and may reach under the score: acc (106 px) + score (96 px) cells and their 14 px gap, less slack
 const RANK_W = 204;
 const RANK_PX = [12, 11, 10];
-/** Gaps after "#3,611" and before "Top 5.1%" (.tbl-rank-of / -pct margins) */
-const RANK_GAP = { of: 4, pct: 8 };
-/** Rank population note under the table (1152 - 74 - 16 padding), less slack */
-const NOTE_W = 1030;
-const NOTE_PX = 12;
-/** Histogram geometry; see .tbl-hist in b19-table.css */
+// The ±0.05 line beside it: under the RKS (92 px) and push (100 px) cells and their gap, less slack
+const RANK_SIDE_W = 196;
+// The .tbl-rank-tag / -of / -pct margins
+const RANK_GAP = { tag: 5, of: 4, pct: 8 };
+// See .tbl-hist in b19-table.css
 export const HIST = { plotH: 180, gutter: 56, fullW: 1104, tagsW: 640 };
 const TAG_LIST_MAX = 5;
-/** Name cell in a strong / weak tag list (440px panel, two columns), less slack */
+// 440 px panel, two columns, less slack
 const TAG_NAME_W = 124;
-/** Peer-average line under the acc (106px cell) less slack */
+// 106 px cell, less slack
 const AVG_W = 104;
 const AVG_MAX_PX = 12;
 const AVG_MIN_PX = 10;
@@ -66,7 +51,6 @@ const COPY = {
 		},
 		saved: "Save date",
 		rks: "RKS",
-		/** The spread of the B30 behind the RKS (b30 only) */
 		sdB30: "B30 SD",
 		mode: {
 			x30: "x30",
@@ -87,7 +71,6 @@ const COPY = {
 		avgB30: "B30 avg",
 		avgTop: "top % · all / B30",
 		avgRank: "Rank",
-		/** Push target colours, easiest first (pushTier) */
 		pushKey: { easy: "easy", mid: "mid", hard: "hard" },
 		bandPhi: "Phi · P1–P3",
 		bandPhiDesc: "Your best All Perfect charts",
@@ -176,6 +159,7 @@ type LooseRow = {
 	suggest?: unknown;
 	accAvg?: unknown;
 	accRank?: unknown;
+	accRanks?: unknown;
 };
 
 const GRADES = new Set(["phi", "FC", "V", "S", "A", "B", "C", "F", "NEW"]);
@@ -204,14 +188,12 @@ function fill(template: string, vars: Record<string, string | number>) {
 	);
 }
 
-/** Score as the game shows it: 7 digits, the leading zeros split off to be dimmed */
 export function paddedScore(score: unknown): { lead: string; rest: string } {
 	const n = Math.min(1_000_000, Math.max(0, Math.round(num(score))));
 	const rest = String(n);
 	return { lead: "0".repeat(7 - rest.length), rest };
 }
 
-/** Cut `text` so it (plus "…") fits in `maxEm` ems; unchanged when it already fits */
 export function truncateEm(text: string, maxEm: number): string {
 	if (textEm(text) <= maxEm) return text;
 	const chars = [...text];
@@ -226,7 +208,6 @@ export function truncateEm(text: string, maxEm: number): string {
 
 export type FittedTitle = { lines: string[]; px: number; clip: boolean };
 
-/** One line if it fits at ≥ 14px, else two balanced lines, else 2 clamped lines */
 export function fitTitle(title: string, widthPx: number): FittedTitle {
 	const text = title.trim() || "—";
 	const one = fitEm(textEm(text), widthPx, TITLE_MAX_PX);
@@ -256,7 +237,6 @@ function decodeEntities(s: string): string {
 		.replace(/&amp;/g, "&");
 }
 
-/** Plain-text lines of a rich-text player name (convertRichText output) */
 export function richTextLines(html: string): string[] {
 	return decodeEntities(
 		html.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, ""),
@@ -283,14 +263,11 @@ export function fitName(
 
 export type PeerAvg = {
 	dir: "up" | "down" | "";
-	/** One line: it hangs under the centred acc, so the row keeps one number line */
 	text: string;
-	/** True for a plain "98.1234%"; false for the "top" / "rank" text forms */
 	isNum: boolean;
 	px: number;
 };
 
-/** First candidate that fits `widthPx` at ≥ 10px, else the last one cut with "…" */
 function fitPeerText(candidates: string[], widthPx: number) {
 	for (const text of candidates) {
 		const px = fitEm(textEm(text), widthPx, AVG_MAX_PX);
@@ -303,7 +280,6 @@ function fitPeerText(candidates: string[], widthPx: number) {
 	};
 }
 
-/** Peer figure by b30AvgKind (formats in score-avg.ts); a narrow cell drops "/ total", then the rank */
 export function peerAvg(
 	accAvg: unknown,
 	acc: number,
@@ -336,12 +312,11 @@ export function peerAvg(
 	return { dir: "", isNum: false, ...fitPeerText(candidates, widthPx) };
 }
 
-/** Column sub-label for the peer figure, from the first row that has one */
 export function avgLabel(
-	rows: { accAvg?: unknown; accRank?: unknown }[],
+	rows: { accAvg?: unknown; accRank?: unknown; accRanks?: unknown }[],
 	copy: TableCopy,
 ): string {
-	if (rows.some((r) => rankParts(r.accRank))) return copy.avgRank;
+	if (rows.some((r) => rankLines(r).length)) return copy.avgRank;
 	const sample = rows.map((r) => str(r.accAvg).trim()).find(Boolean) || "";
 	if (/^#/.test(sample)) return copy.avgRank;
 	if (/^top/i.test(sample)) return copy.avgTop;
@@ -351,17 +326,13 @@ export function avgLabel(
 
 export type TableRank = RankParts & { px: number; showOf: boolean };
 
-/**
- * The rank line under the acc ("rank" mode): "#3,611 / 70,388" then "Top 5.1%"
- * at 12 down to 10px; without the record count when even 10px is too wide
- */
 export function fitRank(parts: RankParts, widthPx = RANK_W): TableRank {
 	const lineW = (px: number, withOf: boolean) =>
+		(parts.tag ? textEm(parts.tag) * px + RANK_GAP.tag : 0) +
 		// The position is bold: ~10% wider than text-fit's regular widths
 		textEm(parts.pos) * px * 1.1 +
 		(withOf ? RANK_GAP.of + textEm(parts.of) * px : 0) +
-		RANK_GAP.pct +
-		textEm(parts.pct) * px;
+		(parts.pct ? (parts.pos ? RANK_GAP.pct : 0) + textEm(parts.pct) * px : 0);
 	const showOf = Boolean(parts.of);
 	for (const px of RANK_PX)
 		if (lineW(px, showOf) <= widthPx) return { ...parts, px, showOf };
@@ -372,17 +343,13 @@ function levelClass(rank: string) {
 	return LEVELS.has(rank) ? rank.toLowerCase() : "unknown";
 }
 
-/**
- * How hard the push is, from the target acc (coarser than save.ts suggestType):
- * below 99.5% "easy", below 99.85% "mid", else "hard" (near or at All Perfect)
- */
+// Coarser than save.ts suggestType
 export function pushTier(push: string): "easy" | "mid" | "hard" | "" {
 	const value = Number.parseFloat(push);
 	if (!Number.isFinite(value)) return "";
 	return value < 99.5 ? "easy" : value < 99.85 ? "mid" : "hard";
 }
 
-/** Server mode labels (cards.ts spInfo: cardCopy x30Mode / fcMode / apMode) */
 const MODE_LABELS = [
 	...(["en", "zh"] as const).flatMap((locale) => {
 		const t = cardCopy(locale);
@@ -399,7 +366,6 @@ const MODE_LABELS = [
 	["Full Combo 模式", "fc30"],
 ] as const;
 
-/** spInfo chips in the card's language, minus the card's own mode and the rank legend */
 export function chipTexts(
 	spInfo: unknown,
 	copy: TableCopy,
@@ -408,7 +374,7 @@ export function chipTexts(
 	if (!Array.isArray(spInfo)) return [];
 	return spInfo
 		.map((raw) => str(raw).trim())
-		.filter((text) => text && !isRankLegend(text))
+		.filter(Boolean)
 		.flatMap((text) => {
 			const known = MODE_LABELS.find(([label]) => label === text);
 			if (!known) return [text];
@@ -433,18 +399,14 @@ export type TableRow = {
 	scoreLead: string;
 	score: string;
 	acc: string;
-	/** acc is 100%: drawn in the φ gold */
 	accAp: boolean;
 	rks: string;
-	/** Target acc ("99.7576%") or "" when there is none */
 	push: string;
-	/** pushTier(push): tints the target by how hard it is */
 	pushTier: string;
-	/** "Can't push" (localized) when `push` is empty */
 	pushText: string;
 	avg?: PeerAvg;
-	/** Peer rank ("rank" mode), shown instead of `avg` */
 	peerRank?: TableRank;
+	peerRankSide?: TableRank;
 };
 
 export type TableItem =
@@ -471,7 +433,7 @@ function songRow(
 	const suggest = str(row.suggest).trim();
 	const pushable = /^\d+(?:\.\d+)?%$/.test(suggest);
 	const grade = str(row.Rating);
-	const peerRank = rankParts(row.accRank);
+	const ranks = rankLines(row);
 	const cls = [
 		opts.phi ? "is-phi" : "",
 		opts.over ? "is-over" : "",
@@ -501,8 +463,11 @@ function songRow(
 		push: pushable ? suggest : "",
 		pushTier: pushable ? pushTier(suggest) : "",
 		pushText: pushable ? "" : opts.noPush,
-		...(peerRank
-			? { peerRank: fitRank(peerRank) }
+		...(ranks.length
+			? {
+					peerRank: fitRank(ranks[0]!),
+					...(ranks[1] ? { peerRankSide: fitRank(ranks[1], RANK_SIDE_W) } : {}),
+				}
 			: { avg: peerAvg(row.accAvg, acc) }),
 	};
 }
@@ -542,7 +507,6 @@ export function tableItems(
 	items: TableItem[];
 	rows: LooseRow[];
 	hasPush: boolean;
-	/** Rows above the Overflow line (#1…#27 on b30, #1…#30 otherwise) */
 	mainCount: number;
 } {
 	const hasPhi = kind === "b30" && Array.isArray(data.phi);
@@ -633,11 +597,8 @@ type TagIn = { name?: unknown; rks?: unknown };
 type AnalysisIn = {
 	histogram?: HistogramIn;
 	showTags?: unknown;
-	/** Localized "RKS≥x · Scores n · Votes m" line (tagAnalysisMeta) */
 	tagMeta?: unknown;
-	/** Which scores the tag server pooled (tagPoolNote); may be empty */
 	tagPoolNote?: unknown;
-	/** "Not enough votes" or "service did not answer" (cards.ts b30AnalysisFor) */
 	tagMessage?: unknown;
 	tagAnalysis?: {
 		totalVotes?: unknown;
@@ -658,7 +619,6 @@ function tagList(list: TagIn[] | undefined) {
 		}));
 }
 
-/** One font size for every tag name (the longest decides), never below 12px */
 export function tagFontPx(names: string[]): number {
 	const em = Math.max(0, ...names.map(textEm));
 	return Math.max(12, fitEm(em, TAG_NAME_W, 15));
@@ -670,14 +630,12 @@ export type AnalysisCopy = {
 	tagInsufficient: string;
 };
 
-/** Histogram bars, ticks and the optional strong / weak tag lists, all in px */
 export function analysisView(
 	raw: unknown,
 	opts: {
 		hasPhi: boolean;
 		copy: TableCopy;
 		t: AnalysisCopy;
-		/** Rows above the Overflow line; defaults to the histogram's own count */
 		mainCount?: number;
 	},
 ) {
@@ -689,8 +647,7 @@ export function analysisView(
 	const showTags = a.showTags === true;
 	const plotW = (showTags ? HIST.tagsW : HIST.fullW) - HIST.gutter;
 	const bestSlots = slots.filter((slot) => slot.kind !== "phi").length;
-	// getB30AnalysisRecords charts at most #1–#27; x30 / fc30 show 30 main rows, so
-	// a full list can have rows the histogram leaves out. Pad only a short list
+	// getB30AnalysisRecords charts at most #1–#27 but x30 / fc30 show 30 main rows: pad only a short list
 	const truncated = !opts.hasPhi && bestSlots < (opts.mainCount ?? 0);
 	// Fixed capacity so a sparse x30 reads as "2 of 30 filled", not two giant bars
 	const cap = truncated ? slots.length : Math.max(slots.length, 30);
@@ -758,15 +715,11 @@ export function analysisView(
 	};
 }
 
-/**
- * Footer tip: one or two lines at 15 down to 13px, ellipsized at 13px. Broken in
- * prepare(), not by a CSS line clamp (which puts every emoji on its own line)
- */
+// Broken here, not by a CSS line clamp (which puts every emoji on its own line)
 export function tipView(tip: string): FittedTip {
 	return fitTip(tip, TIP_W, TIP_PX, 2);
 }
 
-/** Push target colour key under the column header, when a row has a target */
 export function pushKey(items: TableItem[], copy: TableCopy) {
 	const tiers = (["easy", "mid", "hard"] as const).filter((tier) =>
 		items.some((it) => it.type === "row" && it.pushTier === tier),
@@ -811,10 +764,9 @@ export function prepareTable(
 		copy,
 		t.noPush,
 	);
-	const hasRank = rows.some((r) => rankParts(r.accRank));
-	const hasAvg =
-		hasRank || rows.some((r) => r.accAvg != null && r.accAvg !== "");
-	const note = rankNote(data, ctx.locale, hasRank);
+	const hasAvg = rows.some(
+		(r) => rankLines(r).length || (r.accAvg != null && r.accAvg !== ""),
+	);
 	const hasPhi = kind === "b30" && Array.isArray(data.phi);
 	return {
 		kind,
@@ -850,7 +802,6 @@ export function prepareTable(
 		hasAvg,
 		avgLabel: hasAvg ? avgLabel(rows, copy) : "",
 		items,
-		rankNote: note ? wrapLines(note, NOTE_W / NOTE_PX, 4).lines : [],
 		analysis: analysisView(data.b30Analysis, {
 			hasPhi,
 			mainCount,

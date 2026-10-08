@@ -5,7 +5,6 @@ import { defaultCardSize } from "@/components/card-shape";
 import { useI18n } from "@/i18n/provider";
 import { parseCardStyle } from "@/phi/lib/card-styles";
 
-/** Desk placeholder shaped like the page, so nothing jumps when it loads */
 export function DeskSkeleton() {
 	const { m } = useI18n();
 	const params = useParams<{ kind?: string }>();

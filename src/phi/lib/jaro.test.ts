@@ -14,8 +14,7 @@ test("jaroWinklerDistance keeps phi-plugin's scores", () => {
 	assert.equal(jaroWinklerDistance("MARTHA", "MARHTA").toFixed(4), "0.9611");
 	assert.equal(jaroWinklerDistance("DIXON", "DICKSONX").toFixed(4), "0.8133");
 	assert.equal(jaroWinklerDistance("abc", "xyz"), 0);
-	// Short strings clear the usual 0.85 cut on one shared prefix character,
-	// which is why song search only runs Jaro-Winkler on queries of 3+ characters
+	// Short strings clear the 0.85 cut on one shared prefix character, so song search needs 3+ characters
 	assert.ok(jaroWinklerDistance("7", "70") >= 0.85);
 });
 

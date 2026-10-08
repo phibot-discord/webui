@@ -1,4 +1,3 @@
-/* Shared by the info layouts: palette, backdrop, chips, bars, chart frame */
 :root {
 	--ib-panel: rgba(12, 18, 27, 0.84);
 	--ib-panel-2: rgba(20, 28, 40, 0.92);
@@ -101,7 +100,6 @@ body {
 	border-radius: 6px;
 }
 
-/* Difficulty chip and colours */
 .ib-chip {
 	display: flex;
 	align-items: center;
@@ -155,7 +153,6 @@ body {
 	background: var(--ib-gold);
 }
 
-/* Trend chart: SVG plot, max / min labels in a gutter, x labels under it */
 .ib-chart {
 	display: flex;
 	flex-direction: column;
@@ -170,7 +167,6 @@ body {
 	position: relative;
 }
 
-/* Max / min of the plotted range, level with the top and bottom grid lines */
 .ib-gutter {
 	display: flex;
 	flex-direction: column;

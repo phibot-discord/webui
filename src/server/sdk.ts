@@ -63,7 +63,6 @@ export type AppConfig = {
 	};
 };
 
-/** What `setupPhi` / `bootPhiRuntime` need from the hosting process */
 export type App = {
 	config: AppConfig;
 	db: Kv;

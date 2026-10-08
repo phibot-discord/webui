@@ -1,6 +1,12 @@
 import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
 import Discord from "next-auth/providers/discord";
 import { stripCanonicalAuthUrlIfMany } from "@/lib/auth-url";
+import {
+	openTapTicket,
+	readCookie,
+	TAP_LOGIN_COOKIE,
+} from "@/server/auth-tickets";
 
 stripCanonicalAuthUrlIfMany();
 
@@ -13,13 +19,31 @@ const nextAuth = NextAuth({
 			issuer: "https://discord.com",
 			authorization: { params: { scope: "identify" } },
 		}),
+		// Only the browser that started the TapTap QR sign-in can redeem its ticket
+		Credentials({
+			id: "taptap",
+			name: "TapTap",
+			credentials: { ticket: {} },
+			authorize: (credentials, request) =>
+				openTapTicket(
+					credentials.ticket,
+					readCookie(request.headers, TAP_LOGIN_COOKIE),
+				),
+		}),
 	],
 	callbacks: {
+		async signIn({ account }) {
+			if (account?.provider !== "discord") return true;
+			// Loaded here only: the link reaches KV and the Phigros runtime
+			const { finishDiscordLink } = await import("@/server/account-link");
+			return finishDiscordLink(account.providerAccountId);
+		},
 		jwt({ token, account, profile }) {
-			const snowflake =
+			// A Discord snowflake, or the user a TapTap ticket names (`tap:…` or a linked snowflake)
+			const id =
 				account?.providerAccountId ||
 				(profile && "id" in profile ? String(profile.id) : "");
-			if (snowflake) token.id = snowflake;
+			if (id) token.id = id;
 			return token;
 		},
 		session({ session, token }) {

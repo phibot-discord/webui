@@ -1,4 +1,3 @@
-/* Player info, classic layout (1200 px): hero, intro, per-difficulty cards, trends */
 .ic {
 	gap: 28px;
 	padding: 40px 40px 32px;
@@ -82,7 +81,6 @@
 	color: #ffffff;
 }
 
-/* The game's challenge badge: rank number over the coloured mode plate */
 .ic-clg {
 	position: relative;
 	display: flex;

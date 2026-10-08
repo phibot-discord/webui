@@ -22,21 +22,29 @@ import { type Catalog, chosenIll } from "./catalog";
 import { CHART_TAG_RENDER_BUDGET_MS, tagAnalysisFor } from "./chart-tags-api";
 import { tagRadarHtml } from "./charts";
 import {
+	type CardMissing,
+	type ExternalWatch,
+	watchExternal,
+} from "./external";
+import {
 	accRksLines,
 	loadHisb30Snaps,
 	loadSaveHistory,
 	rksLineFor,
 } from "./history";
+import { LB_ROW_BUDGET_MS } from "./leaderboard";
 import {
 	b30AvgKindOf,
 	getNotes,
+	rankBandShowOf,
+	rankScopeOf,
 	tagAnalysisEnabled,
 	type UserNotes,
 } from "./notes";
 import type { PhiRuntime } from "./runtime";
 import type { Save } from "./save";
 import { getToken, moneyText, saveIdentity } from "./saves";
-import { attachB19AccAvg, rankLegend } from "./score-avg";
+import { type AvgOutcome, attachB19AccAvg } from "./score-avg";
 
 function htmlImage(rt: PhiRuntime, rel: string) {
 	return join(rt.getInfo.resources, "html", rel);
@@ -69,6 +77,7 @@ async function b30AnalysisFor(
 	locale: PhiLocale,
 	db: Kv,
 	save: Save,
+	external?: ExternalWatch,
 ) {
 	if (notes.showB30Analysis === false || nnum !== 33) return null;
 	const t = cardCopy(locale);
@@ -78,12 +87,13 @@ async function b30AnalysisFor(
 	let tagLookupFailed = false;
 	if (showTags && records.length) {
 		try {
+			const lookup = tagAnalysisFor(save, {
+				saveRevision: saveIdentity(save.saveInfo),
+				db,
+				budgetMs: CHART_TAG_RENDER_BUDGET_MS,
+			});
 			tagAnalysis = localizeChartTagLabels(
-				await tagAnalysisFor(save, {
-					saveRevision: saveIdentity(save.saveInfo),
-					db,
-					budgetMs: CHART_TAG_RENDER_BUDGET_MS,
-				}),
+				await (external ? external.track(lookup) : lookup),
 				locale,
 			);
 		} catch (err) {
@@ -134,8 +144,11 @@ export async function b19Card(
 		locale?: PhiLocale | string;
 		showTagAnalysis?: boolean;
 		notes?: UserNotes;
+		peerDeadline?: number;
+		onExternalWait?: (waiting: boolean) => void;
 	} = {},
 ) {
+	const external = watchExternal(extra.onExternalWait);
 	const notes = { ...(extra.notes ?? (await getNotes(db, userId))) };
 	if (extra.showTagAnalysis != null) {
 		notes.showTagAnalysis = extra.showTagAnalysis;
@@ -190,14 +203,20 @@ export async function b19Card(
 		const b19 = await save.getB19(undefined, nnum, { avgType: "none" });
 		save_b19 = b19;
 		if (notes.allowApiUsage !== false) {
-			const avgType = b30AvgKindOf(notes);
-			avgJob = attachB19AccAvg(b19, {
-				avgType,
-				color: notes.b30AvgColor,
-				db,
-			});
-			// "#rank / records" needs its population spelled out on the card
-			if (avgType === "rank") spInfo.push(rankLegend(locale));
+			avgJob = external.track(
+				attachB19AccAvg(b19, {
+					avgType: b30AvgKindOf(notes),
+					color: notes.b30AvgColor,
+					db,
+					owner: userId,
+					rankScope: rankScopeOf(notes),
+					rankBandShow: rankBandShowOf(notes),
+					budgetMs:
+						notes.peerWait === true && extra.peerDeadline != null
+							? Math.max(LB_ROW_BUDGET_MS, extra.peerDeadline - Date.now())
+							: undefined,
+				}),
+			);
 		}
 	}
 	const background = chosenIll(catalog, notes.cardBackground, "blur");
@@ -209,7 +228,7 @@ export async function b19Card(
 		background,
 		...iconImages(rt, save, rows),
 	]);
-	// P1–P3 + B1–B27 of the displayed list: the histogram and the header ± SD
+	// P1–P3 + B1–B27 of the displayed list: the histogram and the header ± SD share them
 	const slots = getB30AnalysisRecords(save_b19);
 	const [b30Analysis, avgResult] = await Promise.all([
 		b30AnalysisFor(
@@ -220,6 +239,7 @@ export async function b19Card(
 			locale,
 			db,
 			save,
+			external,
 		),
 		avgJob,
 	]);
@@ -231,6 +251,13 @@ export async function b19Card(
 		save_b19.b19_list as Array<{ suggest?: string }> | undefined,
 		t,
 	);
+	const avg = avgResult as AvgOutcome | undefined;
+	const missing: CardMissing[] = [
+		...(avg?.missing ? (["peers"] as const) : []),
+		...(avg?.stale ? (["stale"] as const) : []),
+		...(avg?.empty ? (["empty"] as const) : []),
+		...(b30Analysis?.tagLookupFailed === true ? (["tags"] as const) : []),
+	];
 	const stats = await save.getStats();
 	const money = save.gameProgress?.money || [0, 0, 0, 0, 0];
 	const gameuser = {
@@ -261,8 +288,9 @@ export async function b19Card(
 		rksStddev: equivRksStddev(slots.map((slot) => slot.rks)),
 		b30Analysis,
 		// A lookup timed out or failed: the server serves this no-store and never caches it
-		renderPartial:
-			b30Analysis?.tagLookupFailed === true || isPartialResult(avgResult),
+		renderPartial: missing.length > 0,
+		missing,
+		externalMs: external.ms(),
 	};
 }
 

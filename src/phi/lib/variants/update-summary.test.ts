@@ -96,8 +96,6 @@ test("titles shrink, then wrap to two lines, then ellipsize", () => {
 	assert.ok(cut.lines[1]!.endsWith("…"));
 	for (const line of cut.lines) assert.ok(textEm(line) * 13 <= 206);
 
-	// Below the wrap size a second line wins over shrinking further: CJK titles
-	// split between characters, not at a lone space near the start
 	assert.deepEqual(
 		fitTitle("祈 -我ら神祖と共に歩む者なり-", 206, {
 			max: 17,
@@ -106,7 +104,6 @@ test("titles shrink, then wrap to two lines, then ellipsize", () => {
 		}),
 		{ px: 15, lines: ["祈 -我ら神祖と", "共に歩む者なり-"] },
 	);
-	// At or above the wrap size the title stays on one line
 	const stays = fitTitle("Retribution ~ Cycle of Redemption ~", 244, {
 		max: 15,
 		min: 12,
@@ -139,7 +136,6 @@ test("player names keep rich text and fit the header box", () => {
 	assert.equal(fitPlayerName("a&lt;b").html, "a&lt;b");
 	assert.equal(fitPlayerName("").html, "—");
 
-	// A long rich name wraps too, keeping its tags on both lines
 	const richLong = fitPlayerName(
 		'<span style="color:#ffb3d9">MMMMMMMMMMMM</span><b>WWWWWWWWWWWWWWWWWW</b>',
 	);
@@ -163,7 +159,6 @@ test("titles split at spaces, or between CJK characters when that balances bette
 		"祈 -我ら神祖と",
 		"共に歩む者なり-",
 	]);
-	// No cut right before closing punctuation or next to a dash
 	const [head, tail] = splitTitle("雪降り、メリクリ雪降り、メリクリ");
 	assert.ok(
 		!/^[、ー]/.test(tail) && head + tail === "雪降り、メリクリ雪降り、メリクリ",
@@ -193,7 +188,6 @@ test("names without spaces wrap at separators and case or script changes", () =>
 		"ExtraordinarilyLong<br>PlayerNameHereAndMore",
 	);
 	assert.deepEqual(splitName("Two Words"), ["Two", "Words"]);
-	// No natural break near the middle: the balanced plain cut wins
 	const [head, tail] = splitName("abcdefghijklmnopqrstuvwxyzA");
 	assert.equal(head + tail, "abcdefghijklmnopqrstuvwxyzA");
 	assert.ok(Math.abs(head.length - tail.length) <= 2);
@@ -212,7 +206,6 @@ test("rich text breaks close and reopen the tags around the cut", () => {
 		breakRichHtml('<span style="color:red">ab cd</span>', 2, 3),
 		'<span style="color:red">ab</span><br><span style="color:red">cd</span>',
 	);
-	// Entities count as one character; tags closed before the cut stay closed
 	assert.equal(breakRichHtml("<i>x</i>a&amp;b", 2), "<i>x</i>a<br>&amp;b");
 	assert.equal(breakRichHtml("abc<br/>d", 1), "a<br>bc<br/>d");
 });
@@ -246,8 +239,6 @@ test("box_line rows regroup by sync and merge by day", () => {
 	const b = tile("B", { acc: 98, accOld: 97, score: 980000, scoreOld: 970000 });
 	const c = tile("C", { acc: 97, score: 970000 });
 	const d = tile("D", { acc: 96, accOld: 95, score: 960000, scoreOld: 950000 });
-	// Group 1 continues on the next row (no date on the second box), then two
-	// syncs on the same day
 	const lines = [
 		[box([a, b], "2026/09/21 10:00:00")],
 		[box([c], undefined, 12), box([d], "2026/09/20 22:00:00", 1)],
@@ -307,7 +298,6 @@ test("one change per chart over the period, ranked by rks gain", () => {
 	assert.equal(changes.find((c) => c.newest.song === "P")!.newPhi, true);
 	assert.equal(changes.find((c) => c.newest.song === "F")!.hasPrev, false);
 
-	// Two improvements: a first record fills the third slot
 	const few = pickTopGains(changes);
 	// A: 97% → 99.5% (+1.60 rks) beats P: 99.8% → φ (+0.13 rks)
 	assert.deepEqual(
@@ -316,7 +306,6 @@ test("one change per chart over the period, ranked by rks gain", () => {
 	);
 	assert.equal(few.best?.newest.song, "A");
 
-	// Four or five candidates show three; six or more show six
 	const many = (n: number) =>
 		chartChanges([
 			{
@@ -398,7 +387,6 @@ test("B30 movement compares the last two snapshots", () => {
 			["out", "1", 1, ""],
 		],
 	);
-	// Nothing left the B30: one full-width side, the other as a muted note
 	const solo = movementView(
 		b30Movement(
 			[
@@ -432,7 +420,6 @@ test("rks line vertices and sparkline come from the percent segments", () => {
 		{ x: 50, y: 40 },
 		{ x: 100, y: 100 },
 	]);
-	// Whole line in the period: it spans the box, no lead-in
 	const svg = sparkline(pts);
 	assert.match(svg, /^<svg [^>]*width="143" height="30"/);
 	assert.match(
@@ -440,8 +427,7 @@ test("rks line vertices and sparkline come from the percent segments", () => {
 		/d="M5\.00 25\.00 L71\.50 17\.00 L138\.00 5\.00" fill="none"/,
 	);
 	assert.doesNotMatch(svg, /stroke-dasharray/);
-	// Period from vertex 1: vertex 0 becomes a dimmed lead-in on the first 20%,
-	// the period fills the rest, y spans only the plotted values
+	// Period from vertex 1: vertex 0 is a dimmed lead-in on the first 20%; y spans only the plotted values
 	const from = sparkline(pts, 1);
 	assert.match(
 		from,
@@ -449,12 +435,10 @@ test("rks line vertices and sparkline come from the percent segments", () => {
 	);
 	assert.match(from, /d="M31\.60 0 L31\.60 30"[^>]*stroke-dasharray/);
 	assert.match(from, /d="M31\.60 17\.00 L138\.00 5\.00" fill="none"/);
-	// Nothing recorded after the period began: flat to the end
 	assert.match(
 		sparkline(pts, 2),
 		/d="M31\.60 5\.00 L138\.00 5\.00" fill="none"/,
 	);
-	// A flat line sits in the middle
 	assert.match(
 		sparkline(linePoints([[0, 50, 100, 50]])),
 		/d="M5\.00 15\.00 L138\.00 15\.00" fill="none"/,
@@ -479,7 +463,6 @@ test("records per sync become bars, oldest first, latest highlighted", () => {
 	);
 	assert.ok(Number(bars[0]![2]) > Number(bars[4]![2]));
 	assert.equal(bars[4]![2], "2.00");
-	// Bars stay thin with few syncs
 	assert.equal(bars[1]![1], "19.50");
 	assert.equal(syncBars([3]), "");
 	assert.equal(syncBars([]), "");
@@ -508,10 +491,8 @@ test("RKS at the start of the period is the last record before it", () => {
 	const at = (stamp?: string) =>
 		rksBefore(pts, range, dates, stamp ? parseStamp(stamp) : undefined);
 	assert.deepEqual(at("2026/09/10 00:00:00"), { value: 16.6, idx: 2 });
-	// The record written by the period's own first sync is not "before" it
 	assert.equal(at("2026/09/09 00:00:30")?.idx, 1);
 	assert.ok(Math.abs(at("2026/09/09 00:00:30")!.value - 16.4) < 1e-9);
-	// Period older than the line, or no period: the first record
 	assert.deepEqual(at("2026/08/01 00:00:00"), { value: 16, idx: 0 });
 	assert.deepEqual(at(), { value: 16, idx: 0 });
 	assert.equal(rksBefore([], range, dates, 0), undefined);
@@ -573,7 +554,6 @@ test("summary view: header, KPIs, gains and the remaining list", () => {
 	assert.equal(v.delta, "+0.0123");
 	assert.equal(v.deltaCls, "up");
 	assert.deepEqual(v.challenge, { mode: 3, rank: "51" });
-	// The only sync is the period; the line's first record precedes it
 	assert.deepEqual(v.period, {
 		range: "2026/09/21",
 		meta: "1 day with updates",
@@ -591,15 +571,12 @@ test("summary view: header, KPIs, gains and the remaining list", () => {
 		v.kpi.phiList.map((p) => [p.title.lines[0], p.more]),
 		[["Phi", ""]],
 	);
-	// One sync: no bars to compare
 	assert.equal(v.kpi.bars, "");
-	// update_num 7 > 4 listed: top gains only rank what is listed
 	assert.equal(v.gainsMeta, "Ranked by RKS gain · listed updates");
 	assert.equal(v.kpi.best, v.gains[0]!.gain);
 	assert.equal(v.kpi.bestCls, "accent");
 	assert.equal(v.kpi.bestLabel, "BEST GAIN");
 	assert.equal(v.gainsLayout, "grid");
-	// 4 improvements → 3 feature tiles, the 4th stays in the list
 	assert.equal(v.gains.length, 3);
 	assert.deepEqual(
 		v.gains.map((g) => g.title.lines[0]),
@@ -659,7 +636,6 @@ test("summary view: fewer than 3 gains, first records and score-only gains", () 
 			["New", fCompute.rks(99, 16).toFixed(4), "First record", true],
 		],
 	);
-	// First records have no "before" values to point from
 	assert.deepEqual(
 		[v.gains[1]!.rksOld, v.gains[1]!.accOld, v.gains[1]!.scoreOld],
 		["", "", ""],
@@ -670,9 +646,7 @@ test("summary view: fewer than 3 gains, first records and score-only gains", () 
 	assert.equal(v.kpi.phi, "0");
 	assert.equal(v.kpi.phiSub, "None this period");
 	assert.deepEqual(v.kpi.phiList, []);
-	// Nothing is hidden: no "listed updates" caveat on the gains heading
 	assert.equal(v.gainsMeta, "Ranked by RKS gain");
-	// Both charts are feature tiles: no list rows, so no column headings
 	assert.equal(v.groups.length, 0);
 	assert.equal(v.listCols, false);
 
@@ -706,8 +680,7 @@ test("summary view: fewer than 3 gains, first records and score-only gains", () 
 });
 
 test("summary view: sparse, negative and empty states", () => {
-	// No rks line: the last snapshot before the period's first sync (09/21 09:52
-	// Shanghai time) is the starting point; the one after it is not
+	// No rks line: the last snapshot before the first sync (09/21 09:52 Shanghai time) is the start; the one after it is not
 	const neg = summaryView(
 		cardData({
 			Rks: "16.5000",
@@ -750,7 +723,6 @@ test("summary view: sparse, negative and empty states", () => {
 		"your new records will show up here.",
 	]);
 
-	// Garbage in: no throw, sensible fallbacks
 	const junk = summaryView(
 		{ box_line: "x", Rks: undefined, hisb30Snaps: [{ t: 1e20 }, { t: "x" }] },
 		"en",
@@ -792,7 +764,6 @@ test("summary view: new φ titles, list φ rows and per-sync bars", () => {
 		"en",
 		lookup,
 	);
-	// Four charts reached φ: the two with the highest RKS, then "+2"
 	assert.equal(v.kpi.phi, "4");
 	assert.deepEqual(
 		v.kpi.phiList.map((p) => [p.title.lines[0], p.more]),
@@ -803,8 +774,6 @@ test("summary view: new φ titles, list φ rows and per-sync bars", () => {
 	);
 	assert.equal(v.kpi.phiSub, "Score 1000000 reached");
 	assert.ok(v.kpi.bars.startsWith("<svg"));
-	// Plain, P16 and P15 are feature tiles; the list marks its φ rows, a first
-	// record at 1000000 included
 	assert.deepEqual(
 		v.gains.map((g) => g.title.lines[0]),
 		["Plain", "P16", "P15"],
@@ -818,7 +787,6 @@ test("summary view: new φ titles, list φ rows and per-sync bars", () => {
 		],
 	);
 
-	// A long title next to "+N" still fits its column
 	const many = phiTitles(
 		chartChanges([
 			{

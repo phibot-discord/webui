@@ -38,9 +38,7 @@ test("Spasmodic AT 999058: the real FC + 5 Good split is listed with its exact v
 	assert.equal(mine.exact.toFixed(2), "999057.45");
 	assert.equal(mine.acc.toFixed(5), "99.89527");
 	assert.equal(mine.acc.toFixed(2), "99.90");
-	// It is the closest split, so it comes first
 	assert.equal(plans[0], mine);
-	// The same split is also offered for 999057
 	assert.ok(
 		planScore(1671, 999_057).plans.some(
 			(p) => p.perfect === 1666 && p.good === 5,

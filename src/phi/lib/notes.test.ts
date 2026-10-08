@@ -23,7 +23,9 @@ function memKv() {
 }
 
 test("b30AvgKind accepts the peer modes, rank and none only", () => {
-	assert.deepEqual([...B30_AVG_KINDS], ["all", "b30", "top", "rank", "none"]);
+	assert.deepEqual([...B30_AVG_KINDS], ["all", "top", "rank", "none"]);
+	// phib19 answers B30 averages with no figures: a stored one reads as Average
+	assert.ok(!isB30AvgKind("b30"));
 	for (const kind of B30_AVG_KINDS) assert.ok(isB30AvgKind(kind));
 	assert.ok(!isB30AvgKind("Rank"));
 	assert.ok(!isB30AvgKind(""));
@@ -40,7 +42,6 @@ test("getNotes keeps any stored mode; b30AvgKindOf reads unknown ones as all", a
 	const notes = await getNotes(kv.db, "u1");
 	assert.equal(notes.b30AvgKind, "median");
 	assert.equal(b30AvgKindOf(notes), "all");
-	// Another webui setting saved later doesn't overwrite it
 	await setCardQuality(kv.db, "u1", "high");
 	const raw = JSON.parse(kv.map.get(kvKey("notes", "u1"))!);
 	assert.equal(raw.b30AvgKind, "median");

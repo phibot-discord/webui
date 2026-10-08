@@ -8,7 +8,6 @@ import { useI18n } from "@/i18n/provider";
 const NOTICE_ID = "vercel-pro-regions";
 const STORAGE_KEY = `phi-notice:${NOTICE_ID}`;
 const COFFEE_URL = "https://buymeacoffee.com/yuemiyuki";
-/** Let the page settle before the note slides in */
 const SHOW_DELAY_MS = 1200;
 
 function remember() {
@@ -17,7 +16,6 @@ function remember() {
 	} catch {}
 }
 
-/** One-time non-modal toast; reserves room so it never hides content, Escape dismisses */
 export function VersionNotice() {
 	const { m } = useI18n();
 	const path = usePathname();
@@ -48,8 +46,6 @@ export function VersionNotice() {
 				`${Math.ceil(node.offsetHeight + bottom)}px`,
 			);
 		};
-		// Capture phase: runs before an open menu or popover closes, so their
-		// Escape is not also taken as dismissing this note
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key !== "Escape") return;
 			const inside = node.contains(document.activeElement);

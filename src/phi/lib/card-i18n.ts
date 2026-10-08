@@ -34,7 +34,6 @@ const en = {
 	noPush: "Can't push",
 	accLimited: "ACC is limited to {n}%",
 	apMode: "All Perfect Mode",
-	/** x30 / fc30 card titles, shown as the classic card's mode chip */
 	fcMode: "FC30",
 	x30Mode: "x30",
 	analysisTitle: "B30 analysis",
@@ -438,7 +437,6 @@ export function tagAnalysisMeta(
 	return `RKS≥${threshold.toFixed(1)} · ${t.tagRecords} ${analysis.recordCount ?? 0} · ${t.tagBallots} ${analysis.totalVotes}`;
 }
 
-/** Which scores the server pooled; empty when it did not say */
 export function tagPoolNote(
 	analysis: TagPoolInfo | null | undefined,
 	t: CardCopy,

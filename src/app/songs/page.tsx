@@ -12,9 +12,7 @@ import { chartCatalog } from "@/server/charts";
 
 export const dynamic = "force-dynamic";
 
-/** Results on screen at once, here and while typing */
 const SHOWN = 20;
-/** The empty page's suggestions: a Chinese nickname, an abbreviation, a shared one */
 const EXAMPLES = ["无限光", "ASA", "Ad"];
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -22,10 +20,6 @@ export async function generateMetadata(): Promise<Metadata> {
 	return { title: m.songs.title, description: m.songs.lede };
 }
 
-/**
- * Renders the first results from the same ranking the browser runs over
- * `/api/charts`, so `/songs?q=` works without JavaScript and as a shared link
- */
 export default async function SongsPage({
 	searchParams,
 }: {

@@ -40,10 +40,7 @@ import {
 	withRemoteImages,
 } from "./remote-images";
 
-/**
- * Memory budget for two rasters in flight: 160 MB of decoded images, 32 MB of glyphs
- * and one pixmap per raster; ~1 GB with the other caches
- */
+/** Two rasters in flight: 160 MB of decoded images, 32 MB of glyphs and a pixmap each; ~1 GB with the other caches */
 const RENDERER_CACHE_BYTES = 160 * 1024 * 1024;
 const GLYPH_CACHE_BYTES = 32 * 1024 * 1024;
 setGlyphCacheMaxBytes(GLYPH_CACHE_BYTES);
@@ -75,10 +72,7 @@ function measureRootCss(cssWidth: number) {
 .phi-pixel-root { width: ${cssWidth}px !important; transform: none !important; transform-origin: 0 0 !important; overflow: visible !important; }`;
 }
 
-/**
- * Paint every device pixel with the card's background: a filler behind the scaled root, and a
- * root min-height so `.background` covers the card (Takumi ignores scale !important)
- */
+/** Fill every device pixel: a filler behind the scaled root, and a root min-height so `.background` covers the card (Takumi ignores scale !important) */
 function paintRootCss(cssWidth: number, paint: PaintSize) {
 	const cover = Math.ceil(paint.height / paint.ratio);
 	const scale = paint.ratio === 1 ? "none" : `scale(${paint.ratio})`;
@@ -186,7 +180,6 @@ export type RenderHtmlOptions = {
 	heightKey?: string;
 	paintQuality?: PaintQuality;
 	maxRatio?: number;
-	/** Stops the render before its next stage (queued for the lock, measure, raster, encode) */
 	signal?: AbortSignal;
 };
 
@@ -305,8 +298,7 @@ export class RenderEngine {
 				}),
 			),
 		);
-		// One tree for both passes (the root's scale lives in the per-pass CSS)
-		// Emoji images are fetched here, before the raster lock
+		// One tree for both passes (scale lives in the per-pass CSS); emoji are fetched here, before the raster lock
 		const remote = await withRemoteImages(
 			fromHtml(wrapPixelRoot(prepared)).node,
 			{ emoji: mayHaveEmoji(prepared) },
@@ -415,8 +407,7 @@ export class RenderEngine {
 		try {
 			painted = await paintLocked(remote.node, [...local, ...remote.images]);
 		} catch (err) {
-			// A remote image that passed the byte sniff but that Takumi cannot
-			// decode must not fail the card: find it, forget it, paint without it
+			// A remote image that passed the byte sniff but Takumi cannot decode must not fail the card
 			const broken =
 				signal?.aborted || !remote.images.length
 					? []
@@ -503,7 +494,6 @@ export class RenderEngine {
 	}
 }
 
-/** Remote images Takumi fails to decode, each tried alone on a 1×1 canvas */
 async function undecodableImages(
 	renderer: Renderer,
 	images: ImageSource[],
@@ -527,7 +517,7 @@ async function undecodableImages(
 	return out;
 }
 
-/** Takumi's raw RGBA pixmap → the template's format. The pixmap is passed as-is (no copy) */
+/** The pixmap is passed as-is (no copy) */
 async function encodeRaw(
 	raw: Buffer,
 	opts: {

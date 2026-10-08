@@ -43,7 +43,6 @@ export function localeSetCookie(locale: Locale): string {
 	return `${LOCALE_COOKIE}=${locale}; Path=/; Max-Age=${LOCALE_COOKIE_MAX_AGE}; SameSite=Lax`;
 }
 
-/** The locale cookie from raw request headers (route handlers that skip `cookies()`) */
 export function cookieLocale(reqHeaders: Headers): Locale | undefined {
 	const raw = reqHeaders.get("cookie");
 	if (!raw) return;

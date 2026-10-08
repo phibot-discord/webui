@@ -18,7 +18,12 @@ import {
 	parseCardStyle,
 } from "@/phi/lib/card-styles";
 import { backgroundOptions, knownBackground } from "@/phi/lib/catalog";
-import { b30AvgKindOf, getNotes } from "@/phi/lib/notes";
+import {
+	b30AvgKindOf,
+	getNotes,
+	rankBandShowOf,
+	rankScopeOf,
+} from "@/phi/lib/notes";
 import {
 	bypassCacheCooldownRemaining,
 	lastSyncedIso,
@@ -33,7 +38,6 @@ import { getShareSlug } from "@/server/share";
 
 export const dynamic = "force-dynamic";
 
-/** The card's name only; the root layout appends the site name */
 export async function generateMetadata({
 	params,
 }: {
@@ -133,7 +137,6 @@ export default async function KindPage({
 					recordStats={
 						counted ? { on: notes.showRecordStats !== false } : undefined
 					}
-					// The song card draws the chart's own art, so it has no background
 					backgrounds={kind === "song" ? undefined : backgroundOptions()}
 					initialBackground={knownBackground(notes.cardBackground)}
 					styles={cardStyles(kind)}
@@ -143,6 +146,9 @@ export default async function KindPage({
 							(isStyledKind(kind) ? notes.cardStyle?.[kind] : undefined),
 					)}
 					initialPeer={counted ? b30AvgKindOf(notes) : undefined}
+					initialRankScope={rankScopeOf(notes)}
+					initialRankBandShow={rankBandShowOf(notes)}
+					initialPeerWait={notes.peerWait === true}
 					song={
 						kind === "song"
 							? {

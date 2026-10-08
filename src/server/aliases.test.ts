@@ -260,12 +260,10 @@ test("an aliases.json newer than the _sync state it was fetched for is used, the
 			return snapshot("approved-sha-2", { "A.x": ["two"] });
 		},
 	});
-	// Read _sync/info.json just before ill-sync replaced aliases.json
 	env.sha = "approved-sha-1";
 	const first = await ensureAliases();
 	assert.equal(first.approvedSha, "approved-sha-2");
 	assert.equal(first.stale, true);
-	// No refetch inside the back-off
 	await ensureAliases();
 	assert.equal(calls.approved, 1);
 	env.sha = "approved-sha-2";
@@ -299,7 +297,6 @@ test("an aliases.json older than _sync stays stale and is fetched again", async 
 	assert.equal(fixed.approvedSha, "new");
 	assert.equal(fixed.stale, false);
 
-	// A stale read of the older file never replaces the newer one already held
 	body = snapshot("old", { "A.x": ["old"] });
 	env.sha = "newer";
 	clock.now += 60_000;
@@ -445,7 +442,6 @@ test("one client cannot spend the whole live budget", async () => {
 	assert.equal((await resolveAliasLive("q0", "203.0.113.7")).status, "miss");
 	for (let i = 0; i < 25; i++)
 		await resolveAliasLive(`p${i}`, `198.51.100.${i}`);
-	// 30 per minute across all clients
 	assert.equal(seen.length, 30);
 });
 

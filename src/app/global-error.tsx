@@ -14,7 +14,6 @@ function readCookie(name: string): string | undefined {
 	return hit ? decodeURIComponent(hit.slice(name.length + 1)) : undefined;
 }
 
-/** Locale and theme from the visitor's cookies, as one stable string */
 function readPrefs(): string {
 	const saved = readCookie(LOCALE_COOKIE);
 	const locale: Locale = isLocale(saved)
@@ -26,12 +25,10 @@ function readPrefs(): string {
 	return `${locale}|${isTheme(theme) ? theme : ""}`;
 }
 
-/** Cookies do not change while this page shows; nothing to subscribe to */
 function subscribe() {
 	return () => {};
 }
 
-/** Replaces the root layout when it throws, so it reads locale and theme itself */
 export default function GlobalError({
 	error,
 	retry,
@@ -70,7 +67,6 @@ export default function GlobalError({
 							>
 								{m.error.retry}
 							</button>
-							{/* A plain link: the root layout is broken, so do a full load */}
 							<a className="btn btn-ghost" href="/">
 								{m.error.home}
 							</a>

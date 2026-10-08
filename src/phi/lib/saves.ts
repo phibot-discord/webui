@@ -10,32 +10,23 @@ import { isTapApiFailure, tapCnProxyUrl } from "./tapapi";
 const SAVE = (token: string) => kvKey("save", token);
 const HISB30 = (userId: string) => kvKey("hisb30", userId);
 
-/**
- * Raw save JSON by token (never a parsed Save: getB19 mutates rows)
- * `rev` lets a refresh skip the KV read; plain reads are trusted for SAVE_MEMO_MS, opt-in only
- */
+// Raw JSON, never a parsed Save: getB19 mutates rows
 const blobMem = new Map<
 	string,
 	{ rev?: string; raw: string; at: number; kvAt: number }
 >();
 const BLOB_MEM_MAX = 64;
 const SAVE_MEMO_MS = 10_000;
-/** How long a refresh trusts `rev` without reading KV (another instance may have deleted the blob) */
+// A refresh trusts `rev` this long without reading KV: another instance may have deleted the blob
 const SAVE_REV_TRUST_MS = 10 * 60_000;
 
-/** userId → bound token, so a page view and the card request after it share one read */
+// userId → bound token, so a page view and the card request after it share one read
 const tokenMem = new Map<string, { token: string; at: number }>();
 const TOKEN_MEM_MAX = 1_000;
-/**
- * Bumped by `forgetBound`: a token read that was already on the wire when a
- * binding was dropped must not put the old token back in the memo
- */
+// Bumped by forgetBound so a token read already in flight can't put the old token back
 let tokenGen = 0;
 
-/**
- * Per token, bumped when an unbind deletes `phi:save:<token>`: a refresh or a
- * blob read already running then must not write the blob back or memo it
- */
+// Bumped when an unbind deletes the blob, so a refresh or read in flight won't write or memo it back
 const saveDrops = new Map<string, number>();
 const SAVE_DROPS_MAX = 1_000;
 
@@ -68,7 +59,6 @@ function rememberToken(userId: string, token: string) {
 	evictOldest(tokenMem, TOKEN_MEM_MAX);
 }
 
-/** Drop this process's memo of a user's binding (unbind, rebind) */
 export function forgetBound(userId: string, token?: string) {
 	tokenGen += 1;
 	tokenMem.delete(userId);
@@ -81,7 +71,7 @@ export function resetSaveBlobMemForTest() {
 	saveDrops.clear();
 }
 
-/** Which TapTap region answered last, so a refresh tries it first. Only a hint: bounded */
+// A hint only: the TapTap region that answered last is tried first on refresh
 const sessionRegion = new Map<string, boolean>();
 const SESSION_REGION_MAX = 500;
 
@@ -112,7 +102,7 @@ export function asSessionToken(raw: unknown): string | undefined {
 	}
 }
 
-/** Always reads KV (pages, bind, unbind, refresh), and seeds the memo for the card request */
+// Always reads KV; seeds the memo for the card request
 export async function getToken(
 	rt: PhiRuntime,
 	userId: string,
@@ -124,7 +114,7 @@ export async function getToken(
 	return token;
 }
 
-/** `getToken` with a 10 s memo, card route only; misses are not remembered */
+// getToken with a 10 s memo, card route only; misses are not remembered
 export async function getBoundToken(
 	rt: PhiRuntime,
 	userId: string,
@@ -143,10 +133,7 @@ async function setToken(rt: PhiRuntime, userId: string, token: string) {
 	await rt.store.setSessionToken(userId, token);
 }
 
-/**
- * Removes the binding and, in the background, the token-keyed save blob
- * Another account sharing the save needs a refresh; score history is kept
- */
+// Another account sharing the save needs a refresh; score history is kept
 export async function clearUser(rt: PhiRuntime, userId: string) {
 	sessionRegion.delete(userId);
 	const token = await getToken(rt, userId);
@@ -156,7 +143,6 @@ export async function clearUser(rt: PhiRuntime, userId: string) {
 	return Boolean(token);
 }
 
-/** Deletes the blob from KV in the background; `forgetBound` already dropped the memo */
 function dropSave(rt: PhiRuntime, token: string) {
 	const gen = saveDropGen(token) + 1;
 	saveDrops.delete(token);
@@ -177,13 +163,8 @@ export async function loadSave(rt: PhiRuntime, db: Kv, userId: string) {
 	return loadSaveByToken(rt, db, token);
 }
 
-/**
- * `memo`: a copy this process read or wrote in the last 10 s will do. Only the
- * card route opts in, and not when the client says its save just changed
- */
 export type MemoOpts = { memo?: boolean };
 
-/** Raw save JSON from KV, or from this process's 10 s memo when `opts.memo` */
 export async function readSaveRaw(
 	db: Pick<Kv, "get">,
 	token: string,
@@ -200,7 +181,6 @@ export async function readSaveRaw(
 	return raw;
 }
 
-/** For callers that already hold the token: saves the `phi:userToken` round trip */
 export async function loadSaveByToken(
 	rt: PhiRuntime,
 	db: Kv,
@@ -263,9 +243,7 @@ async function fetchSaveInfo(rt: PhiRuntime, token: string, global: boolean) {
 }
 
 export type UpdateSaveOpts = {
-	/** Token to bind; fails when the user already has one */
 	token?: string;
-	/** The user's current token, already read by the caller: skips that read */
 	bound?: string;
 	global?: boolean;
 };
@@ -296,13 +274,11 @@ async function updateSaveFor(
 	if (!token) throw new Error(NOT_BOUND);
 	if (!/[a-z0-9A-Z]{25}/.test(token))
 		throw new Error("SessionToken format is invalid (need 25 alphanumerics).");
-	// An unbind while this runs (KV round trips, TapTap, the download) deletes the
-	// blob and the memo; this refresh must not bring either back
+	// An unbind during this refresh deletes the blob and the memo; this refresh must not bring either back
 	const drop = saveDropGen(token);
 	const gen = tokenGen;
 	const unbound = () => drop !== saveDropGen(token);
 	const bannedJob = quiet(rt.store.isSessionTokenBanned(token));
-	// Read the stored blob during the TapTap call; a recent in-process copy is checked against TapTap's revision first
 	const mem = blobMem.get(token);
 	const hot =
 		mem?.rev && Date.now() - mem.kvAt < SAVE_REV_TRUST_MS ? mem : undefined;
@@ -318,7 +294,7 @@ async function updateSaveFor(
 	rememberRegion(userId, user.global);
 	if (await bannedJob) throw new Error("This sessionToken is banned.");
 	const rev = saveRev(user.saveInfo);
-	/** `bound`: the binding was written or re-read here; otherwise only renew a memo getToken made */
+	// `bound`: the binding was written or re-read here; otherwise only renew a memo getToken made
 	const remember = (raw: string, bound: boolean, kvAt?: number) => {
 		if (!unbound()) rememberBlob(token, rev, raw, kvAt);
 		if (gen !== tokenGen) return;
@@ -343,15 +319,13 @@ async function updateSaveFor(
 		return save;
 	}
 	logger.info(`save cache miss ${rev || "-"}${hop}`);
-	// Only a changed save needs the B30 ring and the history: read them during the download
 	const snapsJob = quiet(db.get(HISB30(userId)));
 	const history = import("./history");
 	const historyJob = quiet(
 		history.then((m) => m.readSaveHistoryRaw(db, token)),
 	);
 	await user.buildRecord();
-	// The binding may have gone during the download: re-read it before writing the blob back,
-	// or the token outlives the binding (a bind writes its own token)
+	// Re-read the binding before writing the blob back, or the token outlives an unbind during the download
 	const boundJob = opts.token
 		? Promise.resolve(true)
 		: rt.store.getSessionToken(userId).then(
@@ -388,7 +362,6 @@ async function updateSaveFor(
 	return save;
 }
 
-/** `prev`: the `phi:hisb30` read already in flight, if the caller started one */
 export async function snapshotB30(
 	db: Kv,
 	userId: string,

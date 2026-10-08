@@ -36,12 +36,10 @@ const BUNDLED = "bundled";
 
 export type InfoSyncState = {
 	commit?: string;
-	/** Files ill-sync still has to copy: a count, or (older Workers) the list itself */
 	pending?: number | unknown[];
 	phigros?: string;
 	phigrosVerNum?: number;
 	levelsSha?: string;
-	/** sha of R2 `info/aliases.json`, written by the same cron */
 	aliasesSha?: string;
 };
 
@@ -51,9 +49,7 @@ export type HydrateResult = {
 	phigrosVerNum?: number;
 	levelsSha?: string;
 	aliasesSha?: string;
-	/** Info files this call mounted; empty when the mounted set was already current */
 	mounted: string[];
-	/** `mounted` came straight from R2 rather than the /tmp cache */
 	fresh: boolean;
 };
 
@@ -68,9 +64,7 @@ type HydrateOpts = {
 };
 
 let gitRevision = BUNDLED;
-/** `levelsSha` from `_sync/info.json` */
 let syncLevelsSha: string | undefined;
-/** sha of the KV `phi:infoFile` csv mounted over info.csv, if any */
 let kvLevelsSha: string | undefined;
 /** KV csv sha the mounted notesInfo.json is at least as new as */
 let notesSha: string | undefined;
@@ -80,16 +74,12 @@ let mountedFor: string | undefined;
 let initedCommit: string | undefined;
 let checkedAt = 0;
 let inflight: Promise<void> | undefined;
-/**
- * A revision with missing info files: arrived files wait while the last complete set stays in use
- * After MAX_INFO_TRIES they're mounted as partial; the missing ones keep retrying
- */
+/** Missing files keep the last complete set in use; after MAX_INFO_TRIES the arrived ones mount as partial */
 let staged:
 	| {
 			key: string;
 			got: Map<string, Buffer>;
 			tries: number;
-			/** Files mounted when the check gave up; the rest still hold the older copy */
 			partial?: Set<string>;
 	  }
 	| undefined;
@@ -108,7 +98,6 @@ export function loadedCatalogRevision(): string {
 	return initedCommit ?? catalogRevision();
 }
 
-/** Approved-alias snapshot sha from the last `_sync/info.json` read; undefined until ill-sync writes one */
 export function aliasesSha(): string | undefined {
 	return syncAliasesSha;
 }
@@ -159,7 +148,6 @@ function applyRevision(
 	};
 }
 
-/** ill-sync has copied every file for `commit` */
 export function syncReady(state: InfoSyncState | undefined): boolean {
 	if (!state?.commit) return false;
 	const pending = state.pending;
@@ -183,7 +171,7 @@ export function applyLevelsCsv(
 	kvLevelsSha = cache.sha;
 }
 
-/** Note counts for the unpacker's csv. The bundled notesInfo predates those songs */
+/** The bundled notesInfo predates the unpacker's songs */
 export function applyNotesInfo(
 	assets: string,
 	buf: Buffer,
@@ -334,7 +322,6 @@ export async function hydrateSongInfo(
 		if (cached && mounted) return applyRevision(cached, mounted);
 		return applyRevision({ commit: gitRevision });
 	}
-	// Only files this process has not mounted for this revision yet
 	const toMount = files.filter(
 		(name) => batch.got.has(name) && !batch.partial?.has(name),
 	);
@@ -342,8 +329,7 @@ export async function hydrateSongInfo(
 		const buf = batch.got.get(name);
 		if (buf) mountInfoFile(opts.assetsDir, name, buf);
 	}
-	// `fresh` vouches for every mounted file being this check's download (see
-	// applyKvLevels); one fetched on an earlier check may predate the KV csv
+	// `fresh` means every mounted file is this check's download: one from an earlier check may predate the KV csv
 	const fresh = toMount.every((name) => fetched.has(name));
 	if (missing.length) {
 		logger.warn(
@@ -391,7 +377,7 @@ async function readKvInfoFile(): Promise<InfoFileCache | undefined> {
 	}
 }
 
-/** Mount the KV csv and its notesInfo.json (~1.7 MB each), fetched only when the csv sha moves or a remount dropped them */
+/** ~1.7 MB each: fetched only when the csv sha moves or a remount dropped them */
 export async function applyKvLevels(
 	cache: InfoFileCache,
 	hydrated: Pick<HydrateResult, "mounted" | "fresh"> | undefined,
@@ -406,8 +392,7 @@ export async function applyKvLevels(
 	try {
 		if (cache.sha !== kvLevelsSha) applyLevelsCsv(assets, cache, cacheRoot);
 		if (hydrated?.fresh && hydrated.mounted.includes("notesInfo.json")) {
-			// refresh() read KV before this download, and the unpacker uploads
-			// notesInfo.json to R2 before it writes KV, so this copy is current
+			// refresh() read KV before this download, and the unpacker uploads to R2 before KV, so this copy is current
 			notesSha = cache.sha;
 			return;
 		}
@@ -471,7 +456,6 @@ async function refresh(): Promise<void> {
 	await reloadCatalog();
 }
 
-/** Re-parse the mounted info files into `getInfo` when they moved past what it holds */
 export async function reloadCatalog(assets = assetsDir()): Promise<boolean> {
 	const rev = catalogRevision();
 	if (initedCommit === rev) return false;

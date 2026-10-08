@@ -12,7 +12,6 @@ import {
 import { ToolAlert } from "@/components/ToolAlert";
 import { useI18n } from "@/i18n/provider";
 
-/** Public link to the player's cards (/p/<slug>): create, copy, open, revoke */
 export function ShareToggle({ slug }: { slug?: string | null }) {
 	const { m } = useI18n();
 	const router = useRouter();
@@ -92,7 +91,6 @@ export function ShareToggle({ slug }: { slug?: string | null }) {
 			setCopy("copied");
 			copiedTimer.current = window.setTimeout(() => setCopy("idle"), 2000);
 		} catch {
-			// No clipboard (insecure context, permission): leave the link selected
 			setCopy("failed");
 			field.current?.focus();
 			field.current?.select();
@@ -101,8 +99,6 @@ export function ShareToggle({ slug }: { slug?: string | null }) {
 
 	return (
 		<div className="tool" ref={root}>
-			{/* While a link exists: tinted, a globe, and ", on" in its name
-			    Not aria-pressed, as the button opens a popover */}
 			<SteadyButton
 				className={
 					liveSlug ? "btn-ghost share-btn is-on" : "btn-ghost share-btn"

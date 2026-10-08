@@ -10,8 +10,6 @@ import { fitFontPx, textEm } from "../text-fit";
 import { splitTitle } from "./b19-portrait";
 import type { CardData, CardVariant } from "./types";
 
-/** Per-song card: prepare() turns song-card.ts numbers into the strings and offsets the template prints */
-
 const COPY = {
 	en: {
 		eyebrow: "SONG LEADERBOARD",
@@ -125,23 +123,23 @@ type Copy = (typeof COPY)["en"];
 
 export const CARD_WIDTH = 800;
 const CONTENT_W = CARD_WIDTH - 2 * 32;
-/** Jacket 336 × 177 (the 2048 × 1080 art), 28 px gap, text column the rest */
+// Jacket 336 × 177 (the 2048 × 1080 art), 28 px gap, text column the rest
 const HERO_TEXT_W = CONTENT_W - 336 - 28;
 const TITLE_MARGIN = 16;
-/** Histogram: 15 px per bin (12 bar + 3 gap), then a gap and the AP column */
+// 15 px per bin (12 bar + 3 gap), then a gap and the AP column
 export const BIN_W = 15;
 export const PLOT_H = 150;
 const AP_GAP = 20;
 const AP_W = 44;
-/** Fixed boxes the template centres its labels in (song.css uses the same widths) */
+// Fixed label boxes; song.css uses the same widths
 const MARK_LABEL_W = 132;
 const TICK_W = 60;
 const STRIP_TICK_W = 90;
-/** Percentile strip: 0 = the worst record (left), 100 = the best (right) */
+// 0 = the worst record (left), 100 = the best (right)
 export const STRIP_W = 600 + AP_GAP + AP_W;
-/** Standing tiles: 2 × 356 with a 24 px gap; 24 px padding each side */
+// Tiles are 2 × 356 with a 24 px gap; 24 px padding each side
 const TILE_TEXT_W = 356 - 48;
-/** AP / FC meters (Takumi drops % widths inside them) */
+// Fixed px: Takumi drops % widths inside the AP / FC meters
 const METER_W = 190;
 
 function fill(text: string, vars: Record<string, string | number>) {
@@ -152,7 +150,6 @@ function fill(text: string, vars: Record<string, string | number>) {
 
 type FitText = { px: number; lines: string[] };
 
-/** Cut `text` with "…" so it fits `widthPx` at `px` */
 export function ellipsize(text: string, widthPx: number, px: number) {
 	if (textEm(text) * px <= widthPx) return text;
 	const chars = [...text];
@@ -161,7 +158,6 @@ export function ellipsize(text: string, widthPx: number, px: number) {
 	return `${chars.join("").trimEnd()}…`;
 }
 
-/** One line shrunk to at least `min`; else two balanced lines at `wrap`; else cut */
 export function fitLines(
 	text: string,
 	widthPx: number,
@@ -170,7 +166,6 @@ export function fitLines(
 	const clean = text.replace(/\s+/g, " ").trim() || "?";
 	const one = fitFontPx(clean, widthPx, opts.max);
 	if (one >= opts.min) return { px: one, lines: [clean] };
-	// Phrase-aware: "Retribution ~" / "Cycle of Redemption ~", not mid-phrase
 	const [head, tail] = splitTitle(clean, widthPx / opts.wrap);
 	if (tail) {
 		const px = Math.min(
@@ -182,7 +177,6 @@ export function fitLines(
 	return { px: opts.min, lines: [ellipsize(clean, widthPx, opts.min)] };
 }
 
-/** Phigros prints scores as 7 digits: 0910415 */
 export function fmtScore(score: number) {
 	return String(Math.max(0, Math.round(score))).padStart(7, "0");
 }
@@ -191,7 +185,6 @@ function fmtAcc(acc: number, digits = 4) {
 	return `${acc.toFixed(digits)}%`;
 }
 
-/** "80", "97.5", "99.75": no trailing zeros */
 function fmtTick(v: number) {
 	return String(Math.round(v * 100) / 100);
 }
@@ -202,7 +195,6 @@ function fmtRate(part: number, total: number) {
 	return p > 0 && p < 0.1 ? "<0.1" : p.toFixed(1);
 }
 
-/** Filled px of a METER_W meter; anything above zero shows at least a dot */
 function meterPx(part: number, total: number) {
 	if (!(total > 0) || !(part > 0)) return 0;
 	return Math.max(6, Math.round(Math.min(1, part / total) * METER_W));
@@ -216,10 +208,7 @@ function stateNote(state: LookupState, vt: Copy): string {
 	return "";
 }
 
-/**
- * "Top 5.1%"; for an AP (#1, tied with every other AP) the AP share instead, since
- * "Top 9.8%" next to #1 would contradict it
- */
+// An AP (#1, tied with every other AP) shows the AP share: "Top 9.8%" next to #1 would contradict it
 function placePct(place: Placement, vt: Copy, short = false) {
 	const p = fmtTopPercent(place.percent);
 	if (!place.ap) return fill(vt.top, { p });
@@ -284,10 +273,7 @@ function standingTile(
 	};
 }
 
-/**
- * Share of records at or above `acc`, read off the board's quantiles (q[k] is the
- * acc of the best k·0.5 %). Used for the strip marker when the rank lookup missed
- */
+// q[k] is the acc of the best k·0.5 %; used for the strip marker when the rank lookup missed
 export function boardTopPercent(board: Board, acc: number): number | null {
 	const q = board.q;
 	if (!q.length || !(board.n > 0)) return null;
@@ -301,12 +287,10 @@ export function boardTopPercent(board: Board, acc: number): number | null {
 type Bar = { h: number; cls: "hi" | "you" | "lo" | "mid" };
 
 type Marker = {
-	/** Centre of the marker; `left` is its line's left edge, `labelX` its label's */
 	x: number;
 	left: number;
 	labelX: number;
 	label: string;
-	/** Draw the line (an AP's column is outlined instead) */
 	line: boolean;
 };
 
@@ -322,7 +306,6 @@ export type DistView = {
 		x: number;
 		h: number;
 		cut: boolean;
-		/** Count over the column; empty when the user's own marker sits there */
 		label: string;
 		axisX: number;
 		you: boolean;
@@ -342,7 +325,6 @@ export type DistView = {
 	};
 };
 
-/** Histogram bars, the user's marker and the percentile strip, in px */
 export function distView(
 	board: Board | null,
 	state: LookupState,
@@ -533,7 +515,6 @@ function levelRows(
 	}));
 }
 
-/** Everything song.art prints */
 export function songView(card: SongCardData, locale: PhiLocale) {
 	const vt = COPY[locale] ?? COPY.en;
 	const rec = card.record;
@@ -551,7 +532,6 @@ export function songView(card: SongCardData, locale: PhiLocale) {
 		lc: locale,
 		vt,
 		head: {
-			// Keep clear of the card edge; two balanced lines read better than one tiny one
 			title: fitLines(card.title, HERO_TEXT_W - TITLE_MARGIN, {
 				max: 32,
 				min: 22,

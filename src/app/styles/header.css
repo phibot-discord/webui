@@ -1,12 +1,8 @@
-/* topbar: one row; below 64em the links and settings fold into a panel */
-
 .topbar {
 	position: sticky;
 	top: 0;
 	z-index: var(--z-sticky);
 	background: color-mix(in srgb, var(--bg) 86%, transparent);
-	/* unprefixed only: Lightning CSS adds -webkit- for Safari, and a
-	   hand-written pair is merged down to the prefixed one */
 	backdrop-filter: blur(14px) saturate(1.2);
 	border-bottom: 1px solid var(--line);
 }
@@ -92,7 +88,6 @@
 	color: var(--ink);
 }
 
-/* current page: a slanted judgment-line bar on the header's bottom edge */
 .topbar-link[aria-current="page"]::after {
 	content: "";
 	position: absolute;
@@ -153,8 +148,6 @@
 	display: none;
 }
 
-/* ------------------------- locale and theme switches ------------------------- */
-
 .switch {
 	display: inline-flex;
 	align-items: center;
@@ -206,12 +199,10 @@
 	cursor: default;
 }
 
-/* Ring outside the button, clear of the pressed state's inset edge */
 .switch-options button:focus-visible {
 	outline-offset: 2px;
 }
 
-/* Labels are read by screen readers on desktop and shown in the mobile panel */
 .switch-label,
 .switch-text {
 	position: absolute;
@@ -242,8 +233,6 @@
 	}
 }
 
-/* --------------------------- narrow: disclosure menu --------------------------- */
-
 @media (max-width: 63.99em) {
 	.topbar-inner {
 		justify-content: space-between;
@@ -259,7 +248,6 @@
 		display: none;
 	}
 
-	/* The open menu covers the version toast and dims the page below it */
 	.topbar[data-open] {
 		z-index: var(--z-sheet);
 	}
@@ -294,8 +282,6 @@
 		touch-action: none;
 	}
 
-	/* The page behind the open menu stays put; the panel scrolls on its own
-	   The gutter keeps a classic scrollbar's width so the bar does not shift */
 	html:has(.topbar[data-open]) {
 		overflow: hidden;
 		scrollbar-gutter: stable;
@@ -338,8 +324,6 @@
 		border-top: 1px solid var(--line);
 	}
 
-	/* Label above a full-width segmented control, so three labelled theme
-	   options fit at 320 px and with a large default font */
 	.switch {
 		flex-direction: column;
 		align-items: stretch;
@@ -401,7 +385,6 @@
 	}
 }
 
-/* Tablets: links and settings side by side instead of one long stack */
 @media (min-width: 48em) and (max-width: 63.99em) {
 	.topbar-menu[data-open] {
 		flex-direction: row;

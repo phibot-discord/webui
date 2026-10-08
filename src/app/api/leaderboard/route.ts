@@ -16,10 +16,7 @@ const CACHE_NO_DATA = "public, max-age=60, s-maxage=300";
 /** phib19 often needs seconds; past this the lookup keeps filling the cache and we answer 503 */
 const BUDGET_MS = 6_000;
 
-/**
- * GET /api/leaderboard?chart=&level=&acc=[&minRks=&maxRks=]: where `acc` would place among
- * phib19's anonymous records. Upstream trouble or too many uncached lookups is a 503, never a 500
- */
+/** Upstream trouble or too many uncached lookups is a 503, never a 500 */
 export async function GET(request: Request) {
 	// Its own bucket: a page calling this repeatedly must not use up the IP's card renders
 	const limited = rateLimit({ ip: `lb:${clientIp(request.headers)}` });

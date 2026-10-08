@@ -488,13 +488,11 @@ test("fitTitle shrinks, then wraps to two lines, then ellipsizes", () => {
 });
 
 test("fitTitle keeps the two-line split that fits the largest size", () => {
-	// The space split leaves "祈" alone and the rest tiny; the CJK split is larger
 	const cjk = fitTitle("祈 -我ら神祖と共に歩む者なり-", 202);
 	assert.deepEqual(cjk, {
 		lines: ["祈 -我ら神祖と", "共に歩む者なり-"],
 		px: 14.5,
 	});
-	// On a tie the split at the space wins
 	const tie = fitTitle("一二三四五六 七八九十甲乙丙", 202);
 	assert.deepEqual(tie.lines, ["一二三四五六", "七八九十甲乙丙"]);
 

@@ -4,8 +4,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 import type { ScoreAvgSong } from "./score-avg";
 
-// The real fetch path (memo + chartTagJsonFetchOnce) against a local stand-in for
-// phib19; PHI_CHART_TAG_API is read at import, so score-avg is imported after it
+// PHI_CHART_TAG_API is read at import, so score-avg is imported after it is set
 test("a peer-average lookup answered with HTTP 200 {error} is a failure, and not retried on every render", async () => {
 	let hits = 0;
 	const server = http.createServer((req, res) => {
@@ -29,10 +28,12 @@ test("a peer-average lookup answered with HTTP 200 {error} is a failure, and not
 		const first = payload();
 		assert.deepEqual(await attachB19AccAvg(first, { avgType: "all" }), {
 			partial: true,
+			missing: true,
 		});
 		assert.equal(first.b19_list[0]?.accAvg, undefined);
 		assert.deepEqual(await attachB19AccAvg(payload(), { avgType: "all" }), {
 			partial: true,
+			missing: true,
 		});
 		assert.equal(hits, 1);
 	} finally {

@@ -21,7 +21,6 @@ export default async function ManualPage() {
 	const name = session.user.name?.trim() || "";
 	return withDiscordUid(userId, async () => {
 		const host = await getDataHost();
-		// A bound TapTap account always wins over hand-typed scores
 		if (await host.lib.getToken(host.rt, userId)) redirect("/me/b30");
 		const data = await loadManual(host.db, userId);
 		return (

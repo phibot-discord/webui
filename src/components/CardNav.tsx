@@ -5,7 +5,6 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { useI18n } from "@/i18n/provider";
 import type { CardKind } from "@/server/card-kinds";
 
-/** A small bar under a tab while its page loads (prefetch is off) */
 function Pending() {
 	const { pending } = useLinkStatus();
 	return pending ? (
@@ -13,10 +12,8 @@ function Pending() {
 	) : null;
 }
 
-/** Room kept clear of the strip's edge fade (2rem in desk.css) */
 const FADE = 32;
 
-/** Scrolls the strip (phones) so a tab sits clear of the edge fades */
 function reveal(ul: HTMLElement, tab: HTMLElement) {
 	if (ul.scrollWidth <= ul.clientWidth) return;
 	const box = ul.getBoundingClientRect();
@@ -25,10 +22,6 @@ function reveal(ul: HTMLElement, tab: HTMLElement) {
 	else if (r.left < box.left + FADE) ul.scrollLeft -= box.left + FADE - r.left;
 }
 
-/**
- * When a tab was followed. The page under the tabs is replaced, focus with
- * it, so the next tab strip puts focus back on its current tab
- */
 let followedAt = 0;
 
 export function CardNav({
@@ -54,7 +47,6 @@ export function CardNav({
 			)
 		: items;
 
-	// On phones the strip scrolls: bring the current tab out from under the fade
 	// biome-ignore lint/correctness/useExhaustiveDependencies: runs again when the current tab changes, read from the DOM
 	useLayoutEffect(() => {
 		const ul = list.current;
@@ -67,7 +59,6 @@ export function CardNav({
 		}
 	}, [current]);
 
-	// Fade only the edges that have more tabs past them
 	useEffect(() => {
 		const ul = list.current;
 		if (!ul) return;
@@ -78,7 +69,6 @@ export function CardNav({
 			ul.dataset.fade =
 				start && end ? "both" : start ? "start" : end ? "end" : "none";
 		};
-		// Chrome leaves a partly visible tab where it is when it takes focus
 		const onFocus = (e: FocusEvent) => {
 			if (e.target instanceof HTMLElement) reveal(ul, e.target);
 		};
@@ -106,7 +96,6 @@ export function CardNav({
 								prefetch={false}
 								aria-current={active ? "page" : undefined}
 								onClick={(e) => {
-									// A plain click that navigates here (not a new tab)
 									if (
 										!active &&
 										e.button === 0 &&

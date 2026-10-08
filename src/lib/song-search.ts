@@ -1,6 +1,6 @@
+// Shared by the browser (ChartSearch) and `/api/songs/search`: keep it free of node imports
 import { JARO_PUNCT, jaroWinkler } from "@/phi/lib/jaro";
 
-/** Shared by the browser (ChartSearch) and `/api/songs/search`; keep it free of node imports */
 export type SearchableSong = {
 	id: string;
 	song: string;
@@ -10,7 +10,6 @@ export type SearchableSong = {
 
 export type MatchKind = "title" | "alias" | "id" | "composer";
 
-/** 0 exact · 1 prefix · 2 contains · 3 composer · 4 fuzzy */
 export type MatchTier = 0 | 1 | 2 | 3 | 4;
 export const MATCH_TIERS = [
 	"exact",
@@ -33,7 +32,6 @@ type Entry = {
 	text: string;
 	loose: string;
 	fuzzy: string;
-	/** Composers: the fuzzy form from each word on (`godspeedaoki`, `aoki`) */
 	words?: string[];
 };
 
@@ -54,18 +52,11 @@ export function looseFold(s: string): string {
 	return s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
 }
 
-/**
- * Prefix, contains and fuzzy form: also drops phi-plugin's punctuation set
- * A query that is mostly punctuation keeps its loose form instead
- */
 export function fuzzyFold(s: string): string {
 	return looseFold(s).replace(JARO_PUNCT, "");
 }
 
-/**
- * The fuzzy form of a title or alias, unless stripping leaves one character or
- * less than half of it: `＞w＜` and `+E` must not turn into `w` and `e`
- */
+/** Keeps the loose form when stripping leaves under 2 characters or under half: `＞w＜` and `+E` must not turn into `w` and `e` */
 function entryFuzzy(loose: string): string {
 	const stripped = loose.replace(JARO_PUNCT, "");
 	return stripped.length < 2 || stripped.length * 2 < loose.length
@@ -73,7 +64,6 @@ function entryFuzzy(loose: string): string {
 		: stripped;
 }
 
-/** Fuzzy form of every word-suffix of a composer, for word-start matching */
 function composerWords(composer: string): string[] {
 	const words = composer
 		.normalize("NFKC")
@@ -120,9 +110,7 @@ function buildIndex(list: readonly SearchableSong[]): Entry[] {
 type Query = {
 	loose: string;
 	id: string;
-	/** What the non-exact tiers look for */
 	text: string;
-	/** `text` is punctuation-free, so it is compared with `Entry.fuzzy` and may go fuzzy */
 	folded: boolean;
 };
 
@@ -140,8 +128,7 @@ function matchEntry(
 	if (exactOnly || !q.text || !hay) return;
 	const score = q.text.length / hay.length;
 	if (e.kind === "composer") {
-		// Latin names match at a word start (`aoki`, not `asa` in Masahiro);
-		// CJK names have no spaces to split on
+		// Latin names match at a word start (`aoki`, not `asa` in Masahiro); CJK names have no spaces to split on
 		const hit = /^[a-z0-9]/.test(q.text)
 			? q.folded && e.words?.some((w) => w.startsWith(q.text))
 			: hay.includes(q.text);

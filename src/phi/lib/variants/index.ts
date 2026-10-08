@@ -23,7 +23,6 @@ const VARIANTS: CardVariant[] = [
 
 const byTpl = new Map(VARIANTS.map((v) => [v.tpl, v]));
 
-/** The alternative layout registered for an art template name, if any */
 export function cardVariant(tpl: string): CardVariant | undefined {
 	return byTpl.get(tpl);
 }

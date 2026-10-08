@@ -120,17 +120,14 @@ test("full-width ＞w＜ is an exact alias, not a search for w", () => {
 		assert.equal(hits[0]?.tier, 0);
 		assert.deepEqual(ids(q), ["70MinutesFighters.かたぎり.0"]);
 	}
-	// Typed on its own, w is an ordinary prefix and ＞w＜ is not a w
 	assert.ok(ids("w").includes("WATER.Test.0"));
 	assert.equal(ids("w").includes("70MinutesFighters.かたぎり.0"), false);
-	// +E is not an e either: only the title's prefix counts, at its length
 	const plusE = rankSongs(SONGS, "e").find(
 		(m) => m.song.id === "ERABYECONNEC10N.かめりあ.0",
 	);
 	assert.equal(plusE?.via.kind, "title");
 	assert.ok((plusE?.score ?? 1) < 0.5);
 	assert.equal(rankSongs(SONGS, "+e")[0]?.tier, 0);
-	// Mostly-punctuation input matches as typed in the lower tiers too
 	assert.deepEqual(ids(">w"), ["70MinutesFighters.かたぎり.0"]);
 	assert.equal(rankSongs(SONGS, ">w")[0]?.tier, 1);
 });

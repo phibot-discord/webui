@@ -186,7 +186,6 @@ test("right after a save change cards are fetched with reload, then revalidated 
 	try {
 		clearCardBlobs({ fresh: true });
 		await loadCardBlob("/api/card/b30?_=fresh");
-		// A cache bypass (plain clear) inside the window does not end it
 		clearCardBlobs();
 		await loadCardBlob("/api/card/b30?_=fresh");
 		clock += 15_001;
@@ -196,6 +195,73 @@ test("right after a save change cards are fetched with reload, then revalidated 
 	} finally {
 		globalThis.fetch = orig;
 		Date.now = origNow;
+		resetCardFetchCacheForTest();
+	}
+});
+
+test("a streamed paint tells every caller its phases and ends with the image and its stats", async () => {
+	resetCardFetchCacheForTest();
+	const { paintStream } = await import("@/server/card-stream");
+	const { CARD_PROGRESS_HEADER } = await import("./card-progress");
+	const orig = globalThis.fetch;
+	const sent: Array<string | null> = [];
+	let release: (() => void) | undefined;
+	globalThis.fetch = (async (_src: string, init?: RequestInit) => {
+		sent.push(new Headers(init?.headers).get(CARD_PROGRESS_HEADER));
+		const s = paintStream();
+		const res = s.response();
+		s.phase("phib19");
+		release = () => {
+			s.phase("render");
+			s.done({
+				bytes: new Uint8Array([7, 10, 7]),
+				stats: {
+					cache: "miss",
+					cacheMs: 1,
+					totalMs: 3000,
+					extMs: 2500,
+					missing: ["peers"],
+				},
+			});
+		};
+		return res;
+	}) as typeof fetch;
+	try {
+		const first: string[] = [];
+		const second: string[] = [];
+		const a = loadCardBlob("/api/card/b30?_=s", (p) => first.push(p));
+		await new Promise((r) => setTimeout(r, 5));
+		const b = loadCardBlob("/api/card/b30?_=s", (p) => second.push(p));
+		release?.();
+		const [out] = await Promise.all([a, b]);
+		assert.deepEqual(sent, ["1"]);
+		assert.deepEqual(first, ["phib19", "render"]);
+		assert.deepEqual(second, ["phib19", "render"]);
+		assert.equal(out.stats?.extMs, 2500);
+		assert.deepEqual(out.stats?.missing, ["peers"]);
+		assert.ok(out.url.startsWith("blob:"));
+	} finally {
+		globalThis.fetch = orig;
+		resetCardFetchCacheForTest();
+	}
+});
+
+test("public cards never ask for a progress stream", async () => {
+	resetCardFetchCacheForTest();
+	const { CARD_PROGRESS_HEADER } = await import("./card-progress");
+	const orig = globalThis.fetch;
+	let header: string | null = "unset";
+	globalThis.fetch = (async (_src: string, init?: RequestInit) => {
+		header = new Headers(init?.headers).get(CARD_PROGRESS_HEADER);
+		return new Response(new Uint8Array([1]), {
+			headers: { "content-type": "image/jpeg" },
+		});
+	}) as typeof fetch;
+	try {
+		await loadCardBlob("/api/public/abc/card/b30?_=p");
+		assert.equal(header, null);
+	} finally {
+		globalThis.fetch = orig;
 		resetCardFetchCacheForTest();
 	}
 });

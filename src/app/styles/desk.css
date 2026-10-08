@@ -1,14 +1,8 @@
-/* desk: masthead, tabs, card toolbar and options, song picker, skeleton (the card is in card-view.css) */
-
 .page.desk {
 	--page-max: none;
 	padding: var(--space-6) 0 var(--space-12);
 }
 
-/* ------------------------------- masthead ------------------------------- */
-
-/* The name's size and leading are shared with the skeleton's bars, so the
-   page does not shift when it lands */
 .desk-mast {
 	--name-size: clamp(1.5rem, 1.25rem + 1vw, 2rem);
 	--name-leading: 1.15;
@@ -22,7 +16,6 @@
 	min-width: 0;
 }
 
-/* Long player names wrap; nothing is cut off */
 .desk-name {
 	margin: 0;
 	font-size: var(--name-size);
@@ -73,8 +66,6 @@
 	margin: calc(-1 * var(--space-1)) 0 var(--space-4);
 }
 
-/* Public pages: "Get your own cards" is a masthead button on wide screens and
-   an inline link in the note on phones, so it does not push the card down */
 .desk-note-cta {
 	color: var(--primary);
 	font-weight: 500;
@@ -102,8 +93,6 @@
 		padding: var(--space-4) 0 var(--space-10);
 	}
 
-	/* One row under the name: the first action takes the spare room, the
-	   steady-width sizers step aside so the row fits at 320 px */
 	.desk-tools {
 		flex-wrap: nowrap;
 	}
@@ -144,8 +133,6 @@
 	}
 }
 
-/* A tool whose feature is switched on (an active share link): tinted, with
-   an icon and a screen-reader suffix, so not colour alone */
 .btn.is-on {
 	background: var(--primary-soft);
 	border-color: var(--primary);
@@ -184,7 +171,6 @@
 		justify-content: flex-end;
 	}
 
-	/* Gate pages put the actions on the left: pops open rightwards */
 	.status-actions .tool-pop {
 		right: auto;
 		left: 0;
@@ -200,8 +186,6 @@
 	transform: rotate(180deg);
 }
 
-/* --------------------------- popovers and menu --------------------------- */
-
 .tool-pop-title {
 	margin: 0 0 var(--space-2);
 	font-size: var(--text-sm);
@@ -213,7 +197,6 @@
 	margin: 0 0 var(--space-3);
 }
 
-/* An action's error (ToolAlert): message and a dismiss button */
 .tool-alert {
 	display: flex;
 	align-items: flex-start;
@@ -267,7 +250,6 @@
 	border-color: color-mix(in srgb, var(--danger) 60%, var(--line-strong));
 }
 
-/* .btn-ghost's hover would turn it back to ink */
 @media (hover: hover) {
 	.menu-btn-danger:hover:not(:disabled) {
 		color: var(--danger);
@@ -292,7 +274,6 @@
 	background: var(--surface-2);
 }
 
-/* The question is the fieldset's legend; keep it inside the box */
 .menu-confirm > legend {
 	float: left;
 	width: 100%;
@@ -314,8 +295,6 @@
 	font-family: ui-monospace, Menlo, Monaco, monospace;
 	font-size: var(--text-sm);
 }
-
-/* ------------------------------- card tabs ------------------------------- */
 
 .card-nav {
 	display: flex;
@@ -355,7 +334,6 @@
 	}
 }
 
-/* useLinkStatus: the tab being opened */
 .card-nav-pending {
 	position: absolute;
 	right: var(--space-3);
@@ -367,7 +345,6 @@
 }
 
 @media (max-width: 767px) {
-	/* Scrolls sideways; CardNav fades an edge that has more tabs past it (data-fade) */
 	.card-nav {
 		flex-wrap: nowrap;
 		overflow-x: auto;
@@ -405,8 +382,6 @@
 	}
 }
 
-/* -------------------------------- toolbar -------------------------------- */
-
 .card-toolbar {
 	container-type: inline-size;
 	display: flex;
@@ -443,7 +418,6 @@
 	gap: var(--space-2);
 }
 
-/* Viewing the card on the left, saving it on the right */
 .card-actions-sep {
 	width: 1px;
 	height: 1.5rem;
@@ -457,7 +431,6 @@
 	}
 }
 
-/* Icons only where labels no longer fit; the label stays for screen readers */
 @container (max-width: 46rem) {
 	.card-view-action {
 		width: var(--control-h);
@@ -501,8 +474,6 @@
 .card-share-error {
 	margin: calc(-1 * var(--space-1)) 0 var(--space-3);
 }
-
-/* ----------------------------- options panel ----------------------------- */
 
 .card-options-panel {
 	margin: 0 0 var(--space-4);
@@ -565,7 +536,6 @@
 	margin: var(--space-2) 0 0;
 }
 
-/* Segmented radio group (SegRadio): the radio covers its label */
 .seg-radio {
 	display: flex;
 	flex-wrap: wrap;
@@ -652,7 +622,6 @@
 	}
 }
 
-/* Cards: one bordered option per layout, label over a one-line hint */
 .seg-cards {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
@@ -683,11 +652,10 @@
 	min-width: 2.75rem;
 }
 
-/* Five modes in rows of 3 + 2 in both languages; slim padding keeps "B30 average" on one line down to 360 px */
 .opt-peer .seg-radio {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	grid-auto-rows: 1fr;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(0, 1fr);
 }
 
 .opt-peer .seg-opt {
@@ -700,7 +668,6 @@
 	}
 }
 
-/* Level segments carry the level colour as a small swatch */
 .seg-level .seg-name::before {
 	content: "";
 	width: 0.5rem;
@@ -741,12 +708,10 @@
 	cursor: pointer;
 }
 
-/* Background picker (BackgroundPicker.tsx) */
 .bg-picker {
 	position: relative;
 }
 
-/* Looks like the other selects: a chevron on the right */
 .bg-input {
 	width: 100%;
 	padding-right: 2.25rem;
@@ -816,7 +781,6 @@
 	}
 }
 
-/* Render diagnostics: a disclosure, rows with their hint underneath */
 .opt-diag {
 	border-top: 1px solid var(--line);
 	padding-top: var(--space-3);
@@ -877,6 +841,15 @@
 	font-size: var(--text-xs);
 }
 
+.stats-ext {
+	color: var(--muted);
+	font-size: var(--text-xs);
+}
+
+.stats-ext::before {
+	content: "·\00a0";
+}
+
 .stats-rows {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
@@ -915,8 +888,6 @@
 	line-height: 1.4;
 }
 
-/* ------------------------------ song picker ------------------------------ */
-
 .song-pick {
 	display: grid;
 	gap: var(--space-4);
@@ -927,7 +898,6 @@
 	max-width: 40rem;
 }
 
-/* The picked chart: title on the left, levels on the right; wraps on phones */
 .song-pick-current {
 	display: flex;
 	flex-wrap: wrap;
@@ -966,8 +936,6 @@
 	min-width: min(100%, 18rem);
 }
 
-/* ---------------------------- public share CTA ---------------------------- */
-
 .desk-cta {
 	display: grid;
 	justify-items: start;
@@ -988,7 +956,16 @@
 	color: var(--muted);
 }
 
-/* -------------------------------- skeleton -------------------------------- */
+.desk-cta-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.desk-cta-actions form {
+	margin: 0;
+}
 
 .sk {
 	display: block;
@@ -1034,7 +1011,6 @@
 	background: var(--surface-2);
 }
 
-/* As .card-view[data-tall]: the phone layout in a narrower column */
 .sk-frame[data-tall] {
 	max-width: 40rem;
 	margin-inline: auto;
@@ -1076,8 +1052,6 @@
 	}
 }
 
-/* A transparent border shows in forced colours: Canvas hides it, and no
-   overlap keeps the strip's divider whole under it */
 @media (forced-colors: active) {
 	.card-nav a {
 		border-bottom-color: Canvas;

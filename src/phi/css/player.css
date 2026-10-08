@@ -105,7 +105,6 @@
 }
 .playerInfo .dataBox,
 .playerInfo .dataBox.clip-box {
-	/* Short corners of the slant sit on the avatar: top-left and bottom-right */
 	left: calc(var(--b30-avatar-max-width) * -3 / 44) !important;
 	width: calc(var(--b30-avatar-max-width) * 25 / 22) !important;
 	min-width: calc(var(--b30-avatar-max-width) * 25 / 22) !important;

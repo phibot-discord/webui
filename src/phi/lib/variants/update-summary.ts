@@ -5,8 +5,6 @@ import type { UpdateBox, UpdateTile } from "../history";
 import { fitEm, fitFontPx, splitTwoLines, textEm } from "../text-fit";
 import type { CardData, CardVariant, VariantContext } from "./types";
 
-/** "Summary" history layout; prepare() derives everything the template prints (`us`) */
-
 const COPY = {
 	en: {
 		eyebrow: "SCORE UPDATES",
@@ -127,7 +125,7 @@ export type SummaryCopy = (typeof COPY)["en"];
 export const CARD_WIDTH = 800;
 const NAME_W = 420;
 const GAIN_TITLE_W = 206;
-/** Title column of a full-width gain tile (fewer than 3 tiles): 736 − 312 jacket − 46 padding */
+// Full-width gain tile (fewer than 3 tiles): 736 − 312 jacket − 46 padding
 const WIDE_TITLE_W = 374;
 const ROW_TITLE_W = 244;
 const MOVE_TITLE_W = 246;
@@ -142,10 +140,8 @@ const SPARK_W = 143;
 const SPARK_H = 30;
 /** Share of the sparkline width given to the dimmed stretch before the period */
 const SPARK_LEAD = 0.2;
-/** Most recent syncs drawn in the records-per-sync bars */
 const SYNC_BARS = 30;
 const BAR_W = 12;
-/** New φ titles listed in their KPI tile, and the text column they share with the mark */
 const PHI_TITLES = 2;
 const PHI_TITLE_W = 131;
 const LEVELS = new Set(["EZ", "HD", "IN", "AT", "LEGACY"]);
@@ -170,7 +166,6 @@ type Snap = {
 	b27?: { id: string; rank: string }[];
 };
 
-/** fCompute.formatDate, or "" for values that are not a valid time */
 function fmtTime(t: unknown, format: string) {
 	const n = num(t);
 	if (n == null || !Number.isFinite(new Date(n).getTime())) return "";
@@ -207,7 +202,6 @@ function escapeHtml(s: string) {
 		.replace(/"/g, "&quot;");
 }
 
-/** Longest prefix of `text` that fits `widthPx` at `px`, with "…" when cut */
 export function ellipsize(text: string, widthPx: number, px: number) {
 	if (textEm(text) * px <= widthPx) return text;
 	const chars = [...text];
@@ -217,10 +211,9 @@ export function ellipsize(text: string, widthPx: number, px: number) {
 }
 
 const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef]/;
-/** Never cut next to these: dashes / tildes wrap a subtitle, the rest must not open or close a line */
+// Dashes / tildes wrap a subtitle; the rest must not open or close a line
 const NO_CUT = /[-~～ー・、。，．：；？！（）「」『』【】〔〕〈〉《》()[\]]/;
 
-/** Two balanced title lines, at a space or next to CJK text */
 export function splitTitle(text: string): [string, string] {
 	const chars = [...text];
 	let space: { w: number; at: [string, string] } | undefined;
@@ -252,10 +245,6 @@ export function splitTitle(text: string): [string, string] {
 	return splitTwoLines(text);
 }
 
-/**
- * One line down to the `wrap` size; below that two balanced lines (at most `wrap`
- * px) unless one line still fits larger; else ellipsize the second line at `min`
- */
 export function fitTitle(
 	text: string,
 	widthPx: number,
@@ -277,7 +266,6 @@ export function fitTitle(
 		: 0;
 	if (two >= opts.min && two >= one) return { px: two, lines: [head, tail] };
 	if (one >= opts.min) return { px: one, lines: [clean] };
-	// Greedy at the smallest size: fill the first line, ellipsize the rest
 	const chars = [...clean];
 	let cut = chars.length;
 	while (cut > 1 && textEm(chars.slice(0, cut).join("")) * opts.min > width)
@@ -294,12 +282,11 @@ export function fitTitle(
 	};
 }
 
-/** Decoded characters of an HTML text run, entities counted the way decodeHtml decodes them */
+// Entities counted the way decodeHtml decodes them
 function htmlUnits(text: string) {
 	return text.match(/&(?:lt|gt|quot|amp|#39|#\d+);|[\s\S]/gu) ?? [];
 }
 
-/** Insert a <br> into rich-text HTML after `at` visible characters, closing and reopening open tags */
 export function breakRichHtml(raw: string, at: number, resume = at) {
 	const open: { name: string; tag: string }[] = [];
 	let seen = 0;
@@ -337,7 +324,6 @@ export function breakRichHtml(raw: string, at: number, resume = at) {
 	return out;
 }
 
-/** Two name lines: at a space, else after a separator or a script / case change */
 export function splitName(text: string): [string, string] {
 	if (text.includes(" ")) return splitTwoLines(text);
 	const chars = [...text];
@@ -377,10 +363,6 @@ export function splitName(text: string): [string, string] {
 	return best && bestW <= plainW * 1.3 ? best : plain;
 }
 
-/**
- * Player name (rich-text HTML): one font size that fits every line. A long
- * single-line name wraps into two balanced lines (rich text keeps its tags)
- */
 export function fitPlayerName(html: string, widthPx = NAME_W) {
 	const raw = html || "";
 	const lines = raw
@@ -424,7 +406,7 @@ export function difficultyChip(rank: string, level?: number): Chip {
 	};
 }
 
-/** Chart constant recovered from rks = constant × ((acc − 55) / 45)² */
+// Recovers the chart constant from rks = constant × ((acc − 55) / 45)²
 export function tileLevel(t: UpdateTile): number | undefined {
 	const rks = num(t.rks_new);
 	const acc = num(t.acc_new);
@@ -448,7 +430,6 @@ function fmtRks(v: number | undefined) {
 	return v == null ? "—" : v.toFixed(4);
 }
 
-/** Score as the game prints it: 7 digits, zero-padded */
 export function fmtScore(score: number | undefined) {
 	if (score == null) return "—";
 	return String(Math.max(0, Math.round(score))).padStart(7, "0");
@@ -456,7 +437,7 @@ export function fmtScore(score: number | undefined) {
 
 type Group = { date: string; total: number; tiles: UpdateTile[] };
 
-/** box_line rows back into date groups (a box with `date` opens a group) */
+// A box with `date` opens a group
 export function regroup(boxLine: unknown): Group[] {
 	const groups: Group[] = [];
 	if (!Array.isArray(boxLine)) return groups;
@@ -475,7 +456,6 @@ export function regroup(boxLine: unknown): Group[] {
 	return groups;
 }
 
-/** Same calendar day (the YYYY/MM/DD prefix) → one group, newest first */
 export function groupByDay(groups: Group[]) {
 	const out: { day: string; total: number; tiles: UpdateTile[] }[] = [];
 	for (const g of groups) {
@@ -505,7 +485,6 @@ export type ChartChange = {
 	newPhi: boolean;
 };
 
-/** One entry per chart over the whole period: newest values against the oldest previous record */
 export function chartChanges(groups: Group[]): ChartChange[] {
 	const byKey = new Map<string, { newest: UpdateTile; oldest: UpdateTile }>();
 	for (const g of groups) {
@@ -535,7 +514,6 @@ export function chartChanges(groups: Group[]): ChartChange[] {
 	});
 }
 
-/** Biggest improvements first; first records only fill up to the minimum tile count */
 export function pickTopGains(changes: ChartChange[]) {
 	const improved = changes
 		.filter((c) => c.hasPrev && (c.rksDelta > 1e-9 || c.scoreDelta > 0))
@@ -561,10 +539,7 @@ export function pickTopGains(changes: ChartChange[]) {
 	return { top: pool.slice(0, n), best: improved[0] };
 }
 
-/**
- * "YYYY/MM/DD hh:mm:ss" (or its date prefix) → ms. Every stamp on the card comes
- * from the same formatter, so reading the wall-clock time as UTC keeps them comparable
- */
+// Every stamp comes from the same formatter, so reading wall-clock time as UTC keeps them comparable
 export function parseStamp(s: unknown): number | undefined {
 	const m =
 		/^(\d{4})\/(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/.exec(
@@ -582,10 +557,8 @@ export function parseStamp(s: unknown): number | undefined {
 	return Number.isFinite(t) ? t : undefined;
 }
 
-/** A vertex of the rks line: percents of rks_date (x) and rks_range (y, up) */
 export type LinePt = { x: number; y: number };
 
-/** Vertices of the rks line from its [x1%, y1%, x2%, y2%] segments */
 export function linePoints(segs: unknown): LinePt[] {
 	const pts: LinePt[] = [];
 	if (!Array.isArray(segs)) return pts;
@@ -613,10 +586,6 @@ function pctValue(y: number, range: unknown) {
 	return lo + (y / 100) * (hi - lo);
 }
 
-/**
- * RKS when the period began: the last vertex of the rks line recorded before
- * `startMs` (else the first vertex), with its index for the sparkline
- */
 export function rksBefore(
 	pts: LinePt[],
 	range: unknown,
@@ -640,7 +609,6 @@ export function rksBefore(
 	return value == null ? undefined : { value, idx };
 }
 
-/** Snapshot fallback for rksBefore when there is no rks line */
 function snapRksBefore(snaps: Snap[], startMs?: number) {
 	if (snaps.length < 2) return undefined;
 	let pick: number | undefined;
@@ -654,13 +622,11 @@ function snapRksBefore(snaps: Snap[], startMs?: number) {
 	return pick;
 }
 
-/** Sparkline of the period, from the last record before it to the end */
 export function sparkline(pts: LinePt[], from = 0, w = SPARK_W, h = SPARK_H) {
 	if (pts.length < 2) return "";
 	const start = Math.min(Math.max(0, Math.floor(from)), pts.length - 1);
 	const lead = start > 0 ? pts[start - 1] : undefined;
 	const period = pts.slice(start);
-	// No record after the period began: RKS stayed put, draw it flat to the end
 	if (period.length === 1) period.push({ x: 100, y: period[0]!.y });
 	const padX = 5;
 	const padY = 5;
@@ -711,10 +677,7 @@ export function sparkline(pts: LinePt[], from = 0, w = SPARK_W, h = SPARK_H) {
 	return out.join("");
 }
 
-/**
- * Records per sync as slanted bars, oldest on the left (`totals` is newest first,
- * like box_line); the latest sync is drawn at full strength
- */
+// `totals` is newest first, like box_line; drawn oldest on the left
 export function syncBars(totals: number[], w = SPARK_W, h = SPARK_H) {
 	const list = totals.slice(0, SYNC_BARS).reverse();
 	if (list.length < 2) return "";
@@ -786,14 +749,9 @@ export type MoveSide = {
 	count: string;
 	rows: MoveRow[];
 	more: string;
-	/** Solo layout: the empty other side, e.g. "Left B30 · None" */
 	aside: string;
 };
 
-/**
- * Template shape of the B30 movement: both sides next to each other, or one
- * full-width side (rows in two columns) when nothing moved the other way
- */
 export function movementView(
 	move: ReturnType<typeof b30Movement>,
 	vt: SummaryCopy,
@@ -844,12 +802,10 @@ export function movementView(
 	return { state: move.state, layout: "split", sides, meta, note: "" };
 }
 
-/** RKS stayed put (or fell) while the score rose: the score gain is the headline */
 function scoreOnly(c: ChartChange) {
 	return c.hasPrev && c.rksDelta < 5e-5 && c.scoreDelta > 0;
 }
 
-/** Headline number of a change and its unit label */
 export function gainHeadline(c: ChartChange, vt: SummaryCopy) {
 	if (!c.hasPrev)
 		return { gain: fmtRks(num(c.newest.rks_new)), label: vt.firstRecord };
@@ -874,7 +830,6 @@ function gainTile(c: ChartChange, i: number, vt: SummaryCopy, wide: boolean) {
 		phi: c.newPhi,
 		gain: head.gain,
 		gainLabel: head.label,
-		// First records have no "before" column: the old cells stay empty
 		rksOld: c.hasPrev ? fmtRks(num(o.rks_old)) : "",
 		rksNew: fmtRks(num(t.rks_new)),
 		accOld: c.hasPrev ? fmtAcc(num(o.acc_old)) : "",
@@ -901,10 +856,6 @@ function listRow(t: UpdateTile, vt: SummaryCopy) {
 	};
 }
 
-/**
- * Titles of the new φ charts for their KPI tile, highest RKS first; the last line
- * carries "+N" when more were reached than fit
- */
 export function phiTitles(changes: ChartChange[]) {
 	const phis = changes
 		.filter((c) => c.newPhi)
@@ -958,7 +909,6 @@ function taskRows(raw: unknown, vt: SummaryCopy) {
 	});
 }
 
-/** Everything the update-summary template prints, derived from buildUpdateCard's data */
 export function summaryView(
 	data: CardData,
 	locale: PhiLocale,
@@ -975,7 +925,6 @@ export function summaryView(
 	const hidden = records - shown;
 	const empty = shown === 0;
 
-	// Header
 	const name = fitPlayerName(String(data.PlayerId ?? ""));
 	const notes = Array.isArray(data.added_rks_notes) ? data.added_rks_notes : [];
 	const delta = String(notes[0] ?? "").trim();
@@ -987,8 +936,7 @@ export function summaryView(
 			: null;
 	const rksNum = num(data.Rks);
 
-	// The period is the span of the listed syncs; the RKS change runs from the last
-	// RKS recorded before its first sync to the current RKS shown in the header
+	// The RKS change runs from the last RKS recorded before the period's first sync to the header's current RKS
 	const snaps = Array.isArray(data.hisb30Snaps)
 		? (data.hisb30Snaps as Snap[])
 		: [];
@@ -1069,7 +1017,6 @@ export function summaryView(
 			records: String(records),
 			recordsSub:
 				syncs.length === 1 ? vt.sync : fill(vt.syncs, { n: syncs.length }),
-			// One bar per sync, matching "in N syncs" under it
 			bars: syncBars(syncs.map((g) => g.total)),
 			phi: String(phiCount),
 			phiOn: phiCount > 0,
@@ -1092,7 +1039,7 @@ export function summaryView(
 		},
 		gains: top.map((c, i) => gainTile(c, i, vt, wide)),
 		gainsLayout: wide ? "wide" : "grid",
-		// Top gains only see the listed tiles (history caps them per sync)
+		// History caps tiles per sync: top gains only see the listed ones
 		gainsMeta: hidden > 0 ? vt.gainsMetaListed : vt.gainsMeta,
 		listTitle: top.length ? vt.updates : vt.updatesAll,
 		groups,

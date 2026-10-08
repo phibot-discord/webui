@@ -8,7 +8,6 @@ export type ChartSummary = {
 	id: string;
 	song: string;
 	composer: string;
-	/** Nicknames (bundled nicklist + phib19-approved); omitted when there are none */
 	aliases?: string[];
 	charts: Partial<Record<LevelKind, ChartCell>>;
 };
@@ -44,8 +43,7 @@ function build(aliases: AliasIndex["byId"]): ChartSummary[] {
 		if (!any) continue;
 		const seen = byId.get(song.id);
 		if (seen) {
-			// Introduction.0 is in ori_info and sp_info: one entry, so ids (and
-			// findChart, and the picker's option ids) stay unique
+			// Introduction.0 is in both ori_info and sp_info: merge it so ids stay unique
 			seen.composer ||= song.composer || "";
 			for (const level of LEVEL) {
 				const cell = charts[level];
@@ -65,7 +63,6 @@ function build(aliases: AliasIndex["byId"]): ChartSummary[] {
 	return [...byId.values()];
 }
 
-/** The ETag hashes the JSON, so it moves with the catalog and with every alias change */
 export function buildChartSnapshot(
 	rev: string,
 	aliases: AliasIndex["byId"],

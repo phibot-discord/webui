@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
-import { rankLegend } from "../score-avg";
 import { textEm } from "../text-fit";
 import {
 	clipLine,
@@ -10,10 +9,9 @@ import {
 	graphemeEm,
 	graphemes,
 	isEmojiImage,
-	isRankLegend,
 	lineEm,
 	pickTip,
-	rankNote,
+	rankLines,
 	rankParts,
 	wrapLines,
 } from "./b19-common";
@@ -60,26 +58,22 @@ test("wrapLines breaks at spaces and around CJK / emoji, never before closers", 
 		"beta",
 		"gamma",
 	]);
-	// CJK breaks anywhere, but "，" never starts a line
 	const cjk = wrapLines("一二三四，五六七八", 4, 3).lines;
 	assert.ok(
 		cjk.every((line) => !line.startsWith("，")),
 		cjk.join("|"),
 	);
 	assert.equal(cjk.join(""), "一二三四，五六七八");
-	// A word wider than the line is cut mid-word
 	assert.deepEqual(
 		wrapLines("abcdefghijkl", 3, 9).lines.join(""),
 		"abcdefghijkl",
 	);
-	// Emoji are never split from their selectors
 	const emoji = wrapLines(EMOJI_TIP, 10, 99).lines;
 	assert.equal(emoji.join(""), EMOJI_TIP);
 	for (const line of emoji) {
 		assert.ok(lineEm(line) <= 10, line);
 		assert.ok(!/^[\uFE0F\u200D]/u.test(line), line);
 	}
-	// Runs of spaces collapse like HTML does
 	assert.deepEqual(wrapLines("a      b", 20, 2).lines, ["a b"]);
 	assert.deepEqual(wrapLines("", 20, 2), { lines: [], cut: false });
 });
@@ -129,7 +123,6 @@ test("every catalog tip fits both footers in two lines", () => {
 				assert.ok(lineEm(line) * fit.px <= w + 1e-6, `${w}: ${line}`);
 		}
 	}
-	// The Table footer shows every catalog tip whole
 	assert.ok(tips.every((tip) => !fitTip(tip, 800, [15, 14, 13], 2).cut));
 });
 
@@ -170,11 +163,33 @@ test("rankParts reads accRank strings, else formats its numbers", () => {
 		assert.equal(rankParts(junk), null);
 });
 
-test("rankNote and isRankLegend find the population legend", () => {
-	assert.equal(isRankLegend(rankLegend("en")), true);
-	assert.equal(isRankLegend(` ${rankLegend("zh")} `), true);
-	assert.equal(isRankLegend("Full Combo Mode"), false);
-	assert.equal(rankNote({}, "zh", true), rankLegend("zh"));
-	assert.equal(rankNote({ rankLegend: "given" }, "en", true), "given");
-	assert.equal(rankNote({ rankLegend: "given" }, "en", false), "");
+test("rankLines reads every badge of a row (accRanks), else its single accRank", () => {
+	const all = { pos: "#3,611", of: "/ 70,388", pct: "Top 5.1%", ap: false };
+	const band = { ...all, pos: "#12", of: "/ 400", tag: "±0.05" };
+	assert.deepEqual(rankLines({ accRank: all, accRanks: [all, band] }), [
+		all,
+		band,
+	]);
+	assert.deepEqual(rankLines({ accRank: all }), [all]);
+	assert.deepEqual(rankLines({ accRanks: [band, null] }), [band]);
+	assert.deepEqual(rankLines({}), []);
+});
+
+test("a ±0.05 badge set to the place or the share keeps only that half", () => {
+	const band = {
+		pos: "#12",
+		of: "/ 400",
+		pct: "Top 3.0%",
+		ap: false,
+		tag: "±0.05",
+	};
+	assert.deepEqual(rankParts({ ...band, show: "place" }), {
+		...band,
+		pct: "",
+	});
+	assert.deepEqual(rankParts({ ...band, show: "percent" }), {
+		...band,
+		pos: "",
+		of: "",
+	});
 });

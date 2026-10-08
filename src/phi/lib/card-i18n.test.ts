@@ -40,10 +40,9 @@ test("tag meta line follows upstream f908bb31: pool, records, ballots", () => {
 		tagAnalysisMeta({ ...pool, threshold: 16 }, zh),
 		"RKS≥16.0 · 成绩 20 · 选票 499",
 	);
-	// Older server (no threshold): valid votes only
 	assert.equal(tagAnalysisMeta({ totalVotes: 12 }, zh), "有效票 12");
 	assert.equal(tagAnalysisMeta({ totalVotes: 12 }, en), "Valid votes 12");
-	// Failed lookup: no data, never "0 votes"
+	// null is a failed lookup: no data, never "0 votes"
 	assert.equal(tagAnalysisMeta(null, zh), "暂无数据");
 	assert.equal(tagAnalysisMeta(undefined, en), "No data");
 });

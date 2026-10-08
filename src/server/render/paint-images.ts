@@ -16,15 +16,12 @@ export function maxEdgeFor(src: string) {
 	return BG_SRC.test(src) ? BG_MAX_EDGE : TILE_MAX_EDGE;
 }
 
-/**
- * Jackets are shared by every card, so the decode + downscale result is kept
- * per source. Keyed by src + byte length (disk assets are immutable per stamp)
- */
+/** Jackets are shared by every card; keyed by src + byte length (disk assets are immutable per stamp) */
 const fitted = new Map<string, Uint8Array>();
 const FITTED_MAX_BYTES = 64 * 1024 * 1024;
 let fittedBytes = 0;
 
-/** Inline `data:` images are unique per card (radar plot); only file-backed sources are worth keeping */
+/** Inline `data:` images are unique per card (radar plot), so not worth keeping */
 function fitKey(image: PaintImage): string | undefined {
 	if (/^data:/i.test(image.src)) return;
 	return `${image.src}|${image.data.byteLength}`;

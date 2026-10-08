@@ -2,8 +2,6 @@ import type { PhiLocale } from "../card-i18n";
 import { fitFontPx, textEm } from "../text-fit";
 import type { CardData } from "./types";
 
-/** Shared view model for the info layouts: fitted text, per-difficulty progress, charts in pixels */
-
 const LEVELS = ["EZ", "HD", "IN", "AT"] as const;
 
 const COPY = {
@@ -74,7 +72,7 @@ export function infoCopy(locale: PhiLocale): InfoCopy {
 
 export type ChartBox = { w: number; h: number };
 
-/** Width right of each plot that holds its max / min labels */
+// Width right of each plot that holds its max / min labels
 export const CHART_GUTTER = 84;
 
 export type InfoChart = {
@@ -87,7 +85,6 @@ export type InfoChart = {
 	yTop: string;
 	yBottom: string;
 	xTicks: { x: number; label: string; anchor: "start" | "middle" | "end" }[];
-	/** Horizontal grid lines (px from the top) */
 	grid: number[];
 };
 
@@ -99,7 +96,6 @@ export type InfoLevel = {
 	cleared: number;
 	fc: number;
 	phi: number;
-	/** Bar widths in % of unlocked charts */
 	clearedPct: number;
 	fcPct: number;
 	phiPct: number;
@@ -143,7 +139,6 @@ const ENTITIES: Record<string, string> = {
 	"&nbsp;": " ",
 };
 
-/** Visible text of rich-text HTML (PlayerId, selfIntro), `<br>` as newlines */
 export function richPlain(html: string): string {
 	return html
 		.replace(/<br\s*\/?>/gi, "\n")
@@ -160,7 +155,6 @@ function escapeHtml(s: string): string {
 		.replace(/"/g, "&quot;");
 }
 
-/** Wrapped line count of `text` at `px` in a `widthPx` box (newlines kept) */
 export function lineCount(text: string, widthPx: number, px: number): number {
 	let lines = 0;
 	for (const para of text.split("\n")) {
@@ -170,7 +164,6 @@ export function lineCount(text: string, widthPx: number, px: number): number {
 	return lines;
 }
 
-/** Largest intro size that fits `maxLines`; else plain text cut with "…" */
 export function fitIntro(
 	html: string,
 	widthPx: number,
@@ -188,7 +181,6 @@ export function fitIntro(
 		const lines = lineCount(plain, width, px);
 		if (lines <= opts.maxLines) return { html: cleanIntro(html), px, lines };
 	}
-	// Too many short lines: let them flow as one paragraph before cutting
 	const flowing = plain.replace(/\n/g, " ");
 	for (let px = opts.max; px >= opts.min; px--) {
 		const lines = lineCount(flowing, width, px);
@@ -216,7 +208,6 @@ export function fitIntro(
 	};
 }
 
-/** Rich-text intro without the save's stray carriage returns and blank lines */
 function cleanIntro(html: string): string {
 	return html
 		.replace(/\r/g, "")
@@ -224,7 +215,6 @@ function cleanIntro(html: string): string {
 		.replace(/^(\s|<br\s*\/?>)+|(\s|<br\s*\/?>)+$/gi, "");
 }
 
-/** "601.0 MiB" from a KiB total (the data line counts KiB) */
 export function fmtKiB(kib: number): string {
 	const units = ["KiB", "MiB", "GiB", "TiB", "PiB"];
 	let v = Math.max(0, kib);
@@ -249,10 +239,7 @@ function shortDate(raw: string): string {
 	return raw.split(" ")[0] ?? raw;
 }
 
-/**
- * Chart geometry from history segments `[x1%, y1%, x2%, y2%]` (y measured up
- * from the range minimum), in a `w`×`h` px box with 8 px of headroom
- */
+// `segs` are [x1%, y1%, x2%, y2%], y measured up from the range minimum; 8 px of headroom
 export function buildChart(
 	segs: unknown,
 	box: ChartBox,
@@ -290,7 +277,6 @@ export function buildChart(
 	const first = pts[0]!;
 	const last = pts[pts.length - 1]!;
 	const area = `${line} L${last.x} ${box.h} L${first.x} ${box.h} Z`;
-	// Grid lines run under the range labels in the gutter too
 	const ticks = labels.xTicks.map((t) => {
 		const x = Math.round(padX + (t.pct / 100) * innerW);
 		const anchor: "start" | "middle" | "end" =
@@ -342,13 +328,11 @@ export type InfoView = {
 		accRange: [string, string];
 		rksDates: [string, string];
 	};
-	/** RKS and data trends, in the order the layouts draw them */
 	trends: { chart: InfoChart | null; title: string; value: string }[];
 	tip: string;
 	generated: string;
 };
 
-/** View model for one info layout; `geo` gives its text widths and chart boxes */
 export function infoView(
 	data: CardData,
 	locale: PhiLocale,

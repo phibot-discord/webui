@@ -1,5 +1,3 @@
-/* Level chip: rank and chart constant on the level's colour. Static by
-   default; options (ChartSearch) and buttons get the pointer and touch size */
 .chart-level {
 	appearance: none;
 	display: inline-flex;
@@ -18,7 +16,6 @@
 	white-space: nowrap;
 	color: oklch(1 0 0);
 	font-variant-numeric: tabular-nums;
-	/* ranks without a level class (legacy, unknown) get the AT neutral */
 	background: var(--level, oklch(0.42 0.02 260));
 }
 

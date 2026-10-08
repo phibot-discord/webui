@@ -11,18 +11,11 @@ import {
 } from "@/server/vfs";
 
 const cacheDir = "/tmp/phi-web-ill-blur";
-/** Blurred backgrounds are 5–9 MB: keep 24 files (~220 MB of /tmp), least recently used first */
+/** Blurred backgrounds are 5–9 MB: 24 files is ~220 MB of /tmp */
 const BLUR_CACHE_FILES = 24;
-/**
- * A hit bumps the mtime at most this often: the render's asset cache keys on
- * mtime, so bumping it on every hit re-read the 5–9 MB PNG on every render
- */
+/** A hit bumps the mtime at most this often: the render's asset cache keys on mtime */
 const BLUR_TOUCH_MS = 60 * 60_000;
 
-/**
- * Marks a cached blur as recently used, unless it already was within
- * BLUR_TOUCH_MS. Returns whether the mtime moved
- */
 export function markBlurUsed(path: string, now = Date.now()): boolean {
 	try {
 		if (now - stat(path).mtimeMs < BLUR_TOUCH_MS) return false;
@@ -33,7 +26,6 @@ export function markBlurUsed(path: string, now = Date.now()): boolean {
 	}
 }
 
-/** Keeps the `keep` most recently used PNGs in `dir` */
 export function pruneBlurCache(dir = cacheDir, keep = BLUR_CACHE_FILES) {
 	const files: { path: string; at: number }[] = [];
 	for (const name of readdir(dir)) {
@@ -126,7 +118,7 @@ export async function blurCardBackgrounds(html: string): Promise<string> {
 /** Blurred ills are darkened ~0.62; 0.40 still treats navy as dark */
 const LIGHT_LUMA = 0.4;
 type Luma = { top: number; bottom: number };
-/** Keyed by path + stamp; holds the in-flight sample so concurrent renders decode once */
+/** Holds the in-flight sample so concurrent renders decode once */
 const lumaCache = new Map<string, Promise<Luma>>();
 const LUMA_CACHE_MAX = 256;
 /** Sample grid: 48 columns, 100 rows, so a 12% band is 12 rows (576 pixels) */
@@ -165,10 +157,7 @@ function bandMedian(
 	return (values[Math.floor(values.length / 2)] ?? 64) / 255;
 }
 
-/**
- * Median luma of the top and bottom 12% of an image, from one small resize
- * (a single decode of the background instead of two full decodes)
- */
+/** Median luma of the top and bottom 12%, from one small resize instead of two full decodes */
 export async function sampleLuma(file: string): Promise<Luma> {
 	const { data, info } = await sharp(file)
 		.rotate()
@@ -188,7 +177,7 @@ export async function sampleLuma(file: string): Promise<Luma> {
 	};
 }
 
-/** `sampleLuma` once per file: blur cache paths are content-hashed, so the path is the version */
+/** Blur cache paths are content-hashed, so the path is the version */
 export function backgroundLuma(
 	file: string,
 	blurDir: string = cacheDir,

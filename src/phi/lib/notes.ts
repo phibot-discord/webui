@@ -8,12 +8,37 @@ import {
 } from "./card-styles";
 import { kvKey } from "./const";
 
-/** Badge on each B30 row: peer averages, phib19 percentiles, phib19 rank, or nothing */
-export const B30_AVG_KINDS = ["all", "b30", "top", "rank", "none"] as const;
+/** No "b30": phib19 answers it with no figures, so a stored "b30" reads as "all" */
+export const B30_AVG_KINDS = ["all", "top", "rank", "none"] as const;
 export type B30AvgKind = (typeof B30_AVG_KINDS)[number];
 
 export function isB30AvgKind(v: unknown): v is B30AvgKind {
 	return (B30_AVG_KINDS as readonly unknown[]).includes(v);
+}
+
+/** "band": players near the user's RKS (±0.05) */
+export const RANK_SCOPES = ["all", "band", "both"] as const;
+export type RankScope = (typeof RANK_SCOPES)[number];
+
+export function isRankScope(v: unknown): v is RankScope {
+	return (RANK_SCOPES as readonly unknown[]).includes(v);
+}
+
+export function rankScopeOf(notes: Pick<UserNotes, "rankScope">): RankScope {
+	return isRankScope(notes.rankScope) ? notes.rankScope : "all";
+}
+
+export const RANK_BAND_SHOWS = ["place", "percent"] as const;
+export type RankBandShow = (typeof RANK_BAND_SHOWS)[number];
+
+export function isRankBandShow(v: unknown): v is RankBandShow {
+	return (RANK_BAND_SHOWS as readonly unknown[]).includes(v);
+}
+
+export function rankBandShowOf(
+	notes: Pick<UserNotes, "rankBandShow">,
+): RankBandShow {
+	return isRankBandShow(notes.rankBandShow) ? notes.rankBandShow : "place";
 }
 
 /** Badge mode; values only the bot knows read as "all" */
@@ -34,17 +59,17 @@ export type UserNotes = {
 	task: TaskObj[];
 	theme: string;
 	noticeCode: number;
-	/** Read through b30AvgKindOf: the Discord bot may have stored another string */
 	b30AvgKind: B30AvgKind | (string & {});
 	b30AvgColor: "red" | "gold" | "blue" | "green";
+	rankScope?: RankScope;
+	rankBandShow?: RankBandShow;
+	peerWait?: boolean;
 	allowApiUsage: boolean;
 	showB30Analysis: boolean;
 	showTagAnalysis: boolean;
 	showRecordStats: boolean;
 	cardQuality: "high" | "fast";
-	/** Illustration id. Empty or missing keeps a random background */
 	cardBackground?: string;
-	/** Layout per card kind. Missing kinds use the classic layout */
 	cardStyle?: Partial<Record<StyledKind, CardStyle>>;
 	locale?: PhiLocale;
 };
@@ -132,6 +157,28 @@ export async function setCardQuality(
 export async function setB30AvgKind(db: Kv, userId: string, kind: B30AvgKind) {
 	const notes = await getNotes(db, userId);
 	notes.b30AvgKind = kind;
+	await setNotes(db, userId, notes);
+}
+
+export async function setRankScope(db: Kv, userId: string, scope: RankScope) {
+	const notes = await getNotes(db, userId);
+	notes.rankScope = scope;
+	await setNotes(db, userId, notes);
+}
+
+export async function setRankBandShow(
+	db: Kv,
+	userId: string,
+	show: RankBandShow,
+) {
+	const notes = await getNotes(db, userId);
+	notes.rankBandShow = show;
+	await setNotes(db, userId, notes);
+}
+
+export async function setPeerWait(db: Kv, userId: string, on: boolean) {
+	const notes = await getNotes(db, userId);
+	notes.peerWait = on;
 	await setNotes(db, userId, notes);
 }
 

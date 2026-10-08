@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { subscribeSaveRefresh } from "@/lib/save-refresh";
 
-/** Cooldown countdown plus the action's error, kept until cleared (WCAG 2.2.1) */
+/** The action's error is kept until cleared (WCAG 2.2.1) */
 export function useActionCooldown(
 	cooldownMs: number,
 	getStoredUntil: () => number,

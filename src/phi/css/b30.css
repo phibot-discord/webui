@@ -37,7 +37,6 @@
 .accLower path {
 	fill: #ffe566 !important;
 }
-/* b30AvgKind "rank": "#3,611 / 70,388 · Top 5.1%" (score-avg applyRowRanks) */
 .accRank {
 	--bkgColor: rgba(8, 12, 19, 0.86);
 	--lineColor: #62d2ff;
@@ -54,12 +53,51 @@
 	line-height: 17px !important;
 	white-space: nowrap !important;
 }
-/* Margins, not gap: the badge ignores flex gap */
 .accRank .accRankOf {
 	margin-left: 4px !important;
 }
 .accRank .accRankPct {
 	margin-left: 9px !important;
+}
+.accRank .accRankPct.accRankLead {
+	margin-left: 0 !important;
+}
+.accRanks {
+	position: absolute !important;
+	top: -14px !important;
+	left: var(--b30-avg-left) !important;
+	right: 4% !important;
+	z-index: 5 !important;
+	display: flex !important;
+	flex-direction: row !important;
+	align-items: center !important;
+	overflow: visible !important;
+}
+.accRanks .accAvg,
+.accRanks .accAvg.clip-box {
+	position: relative !important;
+	top: auto !important;
+	left: auto !important;
+	flex: none !important;
+}
+.accRanks .accAvg.accRankBand.clip-box {
+	position: absolute !important;
+	top: 2px !important;
+	right: 0 !important;
+	left: auto !important;
+	padding-right: 8px !important;
+	border-right: 3px solid var(--lineColor) !important;
+	clip-path: polygon(100% 0, 100% 100%, 0 100%, 5px 0) !important;
+}
+.accRanks .accRank.rank-px-11 p {
+	font-size: 11px !important;
+}
+.accRanks .accRank.rank-px-10 p {
+	font-size: 10px !important;
+}
+.accRank .accRankTag {
+	margin-right: 5px !important;
+	color: #b8c3d0 !important;
 }
 .accRankPos {
 	font-weight: 700 !important;

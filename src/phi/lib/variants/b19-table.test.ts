@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { rankLegend } from "../score-avg";
 import { textEm } from "../text-fit";
 import { lineEm } from "./b19-common";
 import {
@@ -75,7 +74,6 @@ test("fitTitle keeps short titles on one line and wraps long ones in two", () =>
 	assert.ok(two.px >= 12 && two.px <= 18);
 	for (const line of two.lines)
 		assert.ok(textEm(line) * two.px <= TITLE_W.push);
-	// The wider no-push column (x30 / fc30) keeps it on one line at ≥ 14px
 	const wide = fitTitle(long, TITLE_W.wide);
 	assert.deepEqual(wide.lines, [long]);
 	assert.ok(wide.px >= 14);
@@ -114,7 +112,6 @@ test("richTextLines and fitName read the plain text of a rich player name", () =
 	);
 	assert.ok(mid.px < 40 && mid.px >= 16 && !mid.clip);
 	assert.deepEqual(fitName("", 540), { px: 40, clip: false });
-	// Synthesized bold is wider: the same text gets a smaller size inside <b>
 	const plain = fitName("Sakuramoto Chiyuki the Long Named", 520);
 	const bold = fitName("<b>Sakuramoto Chiyuki the Long Named</b>", 520);
 	assert.ok(bold.px < plain.px);
@@ -130,12 +127,10 @@ test("peerAvg parses every attachB19AccAvg format into one line", () => {
 		isNum: true,
 		px: 12,
 	});
-	// The marker follows the numbers, not the colour kind ("Finished" / "Hyper")
 	assert.equal(peerAvg("BAvg: 99.5%", 99)?.dir, "down");
 	assert.equal(peerAvg("BAvg: 99%", 99)?.dir, "up");
 	// avgValue mode hands over a bare number
 	assert.equal(peerAvg(98.5, 99)?.text, "98.5000%");
-	// "top": the header says "top %", the cell keeps both numbers on one line
 	assert.deepEqual(peerAvg("Top 12.34% / 5.67%", 99), {
 		dir: "",
 		text: "12.34% / 5.67%",
@@ -145,13 +140,11 @@ test("peerAvg parses every attachB19AccAvg format into one line", () => {
 	const wide = peerAvg("Top 100.00% / 100.00%", 99);
 	assert.ok(wide && wide.px >= 10 && wide.px <= 12);
 	assert.ok(textEm(wide.text) * wide.px <= 104);
-	// "rank": the full string does not fit one line, so "/ total" goes first
 	const rank = peerAvg("#3,611 / 70,388 · Top 5.1%", 99);
 	assert.equal(rank?.text, "#3,611 · Top 5.1%");
 	assert.equal(rank?.dir, "");
 	assert.equal(rank?.isNum, false);
 	assert.ok(rank && rank.px >= 10 && textEm(rank.text) * rank.px <= 104);
-	// A huge rank keeps only the percentage; nothing ever spills past the cell
 	const huge = peerAvg("#12,345,678 / 99,999,999 · Top 12.3%", 99);
 	assert.equal(huge?.text, "Top 12.3%");
 	const odd = peerAvg("x".repeat(80), 99);
@@ -173,14 +166,11 @@ test("pushTier buckets the target acc by difficulty", () => {
 test("chipTexts localizes the server mode labels and keeps the rest", () => {
 	const zh = tableCopy("zh");
 	assert.deepEqual(chipTexts(["x30"], zh), ["性30"]);
-	// The x30 / fc30 title already names its own mode; other chips stay
 	assert.deepEqual(chipTexts(["性30"], zh, "x30"), []);
 	assert.deepEqual(chipTexts(["FC30", "ACC 限制为 99%"], en, "fc30"), [
 		"ACC 限制为 99%",
 	]);
 	assert.deepEqual(chipTexts(["FC30"], en, "x30"), ["FC30"]);
-	// The rank population legend is a note under the table, never a chip
-	assert.deepEqual(chipTexts([rankLegend("en"), "AP"], en), ["AP"]);
 	assert.deepEqual(chipTexts(["FC30", " "], zh), ["FC30"]);
 	assert.deepEqual(chipTexts(["ACC 限制为 99%"], zh), ["ACC 限制为 99%"]);
 	assert.deepEqual(chipTexts(undefined, en), []);
@@ -195,7 +185,6 @@ test("avgLabel names the peer column after the b30AvgKind in use", () => {
 		avgLabel([{ accAvg: "#3,611 / 70,388 · Top 5.1%" }], en),
 		en.avgRank,
 	);
-	// "rank" rows are known by their accRank badge, whatever accAvg says
 	assert.equal(
 		avgLabel([{ accAvg: "x", accRank: { pos: "#1", pct: "AP 2%" } }], en),
 		"Rank",
@@ -230,7 +219,6 @@ test("fitRank keeps position, records and share in the hang line", () => {
 		8 +
 		textEm(r.pct) * r.px;
 	assert.ok(width(full) <= 204);
-	// Long counts shrink first, then drop "/ total"; never past the hang line
 	const big = fitRank({
 		pos: "#1,234,567",
 		of: "/ 9,876,543",
@@ -278,11 +266,44 @@ test("tableItems reads accRank in rank mode instead of parsing accAvg", () => {
 		[b1!.peerRank?.pos, b1!.peerRank?.of, b1!.peerRank?.pct],
 		["#3,611", "/ 70,388", "Top 5.1%"],
 	);
+	assert.equal(b1!.peerRankSide, undefined);
 	assert.equal(b1!.avg, undefined);
-	// Rows without a usable badge keep the peer average line
 	assert.equal(b2!.peerRank, undefined);
 	assert.equal(b2!.avg?.text, "99.0000%");
 	assert.equal(b3!.peerRank, undefined);
+});
+
+test("with both populations the ±0.05 rank sits beside the first, under the RKS and push cells", () => {
+	const all = badge();
+	const band = badge({
+		pos: "#12",
+		of: "/ 400",
+		pct: "Top 3.0%",
+		tag: "±0.05",
+	});
+	const { items } = tableItems(
+		{
+			phi: [],
+			b19_list: [
+				chart(1, { accRank: all, accRanks: [all, band] }),
+				chart(2, { accRank: band, accRanks: [band] }),
+			],
+		},
+		"b30",
+		en,
+		"Can't push",
+	);
+	const [b1, b2] = rowsOf(items).filter((row) => !row.empty);
+	assert.deepEqual(
+		[b1!.peerRank?.tag, b1!.peerRank?.pos],
+		[undefined, "#3,611"],
+	);
+	assert.deepEqual(
+		[b1!.peerRankSide?.tag, b1!.peerRankSide?.pos, b1!.peerRankSide?.showOf],
+		["±0.05", "#12", true],
+	);
+	assert.equal(b2!.peerRank?.tag, "±0.05");
+	assert.equal(b2!.peerRankSide, undefined);
 });
 
 test("pushKey explains the push colours only when a target is shown", () => {
@@ -366,7 +387,6 @@ test("tableItems lays out b30: Phi band, P1-P3, Best band, overflow", () => {
 	assert.equal(rows[3]!.pushTier, "mid");
 	assert.equal(rows[0]!.pushTier, "");
 	assert.equal(rows[3 + 3]!.push, "");
-	// Divider sits right after B27, then the overflow rows restart the zebra
 	const divider = items.findIndex((it) => it.type === "divider");
 	const before = items[divider - 1] as TableRow;
 	const after = items[divider + 1] as TableRow;
@@ -465,8 +485,6 @@ test("analysisView sizes bars in px and pads sparse histograms", () => {
 	assert.deepEqual(sparse.ticks.at(-1), { label: "17.00", bottom: HIST.plotH });
 	assert.equal(sparse.tags, null);
 
-	// fc30 with a full list: the histogram stops at #27 but the table shows 30
-	// main rows, so the legend says so and no fake empty slots are added
 	const fc30 = analysisView(
 		{
 			histogram: {
@@ -526,7 +544,6 @@ test("analysisView sizes bars in px and pads sparse histograms", () => {
 	assert.deepEqual(full.tags?.strong, [
 		{ rank: "1", name: "Stairs", rks: "15.55" },
 	]);
-	// No tagMeta from the server side: fall back to the vote count
 	assert.equal(full.tags?.meta, "Valid votes 12");
 	assert.equal(full.tags?.px, tagFontPx(["Stairs", "One hand locked"]));
 	assert.equal(full.tags?.insufficient, false);
@@ -631,7 +648,6 @@ test("prepareTable hides meaningless header bits and localizes", () => {
 		["easy", "mid", "hard"],
 	);
 	assert.equal(view.hasAvg, false);
-	assert.deepEqual(view.rankNote, []);
 	assert.equal(view.analysis, null);
 
 	const zh = prepareTable(
@@ -657,10 +673,7 @@ test("prepareTable hides meaningless header bits and localizes", () => {
 	assert.equal(zh.title, "FC30");
 	assert.equal(zh.desc, "");
 	assert.equal(zh.copy.colSong, "曲目");
-	// The title already names the mode: no chip repeating it
 	assert.deepEqual(zh.chips, []);
-	// The fc30 list's spread is not the spread behind the account RKS: beside the
-	// RKS it would read as one figure, so only the analysis panel shows it
 	assert.equal(zh.sd, "");
 	assert.deepEqual(zh.challenge, { mode: 3, rank: 51 });
 	assert.equal(zh.dataText, "600MiB 1012KiB");
@@ -681,32 +694,23 @@ test("prepareTable hides meaningless header bits and localizes", () => {
 	assert.equal(rowsOf(zh.items)[0]!.pushText, "");
 });
 
-test("prepareTable in rank mode: Rank column label and the population note", () => {
+test("prepareTable in rank mode: Rank column label, no population note", () => {
 	const data = {
 		cardKind: "b30",
 		phi: [chart(100, { acc: 100, accRank: badge({ pos: "#1", ap: true }) })],
 		b19_list: [chart(1, { accRank: badge() }), chart(2)],
 		gameuser: { rks: 16 },
-		spInfo: [rankLegend("en")],
 	};
 	const view = prepareTable(data, { kind: "b30", locale: "en" });
 	assert.equal(view.hasAvg, true);
 	assert.equal(view.avgLabel, "Rank");
 	assert.deepEqual(view.chips, []);
-	// score-avg's legend, wrapped to the note width at 12px
-	assert.equal(view.rankNote.join(" "), rankLegend("en"));
-	for (const line of view.rankNote) assert.ok(lineEm(line) * 12 <= 1030);
-	const zh = prepareTable(
-		{ ...data, rankLegend: "名次说明" },
-		{ kind: "b30", locale: "zh" },
-	);
+	assert.equal("rankNote" in view, false);
+	const zh = prepareTable(data, { kind: "b30", locale: "zh" });
 	assert.equal(zh.avgLabel, "名次");
-	assert.deepEqual(zh.rankNote, ["名次说明"]);
-	// No badge on any row: no note, even when the legend is passed along
 	const plain = prepareTable(
-		{ ...data, phi: [], b19_list: [chart(1)], rankLegend: "x" },
+		{ ...data, phi: [], b19_list: [chart(1)] },
 		{ kind: "b30", locale: "en" },
 	);
-	assert.deepEqual(plain.rankNote, []);
 	assert.equal(plain.hasAvg, false);
 });

@@ -4,6 +4,7 @@ import { logger } from "@/server/logger";
 import type { Kv } from "@/server/sdk";
 import type { PhiLocale } from "./card-i18n";
 import type { Catalog } from "./catalog";
+import { type CardMissing, watchExternal } from "./external";
 import {
 	type ApFcCounts,
 	apiSongId,
@@ -27,10 +28,9 @@ import {
 import type { UserNotes } from "./notes";
 import type { PhiRuntime } from "./runtime";
 import type { Save } from "./save";
-import { rksAvgBand } from "./score-avg";
+import { rankBand } from "./score-avg";
 
 export type SongCardOpts = {
-	/** Song id as the catalog knows it (with or without the trailing ".0") */
 	chart: string;
 	level: SongLevel;
 	locale: PhiLocale;
@@ -43,7 +43,6 @@ export type SongCardResult =
 
 export const SONG_TEMPLATE = "phi/song/song";
 
-/** Lookup state; late, failed and unavailable make the card partial (never cached) */
 export type LookupState =
 	| "ok"
 	| "late"
@@ -63,7 +62,6 @@ export type SongRecord = {
 	acc: number;
 	fc: boolean;
 	rks: number;
-	/** fCompute.rate: phi, FC, V, S, A, B, C, F */
 	rating: string;
 };
 
@@ -78,7 +76,6 @@ export type SongLevelRow = {
 	apfc: ApFcCell | null;
 };
 
-/** Everything the "song" template shows, before formatting (variants/song.ts) */
 export type SongCardData = {
 	id: string;
 	level: LbLevel;
@@ -88,15 +85,11 @@ export type SongCardData = {
 	illustrator: string;
 	constant: number;
 	notes?: number;
-	/** Tap, drag, hold, flick counts when notesInfo has the chart */
 	noteKinds: { tap: number; drag: number; hold: number; flick: number } | null;
 	jacket: string;
-	/** `avatar` is a file name under html/avatar/ ("" when the save has none) */
 	player: { name: string; rks: number; avatar: string };
 	record: SongRecord | null;
-	/** Among every phib19.top record on the chart */
 	overall: Placement | null;
-	/** Among records set at an RKS within ±0.05 of the player's (phib19's own "top" band) */
 	band: Placement | null;
 	rksBand: RksBand;
 	apfc: ApFcCell | null;
@@ -108,7 +101,6 @@ export type SongCardData = {
 		apfc: LookupState;
 		board: LookupState;
 	};
-	/** UTC day the numbers were read (the image cache key has the same day) */
 	asOf: string;
 };
 
@@ -122,10 +114,7 @@ function errorState(err: unknown): "failed" | "unavailable" {
 		: "failed";
 }
 
-/**
- * The state of one row of a rank lookup: answered, or why not. `key` undefined
- * asks about the lookup as a whole
- */
+// `key` undefined asks about the lookup as a whole
 function rowState(
 	res: Settled<RankRowsResult> | null,
 	key?: string,
@@ -136,7 +125,7 @@ function rowState(
 	return errorState(res.value.error);
 }
 
-/** Waits for `job` until `deadline`; a late job keeps running so it still fills the caches */
+// A late job keeps running so it still fills the caches
 async function settleBy<T>(
 	job: Promise<T>,
 	deadline: number,
@@ -219,31 +208,25 @@ function noteKinds(chart: {
 	return { tap, drag, hold, flick };
 }
 
-function roundBand(band: RksBand): RksBand {
-	return {
-		minRks: Math.round(band.minRks * 100) / 100,
-		maxRks: Math.round(band.maxRks * 100) / 100,
-	};
-}
-
-/**
- * Per-song card data: the user's record next to phib19's anonymous population
- * phib19 gets `budgetMs` in total; anything later keeps the image out of the cache
- */
+// phib19 gets `budgetMs` in total; anything later keeps the image out of the cache
 export async function buildSongCard(
 	rt: PhiRuntime,
 	save: Save,
 	db: Pick<Kv, "get" | "set"> | undefined,
 	catalog: Pick<Catalog, "fallbackIll">,
 	opts: SongCardOpts,
-	extra: { budgetMs?: number; deps?: LbDeps; now?: Date } = {},
+	extra: {
+		budgetMs?: number;
+		deps?: LbDeps;
+		now?: Date;
+		onExternalWait?: (waiting: boolean) => void;
+	} = {},
 ): Promise<SongCardResult> {
 	const info = rt.getInfo.raw(String(opts.chart || "").trim());
 	if (!info?.chart) return { error: "unknown_card", status: 404 };
 	const id = apiSongId(info.id);
 	const charts = LB_LEVELS.filter((lv) => info.chart[lv]?.difficulty);
 	if (!charts.length) return { error: "unknown_card", status: 404 };
-	// A song without the asked level (AT is the default): its hardest chart
 	const level: LbLevel = charts.includes(opts.level)
 		? opts.level
 		: charts[charts.length - 1]!;
@@ -253,7 +236,7 @@ export async function buildSongCard(
 	);
 	const record = records.get(level) ?? null;
 	const playerRks = Number(save.saveInfo?.summary?.rankingScore) || 0;
-	const band = roundBand(rksAvgBand(playerRks));
+	const band = rankBand(playerRks);
 	const deps = extra.deps ?? {};
 	const deadline = Date.now() + (extra.budgetMs ?? LB_CARD_BUDGET_MS);
 
@@ -266,9 +249,10 @@ export async function buildSongCard(
 		: null;
 	// Lookups send phib19 only (song, level, acc); a user who turned API use off gets none
 	const online = opts.notes.allowApiUsage !== false;
+	const external = watchExternal(extra.onExternalWait);
 	const ask = <T>(job: () => Promise<T>, label: string) =>
 		online
-			? settleBy(job(), deadline, label)
+			? external.track(settleBy(job(), deadline, label))
 			: Promise.resolve<Settled<T>>({ state: "off" });
 	// The user's ranks stay in memory (the image is cached for the day); the shared board and AP/FC counts go to KV
 	const [ranks, banded, counts, board] = await Promise.all([
@@ -333,9 +317,15 @@ export async function buildSongCard(
 		asOf: (extra.now ?? new Date()).toISOString().slice(0, 10),
 	};
 	// Also when another level's row is missing: the level table would lack it
-	const partial =
-		Object.values(state).some((s) => PARTIAL_STATES.has(s)) ||
-		(ranks?.state === "ok" && ranks.value.partial);
+	const late = Object.values(state).some((s) => PARTIAL_STATES.has(s));
+	const rankRes = ranks?.state === "ok" ? ranks.value : undefined;
+	const missing: CardMissing[] = [
+		...(late || (rankRes?.partial && (rankRes.missing ?? 1) > 0)
+			? (["song"] as const)
+			: []),
+		...((rankRes?.stale ?? 0) > 0 ? (["stale"] as const) : []),
+	];
+	const partial = missing.length > 0;
 	return {
 		templateId: SONG_TEMPLATE,
 		data: {
@@ -343,6 +333,8 @@ export async function buildSongCard(
 			background: rt.getInfo.getill(id, "blur") || catalog.fallbackIll,
 			// A lookup timed out or failed: served no-store and never cached
 			renderPartial: partial,
+			missing,
+			externalMs: external.ms(),
 		},
 	};
 }

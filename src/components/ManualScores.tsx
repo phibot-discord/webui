@@ -31,7 +31,6 @@ import {
 	validScore,
 } from "@/phi/lib/manual-score";
 
-/** What the visitor typed. Title and constant come from the catalog when it loads */
 type Row = {
 	key: string;
 	id: string;
@@ -98,7 +97,6 @@ export function ManualScores({
 	const searchRef = useRef<HTMLDivElement>(null);
 	const clearRef = useRef<HTMLButtonElement>(null);
 	const keepRef = useRef<HTMLButtonElement>(null);
-	// Where focus goes after the next render: a row's field, or the search
 	const focusNext = useRef<
 		{ key: string; field: string } | "search" | undefined
 	>(undefined);
@@ -114,7 +112,6 @@ export function ManualScores({
 	const [said, setSaid] = useState("");
 
 	const list = catalog.status === "ready" ? catalog.list : undefined;
-	// Saved rows wait for the catalog (titles, constants); a failed catalog shows them anyway
 	const loading = catalog.status === "loading" && rows.length > 0;
 
 	const parsed = useMemo(
@@ -337,7 +334,6 @@ export function ManualScores({
 						{t.catalogFailed}
 					</p>
 				) : (
-					// Nothing saved and nothing to add: reloading is the only way on
 					<div className="manual-failed" role="alert">
 						<p>
 							<WarningCircle size={18} weight="fill" aria-hidden />
@@ -359,7 +355,6 @@ export function ManualScores({
 				<span>
 					<span className="meta-label">{t.rks} </span>
 					<span className="meta-value">
-						{/* a dash until some row has an accuracy to count */}
 						{loading || rks == null || !parsed.some((p) => p.rks != null)
 							? "—"
 							: rks.toFixed(4)}
@@ -421,7 +416,6 @@ export function ManualScores({
 											) : null}
 										</span>
 										<span className="manual-song-title">{p.song}</span>
-										{/* Named once so every field of the row can say which chart it is */}
 										<span id={chartId} hidden>
 											{p.chart}
 										</span>
@@ -564,8 +558,6 @@ export function ManualScores({
 				</p>
 			) : null}
 
-			{/* While a request runs the buttons stay focusable (aria-disabled), so
-			    focus is still on the pressed one when a failure comes back */}
 			<div className="manual-actions">
 				<button
 					type="button"

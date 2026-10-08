@@ -13,6 +13,7 @@ import {
 } from "@/phi/lib/card-styles";
 import { b19Card, infoCard } from "@/phi/lib/cards";
 import { knownBackground } from "@/phi/lib/catalog";
+import type { CardMissing, CardPhase } from "@/phi/lib/external";
 import {
 	buildUpdateCard,
 	loadHisb30Snaps,
@@ -75,25 +76,19 @@ type RenderOk = {
 	etag: string;
 	mime?: string;
 	stats: CardStats;
-	/**
-	 * Rendered with missing data (a lookup timed out) or with the classic layout
-	 * after the chosen one failed: serve with no-store, never cache
-	 */
 	transient?: boolean;
-	/** If-None-Match matched: answer 304; `bytes` is empty */
 	notModified?: boolean;
-	/** The UI locale saved in the user's notes, for the chrome-locale cookie */
 	uiLocale?: PhiLocale;
 };
 
 const DATA_TIMEOUT_MS = 75_000;
 const RENDER_TIMEOUT_MS = 45_000;
+/** Peer badges (notes.peerWait) may wait this long, leaving ~30 s of the route's 90 s for the paint */
+const PEER_WAIT_MS = 60_000;
 
 type CardRenderOpts = {
 	count?: number;
-	/** Explicit choice (query, Accept-Language, UI cookie); beats the notes locale */
 	locale?: PhiLocale;
-	/** Used when neither `locale` nor the notes locale is set */
 	fallbackLocale?: PhiLocale;
 	ifNoneMatch?: string | null;
 	paintQuality?: PaintQuality;
@@ -101,13 +96,20 @@ type CardRenderOpts = {
 	showRecordStats?: boolean;
 	download?: boolean;
 	epoch?: string;
-	/** Layout style override (query); falls back to the user's saved choice */
 	style?: string;
-	/** Per-song card ("song" kind): chart id and level */
 	chart?: string;
 	level?: string;
-	/** The client asked for a reload (its save just changed): skip the token/save memo */
 	fresh?: boolean;
+} & PaintHooks;
+
+type PaintHooks = {
+	onPaint?: (info: { uiLocale?: PhiLocale }) => void;
+	onPhase?: (phase: CardPhase) => void;
+};
+
+type PaintEvents = {
+	onPaint?: () => void;
+	onPhase?: (phase: CardPhase) => void;
 };
 
 type CardPrep = {
@@ -128,7 +130,6 @@ type CardPrep = {
 	etag: string;
 	key: string;
 	heightId: string;
-	/** The KV phase: session, token, save, notes and epoch */
 	prepMs: number;
 };
 
@@ -139,8 +140,7 @@ async function prepareCardCache(
 ): Promise<CardPrep | BoundErr> {
 	const started = performance.now();
 	const [data] = await Promise.all([getDataHost(), ensureSongInfo()]);
-	// The token/save memo the page view just seeded, unless the client's save
-	// just changed (it then asks with Cache-Control: no-cache)
+	// The memo the page view just seeded, unless the save just changed (the client then sends no-cache)
 	const memo = { memo: !opts.fresh };
 	let [bound, notes, epoch] = await Promise.all([
 		loadBound(data, userId, memo),
@@ -288,22 +288,27 @@ async function renderCardFor(
 			},
 		};
 	}
-	const out = await sharedCard(prep);
+	const out = await sharedCard(prep, {
+		onPaint: opts.onPaint && (() => opts.onPaint?.({ uiLocale })),
+		onPhase: opts.onPhase,
+	});
 	if ("error" in out) return out;
 	return { ...out, uiLocale };
 }
 
-/** Identical cards being fetched or painted now: a second tab, the client's retry, bot + web */
 const inflight = new Map<string, Promise<RenderOk | BoundErr>>();
 
-async function sharedCard(prep: CardPrep): Promise<RenderOk | BoundErr> {
+async function sharedCard(
+	prep: CardPrep,
+	hooks: PaintEvents = {},
+): Promise<RenderOk | BoundErr> {
 	const tMem = performance.now();
 	const hot = await readCachedPng(prep.data, prep.key, { durable: false });
 	if (hot) return hitResult(prep, hot, Math.round(performance.now() - tMem));
 	let job = inflight.get(prep.key);
 	const joined = job != null;
 	if (!job) {
-		job = lookupOrPaint(prep).finally(() => inflight.delete(prep.key));
+		job = lookupOrPaint(prep, hooks).finally(() => inflight.delete(prep.key));
 		inflight.set(prep.key, job);
 	}
 	const tWait = performance.now();
@@ -312,7 +317,6 @@ async function sharedCard(prep: CardPrep): Promise<RenderOk | BoundErr> {
 	return { ...out, stats: joinedStats(prep, out.stats, tWait) };
 }
 
-/** Stats for a request that joined another's render: its own prep, wait and total only */
 function joinedStats(
 	prep: CardPrep,
 	theirs: CardStats,
@@ -328,7 +332,10 @@ function joinedStats(
 	};
 }
 
-async function lookupOrPaint(prep: CardPrep): Promise<RenderOk | BoundErr> {
+async function lookupOrPaint(
+	prep: CardPrep,
+	hooks: PaintEvents,
+): Promise<RenderOk | BoundErr> {
 	const tCache = performance.now();
 	// Boot the render host only after a memory miss, once the durable lookup is in flight, so an R2 hit skips the wait
 	const warmHost = new Promise<void>((resolve) => {
@@ -351,13 +358,11 @@ async function lookupOrPaint(prep: CardPrep): Promise<RenderOk | BoundErr> {
 		prep,
 		Math.round(performance.now() - tCache),
 		cachedHeight,
+		hooks,
 	);
 }
 
-/**
- * Render options, plus an abort signal that fires with our own timeout so an
- * engine that accepts `signal` stops the abandoned work and frees its raster slot
- */
+/** The signal fires with our own timeout, so the engine stops abandoned work and frees its raster slot */
 function renderOpts(prep: CardPrep, heightKey: string, height?: number) {
 	return {
 		paintQuality: prep.paintQuality,
@@ -386,7 +391,9 @@ async function paintFreshCard(
 	prep: CardPrep,
 	cacheMs: number,
 	cachedHeight: Settleable<number | undefined>,
+	hooks: PaintEvents = {},
 ): Promise<RenderOk | BoundErr> {
+	hooks.onPaint?.();
 	try {
 		const host = await getHost();
 		const tData = performance.now();
@@ -404,6 +411,8 @@ async function paintFreshCard(
 				prep.statsOn,
 				prep.style,
 				prep.song,
+				Date.now() + PEER_WAIT_MS - (performance.now() - prep.started),
+				(waiting) => hooks.onPhase?.(waiting ? "phib19" : "render"),
 			),
 			DATA_TIMEOUT_MS,
 			`${prep.kind}-data`,
@@ -442,8 +451,7 @@ async function paintFreshCard(
 				built.classicTemplateId,
 			);
 		}
-		// Fallback renders and renders missing data (a lookup timed out) are not
-		// cached here, nor by the browser or CDN: the next request tries again
+		// Fallback and partial renders are not cached here, by the browser or by the CDN: the next request retries
 		const transient = fellBack || built.data.renderPartial === true;
 		if (!transient) {
 			await writeCachedPng(host, prep.key, img.bytes);
@@ -452,6 +460,8 @@ async function paintFreshCard(
 			}
 		}
 		const t = img.timings;
+		const extMs = num(built.data.externalMs);
+		const missing = transient && !fellBack ? missingOf(built.data.missing) : [];
 		return {
 			bytes: img.bytes,
 			etag: transient ? `${prep.etag}-p` : prep.etag,
@@ -468,6 +478,8 @@ async function paintFreshCard(
 				rasterMs: t?.rasterMs != null ? Math.round(t.rasterMs) : undefined,
 				encodeMs: t?.encodeMs != null ? Math.round(t.encodeMs) : undefined,
 				paintMs: t?.paintMs != null ? Math.round(t.paintMs) : undefined,
+				extMs,
+				missing: missing.length ? missing : undefined,
 				heightCache: t?.heightCache,
 				totalMs: Math.round(performance.now() - prep.started),
 			},
@@ -478,6 +490,24 @@ async function paintFreshCard(
 		);
 		return { error: "render_failed", status: 504, reason: "render_failed" };
 	}
+}
+
+function num(v: unknown): number | undefined {
+	return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
+const MISSING = new Set<CardMissing>([
+	"peers",
+	"tags",
+	"song",
+	"stale",
+	"empty",
+]);
+
+function missingOf(v: unknown): CardMissing[] {
+	return Array.isArray(v)
+		? v.filter((x): x is CardMissing => MISSING.has(x as CardMissing))
+		: [];
 }
 
 async function buildCardData(
@@ -493,10 +523,11 @@ async function buildCardData(
 	showRecordStats = true,
 	style: CardStyle = DEFAULT_CARD_STYLE,
 	song?: { chart: string; level: SongLevel },
+	peerDeadline?: number,
+	onExternalWait?: (waiting: boolean) => void,
 ): Promise<
 	| {
 			templateId: string;
-			/** The kind's original layout, used if the chosen style fails to render */
 			classicTemplateId: string;
 			data: Record<string, unknown>;
 	  }
@@ -511,6 +542,8 @@ async function buildCardData(
 			locale,
 			showTagAnalysis,
 			notes,
+			peerDeadline,
+			onExternalWait,
 		});
 		return {
 			templateId: cardStyleTemplate(kind, style) ?? "phi/b19/b19",
@@ -524,12 +557,19 @@ async function buildCardData(
 		};
 	}
 	if (kind === "song") {
-		const built = await buildSongCard(host.rt, save, host.db, catalog, {
-			chart: song?.chart ?? "",
-			level: song?.level ?? "AT",
-			locale,
-			notes,
-		});
+		const built = await buildSongCard(
+			host.rt,
+			save,
+			host.db,
+			catalog,
+			{
+				chart: song?.chart ?? "",
+				level: song?.level ?? "AT",
+				locale,
+				notes,
+			},
+			{ onExternalWait },
+		);
 		if ("error" in built)
 			return { error: built.error, status: built.status, reason: built.error };
 		return {
@@ -570,7 +610,6 @@ async function buildCardData(
 		locale,
 		cardKind: kind,
 		cardStyle: style,
-		// B30 snapshots ({t, rks, phi, b27}) for layouts that show entered / left charts
 		hisb30Snaps: snaps,
 	};
 	// Jackets / grade icons start downloading while the template compiles

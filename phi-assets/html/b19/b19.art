@@ -141,7 +141,16 @@
                 </div>
             </div>
         </div>
-        {{if song.accAvg}}
+        {{if song.accRanks && song.accRanks.length}}
+        <div class="accRanks">
+            {{each song.accRanks r}}
+            <div class="accAvg accRank{{if r.ap}} accRankAp{{/if}}{{if r.scope == 'band'}} accRankBand{{/if}} clip-box">
+                <div class="accAvgLine clip-box"></div>
+                {{if r.tag}}<p class="accRankTag">{{r.tag}}</p>{{/if}}{{if r.show != 'percent'}}<p class="accRankPos">{{r.pos}}</p><p class="accRankOf">{{r.of}}</p>{{/if}}{{if r.show != 'place'}}<p class="accRankPct{{if r.show == 'percent'}} accRankLead{{/if}}">{{r.pct}}</p>{{/if}}
+            </div>
+            {{/each}}
+        </div>
+        {{else if song.accAvg}}
         <div class="accAvg acc{{song.accKind}}{{if song.accRank && song.accRank.ap}} accRankAp{{/if}} clip-box">
             <div class="accAvgLine clip-box"></div>
             {{if song.accRank}}
@@ -280,7 +289,16 @@
             </div>
         </div>
             
-        {{if song.accAvg}}
+        {{if song.accRanks && song.accRanks.length}}
+        <div class="accRanks">
+            {{each song.accRanks r}}
+            <div class="accAvg accRank{{if r.ap}} accRankAp{{/if}}{{if r.scope == 'band'}} accRankBand{{/if}} clip-box">
+                <div class="accAvgLine clip-box"></div>
+                {{if r.tag}}<p class="accRankTag">{{r.tag}}</p>{{/if}}{{if r.show != 'percent'}}<p class="accRankPos">{{r.pos}}</p><p class="accRankOf">{{r.of}}</p>{{/if}}{{if r.show != 'place'}}<p class="accRankPct{{if r.show == 'percent'}} accRankLead{{/if}}">{{r.pct}}</p>{{/if}}
+            </div>
+            {{/each}}
+        </div>
+        {{else if song.accAvg}}
         <div class="accAvg acc{{song.accKind}}{{if song.accRank && song.accRank.ap}} accRankAp{{/if}} clip-box">
             <div class="accAvgLine clip-box"></div>
             {{if song.accRank}}

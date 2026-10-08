@@ -1,8 +1,10 @@
 import { negotiateLocale } from "@/i18n/config";
 import { cookieLocale, localeSetCookie } from "@/i18n/server";
+import { CARD_PROGRESS_HEADER } from "@/lib/card-progress";
 import { parsePhiLocale } from "@/phi/lib/card-i18n";
 import { authed } from "@/server/authed";
 import { cardDownloadFilename } from "@/server/cache";
+import { type PaintStream, paintStream } from "@/server/card-stream";
 import {
 	clampCount,
 	isCardKind,
@@ -12,6 +14,7 @@ import {
 import { cardResultResponse, wantsReload } from "@/server/http";
 import {
 	localizedError,
+	localizedErrorBody,
 	localizedRenderError,
 	localizedRetryAfter,
 } from "@/server/i18n-http";
@@ -45,10 +48,9 @@ export async function GET(
 		const download = url.searchParams.get("download") === "1";
 		const acceptLanguage = request.headers.get("accept-language");
 		const uiCookie = cookieLocale(request.headers);
-		const result = await renderCard(userId, kind, {
+		const opts: Parameters<typeof renderCard>[2] = {
 			count,
-			// ?locale, Accept-Language, the UI cookie, then (inside renderCard) the
-			// saved notes locale, then the negotiated Accept-Language
+			// renderCard then tries the saved notes locale, then fallbackLocale
 			locale:
 				parsePhiLocale(url.searchParams.get("locale")) ??
 				parsePhiLocale(acceptLanguage) ??
@@ -64,21 +66,64 @@ export async function GET(
 			style: url.searchParams.get("style") ?? undefined,
 			chart: url.searchParams.get("chart") ?? undefined,
 			level: url.searchParams.get("level") ?? undefined,
-			// Sent right after a refresh or manual save: another instance may still
-			// remember the old save for a few seconds
+			// After a refresh or manual save, another instance may still remember the old save for a few seconds
 			fresh: wantsReload(request.headers),
-		});
-		if ("error" in result) return localizedRenderError(result);
-		const res = cardResultResponse(result, {
-			cacheControl: result.transient ? "no-store" : PRIVATE_CACHE,
-			request,
-			filename: download ? cardDownloadFilename(kind) : undefined,
-			renderVersion: RENDER_VERSION,
-		});
-		// Pages pick the chrome locale from this cookie only; seed it from the notes we just read
-		if (!uiCookie && result.uiLocale) {
-			res.headers.append("Set-Cookie", localeSetCookie(result.uiLocale));
+		};
+		const respond = async (result: Awaited<ReturnType<typeof renderCard>>) => {
+			if ("error" in result) return localizedRenderError(result);
+			const res = cardResultResponse(result, {
+				cacheControl: result.transient ? "no-store" : PRIVATE_CACHE,
+				request,
+				filename: download ? cardDownloadFilename(kind) : undefined,
+				renderVersion: RENDER_VERSION,
+			});
+			// Pages pick the chrome locale from this cookie only; seed it from the notes we just read
+			if (!uiCookie && result.uiLocale) {
+				res.headers.append("Set-Cookie", localeSetCookie(result.uiLocale));
+			}
+			return res;
+		};
+		if (download || request.headers.get(CARD_PROGRESS_HEADER) !== "1") {
+			return respond(await renderCard(userId, kind, opts));
 		}
-		return res;
+		return new Promise<Response>((resolve) => {
+			let stream: PaintStream | undefined;
+			const job = renderCard(userId, kind, {
+				...opts,
+				onPaint: ({ uiLocale }) => {
+					stream = paintStream();
+					const headers = new Headers();
+					if (!uiCookie && uiLocale) {
+						headers.append("Set-Cookie", localeSetCookie(uiLocale));
+					}
+					resolve(stream.response(headers));
+				},
+				onPhase: (phase) => stream?.phase(phase),
+			});
+			job.then(
+				async (result) => {
+					if (!stream) {
+						resolve(await respond(result));
+						return;
+					}
+					if (!("error" in result)) {
+						stream.done(result);
+						return;
+					}
+					const body = await localizedErrorBody(result).catch(() => ({
+						error: result.error,
+					}));
+					stream.fail({ error: String(body.error), code: result.error });
+				},
+				(err: unknown) => {
+					const body = {
+						error: err instanceof Error ? err.message : "render_failed",
+						code: "render_failed",
+					};
+					if (stream) stream.fail(body);
+					else resolve(Response.json(body, { status: 500 }));
+				},
+			);
+		});
 	});
 }

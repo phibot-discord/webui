@@ -7,7 +7,7 @@ import { fCompute } from "./fcompute";
 import { getInfo } from "./get-info";
 import { PhigrosUser } from "./phigros";
 import { Save } from "./save";
-import { getQRcode } from "./taptap";
+import { getQRcode, type TapLogin } from "./taptap";
 
 export type PhiRuntime = {
 	getInfo: typeof getInfo;
@@ -37,6 +37,7 @@ export type PhiRuntime = {
 			result: unknown,
 			useGlobal?: boolean,
 		) => Promise<string | undefined>;
+		login: (result: unknown, useGlobal?: boolean) => Promise<TapLogin>;
 	};
 };
 

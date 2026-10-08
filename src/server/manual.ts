@@ -36,10 +36,7 @@ export type ManualErr = {
 	detail?: string;
 };
 
-/**
- * Raw manual profiles, 10 s per process: the card request right after a page
- * view reads KV once. Writes in this process update it; only valid JSON is kept
- */
+/** 10 s per process, so the card request right after a page view reads KV once */
 const manualMem = new Map<string, { raw: string; at: number }>();
 const MANUAL_MEMO_MS = 10_000;
 const MANUAL_MEM_MAX = 256;
@@ -65,10 +62,7 @@ export function resetManualMemForTest() {
 	manualMem.clear();
 }
 
-/**
- * Reads KV and refills the memo. `opts.memo`: a copy from the last 10 s will do
- * (the card route only; pages and the editor must see writes from other instances)
- */
+/** `opts.memo` is for the card route only: pages and the editor must see writes from other instances */
 export async function loadManual(
 	db: Pick<Kv, "get">,
 	userId: string,
@@ -117,7 +111,6 @@ function displayName(raw: unknown, fallback: string) {
 	return name || fallback;
 }
 
-/** Validates the browser payload against the live catalog */
 export function normalizeManualInput(
 	input: ManualInput,
 	fallbackName: string,
@@ -203,11 +196,7 @@ export function manualSavePayload(
 	};
 }
 
-/**
- * Synthetic `Save` for a manual profile. When the catalog is loaded the RKS
- * and the background follow the current constants; otherwise the stored RKS is
- * shown (pages that only print the header do not load the catalog)
- */
+/** Without the catalog the stored RKS is shown: pages that only print the header do not load it */
 export function manualSave(
 	rt: PhiRuntime,
 	data: ManualSaveData,
@@ -254,7 +243,6 @@ export async function saveManual(
 	});
 }
 
-/** Removes the manual profile and its B30 snapshots. Returns whether one existed */
 export async function clearManual(userId: string): Promise<boolean> {
 	const host = await getDataHost();
 	forgetManual(userId);
@@ -265,4 +253,14 @@ export async function clearManual(userId: string): Promise<boolean> {
 	forgetManual(userId);
 	await host.db.del(HISB30(userId));
 	return true;
+}
+
+export async function leaveManualMode(userId: string) {
+	try {
+		await clearManual(userId);
+	} catch (err) {
+		logger.warn(
+			`manual cleanup skipped: ${err instanceof Error ? err.message : err}`,
+		);
+	}
 }

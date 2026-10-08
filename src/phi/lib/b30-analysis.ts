@@ -160,14 +160,8 @@ export type TagRadar = {
 	categories: RadarCategory[];
 };
 
-/**
- * phib19 `/chartsTag/get/b30Analysis`. The server does not analyse the B30 slots: it
- * pools every EZ–AT score with rks ≥ `threshold` (RKS − 0.25, one decimal)
- */
 export type TagAnalysis = {
-	/** Absent from servers older than the threshold pool */
 	threshold?: number;
-	/** Scores in the pool, not the 30 B30 slots */
 	recordCount: number;
 	totalVotes: number;
 	minimumVotes: number;

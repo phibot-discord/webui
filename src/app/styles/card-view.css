@@ -1,17 +1,12 @@
-/* ------------------------------- card view ------------------------------- */
-
 .card-view {
 	margin: 0;
 }
 
-/* The phone layout is very tall: a narrower column reads better */
 .card-view[data-tall] {
 	max-width: 40rem;
 	margin-inline: auto;
 }
 
-/* Grid: the status pill sits over the image in the same cell. overflow:clip
-   (not hidden) keeps the pill sticky against the page scroll */
 .frame {
 	position: relative;
 	display: grid;
@@ -26,7 +21,6 @@
 	min-width: 0;
 }
 
-/* Focus waits here while a retried card renders */
 .frame:focus {
 	outline: none;
 }
@@ -36,14 +30,11 @@
 	outline-offset: 2px;
 }
 
-/* Clicking the card opens the full-screen viewer (pointer shortcut; the
-   caption has the button) */
 .frame-zoom {
 	position: relative;
 	cursor: zoom-in;
 }
 
-/* Focus comes back here when full screen closes; .frame clips outside */
 .frame-zoom:focus {
 	outline: none;
 }
@@ -62,7 +53,6 @@
 		filter var(--dur) var(--ease);
 }
 
-/* The previous card stays visible, dimmed, while the next one renders */
 .frame[data-phase="loading"] .frame-zoom img {
 	opacity: 0.45;
 	filter: saturate(0.6);
@@ -135,7 +125,6 @@
 	border-radius: 50%;
 }
 
-/* No image yet: the placeholder keeps the card's last known shape */
 .frame[data-phase="loading"]:not(:has(.frame-zoom)) {
 	background: var(--surface-2);
 }
@@ -171,7 +160,6 @@
 	overflow-wrap: anywhere;
 }
 
-/* Failed while an older card is still on screen */
 .card-alert {
 	display: flex;
 	flex-wrap: wrap;
@@ -197,7 +185,6 @@
 	font-size: var(--text-sm);
 }
 
-/* Song card before a chart is picked */
 .card-empty {
 	display: flex;
 	flex-direction: column;
@@ -223,8 +210,6 @@
 	margin: 0;
 	max-width: 40ch;
 }
-
-/* ------------------------------- full screen ------------------------------- */
 
 html:has(.lightbox[open]) {
 	overflow: hidden;
@@ -284,8 +269,6 @@ html:has(.lightbox[open]) {
 	gap: var(--space-1);
 }
 
-/* A grid, so a short image (a wide card on a phone) sits in the middle;
-   auto margins drop to 0 once it is larger, keeping every edge reachable */
 .lightbox-scroll {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
@@ -315,8 +298,6 @@ html:has(.lightbox[open]) {
 	max-width: none;
 }
 
-/* The whole card on screen: one row as tall as the area, and the image
-   shrinks to fit both ways, keeping its shape */
 .lightbox[data-zoom="screen"] .lightbox-scroll {
 	grid-template-rows: minmax(0, 1fr);
 }
@@ -353,7 +334,6 @@ html:has(.lightbox[open]) {
 	}
 }
 
-/* Phones: two rows, the title with Close, then the zoom and Open */
 @media (max-width: 29.99em) {
 	.lightbox-bar {
 		display: grid;

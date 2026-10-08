@@ -2,10 +2,7 @@ import type { CardStyle } from "@/phi/lib/card-styles";
 
 export type CardSize = [width: number, height: number];
 
-/**
- * Pixel size of a typical card of this kind and layout: the placeholder's
- * shape before a card has been seen (CardViewer, DeskSkeleton)
- */
+/** The placeholder's shape before a card has been seen (CardViewer, DeskSkeleton) */
 export function defaultCardSize(kind: string, style: CardStyle): CardSize {
 	if (kind === "info") return [3840, 2864];
 	if (kind === "song") return [1600, 2824];

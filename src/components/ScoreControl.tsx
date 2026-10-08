@@ -53,7 +53,6 @@ function asMode(raw: string | undefined): ScoreMode {
 	return raw === "challenge" ? "challenge" : "normal";
 }
 
-/** ChartSearch strings from the catalog (messages stay plain strings for the server) */
 export function chartSearchText(m: Messages): ChartSearchText {
 	const t = m.chartSearch;
 	return {
@@ -65,7 +64,6 @@ export function chartSearchText(m: Messages): ChartSearchText {
 	};
 }
 
-/** Text changes settle for a moment before a screen reader hears them */
 function useSettled(text: string, ms = 700) {
 	const [settled, setSettled] = useState("");
 	useEffect(() => {
@@ -79,7 +77,6 @@ type RankState =
 	| { status: "idle" | "loading" | "none" | "busy" }
 	| { status: "ok"; rank: number; of: number; percent: number; tied: number };
 
-/** Estimated placement on phib19's records (GET /api/leaderboard) once typing pauses */
 function useChartRank(chart: ChartRef | undefined, acc: number | undefined) {
 	const [state, setState] = useState<RankState>({ status: "idle" });
 	const [attempt, setAttempt] = useState(0);
@@ -91,7 +88,6 @@ function useChartRank(chart: ChartRef | undefined, acc: number | undefined) {
 					acc: acc.toFixed(6),
 				})}`
 			: undefined;
-	// The fragment never reaches the server; bumping it runs the lookup again
 	const request = url ? `${url}#${attempt}` : undefined;
 
 	useEffect(() => {
@@ -165,12 +161,10 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 			? findChart(catalog.list, chart)
 			: undefined;
 
-	// A chart restored from the URL fills the note count once the catalog is here
 	useEffect(() => {
 		if (picked?.notes != null && !notes) setNotes(String(picked.notes));
 	}, [picked, notes]);
 
-	// An unknown or stale `?chart=` is dropped (from the URL too) once the catalog says so
 	const stale = Boolean(chart) && catalog.status === "ready" && !picked;
 	useEffect(() => {
 		if (stale) setChart(undefined);
@@ -191,7 +185,6 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 
 	const total = Number(notes);
 	const score = Number(target);
-	// digits() caps the length, not the value: 9999 notes or 9999999 points still get through
 	const notesBad = notes !== "" && (total < 1 || total > MAX_NOTES);
 	const targetBad = target !== "" && score > MAX_SCORE;
 	const ready = notes !== "" && target !== "" && !notesBad && !targetBad;
@@ -213,7 +206,6 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 					.replaceAll("{badMiss}", String(best.badMiss))
 					.replaceAll("{exact}", best.exact.toFixed(2))
 			: none;
-	// Range errors are read out too: the result they replace goes quiet
 	const said = useSettled(
 		notesBad ? t.notesRange : targetBad ? t.targetRange : outcome,
 	);
@@ -256,7 +248,6 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 							</span>
 							<span className="score-picked-song">
 								<span className="score-picked-title">{picked.song.song}</span>
-								{/* Composer · notes: the dots come from CSS (score.css) */}
 								<span className="score-picked-meta">
 									<span className="score-picked-parts">
 										<span>{picked.song.composer}</span>
@@ -388,7 +379,6 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 											type="button"
 											className="btn btn-ghost"
 											onClick={() => {
-												// This button goes away with the new plan; the field keeps focus in place
 												setTarget(String(n));
 												targetRef.current?.focus();
 											}}
@@ -405,7 +395,6 @@ export function ScoreControl({ initial }: { initial: ScoreControlInitial }) {
 	);
 }
 
-/** Full-precision accuracy: the game only shows two decimals, the save keeps more */
 function fmtAcc(acc: number) {
 	return `${acc.toFixed(6).replace(/\.?0+$/, "")}%`;
 }
@@ -419,7 +408,6 @@ function fmtExact(plan: ScorePlan) {
 	return `${plan.exact.toFixed(2)} (${fmtDelta(plan)})`;
 }
 
-/** "0.05", "5.1": two decimals under 1 %, one above */
 function fmtPercent(p: number) {
 	const v = Math.min(100, Math.max(0.01, p));
 	return v < 1 ? v.toFixed(2) : v.toFixed(1);
@@ -522,7 +510,6 @@ function ChartRank({ chart, acc }: { chart: ChartRef; acc: number }) {
 					.replaceAll("{of}", num(rank.of))
 					.replaceAll("{percent}", fmtPercent(rank.percent))
 			: "";
-	// The lookup lands after the split is read out, so it is announced on its own
 	const said =
 		rank.status === "ok"
 			? `${t.rankTitle}: ${result}`
@@ -563,7 +550,6 @@ function ChartRank({ chart, acc }: { chart: ChartRef; acc: number }) {
 								type="button"
 								className="btn btn-ghost btn-sm"
 								onClick={() => {
-									// The button gives way to the loading line; keep focus on the box
 									retry();
 									box.current?.focus();
 								}}

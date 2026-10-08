@@ -79,7 +79,6 @@ test("update card packs date groups into rows of five tiles", async () => {
 	assert.equal(second?.[0]?.update_num, 7, "last box of a group counts it");
 	assert.equal(second?.[1]?.update_num, 2);
 	assert.equal(second?.[0]?.width, 2 * 135 + 20 * 2 - 20);
-	// Within a save, tiles are ordered by the new RKS, best first
 	const rks = first?.[0]?.song.map((s) => s.rks_new) ?? [];
 	assert.deepEqual(
 		rks,
@@ -188,7 +187,6 @@ test("the summary layout also prefetches the jackets of charts that entered or l
 			t: 2,
 			rks: 15.1,
 			phi: [row("p.0")],
-			// kept.0 changed level: its IN left and its AT entered
 			b27: [row("kept.0", "AT"), row("new.0")],
 		},
 	];

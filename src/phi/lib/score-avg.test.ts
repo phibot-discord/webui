@@ -7,7 +7,8 @@ import {
 	applyAccRank,
 	attachB19AccAvg,
 	fetchAllSongAccAvg,
-	rankLegend,
+	RANK_BAND_TAG,
+	rankBand,
 	rksAvgBand,
 	rksAvgBandUp,
 	type ScoreAvgSong,
@@ -170,27 +171,6 @@ test("all-higher b19 refetches the raised rks band as Hyper/Finished", async () 
 	assert.equal(b19[0]?.accAvg, "Avg: 99.8000%");
 });
 
-test("b30 blue palette uses Hyper/Finished, red uses Lower/Higher", async () => {
-	const map = {
-		"BestSong.0": { IN: { accAvg: 99, count: 1 } },
-	};
-	const cool = [song({ id: "BestSong.0", acc: 98, rank: "IN" })];
-	const warm = [song({ id: "BestSong.0", acc: 98, rank: "IN" })];
-	await attachB19AccAvg(
-		{ phi: [], b19_list: cool, com_rks: 15 },
-		{ avgType: "b30", color: "blue" },
-		{ allAccAvgB30: async () => map },
-	);
-	await attachB19AccAvg(
-		{ phi: [], b19_list: warm, com_rks: 15 },
-		{ avgType: "b30", color: "red" },
-		{ allAccAvgB30: async () => map },
-	);
-	assert.equal(cool[0]?.accKind, "Hyper");
-	assert.equal(cool[0]?.accAvg, "BAvg: 99.0000%");
-	assert.equal(warm[0]?.accKind, "Lower");
-});
-
 test("fetch failures leave the card without avg bars", async () => {
 	const b19 = [song({ id: "BestSong.0", acc: 98, rank: "IN" })];
 	const res = await attachB19AccAvg(
@@ -203,7 +183,7 @@ test("fetch failures leave the card without avg bars", async () => {
 		},
 	);
 	assert.equal(b19[0]?.accAvg, undefined);
-	assert.deepEqual(res, { partial: true });
+	assert.deepEqual(res, { partial: true, missing: true });
 });
 
 test("fetchAllSongAccAvg POSTs the score-list path and unwraps data", async () => {
@@ -258,7 +238,6 @@ test("rank mode badges every row with its estimated place among phib19 records",
 					rows: new Map([
 						[rankKey(queries[0]!), { better: 2032, total: 70387 }],
 						[rankKey(queries[2]!), { better: 3610, total: 70387 }],
-						// phib19 has no records on this chart
 						[rankKey(queries[3]!), { better: 0, total: 0 }],
 					]),
 					partial: false,
@@ -267,7 +246,6 @@ test("rank mode badges every row with its estimated place among phib19 records",
 		},
 	);
 	assert.deepEqual(res, { partial: false });
-	// LEGACY rows are never asked about; phi and b19 rows both are
 	assert.deepEqual(
 		asked.map((q) => `${q.songId}:${q.rank}`),
 		["Ap.0:AT", "Ap.0:AT", "Mid.0:IN", "Gone.0:HD"],
@@ -276,18 +254,125 @@ test("rank mode badges every row with its estimated place among phib19 records",
 	assert.equal(b19[1]?.accAvg, "#3,611 / 70,388 · Top 5.1%");
 	assert.equal(b19[1]?.accRank?.pos, "#3,611");
 	assert.equal(b19[1]?.accRank?.ap, false);
-	// An AP is #1, tied with every AP record; its percent is the AP group's share,
-	// labelled as such ("Top 2.9%" next to #1 would contradict it)
+	// An AP is #1, tied with every AP record, so its percent is the AP group's share ("Top 2.9%" next to #1 would contradict it)
 	assert.equal(phi[0]?.accRank?.pos, "#1");
 	assert.equal(phi[0]?.accRank?.tied, 2032);
 	assert.equal(phi[0]?.accRank?.ap, true);
 	assert.equal(phi[0]?.accRank?.pct, "AP 2.9%");
 	assert.equal(phi[0]?.accAvg, "#1 / 70,388 · AP 2.9%");
 	assert.equal(b19[2]?.accAvg, undefined);
-	// phib19 had no row for this one: no badge, but the card is complete
 	assert.equal(b19[3]?.accAvg, undefined);
-	assert.match(rankLegend("en"), /phib19\.top/);
-	assert.match(rankLegend("zh"), /phib19\.top/);
+	assert.equal(b19[1]?.accRanks?.length, 1);
+	assert.equal(b19[1]?.accRank?.scope, "all");
+});
+
+test("the ±0.05 rank band is the peer band at two decimals", () => {
+	assert.deepEqual(rankBand(16.5614), { minRks: 16.5, maxRks: 16.6 });
+	assert.deepEqual(rankBand(16.33), { minRks: 16.25, maxRks: 16.35 });
+});
+
+test("rank scope picks the populations: band asks with the RKS band, both draws two labelled lines", async () => {
+	const lookups: Array<{ band?: unknown; owner?: unknown }> = [];
+	const fetchers = {
+		rankRows: async (
+			queries: { songId: string; rank: string; acc: number }[],
+			opts: { band?: { minRks: number; maxRks: number }; owner?: string },
+		) => {
+			lookups.push({ band: opts.band, owner: opts.owner });
+			const rows = new Map(
+				queries
+					.slice(0, opts.band ? 2 : 1)
+					.map((q) => [
+						rankKey(q, opts.band),
+						opts.band
+							? { better: 11, total: 399 }
+							: { better: 3610, total: 70387 },
+					]),
+			);
+			return { rows, partial: false };
+		},
+	};
+	const rows = () => [
+		song({ id: "A.0", acc: 99.5, rank: "IN" }),
+		song({ id: "B.0", acc: 98, rank: "AT" }),
+	];
+
+	const band = rows();
+	assert.deepEqual(
+		await attachB19AccAvg(
+			{ phi: [], b19_list: band, com_rks: 16.33 },
+			{ avgType: "rank", rankScope: "band", owner: "u1" },
+			fetchers,
+		),
+		{ partial: false },
+	);
+	assert.deepEqual(lookups, [
+		{ band: { minRks: 16.25, maxRks: 16.35 }, owner: "u1" },
+	]);
+	assert.equal(band[0]?.accRank?.scope, "band");
+	assert.equal(band[0]?.accRank?.tag, RANK_BAND_TAG);
+	assert.equal(band[0]?.accAvg, "±0.05 #12 / 400");
+
+	lookups.length = 0;
+	const both = rows();
+	await attachB19AccAvg(
+		{ phi: [], b19_list: both, com_rks: 16.33 },
+		{ avgType: "rank", rankScope: "both", owner: "u1" },
+		fetchers,
+	);
+	assert.equal(lookups.length, 2);
+	assert.deepEqual(
+		both[0]?.accRanks?.map((b) => [b.scope, b.tag, b.pos]),
+		[
+			["all", undefined, "#3,611"],
+			["band", "±0.05", "#12"],
+		],
+	);
+	assert.equal(both[0]?.accRank?.scope, "all");
+	assert.deepEqual(
+		both[1]?.accRanks?.map((b) => b.scope),
+		["band"],
+	);
+	assert.equal(both[0]?.accAvg, "#3,611 / 70,388 · Top 5.1% | ±0.05 #12 / 400");
+});
+
+test("the ±0.05 badge shows the place by default, or only the share when chosen", async () => {
+	const fetchers = {
+		rankRows: async (
+			queries: { songId: string; rank: string; acc: number }[],
+			opts: { band?: { minRks: number; maxRks: number } },
+		) => ({
+			rows: new Map(
+				queries.map((q) => [
+					rankKey(q, opts.band),
+					opts.band
+						? { better: 11, total: 399 }
+						: { better: 3610, total: 70387 },
+				]),
+			),
+			partial: false,
+		}),
+	};
+	const place = [song({ id: "A.0", acc: 99.5, rank: "IN" })];
+	await attachB19AccAvg(
+		{ phi: [], b19_list: place, com_rks: 16.33 },
+		{ avgType: "rank", rankScope: "both" },
+		fetchers,
+	);
+	assert.equal(place[0]?.accRanks?.[1]?.show, "place");
+	assert.equal(
+		place[0]?.accAvg,
+		"#3,611 / 70,388 · Top 5.1% | ±0.05 #12 / 400",
+	);
+	const share = [song({ id: "A.0", acc: 99.5, rank: "IN" })];
+	await attachB19AccAvg(
+		{ phi: [], b19_list: share, com_rks: 16.33 },
+		{ avgType: "rank", rankScope: "band", rankBandShow: "percent" },
+		fetchers,
+	);
+	assert.equal(share[0]?.accRank?.show, "percent");
+	assert.equal(share[0]?.accAvg, "±0.05 Top 3.0%");
+	assert.equal(place[0]?.accRanks?.[0]?.show, undefined);
 });
 
 test("a lookup past the render budget keeps the rows already in memory and marks the card partial", async () => {
@@ -309,17 +394,19 @@ test("a lookup past the render budget keeps the rows already in memory and marks
 							partial: false,
 						});
 				}),
-			// A chunk that already landed (or an earlier render) answered this one
-			peekRankRows: (queries) =>
-				new Map([[rankKey(queries[1]!), { better: 3610, total: 70387 }]]),
+			peekRankRows: (queries) => ({
+				rows: new Map([[rankKey(queries[1]!), { better: 3610, total: 70387 }]]),
+				partial: true,
+				missing: 1,
+				stale: 0,
+			}),
 		},
 	);
-	assert.deepEqual(res, { partial: true });
+	assert.deepEqual(res, { partial: true, missing: true });
 	assert.ok(Date.now() - started < 1000);
 	assert.equal(b19[1]?.accAvg, "#3,611 / 70,388 · Top 5.1%");
 	late?.();
 	await new Promise((r) => setTimeout(r, 5));
-	// The late answer fills caches only; the card being drawn is not touched
 	assert.equal(b19[0]?.accAvg, undefined);
 });
 
@@ -338,9 +425,75 @@ test("rank mode draws the rows that arrived and is partial when others are missi
 			}),
 		},
 	);
-	assert.deepEqual(res, { partial: true });
+	assert.deepEqual(res, { partial: true, missing: true });
 	assert.equal(b19[0]?.accAvg, "#10 / 100 · Top 10.0%");
 	assert.equal(b19[1]?.accAvg, undefined);
+});
+
+test("ranks past their 6 h drawn when the refresh is late are stale, not missing", async () => {
+	const b19 = [
+		song({ id: "A.0", acc: 98, rank: "IN" }),
+		song({ id: "B.0", acc: 97, rank: "AT" }),
+	];
+	const rows = (queries: { songId: string; rank: string; acc: number }[]) =>
+		new Map(queries.map((q) => [rankKey(q), { better: 9, total: 99 }]));
+	const answered = await attachB19AccAvg(
+		{ phi: [], b19_list: b19, com_rks: 15 },
+		{ avgType: "rank" },
+		{
+			rankRows: async (queries) => ({
+				rows: rows(queries),
+				partial: true,
+				missing: 0,
+				stale: 2,
+			}),
+		},
+	);
+	assert.deepEqual(answered, { partial: true, stale: true });
+	assert.equal(b19[1]?.accRank?.pos, "#10");
+	const late = await attachB19AccAvg(
+		{ phi: [], b19_list: b19.map((r) => ({ ...r })), com_rks: 15 },
+		{ avgType: "rank", budgetMs: 10 },
+		{
+			rankRows: () => new Promise(() => {}),
+			peekRankRows: (queries) => ({
+				rows: rows(queries),
+				partial: true,
+				missing: 0,
+				stale: 2,
+			}),
+		},
+	);
+	assert.deepEqual(late, { partial: true, stale: true });
+});
+
+test("phib19 answering with no average for any row is said, not drawn as if peer comparison were off", async () => {
+	const empty = { "A.0": { IN: { accAvg: null, count: 0 } } };
+	const rows = () => [song({ id: "A.0", acc: 98, rank: "IN" })];
+	const b19 = rows();
+	const res = await attachB19AccAvg(
+		{ phi: [], b19_list: b19, com_rks: 16.5 },
+		{ avgType: "all" },
+		{ allAccAvg: async () => empty },
+	);
+	assert.deepEqual(res, { partial: true, empty: true });
+	assert.equal(b19[0]?.accAvg, undefined);
+	const some = rows();
+	const ok = await attachB19AccAvg(
+		{
+			phi: [],
+			b19_list: [...some, song({ id: "B.0", acc: 97 })],
+			com_rks: 16.5,
+		},
+		{ avgType: "all" },
+		{
+			allAccAvg: async () => ({
+				...empty,
+				"B.0": { IN: { accAvg: 98.5, count: 12 } },
+			}),
+		},
+	);
+	assert.deepEqual(ok, { partial: false });
 });
 
 test("a mode the webui doesn't know (stored by the bot) draws no badges and is complete", async () => {
@@ -359,20 +512,24 @@ test("every avg mode reports partial when its lookup fails", async () => {
 	const fail = async () => {
 		throw new Error("chart-tag 503");
 	};
-	for (const avgType of ["all", "b30", "top", "rank"]) {
+	for (const avgType of ["all", "top", "rank"]) {
 		const b19 = [song({ id: "X.0", acc: 98, rank: "IN" })];
 		const res = await attachB19AccAvg(
 			{ phi: [], b19_list: b19, com_rks: 15 },
 			{ avgType },
 			{
 				allAccAvg: fail,
-				allAccAvgB30: fail,
 				allAccRank: fail,
 				rankRows: fail,
-				peekRankRows: () => new Map(),
+				peekRankRows: () => ({
+					rows: new Map(),
+					partial: true,
+					missing: 1,
+					stale: 0,
+				}),
 			},
 		);
-		assert.deepEqual(res, { partial: true }, avgType);
+		assert.deepEqual(res, { partial: true, missing: true }, avgType);
 		assert.equal(b19[0]?.accAvg, undefined, avgType);
 	}
 });

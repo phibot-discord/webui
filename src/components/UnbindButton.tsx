@@ -6,7 +6,6 @@ import { ToolPop, useToolDismiss } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 import { persistCardReload } from "@/lib/save-refresh";
 
-/** Unbinds TapTap, or in manual mode deletes the hand-typed scores; `inline` confirms in place */
 export function UnbindButton({
 	manual = false,
 	inline = false,
@@ -44,7 +43,6 @@ export function UnbindButton({
 	}, [pending]);
 	useToolDismiss(confirming && !inline, close, root);
 
-	// Inline: move focus to the question so it is read before the buttons
 	useEffect(() => {
 		if (inline && confirming) confirmBox.current?.focus();
 	}, [inline, confirming]);

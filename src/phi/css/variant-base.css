@@ -1,4 +1,3 @@
-/* Reset shared by the alternative card layouts (each also links its own <tpl>.css) */
 * {
 	box-sizing: border-box;
 }

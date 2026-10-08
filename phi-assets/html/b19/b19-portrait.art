@@ -138,13 +138,14 @@
 					</div>
 					{{/if}}
 				</div>
-				{{if r.peerRank}}
-				<div class="b19p-line b19p-line-rank{{if r.peerRank.ap}} is-ap{{/if}}" style="font-size:{{r.peerRank.px}}px;">
-					<p class="b19p-rank-pos">{{r.peerRank.pos}}</p>
-					{{if r.peerRank.showOf}}<p class="b19p-rank-of">{{r.peerRank.of}}</p>{{/if}}
-					<p class="b19p-rank-pct">{{r.peerRank.pct}}</p>
+				{{each r.peerRanks pr}}
+				<div class="b19p-line b19p-line-rank{{if pr.ap}} is-ap{{/if}}" style="font-size:{{pr.px}}px;">
+					{{if pr.tag}}<p class="b19p-rank-tag">{{pr.tag}}</p>{{/if}}
+					{{if pr.pos}}<p class="b19p-rank-pos">{{pr.pos}}</p>{{/if}}
+					{{if pr.showOf}}<p class="b19p-rank-of">{{pr.of}}</p>{{/if}}
+					{{if pr.pct}}<p class="b19p-rank-pct{{if !pr.pos}} is-lead{{/if}}">{{pr.pct}}</p>{{/if}}
 				</div>
-				{{/if}}
+				{{/each}}
 			</div>
 		</div>
 		{{/if}}
@@ -154,9 +155,6 @@
 		{{/if}}
 	</section>
 
-	{{if pv.rankNote.length}}
-	<div class="b19p-rank-note">{{each pv.rankNote line}}<p>{{line}}</p>{{/each}}</div>
-	{{/if}}
 
 	{{if pv.analysis}}
 	<section class="b19p-analysis">

@@ -4,10 +4,8 @@ import type { NextConfig } from "next";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 
-/* Route keys are picomatch globs, and file patterns without "/" match at any depth,
-   so every path here is root-relative. Includes apply after excludes */
+// Keys are picomatch globs: a pattern without "/" matches at any depth, and includes apply after excludes
 
-/** Templates, stylesheets, fonts and info files: only the two card routes render */
 const phiRenderAssets = [
 	"./phi-assets/html/**/*.{art,css,woff2,ttf,otf,png,jpg,jpeg,webp,svg}",
 	"./phi-assets/info/**/*",
@@ -15,10 +13,7 @@ const phiRenderAssets = [
 ];
 const phiInfoOnly = ["./phi-assets/info/**/*"];
 
-/**
- * Vercel runs linux x64 glibc: keep only those sharp/libvips builds
- * (Turbopack ignores extglobs, hence the list)
- */
+// Vercel runs linux x64 glibc; Turbopack ignores extglobs, hence the list
 const foreignBinaries = [
 	"**/@img/sharp-darwin-*/**",
 	"**/@img/sharp-libvips-darwin-*/**",
@@ -41,11 +36,9 @@ const foreignBinaries = [
 	"**/@takumi-rs/wasm/**",
 ];
 
-/**
- * Render fonts ship with the card routes only; trace-config.test.ts checks no key matches them
- * "/api/public/?slug?/route" is /api/public/[slug] alone (Turbopack route names end in /route)
- */
+// "/api/public/?slug?/route" is /api/public/[slug] alone (Turbopack route names end in /route)
 export const nonCardRoutes = [
+	"/account",
 	"/api/assets",
 	"/api/auth/**",
 	"/api/bind/**",
@@ -53,6 +46,7 @@ export const nonCardRoutes = [
 	"/api/charts",
 	"/api/leaderboard",
 	"/api/locale",
+	"/api/login/**",
 	"/api/manual",
 	"/api/me",
 	"/api/notes",
@@ -64,16 +58,20 @@ export const nonCardRoutes = [
 	"/api/unbind",
 	"/files",
 	"/home",
+	"/login/**",
 	"/me",
 	"/me/**",
 	"/p/**",
 	"/phira",
+	"/privacy",
 	"/score",
 	"/songs",
+	"/status",
 	"/tags",
+	"/tos",
 ];
 export const renderFonts = ["phi-assets/html/common/font/**", "src/fonts/**"];
-/** next/font copies the web-UI faces into the static build; no function reads them */
+// next/font copies these into the static build; no function reads them
 const webFonts = [
 	"src/fonts/noto-sans-sc-500.woff2",
 	"src/fonts/noto-sans-sc-600.woff2",
@@ -95,9 +93,10 @@ const nextConfig: NextConfig = {
 		"/api/refresh": phiInfoOnly,
 		"/api/bind/poll": phiInfoOnly,
 		"/api/bind/token": phiInfoOnly,
+		// Finishing a TapTap sign-in binds the save, like /api/bind/poll
+		"/api/login/taptap/poll": phiInfoOnly,
 		"/api/charts": phiInfoOnly,
 		"/api/manual": phiInfoOnly,
-		// Alias + title search reads the catalog (info/nicklist.yaml, info.csv)
 		"/api/songs/search": phiInfoOnly,
 		"/api/songs/search/route": phiInfoOnly,
 	},

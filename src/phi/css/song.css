@@ -1,4 +1,3 @@
-/* Per-song card; widths here feed the geometry in src/phi/lib/variants/song.ts */
 :root {
 	--sc-bg: #080c13;
 	--sc-panel: #101824;
@@ -36,7 +35,6 @@ body {
 	white-space: nowrap;
 }
 
-/* Blurred illustration behind the header, faded out before the panels start */
 .sc-bgimg {
 	position: absolute;
 	top: 0;
@@ -97,7 +95,6 @@ body {
 	color: var(--sc-text-3);
 }
 
-/* Header */
 .sc-top {
 	position: relative;
 	display: flex;
@@ -290,7 +287,6 @@ body {
 	color: var(--sc-text-3);
 }
 
-/* Sections */
 .sc-sec {
 	position: relative;
 	display: flex;
@@ -334,7 +330,6 @@ body {
 	color: var(--sc-text-2);
 }
 
-/* Your record */
 .sc-rec {
 	display: flex;
 	align-items: center;
@@ -343,7 +338,6 @@ body {
 	padding: 0 24px 0 18px;
 	border: 1px solid var(--sc-line);
 	border-left: 4px solid var(--sc-accent);
-	/* Solid: Takumi paints a band across the card for a gradient on a bordered box */
 	background: var(--sc-panel-hi);
 }
 
@@ -428,7 +422,6 @@ body {
 	color: var(--sc-text-2);
 }
 
-/* Standing */
 .sc-tiles {
 	display: flex;
 	gap: 24px;
@@ -514,7 +507,6 @@ body {
 	color: var(--sc-text-2);
 }
 
-/* Distribution */
 .sc-dist {
 	align-items: center;
 }
@@ -614,7 +606,6 @@ body {
 	box-shadow: inset 0 0 0 3px var(--sc-accent);
 }
 
-/* The AP column is taller than the scale: a notch says it was cut */
 .sc-apcol-cut {
 	position: absolute;
 	top: 18px;
@@ -746,7 +737,6 @@ body {
 	color: var(--sc-text);
 }
 
-/* AP / FC counts */
 .sc-counts {
 	display: flex;
 	gap: 16px;
@@ -807,7 +797,6 @@ body {
 	color: var(--sc-text-3);
 }
 
-/* All levels */
 .sc-lv-head,
 .sc-lv {
 	display: flex;
@@ -900,7 +889,6 @@ body {
 	color: var(--sc-text-3);
 }
 
-/* Footer */
 .sc-foot {
 	display: flex;
 	flex-direction: column;
@@ -930,7 +918,6 @@ body {
 	letter-spacing: 0.06em;
 }
 
-/* No meter on the records tile: its caption sits where the others' captions do */
 .sc-count-s1 {
 	margin-top: 24px;
 }

@@ -28,7 +28,6 @@ import {
 
 type Call = { path: string; body: Record<string, unknown> };
 
-/** The queries one allAccRank call sent ([] when there was no such call) */
 function queriesOf(call: Call | undefined) {
 	return (call?.body.queries ?? []) as { songId: string; acc: number }[];
 }
@@ -187,8 +186,7 @@ test("normalizeAccRank reads the one-dimension array and the {all,b30} object", 
 		q.slice(0, 1),
 	);
 	assert.deepEqual(two?.b30, [{ better: 1, total: 10 }]);
-	// A level phib19 has no records for: totalCount 0, a real "none". A shifted
-	// row is not trusted (null: asked again soon)
+	// totalCount 0 is a real "none"; a shifted row is not trusted (null: asked again soon)
 	assert.deepEqual(
 		normalizeAccRank(
 			[
@@ -345,7 +343,7 @@ test("a network failure opens the breaker for that endpoint only", async () => {
 	});
 });
 
-test("rankRows keeps one KV blob per row set and answers repeats from memory", async () => {
+test("rankRows keeps one KV blob per row set (no owner) and answers repeats from memory", async () => {
 	const fake = fakePhib19();
 	const kv = memKv();
 	const rows = [
@@ -361,7 +359,7 @@ test("rankRows keeps one KV blob per row set and answers repeats from memory", a
 	assert.equal(out.rows.get(rankKey(rows[1]!))?.better, 0);
 	await tick();
 	assert.equal(kv.sets.length, 1);
-	assert.match(kv.sets[0]!, /^phi:lb:rank:v1:/);
+	assert.match(kv.sets[0]!, /^phi:lb:rank:v2:[0-9a-f]{32}$/);
 	await rankRows(rows, { db: kv.db }, { post: fake.post, known });
 	assert.equal(fake.calls.length, 1);
 	// Another instance: memory is empty, the blob in KV answers
@@ -375,7 +373,6 @@ test("rankRows returns the rows of the chunks that answered when another chunk f
 	const kv = memKv();
 	const ok = fakePhib19();
 	let n = 0;
-	// The second chunk times out; the first answers
 	const flaky = async (path: string, body: unknown) => {
 		n++;
 		if (n === 2) throw new Error("The operation was aborted due to timeout");
@@ -395,18 +392,137 @@ test("rankRows returns the rows of the chunks that answered when another chunk f
 		rows: Record<string, unknown>;
 	};
 	assert.equal(Object.keys(blob.rows).length, 10);
-	// Moments later: the failure isn't retried, but the 10 rows are still drawn
 	const again = await rankRows(rows, { db: kv.db }, { post: flaky, known });
 	assert.equal(n, 2);
 	assert.equal(again.partial, true);
 	assert.equal(again.rows.size, 10);
-	assert.equal(peekRankRows(rows).size, 10);
-	// Another instance later on: the blob answers 10 rows, only 5 are asked for
+	assert.equal(peekRankRows(rows).rows.size, 10);
 	resetLeaderboardForTest();
 	const out = await rankRows(rows, { db: kv.db }, { post: ok.post, known });
 	assert.equal(out.partial, false);
 	assert.equal(out.rows.size, 15);
 	assert.equal(queriesOf(ok.calls.at(-1)).length, 5);
+});
+
+test("an owner's rank rows merge across cards: rows from an earlier card are reused, not asked again", async () => {
+	const kv = memKv();
+	const fake = fakePhib19();
+	const row = (id: string) => ({ songId: id, rank: "IN", acc: 98.5 });
+	await rankRows(
+		[row("a"), row("b")],
+		{ db: kv.db, owner: "u1" },
+		{ post: fake.post, known },
+	);
+	await tick();
+	assert.deepEqual(kv.sets, ["phi:lb:rank:v2:u1:all"]);
+	resetLeaderboardForTest();
+	const out = await rankRows(
+		[row("b"), row("c")],
+		{ db: kv.db, owner: "u1" },
+		{ post: fake.post, known },
+	);
+	assert.equal(out.partial, false);
+	assert.deepEqual(
+		queriesOf(fake.calls.at(-1)).map((q) => q.songId),
+		["c.0"],
+	);
+	await tick();
+	const blob = JSON.parse(kv.map.get("phi:lb:rank:v2:u1:all")!) as {
+		v: number;
+		rows: Record<string, [number, number, number]>;
+	};
+	assert.equal(blob.v, 2);
+	assert.deepEqual(
+		Object.keys(blob.rows).sort(),
+		[rankKey(row("a")), rankKey(row("b")), rankKey(row("c"))].sort(),
+	);
+	await rankRows(
+		[row("a")],
+		{ db: kv.db, owner: "u1", band: { minRks: 16.25, maxRks: 16.35 } },
+		{ post: fake.post, known },
+	);
+	await tick();
+	assert.ok(kv.map.has("phi:lb:rank:v2:u1:16.25-16.35"));
+});
+
+test("rows a card got stay on the next card when that card's lookup fails", async () => {
+	const kv = memKv();
+	const ok = fakePhib19();
+	const rows = Array.from({ length: 12 }, (_, i) => ({
+		songId: `s${i}`,
+		rank: "IN",
+		acc: 90 + i / 10,
+	}));
+	const first = await rankRows(
+		rows,
+		{ db: kv.db, owner: "u1" },
+		{ post: ok.post, known },
+	);
+	assert.equal(first.rows.size, 12);
+	await tick();
+	resetLeaderboardForTest();
+	const down = fakePhib19({ fail: true });
+	const extra = { songId: "new", rank: "AT", acc: 99 };
+	const second = await rankRows(
+		[...rows, extra],
+		{ db: kv.db, owner: "u1" },
+		{ post: down.post, known },
+	);
+	assert.equal(second.partial, true);
+	assert.equal(second.rows.size, 12);
+	assert.equal(second.rows.has(rankKey(extra)), false);
+	assert.deepEqual(
+		queriesOf(down.calls[0]).map((q) => q.songId),
+		["new.0"],
+	);
+});
+
+test("a row past its 6 h is asked again, but still drawn while the new answer is missing", async () => {
+	const kv = memKv();
+	const q = { songId: "old", rank: "IN", acc: 97 };
+	const day = 24 * 60 * 60 * 1000;
+	await kv.db.set(
+		"phi:lb:rank:v2:u1:all",
+		JSON.stringify({
+			v: 2,
+			rows: {
+				[rankKey(q)]: [5, 500, Date.now() - day],
+				// Past the 7-day fallback: dropped
+				[rankKey({ ...q, songId: "gone" })]: [1, 9, Date.now() - 8 * day],
+			},
+		}),
+	);
+	const down = fakePhib19({ fail: true });
+	const res = await rankRows(
+		[q, { ...q, songId: "gone" }],
+		{ db: kv.db, owner: "u1" },
+		{ post: down.post, known },
+	);
+	assert.equal(down.calls.length, 1, "the day-old row is asked again");
+	assert.equal(res.partial, true);
+	assert.equal(res.stale, 1, "drawn, but out of date");
+	assert.equal(res.missing, 1, "past 7 days: gone");
+	assert.deepEqual(res.rows.get(rankKey(q)), { better: 5, total: 500 });
+	assert.equal(res.rows.has(rankKey({ ...q, songId: "gone" })), false);
+	assert.deepEqual(peekRankRows([q]).rows.get(rankKey(q)), {
+		better: 5,
+		total: 500,
+	});
+	resetLeaderboardForTest();
+	const ok = fakePhib19();
+	const fresh = await rankRows(
+		[q],
+		{ db: kv.db, owner: "u1" },
+		{ post: ok.post, known },
+	);
+	assert.equal(fresh.partial, false);
+	assert.deepEqual(fresh.rows.get(rankKey(q)), { better: 3, total: 1000 });
+	await tick();
+	const blob = JSON.parse(kv.map.get("phi:lb:rank:v2:u1:all")!) as {
+		rows: Record<string, [number, number, number]>;
+	};
+	assert.deepEqual(blob.rows[rankKey(q)]?.slice(0, 2), [3, 1000]);
+	assert.equal(blob.rows[rankKey({ ...q, songId: "gone" })], undefined);
 });
 
 test("the rank blob is written as soon as a chunk lands, not only when the job ends", async () => {
@@ -608,18 +724,15 @@ test("a song phib19 doesn't know is an empty board and no counts, not a failure"
 			},
 		};
 	};
-	// Not in the catalog: nothing is sent
 	const off = { post, known: () => false };
 	assert.equal((await songBoard("New.Song", "IN", {}, off)).n, 0);
 	assert.deepEqual(await songApFc("New.Song", {}, off), {});
 	assert.equal(calls.length, 0);
-	// In the catalog, but phib19 400s naming songId: remembered, not asked again
 	assert.equal((await songBoard("Sp.Song", "IN", {}, { post, known })).n, 0);
 	assert.deepEqual(await songApFc("Sp.Song", {}, { post, known }), {});
 	assert.equal(calls.length, 1);
 	assert.equal((await songBoard("Sp.Song", "AT", {}, { post, known })).n, 0);
 	assert.equal(calls.length, 1);
-	// A 400 about something else stays a failure
 	const other = async () => ({
 		status: 400,
 		body: { details: [{ path: ["rank"] }] },
@@ -746,7 +859,6 @@ test("leaderboardJson leaves out a failed band instead of failing the answer", a
 	assert.equal(res.status, 200);
 	assert.equal((res.body as { rank: number }).rank, 4);
 	assert.ok(!("band" in res.body));
-	// No records on the chart: a 404, not a 503
 	resetLeaderboardForTest();
 	const none = await leaderboardJson(
 		{ chart: "New.Song.0", level: "AT", acc: 97.5 },
@@ -795,7 +907,6 @@ test("too many uncached leaderboardJson lookups at once are refused; cached ones
 	});
 	await Promise.all(background);
 	assert.equal((await ask(90)).status, 200);
-	// Room again: 80 is looked up now (and is late like the others were)
 	assert.deepEqual(await ask(80), {
 		status: 503,
 		body: { error: "upstream_slow" },

@@ -7,10 +7,6 @@ import { useI18n } from "@/i18n/provider";
 import type { ChartSummary } from "@/lib/chart-catalog";
 import { SONG_LEVELS, type SongLevel } from "@/server/card-kinds";
 
-/**
- * Chart and level for the per-song rank card. The search ranks titles and
- * nicknames; levels the chart lacks are disabled
- */
 export function SongPicker({
 	catalog,
 	song,
@@ -19,7 +15,6 @@ export function SongPicker({
 	onChange,
 }: {
 	catalog: ReturnType<typeof useChartCatalog>;
-	/** The catalog entry for `chart`, once the catalog has loaded */
 	song?: ChartSummary;
 	chart: string;
 	level: SongLevel;

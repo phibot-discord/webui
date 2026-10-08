@@ -1,6 +1,5 @@
 import { logger } from "@/server/logger";
 import type { Kv } from "@/server/sdk";
-import type { PhiLocale } from "./card-i18n";
 import {
 	type ChartTagJsonFetch,
 	chartTagJsonFetchOnce,
@@ -23,6 +22,7 @@ import {
 	rankKey,
 	rankRows,
 } from "./leaderboard";
+import type { RankBandShow, RankScope } from "./notes";
 
 export { apiSongId };
 
@@ -45,15 +45,16 @@ type AccRankMap = {
 	b30?: AccRankRow[];
 };
 
-/** Rank badge pieces ("rank" mode), next to the one-line `accAvg` text */
 export type AccRankBadge = {
+	scope: "all" | "band";
+	tag?: string;
+	show?: RankBandShow;
 	pos: string;
 	of: string;
 	pct: string;
 	rank: number;
 	total: number;
 	percent: number;
-	/** Other records tied at #1 (AP only) */
 	tied: number;
 	ap: boolean;
 };
@@ -65,15 +66,17 @@ export type ScoreAvgSong = {
 	accAvg?: string | number;
 	accKind?: string;
 	accRank?: AccRankBadge;
+	accRanks?: AccRankBadge[];
 };
 
 type B19AvgOption = {
 	avgType?: string;
 	color?: string;
 	avgValue?: boolean;
-	/** "rank" mode keeps one KV blob per card's rows here */
 	db?: Pick<Kv, "get" | "set">;
-	/** How long the card waits for phib19 (default LB_ROW_BUDGET_MS) */
+	owner?: string;
+	rankScope?: RankScope;
+	rankBandShow?: RankBandShow;
 	budgetMs?: number;
 };
 
@@ -85,6 +88,14 @@ export function rksAvgBand(comRks: number) {
 	};
 }
 
+export function rankBand(comRks: number): RksBand {
+	const band = rksAvgBand(comRks);
+	return {
+		minRks: Math.round(band.minRks * 100) / 100,
+		maxRks: Math.round(band.maxRks * 100) / 100,
+	};
+}
+
 export function rksAvgBandUp(comRks: number) {
 	const rks = Number.isFinite(comRks) ? comRks : 0;
 	return {
@@ -93,7 +104,7 @@ export function rksAvgBandUp(comRks: number) {
 	};
 }
 
-/** `{data}` → data. phib19 reports some failures as HTTP 200 `{error}`: null */
+// phib19 reports some failures as HTTP 200 `{error}`
 function unwrapData<T>(raw: unknown): T | null {
 	if (!raw || typeof raw !== "object" || "error" in raw) return null;
 	const nested = "data" in raw ? (raw as { data: unknown }).data : raw;
@@ -113,19 +124,6 @@ export async function fetchAllSongAccAvg(
 	);
 }
 
-async function fetchAllSongAccAvgB30(
-	params: { songIds: string[]; minRks: number; maxRks: number },
-	fetchJson: ChartTagJsonFetch = chartTagJsonFetchOnce,
-) {
-	return unwrapData<AccAvgMap>(
-		await fetchJson("/get/scoreList/allAccAvgB30", {
-			method: "POST",
-			body: JSON.stringify(params),
-		}),
-	);
-}
-
-/** "top" mode: phib19's banded share of records at or above each row's acc */
 async function fetchAllSongAccRank(params: {
 	queries: RankQuery[];
 	dimension: RankDim[];
@@ -208,42 +206,61 @@ export function applyAccRank(
 	}
 }
 
-/** Short enough for the classic card's one-line chip; an AP shows #1 with its share */
-const RANK_LEGEND: Record<PhiLocale, string> = {
-	en: "#rank / records on phib19.top (est.)",
-	zh: "#名次 / phib19.top 记录数（估算）",
-};
+// Without it the two populations' badges look alike
+export const RANK_BAND_TAG = "±0.05";
 
-/** One line naming the population behind the "rank" badges (a card chip) */
-export function rankLegend(locale: PhiLocale) {
-	return RANK_LEGEND[locale] ?? RANK_LEGEND.en;
+function rankBadge(
+	acc: number,
+	row: LbRankRow | undefined,
+	scope: AccRankBadge["scope"],
+	opts: { tag?: string; show?: RankBandShow } = {},
+): AccRankBadge | undefined {
+	const place = placeUser(acc, row);
+	if (!place) return;
+	return {
+		scope,
+		...(opts.tag ? { tag: opts.tag } : {}),
+		...(opts.show ? { show: opts.show } : {}),
+		pos: `#${fmtCount(place.rank)}`,
+		of: `/ ${fmtCount(place.of)}`,
+		pct: `${place.ap ? "AP" : "Top"} ${fmtTopPercent(place.percent)}%`,
+		rank: place.rank,
+		total: place.of,
+		percent: place.percent,
+		tied: place.tied,
+		ap: place.ap,
+	};
 }
 
-/** "rank" mode: the row's place among phib19 records, e.g. "#3,611 / 70,388 · Top 5.1%" */
+function badgeText(b: AccRankBadge) {
+	const parts = [
+		b.show === "percent" ? "" : `${b.pos} ${b.of}`,
+		b.show === "place" ? "" : b.pct,
+	].filter(Boolean);
+	return `${b.tag ? `${b.tag} ` : ""}${parts.join(" · ")}`;
+}
+
 export function applyRowRanks(
 	rows: Array<ScoreAvgSong | undefined | null>,
-	ranks: Map<string, LbRankRow>,
+	ranks: Map<string, LbRankRow> | undefined,
+	band?: { ranks: Map<string, LbRankRow>; range: RksBand; show?: RankBandShow },
 ) {
 	for (const x of rows) {
 		if (!x || x.rank === "LEGACY") continue;
-		const place = placeUser(
-			x.acc,
-			ranks.get(rankKey({ songId: x.id, rank: x.rank, acc: x.acc })),
-		);
-		if (!place) continue;
-		const badge: AccRankBadge = {
-			pos: `#${fmtCount(place.rank)}`,
-			of: `/ ${fmtCount(place.of)}`,
-			pct: `${place.ap ? "AP" : "Top"} ${fmtTopPercent(place.percent)}%`,
-			rank: place.rank,
-			total: place.of,
-			percent: place.percent,
-			tied: place.tied,
-			ap: place.ap,
-		};
+		const q = { songId: x.id, rank: x.rank, acc: x.acc };
+		const badges = [
+			ranks && rankBadge(x.acc, ranks.get(rankKey(q)), "all"),
+			band &&
+				rankBadge(x.acc, band.ranks.get(rankKey(q, band.range)), "band", {
+					tag: RANK_BAND_TAG,
+					show: band.show ?? "place",
+				}),
+		].filter((b): b is AccRankBadge => Boolean(b));
+		if (!badges.length) continue;
 		x.accKind = "Rank";
-		x.accRank = badge;
-		x.accAvg = `${badge.pos} ${badge.of} · ${badge.pct}`;
+		x.accRank = badges[0];
+		x.accRanks = badges;
+		x.accAvg = badges.map(badgeText).join(" | ");
 	}
 }
 
@@ -274,21 +291,15 @@ function topKind(color?: string) {
 
 type ScoreAvgFetchers = {
 	allAccAvg?: typeof fetchAllSongAccAvg;
-	allAccAvgB30?: typeof fetchAllSongAccAvgB30;
 	allAccRank?: typeof fetchAllSongAccRank;
 	rankRows?: (
 		queries: RankQuery[],
-		opts: { db?: Pick<Kv, "get" | "set"> },
+		opts: { db?: Pick<Kv, "get" | "set">; owner?: string; band?: RksBand },
 	) => Promise<RankRowsResult>;
-	/** Rows already in memory, for a "rank" lookup past its budget */
-	peekRankRows?: (queries: RankQuery[]) => Map<string, LbRankRow>;
+	peekRankRows?: (queries: RankQuery[], band?: RksBand) => RankRowsResult;
 };
 
-/**
- * phib19 peer averages move slowly, while the same B30 is re-rendered for every
- * count / quality / language variant. Remember answers for a while, and a failure
- * briefly, so a dead upstream is not asked again on every render
- */
+// The same B30 is re-rendered per count / quality / language: cache answers, and failures briefly, so a dead phib19 isn't asked every render
 const AVG_TTL_MS = 10 * 60 * 1000;
 const AVG_FAIL_TTL_MS = 90 * 1000;
 const AVG_MAX = 128;
@@ -312,7 +323,7 @@ function remember(key: string, value: Promise<unknown>, ttlMs: number) {
 	}
 }
 
-/** Shared, cached lookups that resolve to null on any failure (never reject) */
+// Resolves to null on any failure, never rejects
 function memo<P extends object, R>(
 	name: string,
 	fn: (params: P) => Promise<R | null>,
@@ -344,7 +355,6 @@ export function resetScoreAvgMemForTest() {
 }
 
 const cachedAllAccAvg = memo("allAccAvg", fetchAllSongAccAvg);
-const cachedAllAccAvgB30 = memo("allAccAvgB30", fetchAllSongAccAvgB30);
 const cachedAllAccRank = memo("allAccRank", fetchAllSongAccRank);
 
 type AvgPayload = {
@@ -353,10 +363,42 @@ type AvgPayload = {
 	com_rks: number;
 };
 
-/** How to label the rows, and whether some rows had to go without (rank mode) */
-type AvgLookup = { apply: () => void; partial: boolean };
+export type AvgOutcome = {
+	partial: boolean;
+	missing?: boolean;
+	empty?: boolean;
+	stale?: boolean;
+};
 
-/** The rows "rank" mode badges: phi and b19, LEGACY left out */
+const COMPLETE: AvgOutcome = { partial: false };
+
+const EMPTY: AvgOutcome = { partial: true, empty: true };
+
+function anyAverage(payload: AvgPayload, map: AccAvgMap) {
+	return rankModeRows(payload).some(
+		(row) => lookupAccAvg(map, row.id, row.rank) != null,
+	);
+}
+
+function outcome(missing: boolean, stale: boolean): AvgOutcome {
+	if (!missing && !stale) return COMPLETE;
+	return {
+		partial: true,
+		...(missing ? { missing } : {}),
+		...(stale ? { stale } : {}),
+	};
+}
+
+// A partial result without counts counts as missing
+function rankGaps(res: RankRowsResult | undefined) {
+	return {
+		missing: Boolean(res?.partial) && (res?.missing ?? 1) > 0,
+		stale: (res?.stale ?? 0) > 0,
+	};
+}
+
+type AvgLookup = { apply: () => void } & AvgOutcome;
+
 function rankModeRows(payload: AvgPayload) {
 	return [...payload.phi, ...payload.b19_list].filter(
 		(row): row is ScoreAvgSong => Boolean(row) && row?.rank !== "LEGACY",
@@ -367,7 +409,7 @@ function rankQueries(rows: ScoreAvgSong[]): RankQuery[] {
 	return rows.map((row) => ({ songId: row.id, rank: row.rank, acc: row.acc }));
 }
 
-/** Fetches what one mode needs; writes nothing to rows, so a late answer can't touch a card being drawn */
+// Writes nothing to rows, so a late answer can't touch a card being drawn
 async function lookupAvg(
 	avgType: string,
 	payload: AvgPayload,
@@ -417,27 +459,7 @@ async function lookupAvg(
 				...fmt,
 			});
 		};
-		return { apply, partial: false };
-	}
-	if (avgType === "b30") {
-		const allAccAvgB30 = fetchers.allAccAvgB30 ?? cachedAllAccAvgB30;
-		const band = rksAvgBand(payload.com_rks);
-		const res = await allAccAvgB30({ songIds, ...band });
-		if (!res) throw new Error("avg-getAllSongAccAvgB30 failed");
-		const warm = option.color === "red" || option.color === "gold";
-		const fmt = {
-			low: warm ? "Lower" : "Hyper",
-			high: warm ? "Higher" : "Finished",
-			prefix: "BAvg:",
-			avgValue: option.avgValue,
-		};
-		return {
-			apply: () => {
-				applyAccAvgMap(payload.b19_list, res, fmt);
-				applyAccAvgMap(payload.phi, res, fmt);
-			},
-			partial: false,
-		};
+		return { apply, ...(anyAverage(payload, res) ? COMPLETE : EMPTY) };
 	}
 	if (avgType === "top") {
 		const allAccRank = fetchers.allAccRank ?? cachedAllAccRank;
@@ -453,50 +475,80 @@ async function lookupAvg(
 			...band,
 		});
 		if (!res) throw new Error("avg-getAllSongAccRank failed");
+		const answered = queries.some(
+			(_q, i) =>
+				res.all?.[i]?.topPercent != null && res.b30?.[i]?.topPercent != null,
+		);
 		return {
 			apply: () => applyAccRank(payload.b19_list, res, topKind(option.color)),
-			partial: false,
+			...(answered || !queries.length ? COMPLETE : EMPTY),
 		};
 	}
 	if (avgType === "rank") {
 		const rows = rankModeRows(payload);
+		const scope = option.rankScope ?? "all";
+		const range = rankBand(payload.com_rks);
 		const lookup = fetchers.rankRows ?? rankRows;
-		// Never rejects: a failed chunk still returns the rows that arrived
-		const res = await lookup(rankQueries(rows), { db: option.db });
+		const queries = rankQueries(rows);
+		const cache = { db: option.db, owner: option.owner };
+		// Never reject: a failed chunk still returns the rows that arrived
+		const [all, near] = await Promise.all([
+			scope === "band" ? undefined : lookup(queries, cache),
+			scope === "all" ? undefined : lookup(queries, { ...cache, band: range }),
+		]);
+		const a = rankGaps(all);
+		const b = rankGaps(near);
 		return {
-			apply: () => applyRowRanks(rows, res.rows),
-			partial: res.partial,
+			apply: () =>
+				applyRowRanks(
+					rows,
+					all?.rows,
+					near && { ranks: near.rows, range, show: option.rankBandShow },
+				),
+			...outcome(a.missing || b.missing, a.stale || b.stale),
 		};
 	}
 	// A mode the webui doesn't know (the Discord bot may store others): no badges
-	return { apply: () => undefined, partial: false };
+	return { apply: () => undefined, ...COMPLETE };
 }
 
-/** Peer averages / ranks for the B30 rows within `budgetMs`; past it rows stay bare and `partial` is set */
 export async function attachB19AccAvg(
 	payload: AvgPayload,
 	option: B19AvgOption = {},
 	fetchers: ScoreAvgFetchers = {},
-): Promise<{ partial: boolean }> {
+): Promise<AvgOutcome> {
 	const avgType = option.avgType || "all";
-	if (avgType === "none") return { partial: false };
+	if (avgType === "none") return COMPLETE;
 	const songIds = uniqueSongIds([payload.phi, payload.b19_list]);
-	if (!songIds.length) return { partial: false };
+	if (!songIds.length) return COMPLETE;
 	try {
-		const { apply, partial } = await withChartTagBudget(
+		const { apply, ...result } = await withChartTagBudget(
 			lookupAvg(avgType, payload, option, fetchers, songIds),
 			option.budgetMs ?? LB_ROW_BUDGET_MS,
 			`avg-${avgType}`,
 		);
 		apply();
-		return { partial };
+		return result;
 	} catch (err) {
 		logger.warn(`b30 avg skip: ${err instanceof Error ? err.message : err}`);
 		if (avgType === "rank") {
 			const rows = rankModeRows(payload);
+			const scope = option.rankScope ?? "all";
+			const range = rankBand(payload.com_rks);
 			const peek = fetchers.peekRankRows ?? peekRankRows;
-			applyRowRanks(rows, peek(rankQueries(rows)));
+			const queries = rankQueries(rows);
+			const all = scope === "band" ? undefined : peek(queries);
+			const near = scope === "all" ? undefined : peek(queries, range);
+			applyRowRanks(
+				rows,
+				all?.rows,
+				near && { ranks: near.rows, range, show: option.rankBandShow },
+			);
+			// Often every row is there, from ranks past their 6 h: then nothing is missing
+			const a = rankGaps(all);
+			const b = rankGaps(near);
+			return outcome(a.missing || b.missing, a.stale || b.stale);
 		}
-		return { partial: true };
+		return outcome(true, false);
 	}
 }

@@ -5,7 +5,6 @@ import { getDataHost } from "./data-host";
 const SHARE = (slug: string) => kvKey("webShare", slug);
 const SHARE_USER = (userId: string) => kvKey("webShareUser", userId);
 
-/** slug → userId, cached a minute per process (hits only) */
 const slugMem = new Map<string, { userId: string; at: number }>();
 const SLUG_MEMO_MS = 60_000;
 const SLUG_MEM_MAX = 2_000;
@@ -62,4 +61,15 @@ export async function revokeShare(userId: string): Promise<void> {
 	}
 	for (const [s, hit] of slugMem) if (hit.userId === userId) slugMem.delete(s);
 	await host.db.del(SHARE_USER(userId));
+}
+
+export async function moveShare(from: string, to: string): Promise<void> {
+	const host = await getDataHost();
+	const slug = await host.db.get(SHARE_USER(from));
+	if (!slug) return;
+	if (await host.db.get(SHARE_USER(to))) return revokeShare(from);
+	await host.db.set(SHARE(slug), to);
+	await host.db.set(SHARE_USER(to), slug);
+	await host.db.del(SHARE_USER(from));
+	rememberSlug(slug, to);
 }

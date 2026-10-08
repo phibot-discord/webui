@@ -43,8 +43,6 @@ export async function generateMetadata(
 		.replaceAll("{player}", shared.player)
 		.replaceAll("{card}", card)
 		.replaceAll("{rks}", shared.rks);
-	// An openGraph object here replaces the root's whole one, its file-based
-	// image included: carry the image and locale over so links still unfurl
 	const images = prev.openGraph?.images ?? [];
 	return {
 		title,
@@ -75,7 +73,6 @@ export default async function PublicKindPage({
 	searchParams: Promise<{ quality?: string; style?: string }>;
 }) {
 	const { slug, kind } = await params;
-	// The layout has already answered 404 for these; this narrows the types
 	if (!isPublicKind(kind)) notFound();
 	const [shared, q, { m }, session] = await Promise.all([
 		loadShared(slug),
@@ -125,11 +122,20 @@ export default async function PublicKindPage({
 						<ArrowRight aria-hidden="true" size={16} />
 					</Link>
 				) : (
-					<form action={signInDiscord}>
-						<input type="hidden" name="next" value="/me" />
-						<SignInButton />
-						<SignInStatus />
-					</form>
+					<div className="desk-cta-actions">
+						<form action={signInDiscord}>
+							<input type="hidden" name="next" value="/me" />
+							<SignInButton />
+							<SignInStatus />
+						</form>
+						<Link
+							className="btn btn-ghost btn-skew"
+							href="/login/taptap"
+							prefetch={false}
+						>
+							<span>{m.signInTaptap}</span>
+						</Link>
+					</div>
 				)}
 			</aside>
 		</Desk>

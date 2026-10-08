@@ -1,5 +1,3 @@
-/* ---------------------------------- files ---------------------------------- */
-
 .asset-search-field .field-label {
 	color: var(--ink);
 	font-size: var(--text-sm);
@@ -211,7 +209,6 @@
 	overflow-wrap: anywhere;
 }
 
-/* long keys break anywhere; the size stays whole */
 .asset-path {
 	color: var(--muted);
 	font-size: var(--text-xs);
@@ -227,7 +224,6 @@
 	gap: var(--space-2);
 }
 
-/* Open preview: the caret flips and the button takes the "on" tint */
 .asset-view[aria-expanded="true"] {
 	background: var(--primary-soft);
 	border-color: var(--primary);

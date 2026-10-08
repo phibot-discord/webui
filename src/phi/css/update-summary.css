@@ -1,4 +1,3 @@
-/* "Summary" history layout; widths here feed the text fitting in variants/update-summary.ts */
 :root {
 	--us-bg: #0a1018;
 	--us-panel: #111a26;
@@ -31,7 +30,6 @@ body {
 	font-family: var(--us-sans);
 }
 
-/* Blurred jacket, held far under the header so text keeps its contrast */
 .us-bgimg {
 	position: absolute;
 	top: 0;
@@ -62,7 +60,6 @@ body {
 	);
 }
 
-/* Slant stripes over the header; they fade out above the first section instead of ending on a hard edge */
 .us-bgstripes {
 	position: absolute;
 	top: 0;
@@ -102,7 +99,6 @@ body {
 	clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%);
 }
 
-/* Header */
 .us-head {
 	position: relative;
 	display: flex;
@@ -230,7 +226,6 @@ body {
 	color: var(--us-text-3);
 }
 
-/* Period strip: the span the KPI tiles below summarise */
 .us-period {
 	position: relative;
 	display: flex;
@@ -257,7 +252,6 @@ body {
 	color: var(--us-text-2);
 }
 
-/* KPI tiles */
 .us-kpis {
 	position: relative;
 	display: grid;
@@ -305,7 +299,6 @@ body {
 	height: 30px;
 }
 
-/* New φ titles under the count: a gold pip, the title, "+N" on the last line */
 .us-kpi-list {
 	display: flex;
 	flex-direction: column;
@@ -387,7 +380,6 @@ body {
 	text-overflow: ellipsis;
 }
 
-/* Difficulty chips */
 .us-chip {
 	display: flex;
 	align-items: center;
@@ -438,7 +430,6 @@ body {
 	letter-spacing: 0;
 }
 
-/* Sections */
 .us-sec {
 	position: relative;
 	display: flex;
@@ -479,7 +470,6 @@ body {
 	color: var(--us-text-2);
 }
 
-/* Top gains */
 .us-gains {
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);
@@ -498,7 +488,6 @@ body {
 	box-shadow: inset 0 -2px 0 var(--us-gold);
 }
 
-/* The panel tint shows when a jacket is missing */
 .us-gain-art {
 	position: relative;
 	display: flex;
@@ -542,7 +531,6 @@ body {
 	color: var(--us-bg);
 }
 
-/* Grade icon on a dark plate so blue / white icons hold up on bright jackets */
 .us-gain-grade {
 	position: absolute;
 	top: 8px;
@@ -644,7 +632,6 @@ body {
 	color: var(--us-text-3);
 }
 
-/* Before → after pivots on the arrow: old values end at it, new values start after it */
 .us-cmp-o,
 .us-cmp-n {
 	font-family: var(--us-num);
@@ -665,7 +652,6 @@ body {
 	color: #ffffff;
 }
 
-/* First record: only new values, so the label column needs its own gap */
 .us-cmp-first .us-cmp-k {
 	width: 50px;
 }
@@ -678,7 +664,6 @@ body {
 	color: var(--us-text-3);
 }
 
-/* Fewer than 3 gains: full-width rows, jacket left, numbers right */
 .us-gains-wide {
 	grid-template-columns: 1fr;
 	gap: 14px;
@@ -748,7 +733,6 @@ body {
 	width: 212px;
 }
 
-/* B30 movement */
 .us-moves {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
@@ -804,7 +788,6 @@ body {
 	flex-direction: column;
 }
 
-/* One side only: count next to the title, the empty side as a muted note, rows in two columns */
 .us-moves-solo {
 	grid-template-columns: 1fr;
 }
@@ -833,7 +816,6 @@ body {
 	border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Slanted jacket thumbnail; the tint stands in for a missing jacket */
 .us-thumb {
 	display: flex;
 	flex: none;
@@ -878,7 +860,6 @@ body {
 	color: var(--us-text-3);
 }
 
-/* Update list */
 .us-cols {
 	display: flex;
 	align-items: center;
@@ -1031,12 +1012,10 @@ body {
 	color: var(--us-text-3);
 }
 
-/* New φ: the score turns gold, as on the KPI and gain tiles */
 .us-row-phi .us-c-score {
 	color: var(--us-gold);
 }
 
-/* First record: a small tag in the gain column instead of a number */
 .us-c-tag {
 	display: flex;
 	justify-content: flex-end;
@@ -1053,13 +1032,11 @@ body {
 	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
 }
 
-/* Tasks */
 .us-thumb-s {
 	width: 56px;
 	height: 30px;
 }
 
-/* Task chips carry no level: the column hugs the chip (LEGACY just runs wider) */
 .us-task .us-c-chip {
 	width: auto;
 	min-width: 38px;
@@ -1096,7 +1073,6 @@ body {
 	color: var(--us-accent);
 }
 
-/* Empty state */
 .us-empty {
 	position: relative;
 	display: flex;
@@ -1152,7 +1128,6 @@ body {
 	color: var(--us-text-2);
 }
 
-/* Empty, but the B30 moved: a compact note above the movement section */
 .us-empty-slim {
 	padding: 30px 40px 28px;
 }
@@ -1169,7 +1144,6 @@ body {
 	font-size: 20px;
 }
 
-/* Footer: the tip box keeps a fixed two-line height so cached heights hold for any tip */
 .us-foot {
 	position: relative;
 	display: flex;
@@ -1210,7 +1184,6 @@ body {
 	-webkit-line-clamp: 2;
 }
 
-/* Semantic colours last so they win over the base text colour of any block */
 .us-card .us-up {
 	color: var(--us-gold);
 }
@@ -1231,7 +1204,6 @@ body {
 	color: var(--us-gold);
 }
 
-/* CJK is not letter-spaced: keep the tracking of the Latin labels for en only */
 .us-l-zh .us-k,
 .us-l-zh .us-sec-t,
 .us-l-zh .us-eyebrow p,

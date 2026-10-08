@@ -1,5 +1,3 @@
-/* ---------------------------------- layout ---------------------------------- */
-
 main {
 	flex: 1;
 	width: 100%;
@@ -7,8 +5,6 @@ main {
 	padding: 0;
 }
 
-/* Pages share the header's --wrap so left edges line up. Content keeps a
-   readable column unless a page sets --page-max (the desk uses none) */
 .page {
 	width: var(--wrap);
 	margin: 0 auto;
@@ -18,8 +14,6 @@ main {
 :where(.page > *) {
 	max-width: var(--page-max, 60rem);
 }
-
-/* -------------------------------- typography -------------------------------- */
 
 h1,
 h2,
@@ -68,8 +62,6 @@ p {
 	font-weight: 500;
 }
 
-/* Visually hidden but read by screen readers. Pair with role="status" for
-   polite announcements (see Announce in components/Tool.tsx) */
 .sr-only {
 	position: absolute;
 	width: 1px;
@@ -81,8 +73,6 @@ p {
 	white-space: nowrap;
 	border: 0;
 }
-
-/* --------------------------------- buttons --------------------------------- */
 
 .btn {
 	appearance: none;
@@ -172,7 +162,6 @@ p {
 	background: var(--danger-soft);
 }
 
-/* Selected / on: tinted fill plus a 2 px edge, not colour alone */
 .btn[aria-pressed="true"] {
 	background: var(--primary-soft);
 	border-color: var(--primary);
@@ -186,7 +175,6 @@ p {
 	font-size: var(--text-sm);
 }
 
-/* still at least 24 × 24 px (WCAG 2.5.8) */
 .btn-mini {
 	min-height: 1.5rem;
 	min-width: 1.5rem;
@@ -204,7 +192,6 @@ p {
 	width: 2rem;
 }
 
-/* Disabled keeps its label readable (muted, ≥4.5:1) instead of fading out */
 .btn:disabled,
 .btn[aria-disabled="true"] {
 	background: transparent;
@@ -224,7 +211,6 @@ p {
 	pointer-events: none;
 }
 
-/* Keeps a button's width steady while its label changes (Tool.tsx) */
 .btn-steady {
 	display: inline-grid;
 	justify-items: center;
@@ -252,9 +238,38 @@ p {
 	white-space: nowrap;
 }
 
-/* ---------------------------------- fields ---------------------------------- */
+.btn-skew {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 12px 22px;
+	border-radius: 2px;
+	font-weight: 600;
+	transform: skewX(-12deg);
+}
 
-/* .field: label text and control on one row. .field-col: stacked */
+.btn-skew > span {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	transform: skewX(12deg);
+}
+
+.btn-skew > .skew-steady {
+	display: inline-grid;
+	justify-items: center;
+}
+
+.btn-skew:active:not(:disabled) {
+	transform: skewX(-12deg) scale(0.98);
+}
+
+@media (hover: hover) {
+	.btn-skew.btn-primary:hover:not(:disabled) {
+		box-shadow: 0 0 28px color-mix(in srgb, var(--primary) 45%, transparent);
+	}
+}
+
 .field {
 	display: flex;
 	align-items: center;
@@ -281,8 +296,6 @@ p {
 	font-size: var(--text-xs);
 }
 
-/* One look for every text input and select. Zero specificity, so a page
-   rule can still adjust width or alignment. Prefer the .input class */
 :where(
 	.input,
 	.field input:not([type="checkbox"], [type="radio"]),
@@ -299,7 +312,6 @@ p {
 	background-color: var(--control-bg);
 	color: var(--ink);
 	font: inherit;
-	/* typed text stays readable inside small-print labels */
 	font-size: var(--text-base);
 	transition:
 		border-color var(--dur) var(--ease),
@@ -381,8 +393,6 @@ p {
 	cursor: not-allowed;
 }
 
-/* --------------------------------- surfaces --------------------------------- */
-
 .callout {
 	background: var(--surface);
 	border: 1px solid var(--line);
@@ -390,7 +400,6 @@ p {
 	padding: var(--space-5) var(--space-6);
 }
 
-/* phones: keep the content width close to the page's */
 @media (max-width: 29.99em) {
 	.callout {
 		padding-inline: var(--space-4);
@@ -402,8 +411,6 @@ p {
 	font-size: 0.9em;
 	color: var(--primary);
 }
-
-/* popovers: .tool-pop hangs under its trigger, and is a bottom sheet on phones */
 
 .tool {
 	position: relative;
@@ -489,8 +496,6 @@ p {
 	}
 }
 
-/* ----------------------------- touch and contrast ----------------------------- */
-
 @media (pointer: coarse) {
 	.btn-sm,
 	.btn-mini {
@@ -498,7 +503,6 @@ p {
 		min-width: var(--tap);
 	}
 
-	/* iOS zooms into fields under 16 px */
 	:where(
 		.input,
 		.field input:not([type="checkbox"], [type="radio"]),
@@ -534,7 +538,6 @@ p {
 		border-color: CanvasText;
 	}
 
-	/* the gradient chevron is dropped in forced colours; use the native one */
 	:where(select.input, .field select) {
 		appearance: auto;
 		background-image: none;

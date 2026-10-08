@@ -14,7 +14,6 @@ import { useI18n } from "@/i18n/provider";
 type Zoom = "screen" | "width" | "actual";
 type Anchor = { fx: number; fy: number; x: number; y: number };
 
-/** Full-screen viewer: modal dialog with fit-screen, fit-width and 100% zoom; double-click toggles */
 export function CardLightbox({
 	url,
 	alt,
@@ -42,7 +41,6 @@ export function CardLightbox({
 			? "screen"
 			: "width",
 	);
-	// The fit a double-click returns to from 100%
 	const fit = useRef<Exclude<Zoom, "actual">>(
 		zoom === "actual" ? "width" : zoom,
 	);
@@ -54,8 +52,6 @@ export function CardLightbox({
 		if (!node) return;
 		if (!node.open) node.showModal();
 		scroller.current?.focus({ preventScroll: true });
-		// A close queued by an earlier cleanup (Strict Mode remount) arrives
-		// after showModal() reopened it: only a dialog that is shut counts
 		const closed = () => {
 			if (!node.open) onCloseRef.current();
 		};
@@ -66,7 +62,6 @@ export function CardLightbox({
 		};
 	}, []);
 
-	// After a zoom switch, scroll so the anchored spot of the image stays put
 	// biome-ignore lint/correctness/useExhaustiveDependencies: runs after each zoom change
 	useLayoutEffect(() => {
 		const box = scroller.current;
@@ -84,7 +79,6 @@ export function CardLightbox({
 		box.scrollTop = r.top - b.top + box.scrollTop + at.fy * r.height - at.y;
 	}, [zoom]);
 
-	/** Switches the zoom, keeping the image spot at (x, y) of the box in place */
 	const switchTo = (next: Zoom, x?: number, y?: number) => {
 		const box = scroller.current;
 		const img = image.current;
@@ -115,7 +109,6 @@ export function CardLightbox({
 		);
 	};
 
-	// Native pixels: one image pixel per device pixel
 	const dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
 	const nativeWidth = width ? Math.round(width / dpr) : undefined;
 	const modes: [Zoom, string][] = [
@@ -192,7 +185,6 @@ export function CardLightbox({
 					}
 				/>
 			</section>
-			{/* One of the two shows, by the kind of pointer (card-view.css) */}
 			<p className="lightbox-hint" id={hintId}>
 				<span className="lightbox-hint-touch">{m.card.zoomHint}</span>
 				<span className="lightbox-hint-mouse">{m.card.zoomHintMouse}</span>

@@ -1,5 +1,3 @@
-/* ---------------------------------- score ---------------------------------- */
-
 .score-form {
 	display: flex;
 	flex-direction: column;
@@ -28,7 +26,6 @@
 	color: var(--danger);
 }
 
-/* the picked chart: level chip, title and composer, clear */
 .score-picked {
 	display: flex;
 	align-items: center;
@@ -53,8 +50,6 @@
 	overflow-wrap: anywhere;
 }
 
-/* Composer · notes: each part brings its own dot and the row is pulled left by one dot,
-   so a wrapped line never starts or ends with "·" */
 .score-picked-meta {
 	overflow: hidden;
 	color: var(--muted);
@@ -67,7 +62,6 @@
 	margin-left: -1em;
 }
 
-/* Hanging indent: wrapped lines start inside the box, the dot sits in the gutter */
 .score-picked-parts > span {
 	min-width: 0;
 	overflow-wrap: anywhere;
@@ -88,7 +82,6 @@
 	}
 }
 
-/* "1300 notes" never splits from its unit */
 .score-picked-notes {
 	white-space: nowrap;
 }
@@ -97,8 +90,6 @@
 	flex: none;
 }
 
-/* Notes · Target · Mode: one row on desktop, stacked on phones. Fields
-   align to the top so a hint under one does not push the others down */
 .score-inputs {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
@@ -121,14 +112,11 @@
 	padding: 0 var(--space-4);
 }
 
-/* full 44 px targets on touch (.seg drops its inner padding there, bind.css) */
 @media (pointer: coarse) {
 	.score-inputs .seg button {
 		min-height: var(--tap);
 	}
 }
-
-/* --------------------------------- results --------------------------------- */
 
 .score-result h2 {
 	margin-top: var(--space-6);
@@ -173,7 +161,6 @@
 	overflow-wrap: anywhere;
 }
 
-/* the offset sits under the exact score instead of wrapping mid-number */
 .plan-delta {
 	display: block;
 	color: var(--muted);
@@ -182,7 +169,6 @@
 	letter-spacing: 0;
 }
 
-/* where this accuracy lands among phib19's records */
 .score-rank {
 	display: flex;
 	flex-direction: column;
@@ -222,8 +208,6 @@
 	font-style: italic;
 }
 
-/* Edge shadows hint that the table scrolls sideways (they ride the scroll)
-   A long list scrolls inside its own box so the header row stays in view */
 .plan-table-wrap {
 	--edge: color-mix(in srgb, var(--ink) 16%, transparent);
 	max-height: min(28rem, 60dvh);
@@ -265,8 +249,6 @@
 	font-weight: 600;
 }
 
-/* Collapsed borders don't stick with the cell, so the rule under the
-   header is an inset shadow instead */
 .plan-table th {
 	position: sticky;
 	top: 0;

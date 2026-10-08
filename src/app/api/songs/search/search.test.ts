@@ -150,7 +150,6 @@ test("live resolve runs only without an exact hit while the approved layer is st
 	await songSearchResponse(get("q=igall"), fresh.d);
 	assert.deepEqual(fresh.live, []);
 
-	// No aliasesSha published: the Worker has no alias route to ask
 	const never = deps({}, index({ approvedSha: undefined, rev: "cat|base" }));
 	const res = await songSearchResponse(get("q=igall"), never.d);
 	assert.equal(((await res.json()) as SongSearchBody).live, "skipped");

@@ -12,17 +12,10 @@ export type VariantContext = {
 	rt?: PhiRuntime;
 };
 
-/**
- * One alternative card layout. `tpl` is the art file name under
- * phi-assets/html/<dir>/ (without .art); its stylesheet is src/phi/css/<tpl>.css
- */
 export type CardVariant = {
 	tpl: string;
-	/** CSS width of the card in px */
 	width: number;
-	/** Upper bound for the "high" paint ratio (defaults to 2) */
 	maxRatio?: number;
-	/** Derive extra template fields (fitted font sizes, deltas, …) from the card data */
 	prepare?: (
 		data: CardData,
 		ctx: VariantContext,

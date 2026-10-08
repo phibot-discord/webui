@@ -139,7 +139,7 @@ async function readApi(
 	return undefined;
 }
 
-/** After a public-domain failure fall back to the API for a while, then try the fast path again */
+/** After a public-domain failure, use the API until then */
 let publicBrokenUntil = 0;
 const PUBLIC_RETRY_MS = 60_000;
 
@@ -172,8 +172,7 @@ async function openStream(
 	url: string,
 	headers?: Record<string, string>,
 ): Promise<R2Stream | false | undefined> {
-	// fetch inflates a compressed body, so its Content-Length would be the wrong
-	// size: ask for the bytes as stored, and drop the length if they still come encoded
+	// fetch inflates a compressed body: ask for the stored bytes, and drop the length if they still come encoded
 	const res = await cfFetch(url, {
 		headers: { ...headers, "Accept-Encoding": "identity" },
 		stream: true,
@@ -197,10 +196,7 @@ async function openStream(
 	return undefined;
 }
 
-/**
- * Large objects (Phira packs): the body is piped to the client instead of being
- * buffered, so a response is not held to the 4.5 MB function body limit
- */
+/** Piped, not buffered, so large objects (Phira packs) escape the 4.5 MB function body limit */
 export async function streamR2Object(
 	key: string,
 ): Promise<R2Stream | undefined> {
@@ -268,7 +264,6 @@ export async function putR2Object(
 	extra: {
 		contentDisposition?: string;
 		cache?: CacheMode;
-		/** Best-effort cache write: no backoff on 429/5xx */
 		background?: boolean;
 	} = {},
 ): Promise<void> {

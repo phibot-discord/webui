@@ -5,18 +5,12 @@ import { Fragment, type ReactNode, useId } from "react";
 export type SegOption<T extends string | number> = {
 	value: T;
 	label: ReactNode;
-	/** Second line inside the option (layout descriptions) */
 	hint?: string;
 	disabled?: boolean;
-	/** Why it is disabled: a tooltip, and the radio's description */
 	title?: string;
 	className?: string;
 };
 
-/**
- * "Saving…" beside a setting's label. The hidden comma keeps the label and
- * the status apart in the group's accessible name ("Layout, Saving…")
- */
 export function OptStatus({ children }: { children?: string }) {
 	return children ? (
 		<span className="opt-status">
@@ -26,10 +20,6 @@ export function OptStatus({ children }: { children?: string }) {
 	) : null;
 }
 
-/**
- * A native radio group drawn as segments: arrow keys move the choice, the
- * legend names it. `cards` stacks each option's hint under its label
- */
 export function SegRadio<T extends string | number>({
 	legend,
 	value,
@@ -45,10 +35,8 @@ export function SegRadio<T extends string | number>({
 	value: T;
 	options: SegOption<T>[];
 	onChange: (next: T) => void;
-	/** One line under the group, e.g. what the chosen option does */
 	note?: ReactNode;
 	error?: string;
-	/** Shown beside the legend, e.g. "Saving…" */
 	status?: string;
 	cards?: boolean;
 	className?: string;

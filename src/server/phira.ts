@@ -7,7 +7,7 @@ export type PhiraErr = {
 	error: "bad_level" | "unknown_chart" | "missing";
 };
 
-/** Serve the .pez the unpacker uploaded to R2, streamed (packs can pass 4.5 MB) */
+/** Streamed: packs can pass the 4.5 MB function body limit */
 export async function buildPhira(
 	id: string,
 	level: string,

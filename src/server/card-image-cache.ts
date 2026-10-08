@@ -1,7 +1,12 @@
 import { kvKey } from "@/phi/lib/const";
-import { b30AvgKindOf, type UserNotes } from "@/phi/lib/notes";
+import {
+	b30AvgKindOf,
+	rankBandShowOf,
+	rankScopeOf,
+	type UserNotes,
+} from "@/phi/lib/notes";
 
-export const RENDER_VERSION = "v46";
+export const RENDER_VERSION = "v48";
 
 export type CardImageCacheInput = {
 	kind: string;
@@ -17,9 +22,7 @@ export type CardImageCacheInput = {
 	statsFlag: string;
 	avgFlag: string;
 	background: string;
-	/** Layout style; "classic" adds no key part so classic etags stay stable */
 	style: string;
-	/** Kind-specific discriminator (e.g. the per-song card's chart, level and day) */
 	extra?: string;
 	renderVersion: string;
 };
@@ -39,6 +42,8 @@ export function cardCacheInput(args: {
 		| "allowApiUsage"
 		| "b30AvgKind"
 		| "b30AvgColor"
+		| "rankScope"
+		| "rankBandShow"
 		| "cardBackground"
 	>;
 	tagOn: boolean;
@@ -67,12 +72,23 @@ export function cardCacheInput(args: {
 	};
 }
 
-/** Badge mode as drawn: bot-only modes share "all"; API off keeps its own key */
 function avgFlag(
-	notes: Pick<UserNotes, "allowApiUsage" | "b30AvgKind" | "b30AvgColor">,
+	notes: Pick<
+		UserNotes,
+		| "allowApiUsage"
+		| "b30AvgKind"
+		| "b30AvgColor"
+		| "rankScope"
+		| "rankBandShow"
+	>,
 ): string {
 	if (notes.allowApiUsage === false) return "avg:none";
-	return `avg:${b30AvgKindOf(notes)}:${notes.b30AvgColor || "blue"}`;
+	const kind = b30AvgKindOf(notes);
+	const scope = rankScopeOf(notes);
+	const band = rankBandShowOf(notes) === "percent" ? "-pct" : "";
+	const mode =
+		kind === "rank" && scope !== "all" ? `rank-${scope}${band}` : kind;
+	return `avg:${mode}:${notes.b30AvgColor || "blue"}`;
 }
 
 export function cardCacheParts(

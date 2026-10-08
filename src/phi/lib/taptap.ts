@@ -207,11 +207,34 @@ async function loginAndGetToken(
 		},
 		body: JSON.stringify({ authData: { taptap: data } }),
 	});
-	const body = (await response.json()) as { sessionToken?: string };
+	const body = (await response.json()) as {
+		sessionToken?: string;
+		objectId?: string;
+	};
 	if (!response.ok) {
 		throw new Error(`Phigros cloud ${response.status}`);
 	}
 	return body;
+}
+
+export type TapLogin = {
+	sessionToken?: string;
+	objectId?: string;
+	name?: string;
+	avatar?: string;
+};
+
+type QrTokenResult = {
+	data?: {
+		kid?: string;
+		access_token?: string;
+		mac_key?: string;
+		scope?: string;
+	};
+};
+
+function profileText(value: unknown): string | undefined {
+	return typeof value === "string" && value ? value : undefined;
 }
 
 export const getQRcode = {
@@ -228,17 +251,7 @@ export const getQRcode = {
 	checkQRCodeResult(request: PartialQR, useGlobal = false) {
 		return checkQRCodeResult(request, useGlobal);
 	},
-	async getSessionToken(
-		result: {
-			data?: {
-				kid?: string;
-				access_token?: string;
-				mac_key?: string;
-				scope?: string;
-			};
-		},
-		useGlobal = false,
-	) {
+	async login(result: QrTokenResult, useGlobal = false): Promise<TapLogin> {
 		const token = result.data as {
 			kid: string;
 			mac_key: string;
@@ -246,7 +259,15 @@ export const getQRcode = {
 			access_token?: string;
 		};
 		const profile = await getProfile(token, useGlobal);
-		return (await loginAndGetToken({ ...token, ...profile }, useGlobal))
-			.sessionToken;
+		const cloud = await loginAndGetToken({ ...token, ...profile }, useGlobal);
+		return {
+			sessionToken: cloud.sessionToken,
+			objectId: profileText(cloud.objectId),
+			name: profileText(profile.name),
+			avatar: profileText(profile.avatar),
+		};
+	},
+	async getSessionToken(result: QrTokenResult, useGlobal = false) {
+		return (await getQRcode.login(result, useGlobal)).sessionToken;
 	},
 };

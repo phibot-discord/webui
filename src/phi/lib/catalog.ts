@@ -2,10 +2,7 @@ import { join } from "node:path";
 import { loadedCatalogRevision } from "@/server/song-info";
 import { getInfo } from "./get-info";
 
-/**
- * Card-facing view of the song catalog. Reads `getInfo` (already parsed by
- * `ensureSongInfo`) instead of parsing info.csv / notesInfo.json a second time
- */
+/** Card-facing view of `getInfo`, so info.csv / notesInfo.json are not parsed a second time */
 export class Catalog {
 	readonly fallbackIll: string;
 
@@ -38,7 +35,6 @@ export class Catalog {
 	}
 }
 
-/** Canonical illustration id, or "" when the choice is missing or unknown */
 export function knownBackground(id: string | undefined): string {
 	const raw = id?.trim() ?? "";
 	if (!raw) return "";
@@ -54,7 +50,7 @@ let optionsMemo:
 	| { rev: string; list: string[]; options: BackgroundOption[] }
 	| undefined;
 
-/** Illustrations with song names for the background picker, built once per catalog revision (shared: don't mutate) */
+/** Built once per catalog revision and shared: don't mutate */
 export function backgroundOptions(): BackgroundOption[] {
 	const rev = loadedCatalogRevision();
 	const list = getInfo.illlist;
@@ -85,7 +81,6 @@ function buildBackgroundOptions(list: string[]): BackgroundOption[] {
 	return out;
 }
 
-/** Saved jacket, or a random one when none is chosen or the id is gone */
 export function chosenIll(
 	catalog: Pick<Catalog, "randomIll"> & Partial<Pick<Catalog, "ill">>,
 	id: string | undefined,

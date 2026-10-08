@@ -1,12 +1,14 @@
 import { kvKey } from "@/phi/lib/const";
+import type { PhiRuntime } from "@/phi/lib/runtime";
 import type { Save } from "@/phi/lib/save";
 import { clearUser, getToken, updateSave } from "@/phi/lib/saves";
 import { isTapApiFailure } from "@/phi/lib/tapapi";
 import { isGlobalTapLogin } from "@/phi/lib/taptap";
+import { noteTokenUser } from "./account-link";
 import { lastSyncedIso } from "./bound";
 import { getDataHost } from "./data-host";
 import { logger, withDiscordUid } from "./logger";
-import { clearManual } from "./manual";
+import { clearManual, leaveManualMode } from "./manual";
 import { ensureSongInfo } from "./song-info";
 
 export type BindServer = "cn" | "gb";
@@ -14,7 +16,7 @@ export type BindServer = "cn" | "gb";
 const QR_KEY = (userId: string) => kvKey("webQr", userId);
 const QR_LOCK = (userId: string) => kvKey("qrbind", userId);
 
-type QrStored = {
+export type QrStored = {
 	deviceId: string;
 	data: {
 		device_code?: string;
@@ -43,12 +45,12 @@ export type BindErr = {
 	detail?: string;
 };
 
-function asServer(raw: unknown, globalFlag?: unknown): BindServer {
+export function asServer(raw: unknown, globalFlag?: unknown): BindServer {
 	if (raw === "gb" || raw === "global" || globalFlag === true) return "gb";
 	return "cn";
 }
 
-function failBind(err: unknown): BindErr {
+export function failBind(err: unknown): BindErr {
 	const msg = err instanceof Error ? err.message : String(err);
 	logger.error("bind failed", err instanceof Error ? err : msg);
 	if (isTapApiFailure(err)) {
@@ -87,7 +89,7 @@ function qrFields(request: {
 	};
 }
 
-function qrSucceeded(
+export function qrSucceeded(
 	result: {
 		success?: boolean;
 		data?: { kid?: string; access_token?: string; error?: string };
@@ -98,7 +100,7 @@ function qrSucceeded(
 	return Boolean(result.data?.kid && result.data?.access_token);
 }
 
-function playerFromSave(save: Save): BindOk {
+export function playerFromSave(save: Save): BindOk {
 	const rks = save.saveInfo.summary?.rankingScore;
 	return {
 		playerId: String(save.saveInfo.PlayerId || ""),
@@ -138,21 +140,39 @@ async function startQrBindFor(
 
 	const global = asServer(server, globalFlag) === "gb";
 	try {
-		const request = await host.rt.getQRcode.getRequest(global);
-		const fields = qrFields(request);
-		if (!fields.url || !fields.deviceId) {
-			logger.error(`qr missing url ${JSON.stringify(request).slice(0, 400)}`);
-			throw new Error("TapTap did not return a QR login URL.");
-		}
-		const expiresIn = Math.min(
-			Math.max(Number(fields.data.expires_in) || 300, 30),
-			840,
-		);
-		const intervalMs = Math.max(
-			2000,
-			(Number(fields.data.interval) || 2) * 1000,
-		);
-		const stored: QrStored = {
+		const { stored, ...shown } = await requestQr(host.rt, global);
+		const ttlMs = shown.expiresIn * 1000;
+		await host.db.set(QR_KEY(userId), JSON.stringify(stored), ttlMs);
+		await host.store.set(QR_LOCK(userId), "1", { ttlMs });
+		return shown;
+	} catch (err) {
+		await clearQr(userId);
+		return failBind(err);
+	}
+}
+
+export async function requestQr(
+	rt: PhiRuntime,
+	global: boolean,
+): Promise<{
+	stored: QrStored;
+	expiresIn: number;
+	intervalMs: number;
+	openUrl: string;
+}> {
+	const request = await rt.getQRcode.getRequest(global);
+	const fields = qrFields(request);
+	if (!fields.url || !fields.deviceId) {
+		logger.error(`qr missing url ${JSON.stringify(request).slice(0, 400)}`);
+		throw new Error("TapTap did not return a QR login URL.");
+	}
+	const expiresIn = Math.min(
+		Math.max(Number(fields.data.expires_in) || 300, 30),
+		840,
+	);
+	const intervalMs = Math.max(2000, (Number(fields.data.interval) || 2) * 1000);
+	return {
+		stored: {
 			deviceId: fields.deviceId,
 			data: {
 				device_code: fields.data.device_code,
@@ -161,28 +181,29 @@ async function startQrBindFor(
 				interval: fields.data.interval,
 			},
 			global,
-		};
-		await host.db.set(QR_KEY(userId), JSON.stringify(stored), expiresIn * 1000);
-		await host.store.set(QR_LOCK(userId), "1", { ttlMs: expiresIn * 1000 });
-		return { expiresIn, intervalMs, openUrl: fields.url };
-	} catch (err) {
-		await clearQr(userId);
-		return failBind(err);
+		},
+		expiresIn,
+		intervalMs,
+		openUrl: fields.url,
+	};
+}
+
+export function parseQrStored(
+	raw: string | null | undefined,
+): QrStored | undefined {
+	if (!raw) return;
+	try {
+		return JSON.parse(raw) as QrStored;
+	} catch {
+		return;
 	}
 }
 
 export async function qrPng(userId: string): Promise<Buffer | BindErr> {
 	const host = await getDataHost();
-	const raw = await host.db.get(QR_KEY(userId));
-	if (!raw) return { error: "qr_missing", status: 404 };
-	let stored: QrStored;
-	try {
-		stored = JSON.parse(raw) as QrStored;
-	} catch {
-		return { error: "qr_missing", status: 404 };
-	}
-	const url = stored.data.qrcode_url;
-	if (!url) return { error: "qr_missing", status: 404 };
+	const stored = parseQrStored(await host.db.get(QR_KEY(userId)));
+	const url = stored?.data.qrcode_url;
+	if (!stored || !url) return { error: "qr_missing", status: 404 };
 	return host.rt.getQRcode.getQRcode(url, stored.global);
 }
 
@@ -214,7 +235,6 @@ export async function peekQrBind(
 	return withDiscordUid(userId, () => peekQrBindFor(userId));
 }
 
-/** The QR session is gone: either the bind finished elsewhere (another tab or instance) or it expired */
 async function qrGone(
 	host: Awaited<ReturnType<typeof getDataHost>>,
 	userId: string,
@@ -230,8 +250,7 @@ async function qrGone(
 	return { error: "qr_expired", status: 410 };
 }
 
-/** TapTap answers that mean "not yet": the device code is still usable */
-const QR_PENDING = new Set([
+export const QR_PENDING = new Set([
 	"authorization_pending",
 	"authorization_waiting",
 	"slow_down",
@@ -261,26 +280,18 @@ export function resetQrPollForTest() {
 	qrTokenCheckedAt.clear();
 }
 
-/** Polled while the QR shows: reads the QR session and asks TapTap; the token only when needed */
 async function peekQrBindFor(
 	userId: string,
 ): Promise<{ status: "waiting" | "scanned" } | BindOk | BindErr | QrResume> {
 	const host = await getDataHost();
-	const raw = await host.db.get(QR_KEY(userId));
-	if (!raw) return qrGone(host, userId);
-	let stored: QrStored;
-	try {
-		stored = JSON.parse(raw) as QrStored;
-	} catch {
-		return qrGone(host, userId);
-	}
+	const stored = parseQrStored(await host.db.get(QR_KEY(userId)));
+	if (!stored) return qrGone(host, userId);
 
 	const useGlobal = isGlobalTapLogin(stored, stored.global);
 	const result = await host.rt.getQRcode.checkQRCodeResult(stored, useGlobal);
 	if (qrSucceeded(result) && result) return { resume: { result, useGlobal } };
 	const err = result?.data?.error;
-	// A dead code (expired, denied, or used by another tab's bind) with no binding
-	// yet keeps waiting: that bind may still be saving, else the session expires
+	// A dead code with no binding yet keeps waiting: another tab's bind may still be saving
 	const dead = err != null && !QR_PENDING.has(err);
 	if (dead || qrTokenCheckDue(userId)) {
 		const token = await getToken(host.rt, userId);
@@ -329,21 +340,11 @@ async function finishQrBindFor(
 		});
 		await clearQr(userId);
 		await leaveManualMode(userId);
+		await noteTokenUser(userId, token);
 		return playerFromSave(save);
 	} catch (err) {
 		await clearQr(userId);
 		return failBind(err);
-	}
-}
-
-/** A real bind replaces a manual profile; its hand-typed B30 snapshots go with it */
-async function leaveManualMode(userId: string) {
-	try {
-		await clearManual(userId);
-	} catch (err) {
-		logger.warn(
-			`manual cleanup skipped: ${err instanceof Error ? err.message : err}`,
-		);
 	}
 }
 
@@ -380,6 +381,7 @@ async function bindWithTokenFor(
 		});
 		await clearQr(userId);
 		await leaveManualMode(userId);
+		await noteTokenUser(userId, token);
 		return playerFromSave(save);
 	} catch (err) {
 		return failBind(err);

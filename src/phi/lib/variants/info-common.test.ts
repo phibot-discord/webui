@@ -57,7 +57,6 @@ test("fitIntro keeps line breaks, then flows short lines, then cuts", () => {
 		min: 16,
 	});
 	assert.deepEqual(short && [short.px, short.lines], [22, 1]);
-	// Six one-word lines can't stay six lines in a 4-line box: they flow
 	const many = fitIntro("a<br>b<br>c<br>d<br>e<br>f", 1064, {
 		maxLines: 4,
 		max: 22,
@@ -138,19 +137,16 @@ test("infoView: progress per difficulty, totals, hidden empty bits", () => {
 		new Date(2026, 9, 7),
 	);
 	assert.equal(v.rks, "16.5614");
-	// Manual-mode noise: no challenge badge, no "0KiB"
 	assert.equal(v.challenge, null);
 	assert.equal(v.dataText, "");
 	assert.equal(v.intro, null);
 	const [ez, hd, inn] = v.levels;
-	// Nothing played: no grade icon, marked empty
 	assert.equal(ez?.rating, "");
 	assert.equal(ez?.empty, true);
 	assert.equal(hd?.clearRate, "50.0%");
 	assert.equal(hd?.fcPct, 25);
 	assert.equal(hd?.scorePct, "99.00%");
 	assert.equal(hd?.best, "12.70");
-	// Missing stats rows are zeros, not crashes
 	assert.equal(inn?.unlocked, 0);
 	assert.equal(v.totals.cleared, 2);
 	assert.equal(v.totals.unlocked, 14);

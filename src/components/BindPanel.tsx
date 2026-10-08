@@ -11,7 +11,6 @@ import { persistCardReload } from "@/lib/save-refresh";
 import { readJsonWithTapWait, tapWaitFailed } from "@/lib/tap-wait";
 
 type ServerKind = "cn" | "gb";
-// "starting" fetches a QR code, "binding" checks a pasted sessionToken
 type Phase = "idle" | "starting" | "binding" | "qr" | "scanned";
 
 const TOKEN_LEN = 25;
@@ -28,7 +27,6 @@ export function BindPanel() {
 	const [remain, setRemain] = useState(0);
 	const [token, setToken] = useState("");
 	const [waitingTap, setWaitingTap] = useState(false);
-	// A phone can't scan its own screen: there the deep link leads
 	const [touch, setTouch] = useState(false);
 	const expiresAt = useRef(0);
 	const intervalMs = useRef(2500);
@@ -36,8 +34,6 @@ export function BindPanel() {
 	const statusRef = useRef<HTMLParagraphElement>(null);
 	const lastPhase = useRef(phase);
 
-	// The QR block and the start button replace each other. When the control
-	// that had focus went with the swap, focus moves to what took its place
 	useEffect(() => {
 		const was = lastPhase.current;
 		lastPhase.current = phase;
@@ -74,7 +70,6 @@ export function BindPanel() {
 		let dead = false;
 		let busy = false;
 		const poll = async () => {
-			// A hidden tab (the visitor switched to TapTap) polls again when it is back
 			if (dead || busy || document.hidden) return;
 			busy = true;
 			try {
@@ -180,7 +175,6 @@ export function BindPanel() {
 		setError(undefined);
 		setWaitingTap(false);
 		if (showQr) {
-			// The token wins: close the QR session instead of leaving it open on the server
 			setQrSrc(undefined);
 			setOpenUrl(undefined);
 			void fetch("/api/bind/cancel", { method: "POST" }).catch(() => undefined);
@@ -231,7 +225,6 @@ export function BindPanel() {
 		: phase === "scanned"
 			? m.bind.scanned
 			: m.bind.scan;
-	// The first "Scan with TapTap" is read when focus lands on it; later changes are announced
 	const qrSaid = waitingTap
 		? m.bind.waitingTap
 		: phase === "scanned"
@@ -294,7 +287,6 @@ export function BindPanel() {
 					{error}
 				</p>
 			) : null}
-			{/* QR progress, read out as it changes (scanned, waiting on TapTap) */}
 			<Announce>{qrSaid}</Announce>
 
 			<div className="bind-methods">
@@ -310,8 +302,6 @@ export function BindPanel() {
 								<p className="field-hint">{m.bind.openPhoneHint}</p>
 							) : null}
 							{qrSrc ? (
-								// TapTap login QR from this session
-								// !! NO OPTIMIZE OR CACHE!!
 								// biome-ignore lint/performance/noImgElement: per-session QR, never optimized or cached
 								<img src={qrSrc} width={220} height={220} alt={m.bind.qrAlt} />
 							) : null}

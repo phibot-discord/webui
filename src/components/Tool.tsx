@@ -9,10 +9,6 @@ import {
 	useRef,
 } from "react";
 
-/**
- * Closes a trigger's popover on an outside pointer press, on Escape, and when
- * keyboard focus leaves the trigger and popover (they are non-modal)
- */
 export function useToolDismiss(
 	open: boolean,
 	onClose: () => void,
@@ -63,7 +59,6 @@ export function SteadyButton({
 	);
 }
 
-/** Popover for a .tool trigger: focuses itself on open and returns focus to the trigger on close */
 export function ToolPop({
 	labelledBy,
 	children,
@@ -95,8 +90,6 @@ export function ToolPop({
 				return;
 			}
 			if (active && active !== document.body) return;
-			// A focusout close commits while focus is between elements, so
-			// <body> may only mean Tab has not landed yet. Check once it has
 			requestAnimationFrame(() => {
 				const now = document.activeElement;
 				if (!now || now === document.body) restore();
@@ -118,10 +111,6 @@ export function ToolPop({
 	);
 }
 
-/**
- * Polite screen-reader announcement. Keep it mounted and change its text;
- * a region that appears together with its message is often not read
- */
 export function Announce({ children }: { children?: ReactNode }) {
 	return (
 		<p className="sr-only" role="status" aria-live="polite" aria-atomic="true">

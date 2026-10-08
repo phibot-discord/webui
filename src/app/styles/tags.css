@@ -1,11 +1,7 @@
-/* ---------------------------------- tags ---------------------------------- */
-
 .tags-page {
 	--page-max: 72rem;
 }
 
-/* Phones: the category index is a row of chips above the list. Desktop:
-   it becomes a sticky column beside it */
 .tag-layout {
 	display: grid;
 	gap: var(--space-6);
@@ -58,7 +54,6 @@
 	min-width: 0;
 }
 
-/* anchors clear the header through html's scroll-padding (base.css) */
 .tag-cat {
 	margin: 0;
 }
@@ -136,7 +131,6 @@
 		overflow-y: auto;
 	}
 
-	/* room for the focus ring inside the scrolling column */
 	.tag-index ul {
 		flex-direction: column;
 		gap: 2px;

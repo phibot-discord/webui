@@ -12,7 +12,7 @@ export function jsonError(status: number, error: string, code?: string) {
 	});
 }
 
-/** If-None-Match against our strong ETag: a list, weak tags and `*` count (weak comparison) */
+/** If-None-Match uses weak comparison: lists, W/ tags and `*` match */
 export function etagMatches(
 	ifNoneMatch: string | null | undefined,
 	etag: string,
@@ -25,7 +25,7 @@ export function etagMatches(
 	});
 }
 
-/** The client asked for nothing cached (no-cache / Pragma); a plain revalidation does not count */
+/** Only no-cache / Pragma counts; a plain revalidation does not */
 export function wantsReload(headers: Headers): boolean {
 	const cc = headers.get("cache-control") ?? "";
 	if (/(^|,)\s*no-cache\s*(,|$)/i.test(cc)) return true;
@@ -37,7 +37,7 @@ export function attachmentDisposition(filename: string): string {
 	return `attachment; filename="${safe}"`;
 }
 
-/** 304 for a card the client already holds; carries the stats so a revalidated view still reports them */
+/** Carries the stats so a revalidated view still reports them */
 export function notModifiedResponse(opts: {
 	etag: string;
 	cacheControl: string;
@@ -128,7 +128,6 @@ export function cardResultResponse(
 				etag: string;
 				mime?: string;
 				stats?: CardStats;
-				/** The request's If-None-Match already matched: no bytes were loaded */
 				notModified?: boolean;
 		  },
 	opts: {
@@ -136,7 +135,6 @@ export function cardResultResponse(
 		request: Request;
 		filename?: string;
 		renderVersion?: string;
-		/** Request headers the card depends on (shared caches key on them); 304s carry it too */
 		vary?: string;
 	},
 ) {

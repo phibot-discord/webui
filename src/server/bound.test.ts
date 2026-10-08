@@ -69,7 +69,6 @@ test("refresh hands its token to updateSave and reads the epoch during the TapTa
 		get: async (key: string) => {
 			log.push(`get:${key}`);
 			if (key === "phi:infoFile") catalogStarted();
-			// The first token read finishes only once the catalog load is under way
 			if (key === "phi:userToken:r1" && !log.includes("get:phi:infoFile")) {
 				await Promise.race([
 					catalogRead,
@@ -158,7 +157,6 @@ test("loadBound reads KV by default and uses the token/save memo only when the c
 			},
 		},
 	} as unknown as Parameters<typeof loadBound>[0];
-	// Pages and JSON routes: an unbind or refresh on another instance shows at once
 	const page = await loadBound(host, "lb1");
 	assert.ok(!("error" in page) && page.token === TOKEN);
 	assert.deepEqual(calls, ["getToken", "save:kv"]);

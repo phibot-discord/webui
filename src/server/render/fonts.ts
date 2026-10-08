@@ -3,7 +3,7 @@ import { exists, readFileAsync } from "@/server/vfs";
 import { logger } from "../logger";
 import type { FontEntry } from "../sdk";
 
-/** Map bundled font filenames to CSS font-family names in common.css */
+/** Values must match the font-family names in common.css */
 export const PHI_FONT_FILES: Record<string, string> = {
 	"phi.woff2": "PHI",
 	"吞弥恰俊.woff2": "吞弥恰俊",

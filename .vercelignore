@@ -9,6 +9,7 @@ phi-assets/original_ill
 # Local tooling state
 .playwright-mcp
 .claude
+.codegraph
 .impeccable
 # Scratch card renders and HTML dumps left at the project root; the kv.ts
 # whole-project trace would ship them inside every function

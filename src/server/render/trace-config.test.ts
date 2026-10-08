@@ -14,7 +14,6 @@ const picomatch = require("next/dist/compiled/picomatch") as (
 const APP = join(process.cwd(), "src/app");
 const CARD_ROUTES = ["/api/card/[kind]", "/api/public/[slug]/card/[kind]"];
 
-/** Every route and page under src/app, as webpack names it and as Turbopack does */
 function appRoutes() {
 	const out: { route: string; turbopack: string }[] = [];
 	const walk = (dir: string) => {
@@ -38,7 +37,7 @@ function appRoutes() {
 	return out;
 }
 
-/** Same matching as Next's tracer: picomatch, anywhere in the route name */
+/** Same matching as Next's tracer */
 function keysMatching(keys: string[], name: string) {
 	return keys.filter((key) =>
 		picomatch(key, { dot: true, contains: true })(name),
@@ -74,8 +73,7 @@ test("the card routes are found and keep their fonts", () => {
 
 test("every other route drops the render fonts", () => {
 	assert.deepEqual(new Set(fontExcludeKeys), new Set(nonCardRoutes));
-	// The landing page reads no catalog, so the tracer gives it no fonts; a key
-	// for "/" would match every route
+	// "/" is skipped: the landing page gets no fonts anyway, and a "/" key would match every route
 	const missing = appRoutes()
 		.filter((r) => !CARD_ROUTES.includes(r.route) && r.route !== "/")
 		.filter((r) => !keysMatching(nonCardRoutes, r.turbopack).length)

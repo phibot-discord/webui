@@ -153,7 +153,6 @@ test("the save blob read overlaps the TapTap call", async () => {
 	const rt = mockRt({
 		log,
 		getSaveInfo: async () => {
-			// TapTap is still working when the blob read has already gone out
 			assert.ok(log.includes(`kv:${SAVE_KEY}`));
 		},
 	});
@@ -287,7 +286,6 @@ test("a token read still in flight when the user unbinds does not bring the toke
 		if (slow) await gate;
 		return TOKEN;
 	};
-	// A card request's read starts, then an unbind (fast reads) completes
 	const stale = getBoundToken(rt, "race");
 	slow = false;
 	assert.equal(await clearUser(rt, "race"), true);
@@ -354,7 +352,6 @@ test("re-signed save URL with the same modified time does not re-download", asyn
 	assert.equal(log.includes("download"), false);
 });
 
-/** Lets the background work queued by an unbind run */
 const settle = () => new Promise((r) => setImmediate(r));
 
 test("unbind deletes the save blob in the background, without listing users or touching the history", async () => {
@@ -445,7 +442,6 @@ test("a blob read still in flight when the user unbinds is not memoised", async 
 	assert.deepEqual(log, [`kv:${SAVE_KEY}`], "the late read was not remembered");
 });
 
-/** The mock store, with a binding that unbinds and other instances can drop */
 function liveBinding(rt: PhiRuntime, log: string[]) {
 	const state = { bound: true };
 	const store = rt.store as unknown as {
@@ -552,7 +548,6 @@ test("a remembered revision skips the KV read for 10 minutes, then a refresh rew
 			[],
 			"inside the window the remembered revision is trusted",
 		);
-		// The hit above must not have renewed the window
 		clock += 60_001;
 		log.length = 0;
 		await updateSave(rt, db, "trust", { bound: TOKEN });

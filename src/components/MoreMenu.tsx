@@ -5,10 +5,6 @@ import { type ReactNode, useCallback, useId, useRef, useState } from "react";
 import { ToolPop, useToolDismiss } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 
-/**
- * The desk's secondary actions (bypass cache, unbind) behind one trigger, so
- * the masthead keeps a single row on phones
- */
 export function MoreMenu({ children }: { children: ReactNode }) {
 	const { m } = useI18n();
 	const root = useRef<HTMLDivElement>(null);
@@ -19,7 +15,6 @@ export function MoreMenu({ children }: { children: ReactNode }) {
 
 	return (
 		<div className="tool" ref={root}>
-			{/* Phones show only the dots; the label stays for screen readers */}
 			<button
 				className="btn btn-ghost more-btn"
 				type="button"

@@ -16,7 +16,6 @@ import { looseFold } from "@/lib/song-search";
 
 export type BackgroundOption = { id: string; song: string };
 
-/** Editable combobox over ~330 illustrations, "Random" first */
 export function BackgroundPicker({
 	options,
 	value,
@@ -97,7 +96,6 @@ export function BackgroundPicker({
 		}
 		if (action.clear) setQuery("");
 		if (action.open === false) {
-			// Escape on a closed list: drop the search and show the choice again
 			if (e.key === "Escape") stop();
 			else setActive(-1);
 		}
@@ -149,7 +147,6 @@ export function BackgroundPicker({
 					aria-labelledby={labelId}
 					tabIndex={-1}
 					hidden={!expanded}
-					// Keep focus in the input while an option is clicked
 					onMouseDown={(e) => e.preventDefault()}
 				>
 					{expanded
@@ -161,7 +158,6 @@ export function BackgroundPicker({
 									// biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: ARIA in HTML allows li[role=option]
 									role="option"
 									aria-selected={i === active}
-									// The check mark is only drawn: say which one is in use
 									aria-label={
 										o.id === value
 											? `${o.song}, ${m.card.backgroundCurrent}`

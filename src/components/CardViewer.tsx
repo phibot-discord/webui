@@ -24,6 +24,7 @@ import {
 	getReloadToken,
 	subscribeSaveRefresh,
 } from "@/lib/save-refresh";
+import type { CardMissing, CardPhase } from "@/phi/lib/external";
 
 function reloadSnapshot(): string {
 	return getReloadToken();
@@ -35,10 +36,8 @@ function reloadServerSnapshot() {
 
 const noSubscribe = () => () => {};
 
-/** Debounces re-renders after the first card, so stepping through options costs one render */
 const SETTLE_MS = 350;
 
-/** Pixel sizes of past renders, so the next placeholder has the card's shape */
 const SIZES_KEY = "phi.web.cardSizes";
 
 function readSizes(): Record<string, CardSize> {
@@ -57,12 +56,9 @@ function rememberSize(key: string, size: CardSize) {
 		if (prev && prev[0] === size[0] && prev[1] === size[1]) return;
 		all[key] = size;
 		localStorage.setItem(SIZES_KEY, JSON.stringify(all));
-	} catch {
-		/* private mode or full storage: the default shape is fine */
-	}
+	} catch {}
 }
 
-/** Our own blob URL for the shown card: the cache revokes its URLs on reload */
 async function ownCopy(url: string): Promise<string | undefined> {
 	if (!url.startsWith("blob:")) return;
 	try {
@@ -77,14 +73,12 @@ export type CardView = { url: string; width?: number; height?: number };
 
 type Shown = {
 	url: string;
-	/** The card cache's URL it was copied from */
 	from: string;
 	owned: boolean;
 	width?: number;
 	height?: number;
 };
 
-/** Loads and shows a card, keeping the previous image up while the next renders */
 export function CardViewer({
 	src,
 	alt,
@@ -99,18 +93,13 @@ export function CardViewer({
 }: {
 	src: string;
 	alt: string;
-	/** Card title for announcements and the full-screen viewer */
 	name: string;
-	/** Which past size to reuse for the placeholder (kind, layout, count) */
 	sizeKey: string;
 	defaultSize: CardSize;
-	/** Show the placeholder but do not fetch yet */
 	hold?: boolean;
 	onStats?: (stats: CardStats | undefined) => void;
 	onFile?: (url: string | undefined) => void;
-	/** The image on screen, for the toolbar's full screen and original buttons */
 	onView?: (view: CardView | undefined) => void;
-	/** Bumped by the toolbar to open full screen */
 	zoomRequest?: number;
 }) {
 	const { locale, m } = useI18n();
@@ -133,11 +122,12 @@ export function CardViewer({
 	const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
 	const [error, setError] = useState<string>();
 	const [startedAt, setStartedAt] = useState(0);
+	const [waitingOn, setWaitingOn] = useState<CardPhase>();
+	const [missing, setMissing] = useState<CardMissing[]>([]);
 	const [now, setNow] = useState(0);
 	const [announce, setAnnounce] = useState("");
 	const [zoomed, setZoomed] = useState(false);
 	const frame = useRef<HTMLDivElement>(null);
-	// Where focus was when the viewer opened, to hand it back on close
 	const opener = useRef<HTMLElement | null>(null);
 	const openZoom = () => {
 		const at = document.activeElement;
@@ -158,7 +148,6 @@ export function CardViewer({
 	useEffect(() => {
 		if (zoomRequest > 0 && live.current.shown) openZoom();
 	}, [zoomRequest]);
-	// The card on screen's stats, put back if the next render fails
 	const shownStats = useRef<CardStats | undefined>(undefined);
 	const started = useRef(false);
 
@@ -167,7 +156,6 @@ export function CardViewer({
 		let dead = false;
 		let timer: number | undefined;
 		const done = async (out: { url: string; stats?: CardStats }) => {
-			// The same image is already up (a reload the cache answered)
 			const same = live.current.shown?.from === out.url;
 			const own = same ? undefined : await ownCopy(out.url);
 			if (dead) {
@@ -179,13 +167,19 @@ export function CardViewer({
 			if (!same) setShown({ url, from: out.url, owned: Boolean(own) });
 			setPhase("ready");
 			setError(undefined);
+			setMissing(out.stats?.missing ?? []);
 			setAnnounce(t.m.card.ready.replaceAll("{name}", t.name));
 			shownStats.current = out.stats;
 			t.onStats?.(out.stats);
 			t.onFile?.(url);
 		};
+		const onPhase = (next: CardPhase) => {
+			if (dead) return;
+			setWaitingOn(next);
+			if (next === "phib19") setAnnounce(live.current.m.card.waitingPhib19);
+		};
 		const load = () =>
-			loadCardBlob(fetchSrc)
+			loadCardBlob(fetchSrc, onPhase)
 				.then((out) => {
 					if (!dead) void done(out);
 				})
@@ -203,7 +197,6 @@ export function CardViewer({
 					);
 					setPhase("error");
 					setAnnounce("");
-					// The older card stays up: keep it downloadable
 					if (t.shown) {
 						t.onStats?.(shownStats.current);
 						t.onFile?.(t.shown.url);
@@ -218,6 +211,7 @@ export function CardViewer({
 			const t = live.current;
 			setPhase("loading");
 			setError(undefined);
+			setWaitingOn(undefined);
 			setStartedAt(Date.now());
 			setAnnounce(t.m.card.rendering);
 			t.onStats?.(undefined);
@@ -232,7 +226,6 @@ export function CardViewer({
 		};
 	}, [fetchSrc, reload, attempt, hold]);
 
-	// Our copy of the image lives until the next one is on screen
 	const owned = useRef<string | undefined>(undefined);
 	useEffect(() => {
 		const prev = owned.current;
@@ -246,14 +239,12 @@ export function CardViewer({
 			mounted.current = false;
 			const url = owned.current;
 			if (!url) return;
-			// Fast Refresh runs the setup again on the same instance: wait a tick
 			window.setTimeout(() => {
 				if (!mounted.current) URL.revokeObjectURL(url);
 			}, 0);
 		};
 	}, []);
 
-	// Seconds since the render started, while it runs
 	useEffect(() => {
 		if (phase !== "loading") return;
 		const tick = () => setNow(Date.now());
@@ -272,13 +263,9 @@ export function CardViewer({
 		[client, sizeKey],
 	);
 	const [w, h] = known ?? defaultSize;
-	// Reserve the card's shape only while the first image is on its way
 	const ratio = shown || phase === "error" ? undefined : `${w} / ${h}`;
-	// Very tall layouts (the phone one) read better in a narrower column
 	const tall =
 		shown?.width && shown.height ? shown.height / shown.width > 3 : h / w > 3;
-	// The Try again button goes away with the error: focus waits on the card,
-	// which is aria-busy, and the live region says when it is ready
 	const retry = () => {
 		frame.current?.focus({ preventScroll: true });
 		setAttempt((n) => n + 1);
@@ -287,7 +274,9 @@ export function CardViewer({
 	const status = loading ? (
 		<div className="frame-status">
 			<span className="frame-spinner" aria-hidden="true" />
-			<span>{m.card.rendering}</span>
+			<span>
+				{waitingOn === "phib19" ? m.card.waitingPhib19 : m.card.rendering}
+			</span>
 			{seconds >= 1 ? (
 				<span className="frame-elapsed">
 					{m.card.elapsed.replaceAll("{seconds}", String(seconds))}
@@ -297,8 +286,42 @@ export function CardViewer({
 		</div>
 	) : null;
 
+	const gaps = missing.filter(
+		(part): part is Exclude<CardMissing, "stale" | "empty"> =>
+			part !== "stale" && part !== "empty",
+	);
+	const missingText = [
+		gaps.length
+			? m.card.missingData.replaceAll(
+					"{list}",
+					gaps
+						.map((part) => m.card.missingParts[part])
+						.join(m.card.missingJoin),
+				)
+			: missing.includes("stale")
+				? m.card.staleData
+				: "",
+		missing.includes("empty") ? m.card.emptyData : "",
+	]
+		.filter(Boolean)
+		.join(" ");
+
 	return (
 		<div className="card-view" data-tall={tall || undefined}>
+			{phase === "ready" && missingText ? (
+				<div className="card-alert card-missing">
+					<WarningCircle aria-hidden="true" size={20} />
+					<p role="status">{missingText}</p>
+					<button
+						type="button"
+						className="btn btn-ghost btn-sm"
+						onClick={retry}
+					>
+						<ArrowClockwise aria-hidden="true" size={16} />
+						{m.card.retry}
+					</button>
+				</div>
+			) : null}
 			{phase === "error" && shown ? (
 				<div className="card-alert">
 					<WarningCircle aria-hidden="true" size={20} />
@@ -326,7 +349,6 @@ export function CardViewer({
 				style={ratio ? { aspectRatio: ratio } : undefined}
 			>
 				{shown ? (
-					// Pointer shortcut; the toolbar's full screen button is the keyboard route
 					// biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: the toolbar button does the same with the keyboard
 					<div className="frame-zoom" tabIndex={-1} onClick={openZoom}>
 						<img

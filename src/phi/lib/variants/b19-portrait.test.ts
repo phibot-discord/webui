@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Catalog } from "../catalog";
-import { rankLegend } from "../score-avg";
 import { textEm } from "../text-fit";
 import { lineEm } from "./b19-common";
 import {
@@ -74,7 +73,6 @@ test("splitTitle breaks Latin titles at spaces, balanced when nothing else count
 	assert.equal(`${head} ${tail}`, "Compute It With Some Devilish Engines");
 	assert.ok(!head.endsWith(" ") && !tail.startsWith(" "));
 	assert.ok(Math.abs(textEm(head) - textEm(tail)) < 3);
-	// Hyphens inside words are not phrase marks
 	assert.deepEqual(splitTitle("Non-Melodic Ragez"), ["Non-Melodic", "Ragez"]);
 });
 
@@ -102,14 +100,11 @@ test("titleSplits keeps bracketed, ~ and - phrases on one line", () => {
 		"Silence is Golden,",
 		"Speech is Golden",
 	]);
-	// A phrase too wide for the line loses to a balanced break that fits
 	assert.deepEqual(split("JunXion Between Life And Death(VIP Mix)"), [
 		"JunXion Between Life",
 		"And Death(VIP Mix)",
 	]);
-	// Best first; no line starts with a closer or ends with an opener
 	const all = titleSplits("Song (Remix) ~Ver~ End", fitEm);
-	// Two phrase breaks that both fit: the more balanced one
 	assert.deepEqual([all[0]!.head, all[0]!.tail], ["Song (Remix)", "~Ver~ End"]);
 	for (const s of all) {
 		assert.ok(!/^\)/.test(s.tail) && !/(\(| ~)$/.test(s.head), s.head);
@@ -119,16 +114,13 @@ test("titleSplits keeps bracketed, ~ and - phrases on one line", () => {
 
 test("splitTitle handles CJK titles and punctuation", () => {
 	const fitEm = (GEOMETRY.infoW * 0.95) / 30;
-	// The subtitle keeps its own line when it fits there
 	assert.deepEqual(splitTitle("祈 -我ら神祖と共に歩む者なり-", fitEm), [
 		"祈",
 		"-我ら神祖と共に歩む者なり-",
 	]);
-	// Without phrase marks CJK text breaks anywhere, balanced
 	const [head, tail] = splitTitle("我ら神祖と共に歩む者なり");
 	assert.ok(Math.abs(textEm(head) - textEm(tail)) <= 1);
 	assert.deepEqual(splitTitle("玩具狂奏曲 -終焉-"), ["玩具狂奏曲", "-終焉-"]);
-	// Closing punctuation never starts the second line, openers never end the first
 	for (const text of ["あいうえお、かきくけこ", "テスト（ライブ）です"]) {
 		const [h, t] = splitTitle(text);
 		assert.ok(!/^[、）]/.test(t), t);
@@ -149,7 +141,6 @@ test("fitTitle: one line at 28–30 px, then two lines at 26–30 px, then an el
 	assert.ok(long.lines[1]!.endsWith("…"));
 	for (const line of long.lines)
 		assert.ok(textEm(line) * 26 <= GEOMETRY.infoW, line);
-	// Line one stays nearly full instead of backing off to an early space
 	assert.ok(textEm(long.lines[0]!) * 26 >= GEOMETRY.infoW * 0.6);
 	assert.deepEqual(fitTitle("   "), { lines: ["—"], px: 30 });
 });
@@ -170,7 +161,6 @@ test("fitTitle shows the longest catalog titles in full on two lines", () => {
 		fitTitle("a truth seeker -Communication with Utopia will be lost-").lines,
 		["a truth seeker -Communication", "with Utopia will be lost-"],
 	);
-	// Phrase breaks keep the full 30 px
 	assert.deepEqual(fitTitle("Parallel Retrogression(Game Ver.)"), {
 		lines: ["Parallel Retrogression", "(Game Ver.)"],
 		px: 30,
@@ -186,11 +176,9 @@ test("fillTwoLines fills line one at a word break and ellipsizes the rest", () =
 	assert.ok(textEm(first!) <= 8 && !first!.endsWith(" "));
 	assert.ok(second!.endsWith("…") && textEm(second!) <= 8);
 	assert.equal(fillTwoLines("alpha beta", 100).length, 1);
-	// The last space would leave line one under 70% full: cut mid-word instead
 	const [mid] = fillTwoLines("ab cdefghijklmnopqrstuvwxyz0123456789", 8);
 	assert.ok(mid!.startsWith("ab cdefg"), mid!);
 	assert.ok(textEm(mid!) > 7 && textEm(mid!) <= 8);
-	// A cut that already lands on a space keeps the whole first line
 	const head = "alpha beta";
 	const [exact] = fillTwoLines(`${head} gamma delta`, textEm(head) + 0.05);
 	assert.equal(exact, head);
@@ -211,7 +199,6 @@ test("splitName balances at spaces, CJK boundaries or mid-word", () => {
 	const [a, b] = splitName("RainbowSuperLongPlayerName_9876543210");
 	assert.equal(a + b, "RainbowSuperLongPlayerName_9876543210");
 	assert.ok(Math.abs(textEm(a) - textEm(b)) < 1);
-	// One space far from the middle loses to a mid-word break
 	const [c] = splitName("A VeryLongNameWithoutAnySpaces1234567");
 	assert.notEqual(c, "A");
 });
@@ -237,7 +224,6 @@ test("fitPlayerName: one line, then two lines via <br>, then cut plain text", ()
 	const long = fitPlayerName(rich);
 	assert.equal(long.multi, true);
 	assert.ok(long.px >= 22 && long.px <= 32);
-	// The break goes inside the HTML, which keeps its colours
 	assert.equal(long.html.replace("<br>", ""), rich);
 	assert.deepEqual(
 		nameLines(long.html).join(""),
@@ -251,7 +237,6 @@ test("fitPlayerName: one line, then two lines via <br>, then cut plain text", ()
 		multi: true,
 		html: "first line<br><i>second</i>",
 	});
-	// Five explicit lines would be too small: joined into one line of plain text
 	assert.deepEqual(fitPlayerName("a<br>b<br>c<br>d<br>e"), {
 		px: 42,
 		multi: false,
@@ -456,9 +441,7 @@ test("buildAnalysis: titles, tags, pool note and failure message", () => {
 	const fc = buildAnalysis(base, "fc30", en)!;
 	assert.equal(fc.title, "TOP 27 ANALYSIS");
 	assert.equal(fc.average, "15.7530");
-	// Two decimals, like the header's ±
 	assert.equal(fc.stddev, "±0.82");
-	// The meta line fits beside the heading unless both are long
 	assert.equal(fc.tagMetaWraps, false);
 	const longMeta = buildAnalysis(
 		{ ...base, tagMeta: `${base.tagMeta} · ${base.tagMeta}` },
@@ -508,7 +491,6 @@ test("buildTags shares one size and wraps long names onto two lines", () => {
 	for (const line of long.strong[1]!.lines)
 		assert.ok(textEm(line) * 20 <= GEOMETRY.tagNameW, line);
 	assert.deepEqual(long.weak, []);
-	// Pairs keep the n-th strength and weakness level; the taller one sets the row
 	assert.deepEqual(
 		long.pairs.map((p) => [p.strong?.rank, p.weak?.rank, p.lines]),
 		[
@@ -575,14 +557,12 @@ test("buildChips fits mode labels to the kicker room and drops empty ones", () =
 	assert.deepEqual(beside!.lines, [label]);
 	assert.ok(beside!.px >= 18 && textEm(label) * beside!.px <= room);
 	assert.equal(kickerHeight(title, [beside!]), 36);
-	// Too long for the room: the chip moves to its own line at full width
 	const longer = `${label} on this card`;
 	const [wrapped] = buildChips([longer], title);
 	assert.deepEqual(wrapped!.lines, [longer]);
 	assert.ok(textEm(longer) * wrapped!.px > room);
 	assert.ok(textEm(longer) * wrapped!.px <= full);
 	assert.equal(kickerHeight(title, [wrapped!]), 36 + 10 + 36);
-	// Too long for a full line: two lines at that width, nothing cut
 	const two = `${longer}, and a second sentence that explains the filter`;
 	const [split] = buildChips([two], title);
 	assert.equal(split!.lines.length, 2);
@@ -594,7 +574,6 @@ test("buildChips fits mode labels to the kicker room and drops empty ones", () =
 		kickerHeight(title, [split!]),
 		36 + 10 + 2 * split!.px * 1.2 + 7,
 	);
-	// Beyond two full lines the second one is ellipsized
 	const [cut] = buildChips(["x".repeat(160)], title);
 	assert.equal(cut!.px, 18);
 	assert.equal(cut!.lines.length, 2);
@@ -610,8 +589,6 @@ test("modeChips drops the x30 / fc30 mode labels: the title names the mode", () 
 	]);
 	assert.deepEqual(modeChips(["x30", " "]), []);
 	assert.deepEqual(modeChips(null), []);
-	// The rank population legend is a note under the list, never a chip
-	assert.deepEqual(modeChips([rankLegend("zh"), "AP"]), ["AP"]);
 });
 
 const badge = (extra: Record<string, unknown> = {}) => ({
@@ -650,18 +627,42 @@ test("buildRows gives rank-mode rows a rank line from accRank, not accAvg", () =
 		),
 	);
 	const [p1, b1, b2] = rows;
-	assert.equal(p1!.peerRank?.ap, true);
-	assert.equal(p1!.peerRank?.pct, "AP 2.9%");
+	assert.equal(p1!.peerRanks[0]?.ap, true);
+	assert.equal(p1!.peerRanks[0]?.pct, "AP 2.9%");
 	assert.deepEqual(
-		[b1!.peerRank?.pos, b1!.peerRank?.of, b1!.peerRank?.pct],
-		["#3,611", "/ 70,388", "Top 5.1%"],
+		b1!.peerRanks.map((r) => [r.pos, r.of, r.pct, r.px, r.showOf]),
+		[["#3,611", "/ 70,388", "Top 5.1%", 20, true]],
 	);
-	assert.equal(b1!.peerRank?.px, 20);
-	assert.equal(b1!.peerRank?.showOf, true);
-	// The rank has its own line: no peer badge beside the accuracy
 	assert.equal(b1!.peer, "");
-	assert.equal(b2!.peerRank, null);
+	assert.deepEqual(b2!.peerRanks, []);
 	assert.equal(b2!.peer, "avg 99.12%");
+});
+
+test("buildRows gives a row with both populations two rank lines, the ±0.05 one labelled", () => {
+	const all = badge();
+	const band = badge({
+		pos: "#12",
+		of: "/ 400",
+		pct: "Top 3.0%",
+		tag: "±0.05",
+	});
+	const [b1] = charts(
+		buildRows(
+			{
+				phi: [],
+				b19_list: [chart(1, { accRank: all, accRanks: [all, band] })],
+			},
+			"b30",
+			en,
+		),
+	);
+	assert.deepEqual(
+		b1!.peerRanks.map((r) => [r.tag, r.pos, r.showOf]),
+		[
+			[undefined, "#3,611", true],
+			["±0.05", "#12", true],
+		],
+	);
 });
 
 test("fitRank shrinks to 18 px, then drops the record count", () => {
@@ -697,13 +698,11 @@ test("portraitTip: two measured lines at most, emoji kept whole", () => {
 	for (const line of tip.lines)
 		assert.ok(lineEm(line) * tip.px <= GEOMETRY.tipW * 0.95);
 	assert.ok(emoji.startsWith(tip.lines.join("").slice(0, -1)));
-	// The shortened review sample fits one line at full size
 	assert.deepEqual(portraitTip("啊🤪～啊🤪～啊咦😬…嘟⬇️"), {
 		lines: ["啊🤪～啊🤪～啊咦😬…嘟⬇️"],
 		px: 22,
 		cut: false,
 	});
-	// No tip given: one from the catalog; none at all: no lines
 	assert.deepEqual(portraitTip(undefined, ["Only tip"]).lines, ["Only tip"]);
 	assert.deepEqual(portraitTip("", []).lines, []);
 });
@@ -752,13 +751,11 @@ test("buildView: header for a normal save", () => {
 	assert.equal(pv.legendRks, en.legendRks);
 	assert.ok(pv.stats);
 	assert.equal(pv.noCharts, false);
-	assert.deepEqual(pv.rankNote, []);
 });
 
-test("buildView in rank mode: Rank legend, population note, no legend chip", () => {
+test("buildView in rank mode: Rank legend, no population note, a rank line per badge", () => {
 	const data = {
 		gameuser: { rks: 16, PlayerId: "Mizuki" },
-		spInfo: [rankLegend("en")],
 		phi: [chart(0, { accRank: badge({ pos: "#1", ap: true }) })],
 		b19_list: [chart(1, { accRank: badge() }), chart(2)],
 		tips: "Fixed",
@@ -766,43 +763,32 @@ test("buildView in rank mode: Rank legend, population note, no legend chip", () 
 	const { pv } = buildView(data, ctx("b30"));
 	assert.equal(pv.legendScore, en.legendScoreRank);
 	assert.deepEqual(pv.chips, []);
-	assert.equal(pv.rankNote.join(" "), rankLegend("en"));
-	for (const line of pv.rankNote) assert.ok(lineEm(line) * 18 <= 600);
-	// A long legend wraps into measured lines
-	const long = buildView(
-		{ ...data, rankLegend: "phib19 records ".repeat(12) },
+	assert.equal("rankNote" in pv, false);
+	assert.deepEqual(pv.tip.lines, ["Fixed"]);
+	const cn = buildView(data, ctx("b30", "zh")).pv;
+	assert.equal(cn.legendScore, "分数 · ACC · 名次");
+	// Rank lines are counted: 26 px per line
+	const bare = buildView(
+		{ ...data, phi: [chart(0)], b19_list: [chart(1), chart(2)] },
 		ctx("b30"),
 	).pv;
-	assert.equal(long.rankNote.length, 3);
-	assert.equal(long.rankNote.join(" "), "phib19 records ".repeat(12).trim());
-	for (const line of long.rankNote) assert.ok(lineEm(line) * 18 <= 600);
-	assert.deepEqual(pv.tip.lines, ["Fixed"]);
-	const cn = buildView(
-		{ ...data, rankLegend: "名次说明" },
-		ctx("b30", "zh"),
-	).pv;
-	assert.equal(cn.legendScore, "分数 · ACC · 名次");
-	assert.deepEqual(cn.rankNote, ["名次说明"]);
-	// Rank lines and the note are counted: 26 px per ranked row, 10 + 24 per line
-	const bare = buildView(
+	assert.equal(estimateHeight(pv) - estimateHeight(bare), 2 * 26);
+	const band = badge({ pos: "#12", tag: "±0.05" });
+	const both = buildView(
 		{
 			...data,
-			spInfo: [],
-			phi: [chart(0)],
-			b19_list: [chart(1), chart(2)],
+			b19_list: [
+				chart(1, { accRank: badge(), accRanks: [badge(), band] }),
+				chart(2),
+			],
 		},
 		ctx("b30"),
 	).pv;
-	assert.deepEqual(bare.rankNote, []);
-	assert.equal(
-		estimateHeight(pv) - estimateHeight(bare),
-		2 * 26 + 10 + pv.rankNote.length * 24,
-	);
-	// Compact one-line rows sit at their 104 px minimum; a rank line makes them
-	// 66 + 24 + 32 = 122 px
+	assert.equal(estimateHeight(both) - estimateHeight(bare), 3 * 26);
+	// Compact one-line rows sit at their 104 px minimum; a rank line makes them 66 + 24 + 32 = 122 px
 	assert.equal(
 		estimateHeight(pv, true) - estimateHeight(bare, true),
-		2 * (122 - 104) + 10 + pv.rankNote.length * 24,
+		2 * (122 - 104),
 	);
 });
 
@@ -827,7 +813,6 @@ test("buildView hides manual-mode noise, record stats and empty lists", () => {
 	assert.equal(pv.title, zh.kindTitle.x30);
 	assert.equal(pv.challenge, null);
 	assert.equal(pv.dataSize, "");
-	// The x30 list's spread is not the spread behind the player's RKS
 	assert.equal(pv.sd, "");
 	assert.equal(pv.stats, null);
 	assert.equal(pv.nameHtml, "—");
@@ -840,7 +825,6 @@ test("buildView hides manual-mode noise, record stats and empty lists", () => {
 	assert.equal(cut.nameMulti, true);
 	assert.equal(pv.noCharts, true);
 	assert.equal(pv.legendRks, zh.legendRksOnly);
-	// The mode label is dropped: the title ("性30") already names the filter
 	assert.deepEqual(pv.chips, []);
 	assert.equal(pv.analysis, null);
 });
@@ -885,8 +869,7 @@ function b30Save(count: number, song: (i: number) => string, tags = false) {
 test("estimateHeight matches the measured layout; compact only rescues 2x paint", () => {
 	const wrapped = "Retribution ~ Cycle of Redemption ~";
 	assert.equal(fitTitle(wrapped).px, 30);
-	// The default render of data/raw-save.json: 3 P + 33 B rows, 4 of them on two
-	// lines, the histogram, no tags: 5656 px measured, 24 px of it engine slack
+	// Default render of data/raw-save.json (3 P + 33 B, 4 on two lines, histogram, no tags): 5656 px measured, 24 px of it engine slack
 	const real = buildView(
 		b30Save(33, (i) => ([5, 18, 20, 23].includes(i) ? wrapped : `Song ${i}`)),
 		ctx("b30"),
@@ -911,14 +894,12 @@ test("estimateHeight matches the measured layout; compact only rescues 2x paint"
 	);
 	assert.equal(wantsCompact(tall), true);
 	assert.equal(tall.compact, true);
-	// Count 99 is far past the budget either way: normal spacing
 	const huge = buildView(
 		b30Save(99, (i) => `Song ${i}`),
 		ctx("b30"),
 	).pv;
 	assert.ok(estimateHeight(huge, true) > 6460);
 	assert.equal(huge.compact, false);
-	// A long spInfo label that wraps the kicker adds a line, a two-line chip more
 	const plain = buildView(
 		b30Save(2, (i) => `Song ${i}`),
 		ctx("fc30"),

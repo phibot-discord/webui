@@ -1,7 +1,6 @@
 import { infoView } from "./info-common";
 import type { CardVariant } from "./types";
 
-/** Player info as one dense stats table plus three compact trend charts */
 export const variant: CardVariant = {
 	tpl: "info-table",
 	width: 1200,

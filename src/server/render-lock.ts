@@ -4,7 +4,7 @@ export class Semaphore {
 
 	constructor(private readonly max: number) {}
 
-	/** Runs `fn` in a free slot. An abort while queued leaves the queue without taking one */
+	/** An abort while queued leaves the queue without taking a slot */
 	async run<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
 		signal?.throwIfAborted();
 		while (this.active >= this.max) {
@@ -40,7 +40,6 @@ export class Semaphore {
 	}
 }
 
-/** Rejects after `ms` and aborts `controller`, so timed-out work stops */
 export function withTimeout<T>(
 	promise: Promise<T>,
 	ms: number,
@@ -66,5 +65,4 @@ export function withTimeout<T>(
 	});
 }
 
-/** Cap concurrent Takumi rasters in this process */
 export const renderLock = new Semaphore(2);

@@ -22,7 +22,6 @@ export function cardCacheKind(kind: CardKind): string {
 	return kind === "hisb30" ? "update" : kind;
 }
 
-/** Chart levels a per-song card can show */
 export const SONG_LEVELS = ["EZ", "HD", "IN", "AT"] as const;
 export type SongLevel = (typeof SONG_LEVELS)[number];
 

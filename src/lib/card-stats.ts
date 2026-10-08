@@ -1,3 +1,5 @@
+import type { CardMissing } from "@/phi/lib/external";
+
 export type CardCacheStore = "mem" | "r2" | "kv";
 type CardSource = "r2" | "kv" | "render" | "browser";
 
@@ -5,14 +7,8 @@ export type CardStats = {
 	cache: "hit" | "miss";
 	store?: CardCacheStore;
 	heightCache?: "hit" | "miss";
-	/** The browser's copy was still current (304): no image bytes were sent */
 	revalidated?: boolean;
-	/**
-	 * Joined an identical request's lookup or paint already in flight: `cacheMs`
-	 * is the wait for it, and its phase timings are left out
-	 */
 	shared?: boolean;
-	/** Session, token, save, notes and epoch lookups before the cache check */
 	prepMs?: number;
 	cacheMs: number;
 	dataMs?: number;
@@ -22,6 +18,8 @@ export type CardStats = {
 	rasterMs?: number;
 	encodeMs?: number;
 	paintMs?: number;
+	extMs?: number;
+	missing?: CardMissing[];
 	totalMs: number;
 	waitMs?: number;
 };
@@ -47,7 +45,6 @@ export function encodeCardStats(stats: CardStats): string {
 	return JSON.stringify(stats);
 }
 
-/** "browser": a 304, the browser showed the copy it already had */
 export function cardSource(stats: CardStats): CardSource {
 	if (stats.revalidated) return "browser";
 	if (stats.cache === "miss") return "render";

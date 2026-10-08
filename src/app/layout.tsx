@@ -15,7 +15,6 @@ import { fontClasses } from "@/theme/fonts";
 import { getRequestTheme } from "@/theme/server";
 import "./globals.css";
 
-/** Public origin for absolute OpenGraph URLs; the first AUTH_URLS entry in production */
 function siteOrigin(): URL | undefined {
 	const raw = process.env.AUTH_URLS?.split(",")[0] || process.env.AUTH_URL;
 	if (!raw) return undefined;
@@ -26,7 +25,6 @@ function siteOrigin(): URL | undefined {
 	}
 }
 
-/** Pages return plain titles; the template adds the brand */
 export async function generateMetadata(): Promise<Metadata> {
 	const { locale, m } = await getMessages();
 	return {
@@ -44,7 +42,6 @@ export async function generateMetadata(): Promise<Metadata> {
 	};
 }
 
-/** theme-color follows the visitor's pick when there is one, else the OS */
 export async function generateViewport(): Promise<Viewport> {
 	const theme = await getRequestTheme();
 	return {
@@ -92,7 +89,6 @@ export default async function RootLayout({
 								theme={theme ?? "system"}
 							/>
 							{children}
-							{/* before the footer, so keyboard users meet it after the page */}
 							<VersionNotice />
 							<SiteFooter />
 						</div>

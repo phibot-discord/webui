@@ -5,10 +5,9 @@ import { extractEmojis } from "takumi-js/helpers/emoji";
 const FETCH_TIMEOUT_MS = 3_000;
 /** Noto emoji SVGs are 1–30 KB; a body past this is not an emoji */
 const MAX_BYTES = 128 * 1024;
-/** A failed URL is not retried on every render, only after this */
 const RETRY_MS = 10 * 60_000;
 const CACHE_MAX = 512;
-/** Fetched bytes kept in total; one card's emoji are well under 1 MB */
+/** One card's emoji are well under 1 MB */
 const CACHE_MAX_BYTES = 8 * 1024 * 1024;
 
 export type FetchImage = (url: string) => Promise<Uint8Array | undefined>;
@@ -16,7 +15,6 @@ export type FetchImage = (url: string) => Promise<Uint8Array | undefined>;
 type Entry = {
 	at: number;
 	failed: boolean;
-	/** Counted against `CACHE_MAX_BYTES` once the bytes arrive */
 	size: number;
 	bytes: Promise<Uint8Array | undefined>;
 };
@@ -32,7 +30,6 @@ function startsWith(bytes: Uint8Array, sig: number[], at = 0) {
 	return sig.every((v, i) => bytes[at + i] === v);
 }
 
-/** Is it a decodable image (PNG, JPEG, GIF, WebP signature or a complete SVG)? */
 export function looksLikeImage(bytes: Uint8Array): boolean {
 	if (!bytes.byteLength) return false;
 	if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47])) return true;
@@ -52,7 +49,6 @@ export function looksLikeImage(bytes: Uint8Array): boolean {
 	);
 }
 
-/** The body, or undefined once it passes `max` bytes (without buffering the rest) */
 async function readCapped(
 	res: Response,
 	max: number,
@@ -80,7 +76,6 @@ async function readCapped(
 	return out;
 }
 
-/** Only an `image/*` answer within `MAX_BYTES` counts; anything else is a miss */
 export async function fetchImage(url: string): Promise<Uint8Array | undefined> {
 	try {
 		const res = await fetch(url, {
@@ -112,10 +107,6 @@ function trim() {
 	}
 }
 
-/**
- * Bytes for a remote image, fetched once per process and shared by concurrent
- * renders. Bytes that do not look like an image are treated as a failed fetch
- */
 export function remoteImageBytes(
 	url: string,
 	fetchOne: FetchImage = fetchImage,
@@ -152,7 +143,6 @@ export function remoteImageBytes(
 	return entry.bytes;
 }
 
-/** Treat these URLs as failed fetches (e.g. Takumi could not decode them) */
 export function markRemoteImagesFailed(
 	urls: Iterable<string>,
 	now = Date.now(),
@@ -174,17 +164,15 @@ export function clearRemoteImageCache() {
 	cachedBytes = 0;
 }
 
-/** Entry count and counted bytes, for tests */
 export function remoteImageCacheSize() {
 	return { entries: cache.size, bytes: cachedBytes };
 }
 
-/** Cheap pre-check on the HTML: without a pictographic character there is no emoji to extract */
 export function mayHaveEmoji(html: string): boolean {
 	return /\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20E3/u.test(html);
 }
 
-/** `<img>` srcs over http(s). Emoji become such images once `extractEmojis` ran */
+/** Emoji become such images only once `extractEmojis` ran */
 export function remoteImageUrls(node: Node): string[] {
 	const out = new Set<string>();
 	const walk = (n: Node) => {
@@ -198,7 +186,6 @@ export function remoteImageUrls(node: Node): string[] {
 	return [...out];
 }
 
-/** The tree without the remote `<img>`s in `gone` */
 export function dropRemoteImages(node: Node, gone: Set<string>): Node {
 	if (node.type !== "container" || !node.children) return node;
 	return {
@@ -211,7 +198,7 @@ export function dropRemoteImages(node: Node, gone: Set<string>): Node {
 	};
 }
 
-/** Fetch emoji SVGs before the raster lock; an unfetchable one is left out, never fails the render */
+/** Runs before the raster lock; an unfetchable emoji is left out, never fails the render */
 export async function withRemoteImages(
 	tree: Node,
 	opts: { emoji?: boolean; fetchOne?: FetchImage } = {},

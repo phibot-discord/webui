@@ -18,7 +18,6 @@ export function TagGlossary({ tree }: { tree: ChartTagTreeNode[] }) {
 		);
 	}
 	const cats = tree.map((cat, i) => ({
-		// Short, stable anchors: a category link can be shared
 		id: `cat-${i + 1}`,
 		name: localizeChartTagName(cat.name, locale),
 		description: localizeChartTagDescription(cat.name, cat.description, locale),

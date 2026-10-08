@@ -12,7 +12,7 @@ type Body = Record<string, unknown> & {
 	minRks?: number;
 };
 
-/** Stand-in phib19: 1000 records per chart (250 in an RKS band), better = 100 − ⌊acc⌋ */
+// Stand-in phib19: 1000 records per chart (250 in an RKS band), better = 100 − ⌊acc⌋
 function fakePhib19(opts: { delayMs?: number } = {}) {
 	const calls: { path: string; body: Body }[] = [];
 	const post = async (path: string, raw: unknown) => {
@@ -176,7 +176,6 @@ test("the card places the record overall and in the player's RKS band, with AP/F
 	assert.deepEqual(card.apfc, { total: 1000, ap: 40, fc: 120 });
 	assert.equal(card.board?.n, 100);
 	assert.equal(card.board?.ap, 4);
-	// Only acc / score / fc are requested from songAccList
 	const list = fake.calls.find((c) => c.path.endsWith("songAccList"));
 	assert.deepEqual(list?.body.requestField, ["acc", "score", "fc"]);
 	assert.equal(card.asOf, "2026-10-06");
@@ -200,7 +199,6 @@ test("a level the song lacks falls back to its hardest chart", async () => {
 	assert.equal(card.record, null);
 	assert.equal(card.state.rank, "none");
 	assert.equal(card.state.band, "none");
-	// No record: nothing about the user is sent, the chart's totals still are
 	assert.ok(!fake.calls.some((c) => c.path.endsWith("allAccRank")));
 	assert.equal(card.state.board, "ok");
 });
@@ -227,7 +225,6 @@ test("lookups past the budget draw what arrived and mark the card partial", asyn
 	});
 	assert.equal(card.overall, null);
 	assert.equal(card.board, null);
-	// The late lookups still finish and fill the caches for the next render
 	await new Promise((r) => setTimeout(r, 300));
 	const again = cardOf(
 		await buildSongCard(
@@ -300,7 +297,6 @@ test("a route that isn't served (401/403/404) is 'unavailable' and partial, not 
 		apfc: "unavailable",
 		board: "unavailable",
 	});
-	// Moments later the breaker answers, still unavailable and still partial
 	const again = cardOf(
 		await buildSongCard(
 			runtime(),
@@ -337,7 +333,6 @@ test("a song phib19 doesn't know is a complete card with no records, not a failu
 	});
 	assert.equal(unknown.card.overall, null);
 	assert.equal(unknown.card.board?.n, 0);
-	// In the catalog (an sp_info song) but phib19 400s naming the song id
 	resetLeaderboardForTest();
 	const calls: string[] = [];
 	const refuse = async (path: string, raw: unknown) => {
@@ -362,7 +357,6 @@ test("a song phib19 doesn't know is a complete card with no records, not a failu
 	assert.equal(sp.card.board?.n, 0);
 	assert.equal(sp.card.overall, null);
 	const asked = calls.length;
-	// Remembered: the next view asks nothing
 	cardOf(
 		await buildSongCard(
 			runtime(),
@@ -404,7 +398,6 @@ test("only the shared per-chart summaries go to KV, not the user's own rank rows
 
 test("another level's missing rank keeps the card partial; the shown level still answers", async () => {
 	const fake = fakePhib19();
-	// phib19 answers the HD row with a shifted (unusable) row
 	const post = async (path: string, raw: unknown) => {
 		const res = await fake.post(path, raw);
 		const data = (res.body as { data?: unknown } | null)?.data;

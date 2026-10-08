@@ -7,7 +7,6 @@ import type { Kv } from "./sdk";
 type KvSetOptions = {
 	ttlMs?: number;
 	nx?: boolean;
-	/** Best-effort cache write: no backoff on 429/5xx */
 	background?: boolean;
 };
 type KvIncrOptions = {
@@ -213,14 +212,13 @@ const MISS_MAX = 2_000;
 const BIND_KEY =
 	/:userToken:|:save:|:notes:|:hisb30:|:history:|:manualSave:|:webShare/;
 
-/** Dev only: `PHI_LOCAL_DATA=1` swaps Cloudflare KV for an in-memory store */
+/** Dev only: swaps Cloudflare KV for an in-memory store */
 export function localDataMode(): boolean {
 	return (
 		process.env.PHI_LOCAL_DATA === "1" && process.env.NODE_ENV !== "production"
 	);
 }
 
-/** Dev-only in-memory KV with one bound user, seeded from PHI_LOCAL_SAVE */
 function localRemote(): RemoteKv {
 	const mem = new Map<string, string>();
 	const uid = process.env.PHI_LOCAL_UID?.trim() || "local-dev";

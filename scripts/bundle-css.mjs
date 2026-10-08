@@ -1,9 +1,5 @@
 #!/usr/bin/env node
-/**
- * Inline src/phi/css/*.css into src/phi/css/bundle.ts so the Takumi renderer
- * needs no CSS files on disk. The .css files are the source of truth; the
- * bundle is generated (and git-ignored) like src/phi/art-compiled.ts
- */
+// Inlines src/phi/css/*.css into the generated (git-ignored) bundle.ts so the Takumi renderer needs no CSS files on disk
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";

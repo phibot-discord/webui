@@ -33,7 +33,6 @@ export type SongSearchResult = {
 		kind: MatchKind;
 		text: string;
 		score: number;
-		/** Found by phib19's resolve, not yet in the mirrored snapshot */
 		live?: true;
 	};
 	aliases: { text: string; layer: AliasLayer }[];
@@ -50,7 +49,6 @@ export type SongSearchBody = {
 
 export type SongSearchDeps = {
 	catalog: () => Promise<{ list: ChartSummary[]; aliases: AliasIndex }>;
-	/** `client` (the caller's IP) caps how much of the upstream budget one caller spends */
 	live: (
 		q: string,
 		client?: string,
@@ -108,7 +106,7 @@ function result(
 	};
 }
 
-/** Ranked over the merged alias index; asks phib19's resolve (cached, ≤3 s) only while a published snapshot is not loaded yet */
+/** Asks phib19's resolve (cached, ≤3 s) only while a published snapshot is not loaded yet */
 export async function searchSongs(
 	query: SongSearchQuery,
 	deps: SongSearchDeps = defaultDeps,

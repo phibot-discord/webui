@@ -1,6 +1,4 @@
-// Dev only: print a NextAuth session cookie for the PHI_LOCAL_DATA user, so the
-// signed-in pages can be opened without Discord. Pair with `pnpm dev:local`
-//
+// Dev only: prints a NextAuth session cookie for the PHI_LOCAL_DATA user (pair with `pnpm dev:local`)
 //   node --env-file=.env.local --import tsx scripts/dev-session.ts [uid]
 import { encode } from "next-auth/jwt";
 

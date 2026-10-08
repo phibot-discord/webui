@@ -26,7 +26,6 @@ export function loadChartCatalog(): Promise<ChartSummary[]> {
 	return pending;
 }
 
-/** Ranked songs only; use `rankSongs` to also see which title or alias matched */
 export function searchCharts(
 	list: ChartSummary[],
 	query: string,

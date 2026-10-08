@@ -16,7 +16,6 @@ import {
 	persistCardReload,
 } from "@/lib/save-refresh";
 
-/** An item of the desk's More menu: redraw every card, skipping the image cache */
 export function BypassCacheButton({ cooldownMs }: { cooldownMs: number }) {
 	const { m } = useI18n();
 	const router = useRouter();

@@ -23,7 +23,6 @@ type CatalogState =
 	| { status: "ready"; list: ChartSummary[] }
 	| { status: "failed" };
 
-/** Loads `/api/charts` once for the page */
 export function useChartCatalog(): CatalogState {
 	const [state, setState] = useState<CatalogState>({ status: "loading" });
 	useEffect(() => {
@@ -43,16 +42,12 @@ export function useChartCatalog(): CatalogState {
 }
 
 export type ChartSearchText = {
-	/** Accessible name when the caller passes neither `label` nor `labelledBy` */
 	label: string;
-	/** Precedes the nickname that matched, under the song title */
 	viaAlias: string;
-	/** Announced politely while typing */
 	results: (count: number) => string;
 	noResults: string;
 };
 
-// Until these move into messages.ts
 const FALLBACK_TEXT: Record<"en" | "zh", ChartSearchText> = {
 	en: {
 		label: "Search songs",
@@ -68,8 +63,6 @@ const FALLBACK_TEXT: Record<"en" | "zh", ChartSearchText> = {
 	},
 };
 
-// Until chart-search.css has them: levels wrap under the title at 360 px, and the arrow-key
-// option is outlined (chips can't take focus, so :focus-visible never fires)
 const ROW_STYLE: CSSProperties = { flexWrap: "wrap", rowGap: 6 };
 const SONG_STYLE: CSSProperties = { flex: "1 1 9rem" };
 const LEVELS_STYLE: CSSProperties = { flexWrap: "wrap", flexShrink: 1 };
@@ -85,7 +78,6 @@ type Option = {
 	taken: boolean;
 };
 
-/** What a key does to the list; `keepDefault` lets the browser act on it too */
 export type ComboboxAction = {
 	open?: boolean;
 	active?: number;
@@ -94,7 +86,6 @@ export type ComboboxAction = {
 	keepDefault?: true;
 };
 
-/** Key handling for the combobox below; `undefined` leaves the key alone */
 export function comboboxKey(
 	key: string,
 	altKey: boolean,
@@ -111,7 +102,6 @@ export function comboboxKey(
 			return { active: s.active <= 0 ? last : s.active - 1 };
 		case "Home":
 		case "End":
-			// Only while an option is active; otherwise they move the caret
 			return onOption ? { active: key === "Home" ? 0 : last } : undefined;
 		case "Enter":
 			return onOption ? { pick: true } : undefined;
@@ -119,14 +109,12 @@ export function comboboxKey(
 			if (s.expanded) return { open: false, active: -1 };
 			return s.hasQuery ? { clear: true } : undefined;
 		case "Tab":
-			// Focus moves on; the list must not stay open over the next field
 			return { open: false, active: -1, keepDefault: true };
 		default:
 			return;
 	}
 }
 
-/** WAI-ARIA combobox: focus stays in the input, arrows move over the level chips */
 export function ChartSearch({
 	catalog,
 	placeholder,
@@ -141,11 +129,8 @@ export function ChartSearch({
 	placeholder: string;
 	onPick: (song: ChartSummary, rank: ChartLevel) => void;
 	disabled?: boolean;
-	/** Dim levels the caller already has (manual editor) */
 	isTaken?: (song: ChartSummary, rank: ChartLevel) => boolean;
-	/** Accessible name; ignored when `labelledBy` is set */
 	label?: string;
-	/** id of the visible text that names this field */
 	labelledBy?: string;
 	text?: Partial<ChartSearchText>;
 }) {
@@ -215,7 +200,6 @@ export function ChartSearch({
 	};
 
 	const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-		// Arrow keys and Enter belong to the IME while it composes (pinyin, kana)
 		if (e.nativeEvent.isComposing) return;
 		const action = comboboxKey(e.key, e.altKey, {
 			expanded,
@@ -284,10 +268,8 @@ export function ChartSearch({
 				role="listbox"
 				aria-label={name}
 				aria-labelledby={labelledBy}
-				// A scrolling list is a Tab stop in Chrome; focus stays in the input
 				tabIndex={-1}
 				hidden={!expanded}
-				// Keep focus (and the open list) in the input while a chip is clicked
 				onMouseDown={(e) => e.preventDefault()}
 			>
 				{expanded
@@ -298,7 +280,6 @@ export function ChartSearch({
 							const alias = via.kind === "alias" ? via.text : undefined;
 							return (
 								<li key={`${song.id}:${row}`} role="none" style={ROW_STYLE}>
-									{/* Hidden from the tree: each option's label and description repeat it */}
 									<span
 										className="chart-search-song"
 										aria-hidden="true"

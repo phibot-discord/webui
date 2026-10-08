@@ -433,7 +433,6 @@ test("parser keeps the threshold pool size and drops per-chart detail", () => {
 	assert.equal(parsed.radar.categories[0]?.displayRks, "16.17");
 	assert.equal("tags" in parsed, false);
 	assert.equal("tagGroups" in parsed, false);
-	// A cached analysis parses back to itself
 	assert.deepEqual(
 		parseB30TagAnalysis(JSON.parse(JSON.stringify(parsed))),
 		parsed,
@@ -447,7 +446,6 @@ test("parser tolerates servers without the threshold pool, and empty saves", () 
 	assert.ok(parsed);
 	assert.equal(parsed.threshold, undefined);
 	assert.equal(parsed.recordCount, 0);
-	// Probe D: `{"gameRecord":{}}`
 	const empty = parseB30TagAnalysis({
 		data: {
 			analysisMode: "threshold_pool",
@@ -573,7 +571,6 @@ test("concurrent lookups for one save share a single POST", async () => {
 	assert.deepEqual(ra, rb);
 	assert.equal(ro.totalVotes, 7);
 
-	// A failed shared lookup is not remembered: the next render asks again
 	resetChartTagVoteMemForTest();
 	const fail = deferred<unknown>();
 	let tries = 0;

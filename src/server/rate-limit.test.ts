@@ -13,7 +13,6 @@ test("a user gets 10 requests per rolling minute", () => {
 	const blocked = rateLimit({ userId: "u", ip: "1.1.1.1" }, t0 + 30_000);
 	assert.equal(blocked.ok, false);
 	assert.equal(!blocked.ok && blocked.retryAfter, 30);
-	// The window slides: the first nine leave it 60 s after they were made
 	for (let i = 0; i < 9; i++) {
 		assert.equal(
 			rateLimit({ userId: "u", ip: "1.1.1.1" }, t0 + 60_000).ok,
@@ -55,7 +54,6 @@ test("rejected requests are not counted", () => {
 	for (let i = 0; i < 10; i++) rateLimit({ userId: "w", ip: `6.6.6.${i}` }, t0);
 	for (let i = 0; i < 50; i++)
 		rateLimit({ userId: "w", ip: "7.7.7.7" }, t0 + 1);
-	// Only the ten accepted requests (at t0) were counted, so the user is free again at t0 + 60 s
 	assert.equal(rateLimit({ userId: "w", ip: "8.8.8.8" }, t0 + 60_000).ok, true);
 });
 

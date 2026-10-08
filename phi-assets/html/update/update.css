@@ -24,7 +24,6 @@ body p {
 .svg-box {
 	background-color: rgba(0, 0, 0, 0.5);
 	border-radius: 10px;
-	/* backdrop-filter: blur(3px); */
 }
 
 .title {
@@ -36,7 +35,6 @@ body p {
 	flex-direction: row;
 	margin-bottom: 5%;
 	justify-content: space-around;
-	/* writing-mode: vertical-lr; */
 	align-items: center;
 }
 
@@ -46,13 +44,11 @@ body p {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-	/* margin-left: 7%; */
 	padding-left: 2%;
 }
 
 .title .r p {
 	font-size: unset;
-	/* margin-left: 15%; */
 }
 
 .title .r .Challenge {
@@ -102,7 +98,6 @@ body p {
 	width: auto;
 	display: flex;
 	margin-left: 10px;
-	/* margin-right: -20px; */
 }
 
 .rks_line {
@@ -162,24 +157,15 @@ circle {
 
 .svg-box {
 	padding: 5px;
-	/* border: #87ceeb 1px solid; */
 	background-color: rgba(0, 0, 0, 0.5);
 	width: calc(100% - 10px);
 	height: calc(100% - 10px);
-	/* margin-top: 8px; */
-	/* margin-bottom: 8px; */
 	display: flex;
 	align-items: center;
 	justify-content: space-around;
 }
 
 .svg-box p {
-	/* text-shadow:
-        0 0 1px #d8f9ffab,
-        1px 0 2px #d8f9ffab,
-        -1px 0 2px #d8f9ffab,
-        1px 0 5px #d8f9ffab,
-        -1px 0 10px #d8f9ffab; */
 	margin-left: 5%;
 	font-size: 50px;
 	color: white;
@@ -298,7 +284,6 @@ circle {
 	display: flex;
 	flex-direction: row;
 	justify-content: space-between;
-	/* background: #87ceeb6b; */
 	overflow: hidden;
 	padding-bottom: 1%;
 	padding-top: 1%;

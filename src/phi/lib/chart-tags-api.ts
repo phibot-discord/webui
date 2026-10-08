@@ -21,7 +21,6 @@ type OriRecord = { score: number; acc: number; fc: boolean };
 
 export const CHART_TAG_TIMEOUT_MS = 60_000;
 const CHART_TAG_MAX_ATTEMPTS = 4;
-/** How long a render waits for phib19 before drawing without tag data (marked partial) */
 export const CHART_TAG_RENDER_BUDGET_MS = 8_000;
 /** The attempt keeps running this long after the render gives up, to fill the cache */
 export const CHART_TAG_BACKGROUND_MS = 30_000;
@@ -220,7 +219,6 @@ export async function chartTagJsonFetch(path: string, init: RequestInit = {}) {
 	return jsonFetch(path, init);
 }
 
-/** One attempt, up to CHART_TAG_BACKGROUND_MS; pair it with withChartTagBudget */
 export async function chartTagJsonFetchOnce(
 	path: string,
 	init: RequestInit = {},
@@ -228,7 +226,7 @@ export async function chartTagJsonFetchOnce(
 	return jsonFetch(path, init, ONE_SHOT);
 }
 
-/** Waits at most `budgetMs` for `work`; `work` keeps running to fill the cache */
+/** `work` keeps running past the budget to fill the cache */
 export async function withChartTagBudget<T>(
 	work: Promise<T>,
 	budgetMs: number,
@@ -397,7 +395,6 @@ export async function loadChartTagTree(
 	opts: {
 		getCached?: () => Promise<unknown>;
 		fetchJson?: ChartTagJsonFetch;
-		/** Past this the caller gets a timeout; a live fetch still fills the cache */
 		budgetMs?: number;
 	} = {},
 ): Promise<ChartTagTreeNode[]> {
@@ -571,7 +568,6 @@ type TagAnalysisOpts = {
 	fetchJson?: ChartTagJsonFetch;
 	saveRevision?: string;
 	db?: Pick<Kv, "get" | "set">;
-	/** Render path: stop waiting after this long (the lookup still fills the cache) */
 	budgetMs?: number;
 };
 

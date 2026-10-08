@@ -1,10 +1,4 @@
-/**
- * Server-side stand-in for phi-plugin's browser script that shrinks every
- * `name="pvis"` text until it fits its box (Takumi runs no scripts)
- *
- * Advance widths (em) of printable ASCII as Takumi lays them out, taking the
- * wider of the PHI and NotoSansSC glyphs so either font stack fits
- */
+// Takumi runs no scripts, so this replaces phi-plugin's `name="pvis"` shrinker; ASCII widths are the wider of PHI and NotoSansSC
 const ASCII_EM: Record<string, number> = {
 	" ": 0.23,
 	"!": 0.33,
@@ -115,14 +109,12 @@ function charEm(ch: string): number {
 	return 1;
 }
 
-/** Rendered width of one line of `text` at 1px font size */
 export function textEm(text: string): number {
 	let em = 0;
 	for (const ch of text) em += charEm(ch);
 	return em;
 }
 
-/** Largest font size (0.1px steps, at most `maxPx`) at which `em` ems fit in `widthPx` */
 export function fitEm(em: number, widthPx: number, maxPx: number) {
 	if (em <= 0) return maxPx;
 	return Math.min(maxPx, Math.floor((widthPx / em) * 10) / 10);
@@ -132,7 +124,6 @@ export function fitFontPx(text: string, widthPx: number, maxPx: number) {
 	return fitEm(textEm(text), widthPx, maxPx);
 }
 
-/** Split `text` into two lines of near-equal width, at a space when there is one */
 export function splitTwoLines(text: string): [string, string] {
 	const chars = [...text];
 	const spaces = chars.flatMap((ch, i) => (ch === " " ? [i] : []));

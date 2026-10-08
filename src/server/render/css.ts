@@ -70,7 +70,6 @@ export function collectRootVars(
 	return into;
 }
 
-/** Expand var(--x) / var(--x, fallback) */
 export function resolveCssVars(css: string, vars: Map<string, string>): string {
 	let out = css;
 	for (let i = 0; i < 8; i++) {

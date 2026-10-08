@@ -17,8 +17,7 @@ export const maxDuration = 60;
 export async function GET() {
 	return authed(async (userId) => {
 		const host = await getDataHost();
-		// The editor saves what it loads: always a KV read (no `memo`), never a copy
-		// that may predate a save made on another instance
+		// Always a KV read (no `memo`): the editor saves what it loads, so it must not predate a save made on another instance
 		const data = await loadManual(host.db, userId);
 		return Response.json(data ?? null, {
 			headers: { "Cache-Control": "private, no-store" },

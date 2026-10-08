@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-/**
- * Compile .art templates under phi-assets/html into JS factories
- */
 import {
 	existsSync,
 	mkdirSync,

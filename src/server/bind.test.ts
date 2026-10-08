@@ -94,7 +94,6 @@ const PLAYER = {
 };
 
 test("TapTap rejecting a code that another tab's bind used reports the player", async () => {
-	// This instance still has the QR session cached; the bind cleared it elsewhere
 	kv.set(QR("p6"), qrSession);
 	kv.set(kvKey("userToken", "p6"), TOKEN);
 	qrResult = { success: false, data: { error: "expired_token" } };
@@ -160,8 +159,7 @@ test("unbind never lists users and deletes the token-keyed save", async () => {
 	assert.deepEqual(await unbindAccount("p4"), { ok: true });
 	await new Promise((r) => setTimeout(r, 5));
 	assert.equal(kv.has(kvKey("userToken", "p4")), false);
-	// The key is the session token, so it goes even if another account shares it
-	// (that account recovers with a refresh)
+	// Keyed by the session token, so it goes even if another account shares it (a refresh recovers that one)
 	assert.equal(kv.has(kvKey("save", TOKEN)), false);
 	assert.equal(
 		log.some((x) => x.startsWith("list:")),

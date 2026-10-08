@@ -5,10 +5,6 @@ import { renderCard } from "./cards";
 const TOKEN = "abcdefghijklmnopqrstuvwxy";
 const JPEG = Buffer.from("fake-jpeg");
 
-/**
- * A data host whose KV is a Map with a log of reads, and a bound user whose save
- * is a stub: enough for the lookup half of the card path (no render)
- */
 function fakeHosts(
 	opts: {
 		cardDelayMs?: number;
@@ -51,7 +47,6 @@ function fakeHosts(
 		store,
 		rt: {
 			store: { isSessionTokenBanned: async () => false },
-			// Enough runtime for the history card's data (empty history, no catalog)
 			fCompute: {
 				convertRichText: (s: unknown) => String(s ?? ""),
 				formatDate: (v: unknown) => String(v),
@@ -84,7 +79,7 @@ function fakeHosts(
 	});
 	const g = globalThis as Record<string, unknown>;
 	g.__phiDataHost = Promise.resolve(data);
-	// getHost() reads this global: counting reads tells whether the render host was asked for
+	// getHost() reads this global, so counting reads shows whether the render host was asked for
 	Object.defineProperty(globalThis, "__phiWebHost", {
 		configurable: true,
 		get: () => {
@@ -101,7 +96,6 @@ function fakeHosts(
 		cardReads: () => reads.filter((k) => k.startsWith("phi:webCard:")).length,
 		heightReads: () =>
 			reads.filter((k) => k.startsWith("phi:cardHeight:")).length,
-		/** Store the card under whatever key the next lookup asks for */
 		primeCard: () => {
 			const orig = store.get;
 			store.get = async (key: string) => {
@@ -185,9 +179,27 @@ test("a card already in memory does not boot the render host", async () => {
 	assert.equal(h.hostReads(), booted, "memory hit never asks for the host");
 });
 
+test("paint hooks fire for a fresh paint only, never for a card the cache answered", async () => {
+	const h = fakeHosts();
+	const painted: string[] = [];
+	await renderCard("u-hooks", "b30", {
+		locale: "en",
+		onPaint: () => painted.push("paint"),
+	});
+	assert.deepEqual(painted, ["paint"]);
+	h.primeCard();
+	const hit = ok(
+		await renderCard("u-hooks-hit", "b30", {
+			locale: "en",
+			onPaint: () => painted.push("hit"),
+		}),
+	);
+	assert.equal(hit.stats.cache, "hit");
+	assert.deepEqual(painted, ["paint"]);
+});
+
 test("a miss looks the card up first and reads the height only after", async () => {
 	const h = fakeHosts();
-	// No card stored, and the stub save cannot build card data: the render fails
 	const out = await renderCard("u-miss", "b30", { locale: "en" });
 	assert.ok("error" in out && out.error === "render_failed");
 	const card = h.reads.findIndex((k) => k.startsWith("phi:webCard:"));
@@ -288,7 +300,6 @@ test("two identical requests on a miss paint once and share the bytes and ETag",
 	assert.deepEqual(x.bytes, y.bytes);
 	assert.equal(x.stats.cache, "miss");
 	assert.equal(y.stats.cache, "miss");
-	// One of the two waited on the other's paint: it reports only its own times
 	const joined = [x, y].find((r) => r.stats.shared);
 	const owner = [x, y].find((r) => !r.stats.shared);
 	assert.ok(joined && owner, "one owner, one joiner");

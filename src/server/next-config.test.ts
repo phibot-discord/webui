@@ -9,7 +9,7 @@ const picomatch = require("next/dist/compiled/picomatch") as (
 	opts: { dot: boolean; contains: boolean },
 ) => (route: string) => boolean;
 
-/** Include patterns for a route name, matched the way Next's tracer does */
+/** Matched the way Next's tracer does */
 function includesFor(name: string): string[] {
 	const includes = nextConfig.outputFileTracingIncludes ?? {};
 	return Object.keys(includes)
@@ -23,6 +23,7 @@ test("routes that load the song catalog ship phi-assets/info", () => {
 		"/api/charts",
 		"/api/manual",
 		"/api/refresh",
+		"/api/login/taptap/poll",
 	]) {
 		// webpack names the route, Turbopack the route file
 		for (const name of [route, `${route}/route`]) {

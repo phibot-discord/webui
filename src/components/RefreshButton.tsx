@@ -18,7 +18,6 @@ import {
 } from "@/lib/save-refresh";
 import { readJsonWithTapWait, tapWaitFailed } from "@/lib/tap-wait";
 
-/** The desk's primary action: pull the latest save from TapTap */
 export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 	const { m } = useI18n();
 	const router = useRouter();
@@ -82,7 +81,6 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 			<SteadyButton
 				className="btn-primary"
 				type="button"
-				// aria-disabled, not disabled: focus stays put and the countdown stays readable
 				aria-disabled={pending || cooling || undefined}
 				aria-busy={pending || undefined}
 				labels={[

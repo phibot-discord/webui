@@ -1,6 +1,5 @@
 import localFont from "next/font/local";
 
-/** Noto Sans SC subset; loaded on demand for Chinese text */
 export const cjk = localFont({
 	src: [
 		{ path: "../fonts/noto-sans-sc-400.woff2", weight: "400" },
@@ -13,7 +12,6 @@ export const cjk = localFont({
 	adjustFontFallback: false,
 });
 
-/** Outfit, the display and UI face */
 export const display = localFont({
 	src: [
 		{ path: "../fonts/outfit-latin-400.woff2", weight: "400" },
@@ -25,5 +23,11 @@ export const display = localFont({
 	variable: "--font-display",
 });
 
-/** Classes for <html> that define --font-cjk and --font-display */
-export const fontClasses = `${cjk.variable} ${display.variable}`;
+export const mono = localFont({
+	src: [{ path: "../fonts/jetbrains-mono-latin.woff2", weight: "400 800" }],
+	display: "swap",
+	preload: false,
+	variable: "--font-mono",
+});
+
+export const fontClasses = `${cjk.variable} ${display.variable} ${mono.variable}`;

@@ -11,45 +11,33 @@ import { chartTagHeaders, chartTagUrl } from "./chart-tags-api";
 import { kvKey } from "./const";
 import { getInfo } from "./get-info";
 
-/**
- * Anonymous per-chart standings from phib19.top; our users are placed by accuracy
- * Only aggregates and anonymous lists are read, never player names
- */
+/** Anonymous per-chart standings from phib19.top: only aggregates and anonymous lists are read, never player names */
 
 export const LB_LEVELS = ["EZ", "HD", "IN", "AT"] as const;
 export type LbLevel = (typeof LB_LEVELS)[number];
 
-/** The single attempt behind a lookup; renders stop waiting much sooner */
 export const LB_FETCH_MS = 25_000;
 /** songAccList sends every record of a chart (70k rows on popular ones); it only ever finishes in the background */
 export const LB_LIST_FETCH_MS = 45_000;
-/** b30 rank badges: past this the card is drawn without them and marked partial */
 export const LB_ROW_BUDGET_MS = 2_500;
-/** Song card: past this it is drawn with what arrived and marked partial */
 export const LB_CARD_BUDGET_MS = 8_000;
-/** After a timeout / 5xx / network error, skip that endpoint for this long */
 export const LB_BREAKER_MS = 90_000;
 /** A 401/403/404/405 (a proxy that doesn't route the path, or a bad key) isn't asked again for this long */
 export const LB_OFF_MS = 15 * 60 * 1000;
 const RANK_TTL_MS = 6 * 60 * 60 * 1000;
-/** A row phib19 answered with something unusable (a shifted or partial row): asked again soon */
+/** Past RANK_TTL_MS a row is asked again, but still drawn for this long when the new answer is late */
+const RANK_STALE_MS = 7 * 24 * 60 * 60 * 1000;
+/** Newest rank rows kept per user, across every row set and band */
+const RANK_BLOB_MAX = 600;
 const NULL_ROW_TTL_MS = 5 * 60 * 1000;
-/**
- * No new allAccRank chunk starts this long after a rank job began, so the job (at
- * most one more LB_FETCH_MS) ends inside the card route's maxDuration (90 s)
- */
+/** No chunk starts past this, so the job (plus one LB_FETCH_MS) ends inside the card route's 90 s maxDuration */
 const RANK_JOB_MS = 55_000;
-/** The rank blob is rewritten as chunks land, at most this often (plus once at the end) */
 const BLOB_WRITE_GAP_MS = 5_000;
-/** Uncached lookups /api/leaderboard may have running at once on this instance */
 export const LB_API_FRESH_MAX = 4;
 const APFC_TTL_MS = 6 * 60 * 60 * 1000;
 const BOARD_TTL_MS = 12 * 60 * 60 * 1000;
 const BAD_ID_TTL_MS = 6 * 60 * 60 * 1000;
-/**
- * Cold allAccRank costs phib19 roughly 0.5–1 s per query (40 took 22 s; one 20-query
- * chunk took 18 s, another passed 25 s). 10 keeps a chunk inside the Worker's 25 s
- */
+/** Cold allAccRank costs phib19 ~0.5–1 s per query; 10 keeps a chunk inside the Worker's 25 s */
 const CHUNK = 10;
 const IN_FLIGHT = 2;
 /** Below the float32 step of an acc in [64, 128) (2⁻¹⁷ ≈ 7.6e-6): no record lies in (acc, acc + ε] */
@@ -65,21 +53,14 @@ const PATH_APFC = "/get/scoreList/songApFcCount";
 export type RankDim = "all" | "b30";
 export type RankQuery = { songId: string; rank: string; acc: number };
 export type RksBand = { minRks: number; maxRks: number };
-/** One allAccRank answer: records with acc ≥ the query acc, out of `total` (0: phib19 has none) */
 export type AccRankRow = { better: number; total: number };
 
-/** phib19 has no records for the chart (a level it lacks, or a song it doesn't know) */
 const NO_RECORDS: AccRankRow = Object.freeze({ better: 0, total: 0 });
 
-/** Where the user would stand among `total` phib19 records (they are not one of them) */
 export type Placement = {
-	/** Competition rank: ties share it, so an AP is #1 */
 	rank: number;
-	/** total + 1: the population with the user inserted */
 	of: number;
-	/** Share of `of` at or above the user, the user included */
 	percent: number;
-	/** Records sharing the user's rank (AP only; 0 below 100 %) */
 	tied: number;
 	total: number;
 	ap: boolean;
@@ -90,11 +71,8 @@ export type Board = {
 	at: number;
 	n: number;
 	ap: number;
-	/** FC or better, as phib19's own fcCount */
 	fc: number;
-	/** q[k]: the acc reached by the best k·0.5 % of records (q[0] best, q[200] worst) */
 	q: number[];
-	/** Non-AP records in HIST_BINS bins of `step` from `lo` to 100; `below` are under `lo` */
 	hist: { lo: number; step: number; bins: number[]; below: number };
 };
 
@@ -109,13 +87,11 @@ type Transport = (
 
 export type LbDeps = {
 	post?: Transport;
-	/** Song ids phib19 should know (catalog); others would 400 the whole batch */
 	known?: (songId: string) => boolean;
 };
 
 type KvLike = Pick<Kv, "get" | "set">;
 
-/** breaker: failed moments ago or too busy; unsupported: the route isn't served */
 export type LeaderboardErrorCode =
 	| "breaker"
 	| "network"
@@ -173,7 +149,6 @@ export function fmtCount(n: number): string {
 	return Math.round(n).toLocaleString("en-US");
 }
 
-/** "0.05", "5.1", "37.2": two decimals under 1 %, one above */
 export function fmtTopPercent(p: number): string {
 	const v = Math.min(100, Math.max(0.01, Number.isFinite(p) ? p : 100));
 	return v < 1 ? v.toFixed(2) : v.toFixed(1);
@@ -183,12 +158,9 @@ export function rksBandLabel(band: RksBand): string {
 	return `${band.minRks.toFixed(2)}–${band.maxRks.toFixed(2)}`;
 }
 
-// ---------------------------------------------------------------- transport
-
-/** phib19 requests in flight per pool; waiting happens here, so fetch timeouts start on send */
+/** Requests in flight per pool; waiting happens here, so fetch timeouts start on send */
 const RANK_SLOTS = 4;
 const LIST_SLOTS = 2;
-/** Past this many waiting, a lookup is refused at once (phib19 is clearly behind) */
 const MAX_WAITING = 48;
 
 function lbAgent(slots: number, ms: number) {
@@ -203,12 +175,10 @@ function lbAgent(slots: number, ms: number) {
 	});
 }
 
-/** allAccRank and songApFcCount: small, frequent */
 const rankAgent = lbAgent(RANK_SLOTS, LB_FETCH_MS);
 /** songAccList: whole charts (MBs, up to 45 s), kept off the rank sockets */
 const listAgent = lbAgent(LIST_SLOTS, LB_LIST_FETCH_MS);
 
-/** At most `limit` jobs at once; the slot passes straight to the next waiter */
 export function slotGate(limit: number, maxWaiting = MAX_WAITING) {
 	let active = 0;
 	const waiting: Array<() => void> = [];
@@ -230,7 +200,7 @@ export function slotGate(limit: number, maxWaiting = MAX_WAITING) {
 const rankGate = slotGate(RANK_SLOTS);
 const listGate = slotGate(LIST_SLOTS);
 
-/** The default transport: one attempt; a 400 body is still parsed (it names the unknown song ids) */
+/** One attempt; a 400 body is still parsed (it names the unknown song ids) */
 export const phib19Post: Transport = async (path, body) => {
 	const url = chartTagUrl(path);
 	const list = path === PATH_LIST;
@@ -277,7 +247,6 @@ function trip(path: string, why: string, off = false) {
 	logger.warn(`leaderboard ${path} off for ${ms / 1000}s: ${why}`);
 }
 
-/** The error a skipped call reports: "unsupported" stays itself, anything else is "breaker" */
 function skipped(code: LeaderboardErrorCode, message: string) {
 	return new LeaderboardError(
 		code === "unsupported" ? "unsupported" : "breaker",
@@ -299,7 +268,6 @@ function catalogKnows(songId: string) {
 	return Boolean(getInfo.ori_info[songId]);
 }
 
-/** Worth asking phib19 about: in the catalog it was built from, and not refused lately */
 function songKnown(id: string, deps: LbDeps) {
 	return (deps.known ?? catalogKnows)(id) && !isBadId(id);
 }
@@ -314,7 +282,6 @@ export function namesUnknownSong(body: unknown): boolean {
 	});
 }
 
-/** True (and remembered for BAD_ID_TTL_MS) when `err` says phib19 doesn't know `id` */
 function forgetSong(id: string, err: unknown) {
 	if (
 		!(err instanceof LeaderboardError) ||
@@ -328,7 +295,7 @@ function forgetSong(id: string, err: unknown) {
 	return true;
 }
 
-/** POST and unwrap `data`. A 200 `{error}` body, 5xx, timeout or bad shape is a failure */
+/** A 200 `{error}` body counts as a failure, like a 5xx, a timeout or a bad shape */
 async function lbPost(path: string, body: unknown, deps: LbDeps) {
 	const open = breakerOpen(path);
 	if (open) throw skipped(open, `leaderboard ${path} recently failed`);
@@ -377,9 +344,6 @@ async function lbPostNow(path: string, body: unknown, deps: LbDeps) {
 	return (raw as { data: unknown }).data;
 }
 
-// ---------------------------------------------------------------- allAccRank
-
-/** One allAccRank row; null if unusable, NO_RECORDS when phib19 has none */
 function asRankRow(raw: unknown, want?: RankQuery): AccRankRow | null {
 	if (!raw || typeof raw !== "object") return null;
 	const r = raw as Record<string, unknown>;
@@ -398,10 +362,7 @@ function asRankRow(raw: unknown, want?: RankQuery): AccRankRow | null {
 	return { better: Math.min(better, total), total };
 }
 
-/**
- * allAccRank answers `{all:[…], b30:[…]}` for several dimensions but a bare array
- * for one. Rows align with `queries` (see asRankRow for null and NO_RECORDS)
- */
+/** allAccRank answers `{all:[…], b30:[…]}` for several dimensions but a bare array for one */
 export function normalizeAccRank(
 	data: unknown,
 	dims: readonly RankDim[],
@@ -466,8 +427,7 @@ async function rankChunk(
 		}
 		const bad = badQueryIndexes(err.body);
 		if (!bad.size) throw err;
-		// An id the catalog has but phib19 doesn't (a brand-new song): it has no
-		// records there. Drop it and retry the rest once
+		// A brand-new song the catalog has but phib19 doesn't: drop it and retry the rest once
 		for (const i of bad) {
 			const id = queries[i]?.songId;
 			if (id) badIds.set(id, Date.now() + BAD_ID_TTL_MS);
@@ -499,7 +459,6 @@ async function rankChunk(
 	}
 }
 
-/** Runs `items` `limit` at a time; stops starting new ones after a failure or past `startBy` */
 async function inPool<T>(
 	items: T[],
 	limit: number,
@@ -528,17 +487,13 @@ async function inPool<T>(
 	if (failed !== undefined) throw failed;
 }
 
-/** Batched allAccRank (clamped acc, catalog-filtered ids, chunked); rows align with `queries` */
 export async function fetchAccRanks(
 	queries: readonly RankQuery[],
 	opts: {
 		dims?: readonly RankDim[];
 		band?: RksBand;
-		/** Each answered query (also the ones known up front), so one failed chunk doesn't waste the rest */
 		onRow?: (index: number, dim: RankDim, row: AccRankRow | null) => void;
-		/** After each chunk's rows went through onRow */
 		onChunk?: () => void;
-		/** No chunk starts after this time (ms since epoch); its queries stay null */
 		startBy?: number;
 	} = {},
 	deps: LbDeps = {},
@@ -587,8 +542,6 @@ export async function fetchAccRanks(
 	return out;
 }
 
-// ---------------------------------------------------------------- caches
-
 class TtlLru<V> {
 	private map = new Map<string, { until: number; value: V }>();
 	constructor(private max: number) {}
@@ -620,8 +573,10 @@ class TtlLru<V> {
 	}
 }
 
-/** Answered rank rows; null = an unusable answer, kept briefly so it isn't asked on every render */
-const rowMem = new TtlLru<AccRankRow | null>(4096);
+type RankCell = { row: AccRankRow | null; at: number };
+/** A null row is kept briefly so it isn't asked on every render */
+const rowMem = new TtlLru<RankCell>(4096);
+const staleMem = new TtlLru<RankCell>(4096);
 const boardMem = new TtlLru<Board>(64);
 const apfcMem = new TtlLru<ApFcCounts>(256);
 /** Loads that just failed: not retried on every render (the breaker covers whole endpoints) */
@@ -630,7 +585,6 @@ const failMem = new TtlLru<{ code: LeaderboardErrorCode; message: string }>(
 );
 const inflight = new Map<string, Promise<unknown>>();
 
-/** Single-flight per key, with a short negative cache after a failure */
 function shared<T>(key: string, run: () => Promise<T>): Promise<T> {
 	const hot = inflight.get(key);
 	if (hot) return hot as Promise<T>;
@@ -693,7 +647,7 @@ function bandKey(band?: RksBand) {
 	return band ? `${band.minRks.toFixed(2)}-${band.maxRks.toFixed(2)}` : "all";
 }
 
-/** Cache key of one rank query, from the user's acc (the ε is applied inside) */
+/** From the user's acc; the ε is applied inside */
 export function rankKey(q: RankQuery, band?: RksBand) {
 	return `${apiSongId(q.songId)}|${q.rank}|${rankQueryAcc(q.acc).toFixed(6)}|${bandKey(band)}`;
 }
@@ -705,17 +659,23 @@ function hashKeys(keys: string[]) {
 		.slice(0, 32);
 }
 
-/** Rows as [better, total]; older blobs may hold 0 for a row that wasn't usable (ignored) */
-type RankBlob = { at: number; rows: Record<string, [number, number] | 0> };
+type RankBlob = { v: 2; rows: Record<string, [number, number, number]> };
 
 export type RankRowsResult = {
-	/** rankKey → phib19's answer (total 0: no records there). Unanswered keys are absent */
 	rows: Map<string, AccRankRow>;
-	/** Some rows are unanswered: a chunk failed or ran out of time, or failed moments ago */
 	partial: boolean;
-	/** Why, when it is known */
+	missing?: number;
+	stale?: number;
 	error?: LeaderboardError;
 };
+
+function rowsResult(keys: string[]): RankRowsResult {
+	const rows = rowsInMemory(keys);
+	const fresh = rowsInMemory(keys, false).size;
+	const missing = keys.length - rows.size;
+	const stale = rows.size - fresh;
+	return { rows, partial: missing + stale > 0, missing, stale };
+}
 
 function wantedRows(queries: readonly RankQuery[], band?: RksBand) {
 	const wanted = new Map<string, RankQuery>();
@@ -730,43 +690,117 @@ function wantedRows(queries: readonly RankQuery[], band?: RksBand) {
 	return wanted;
 }
 
-function rowsInMemory(keys: Iterable<string>) {
+function rowsInMemory(keys: Iterable<string>, stale = true) {
 	const out = new Map<string, AccRankRow>();
 	for (const key of keys) {
-		const row = rowMem.get(key);
+		const row =
+			rowMem.get(key)?.row ?? (stale ? staleMem.get(key)?.row : undefined);
 		if (row) out.set(key, row);
 	}
 	return out;
 }
 
-/** The rows of `queries` already in memory, without asking anyone (a render out of time) */
+function rememberRow(key: string, row: AccRankRow | null, at = Date.now()) {
+	const age = Date.now() - at;
+	if (!row) {
+		rowMem.set(key, { row, at }, NULL_ROW_TTL_MS);
+		return;
+	}
+	if (age < RANK_TTL_MS) rowMem.set(key, { row, at }, RANK_TTL_MS - age);
+	if (age < RANK_STALE_MS) staleMem.set(key, { row, at }, RANK_STALE_MS - age);
+}
+
 export function peekRankRows(
 	queries: readonly RankQuery[],
 	band?: RksBand,
-): Map<string, AccRankRow> {
-	return rowsInMemory(wantedRows(queries, band).keys());
+): RankRowsResult {
+	return rowsResult([...wantedRows(queries, band).keys()]);
 }
 
-/** Ranks for many rows (b30 badges): one KV blob per row set; never rejects, `partial` marks gaps */
+function rankBlobKey(keys: string[], opts: { band?: RksBand; owner?: string }) {
+	return opts.owner
+		? kvKey("lb", "rank", "v2", opts.owner, bandKey(opts.band))
+		: kvKey("lb", "rank", "v2", hashKeys(keys));
+}
+
+/** Anything but a v2 blob (an old v1 blob, a bad value) reads as empty */
+function blobRows(blob: unknown): RankBlob["rows"] {
+	const rows = (blob as Partial<RankBlob> | undefined)?.rows;
+	if ((blob as Partial<RankBlob> | undefined)?.v !== 2 || !rows) return {};
+	if (typeof rows !== "object") return {};
+	const out: RankBlob["rows"] = {};
+	for (const [key, v] of Object.entries(rows)) {
+		if (
+			Array.isArray(v) &&
+			v.length === 3 &&
+			v.every((n) => typeof n === "number" && Number.isFinite(n))
+		) {
+			out[key] = v as [number, number, number];
+		}
+	}
+	return out;
+}
+
+function mergeBlobRows(
+	base: RankBlob["rows"],
+	add: RankBlob["rows"],
+): RankBlob["rows"] {
+	const merged = { ...base };
+	for (const [key, v] of Object.entries(add)) {
+		const had = merged[key];
+		if (!had || had[2] <= v[2]) merged[key] = v;
+	}
+	const cutoff = Date.now() - RANK_STALE_MS;
+	const kept = Object.entries(merged)
+		.filter(([, v]) => v[2] > cutoff)
+		.sort((a, b) => b[1][2] - a[1][2])
+		.slice(0, RANK_BLOB_MAX);
+	return Object.fromEntries(kept);
+}
+
+/** Never rejects (`partial` marks gaps); with `db` the answers go to KV, so later cards on any instance can draw them */
 export async function rankRows(
 	queries: readonly RankQuery[],
-	opts: { band?: RksBand; db?: KvLike } = {},
+	opts: { band?: RksBand; db?: KvLike; owner?: string } = {},
 	deps: LbDeps = {},
 ): Promise<RankRowsResult> {
 	const wanted = wantedRows(queries, opts.band);
+	const keys = [...wanted.keys()];
 	let error: LeaderboardError | undefined;
-	if ([...wanted.keys()].some((key) => !rowMem.has(key))) {
-		const blobKey = kvKey("lb", "rank", "v1", hashKeys([...wanted.keys()]));
+	if (keys.some((key) => !rowMem.has(key))) {
+		// One job per row set; the blob may be shared by several (another count)
+		const jobKey = `rank:${hashKeys(keys)}:${bandKey(opts.band)}:${opts.owner ?? ""}`;
 		try {
-			await shared(blobKey, () => fillRows(wanted, blobKey, opts, deps));
+			await shared(jobKey, () =>
+				fillRows(wanted, rankBlobKey(keys, opts), opts, deps),
+			);
 		} catch (err) {
 			error = asLbError(err);
 			logger.warn(`leaderboard ranks: ${error.message}`);
 		}
 	}
-	const rows = rowsInMemory(wanted.keys());
-	const partial = rows.size < wanted.size;
-	return partial && error ? { rows, partial, error } : { rows, partial };
+	const out = rowsResult(keys);
+	return out.partial && error ? { ...out, error } : out;
+}
+
+/** Read-merge-write after the response, so rows another instance wrote meanwhile stay */
+function writeRankBlob(
+	db: KvLike,
+	blobKey: string,
+	add: RankBlob["rows"],
+	base: RankBlob["rows"],
+) {
+	runInBackground(
+		(async () => {
+			const current = blobRows(await readKv<RankBlob>(db, blobKey));
+			const rows = mergeBlobRows(mergeBlobRows(base, current), add);
+			await db.set(blobKey, JSON.stringify({ v: 2, rows }), RANK_STALE_MS);
+		})(),
+		(err) =>
+			logger.warn(
+				`leaderboard cache write skipped: ${err instanceof Error ? err.message : err}`,
+			),
+	);
 }
 
 async function fillRows(
@@ -775,32 +809,25 @@ async function fillRows(
 	opts: { band?: RksBand; db?: KvLike },
 	deps: LbDeps,
 ) {
-	const blob = await readKv<RankBlob>(opts.db, blobKey);
-	let since = Date.now();
-	if (blob?.rows && Date.now() - blob.at < RANK_TTL_MS) {
-		since = blob.at;
-		const ttl = RANK_TTL_MS - (Date.now() - blob.at);
-		for (const [key, v] of Object.entries(blob.rows)) {
-			if (wanted.has(key) && Array.isArray(v)) {
-				rowMem.set(key, { better: v[0], total: v[1] }, ttl);
-			}
+	const stored = opts.db
+		? blobRows(await readKv<RankBlob>(opts.db, blobKey))
+		: {};
+	for (const [key, v] of Object.entries(stored)) {
+		if (wanted.has(key) && !rowMem.has(key)) {
+			rememberRow(key, { better: v[0], total: v[1] }, v[2]);
 		}
 	}
 	const todo = [...wanted].filter(([key]) => !rowMem.has(key));
 	if (!todo.length) return;
-	let saved = rowsInMemory(wanted.keys()).size;
+	let fresh: RankBlob["rows"] = {};
 	let lastSave = 0;
 	const save = (final: boolean) => {
-		if (!opts.db) return;
+		if (!opts.db || !Object.keys(fresh).length) return;
 		if (!final && Date.now() - lastSave < BLOB_WRITE_GAP_MS) return;
-		const rows: RankBlob["rows"] = {};
-		const have = rowsInMemory(wanted.keys());
-		if (have.size <= saved) return;
-		for (const [key, row] of have) rows[key] = [row.better, row.total];
-		saved = have.size;
+		writeRankBlob(opts.db, blobKey, fresh, { ...stored });
+		Object.assign(stored, fresh);
+		fresh = {};
 		lastSave = Date.now();
-		// The oldest row's time: merged rows never outlive RANK_TTL_MS by much
-		writeKv(opts.db, blobKey, { at: since, rows }, RANK_TTL_MS);
 	};
 	try {
 		await fetchAccRanks(
@@ -811,7 +838,10 @@ async function fillRows(
 				startBy: Date.now() + RANK_JOB_MS,
 				onRow: (i, _dim, row) => {
 					const key = todo[i]?.[0];
-					if (key) rowMem.set(key, row, row ? RANK_TTL_MS : NULL_ROW_TTL_MS);
+					if (!key) return;
+					const at = Date.now();
+					rememberRow(key, row, at);
+					if (row) fresh[key] = [row.better, row.total, at];
 				},
 				onChunk: () => save(false),
 			},
@@ -822,8 +852,6 @@ async function fillRows(
 		save(true);
 	}
 }
-
-// ---------------------------------------------------------------- songAccList
 
 type AccListRow = { acc: number; score: number; fc: boolean };
 
@@ -855,7 +883,7 @@ function round4(n: number) {
 	return Math.round(n * 1e4) / 1e4;
 }
 
-/** Derived view kept in KV (counts, quantiles, histogram); the raw list is never stored */
+/** Kept in KV; the raw list is never stored */
 export function summarizeBoard(
 	rows: readonly AccListRow[],
 	at = Date.now(),
@@ -913,10 +941,7 @@ function isBoard(v: unknown): v is Board {
 	);
 }
 
-/**
- * The anonymous acc distribution of one chart: memory, then KV (12 h), then phib19
- * A song phib19 doesn't know is an empty board (n 0), not a failure
- */
+/** A song phib19 doesn't know is an empty board (n 0), not a failure */
 export async function songBoard(
 	songId: string,
 	level: LbLevel,
@@ -959,8 +984,6 @@ export async function songBoard(
 	});
 }
 
-// ---------------------------------------------------------------- songApFcCount
-
 export function parseApFc(data: unknown): ApFcCounts | null {
 	if (!data || typeof data !== "object" || Array.isArray(data)) return null;
 	const out: ApFcCounts = {};
@@ -984,10 +1007,7 @@ function apfcKey(id: string) {
 	return kvKey("lb", "apfc", "v1", id);
 }
 
-/**
- * Records, APs and FCs per level of one song: memory, then KV (6 h), then phib19
- * A song phib19 doesn't know has no levels ({}), not a failure
- */
+/** A song phib19 doesn't know has no levels ({}), not a failure */
 export async function songApFc(
 	songId: string,
 	opts: { db?: KvLike } = {},
@@ -1027,10 +1047,7 @@ export async function songApFc(
 	});
 }
 
-/**
- * One chart, one acc: where the user stands overall and, with a band, among similar
- * RKS. null: phib19 has no records there. Rejects when phib19 didn't answer
- */
+/** null: phib19 has no records there. Rejects when phib19 didn't answer */
 export async function placeOnChart(
 	songId: string,
 	level: LbLevel,
@@ -1050,8 +1067,6 @@ export async function placeOnChart(
 	return placeUser(acc, row);
 }
 
-// ---------------------------------------------------------------- /api/leaderboard
-
 export type LeaderboardQuery = {
 	chart: string;
 	level: LbLevel;
@@ -1059,7 +1074,6 @@ export type LeaderboardQuery = {
 	band?: RksBand;
 };
 
-/** `?chart=<id>&level=<EZ|HD|IN|AT>&acc=<0..100>[&minRks=&maxRks=]`; null when invalid */
 export function parseLeaderboardQuery(
 	params: URLSearchParams,
 	hasChart: (songId: string, level: LbLevel) => boolean,
@@ -1103,7 +1117,6 @@ export type LeaderboardBody = PlacementJson & {
 	chart: string;
 	level: LbLevel;
 	acc: number;
-	/** phib19 records on the chart (the user not included) */
 	total: number;
 	ap: number | null;
 	fc: number | null;
@@ -1132,10 +1145,8 @@ async function within<T>(work: Promise<T>, ms: number): Promise<T | "late"> {
 	}
 }
 
-/** Uncached /api/leaderboard lookups running now (late ones included, until they settle) */
 let apiFresh = 0;
 
-/** Answerable from memory: no phib19 request needed */
 function cachedQuery(q: LeaderboardQuery) {
 	const row = { songId: q.chart, rank: q.level, acc: q.acc };
 	const id = apiSongId(q.chart);
@@ -1146,10 +1157,7 @@ function cachedQuery(q: LeaderboardQuery) {
 	);
 }
 
-/**
- * JSON for /api/leaderboard: never throws, upstream trouble is a 503
- * Late lookups finish in the background to fill the cache
- */
+/** Never throws: upstream trouble is a 503; late lookups finish in the background to fill the cache */
 export async function leaderboardJson(
 	q: LeaderboardQuery,
 	opts: {
@@ -1227,6 +1235,7 @@ export function resetLeaderboardForTest() {
 	breaker.clear();
 	badIds.clear();
 	rowMem.clear();
+	staleMem.clear();
 	boardMem.clear();
 	apfcMem.clear();
 	failMem.clear();

@@ -122,7 +122,6 @@ function polishCardHtml(
 	out = out.replace(/&ensp;/g, "&nbsp;");
 	out = stripDivsWithClass(out, "snow-box");
 	out = stripDivsWithClass(out, "createdbox");
-	// The C / FC / Phi counts in the top right of b30 / x30 / fc30
 	if (opts.hideRecordStats) out = stripDivsWithClass(out, "recordInfo");
 	out = ensureTipFooter(out, tip);
 	out = tagStarBackgrounds(out);
@@ -134,6 +133,7 @@ function polishCardHtml(
 	out = layoutGradeWithScore(out);
 	out = wrapB30Info(out);
 	out = shrinkSongTitles(out);
+	out = fitRankBadges(out);
 	out = layoutInfoPanels(out);
 	out = layoutUpdateCard(out);
 	out = polishSvgCharts(out);
@@ -337,7 +337,6 @@ function shrinkSongTitles(html: string) {
 			if (px >= minPx) {
 				return `<div class="songname"><p name="pvis" style="font-size:${px}px;">${raw}</p>`;
 			}
-			// Too long for one readable line: two balanced lines, each still shrunk to fit
 			const lines = splitTwoLines(name).filter(Boolean);
 			const linePx = Math.min(
 				...lines.map((line) => fitFontPx(line, width, wrapPx)),
@@ -351,6 +350,99 @@ function shrinkSongTitles(html: string) {
 			return `<div class="songname songname-wrap">${body}`;
 		},
 	);
+}
+
+// b30.css widths less slack: first badge's start to the song panel's right edge, then the panel's top edge right of the jacket
+const RANK_BADGES_W = 305;
+const RANK_BAND_W = 156;
+// Side padding (the ±0.05 one: 14 + 8 and its 3px edge), the gap between badges, then the tag / of / pct margins
+const RANK_BADGE = { pad: 23, bandPad: 25, next: 6, tag: 5, of: 4, pct: 9 };
+type RankBadgeText = {
+	band: boolean;
+	tag: string;
+	pos: string;
+	of: string;
+	pct: string;
+};
+
+function rankBadgeW(b: RankBadgeText, px: number, withOf: boolean) {
+	return (
+		(b.band ? RANK_BADGE.bandPad : RANK_BADGE.pad) +
+		(b.tag ? textEm(b.tag) * px + RANK_BADGE.tag : 0) +
+		// The position is bold: ~10% wider than text-fit's regular widths
+		textEm(b.pos) * px * 1.1 +
+		(withOf && b.of ? RANK_BADGE.of + textEm(b.of) * px : 0) +
+		// A ±0.05 badge may show only the place or only the share
+		(b.pct ? (b.pos ? RANK_BADGE.pct : 0) + textEm(b.pct) * px : 0)
+	);
+}
+
+const RANK_FITS = [
+	{ px: 12, of: true },
+	{ px: 11, of: true },
+	{ px: 11, of: false },
+	{ px: 10, of: false },
+] as const;
+type RankFit = (typeof RANK_FITS)[number];
+
+/** `maxPx` keeps a badge no larger than its neighbour */
+function fitBadge(b: RankBadgeText, widthPx: number, maxPx = 12): RankFit {
+	const steps = RANK_FITS.filter((f) => f.px <= maxPx);
+	return (
+		steps.find((f) => rankBadgeW(b, f.px, f.of) <= widthPx) ??
+		RANK_FITS[RANK_FITS.length - 1]!
+	);
+}
+
+/** The ±0.05 badge fits the panel's top edge first, then the all-records badge takes the rest, at the same size or smaller */
+function fitRankGroup(group: string) {
+	const [head = "", ...chunks] = group.split('<div class="accAvg ');
+	const text = (chunk: string, cls: string) =>
+		decodeHtmlText(
+			new RegExp(`<p class="${cls}">([^<]*)</p>`).exec(chunk)?.[1] ?? "",
+		).trim();
+	const badges: RankBadgeText[] = chunks.map((chunk) => ({
+		band: /^[^"]*\baccRankBand\b/.test(chunk),
+		tag: text(chunk, "accRankTag"),
+		pos: text(chunk, "accRankPos"),
+		of: text(chunk, "accRankOf"),
+		pct: text(chunk, "accRankPct"),
+	}));
+	const band = badges.find((b) => b.band);
+	const bandFit = band ? fitBadge(band, RANK_BAND_W) : undefined;
+	const left =
+		RANK_BADGES_W -
+		(band && bandFit
+			? rankBadgeW(band, bandFit.px, bandFit.of) + RANK_BADGE.next
+			: 0);
+	const fits = badges.map((b) =>
+		b.band && bandFit ? bandFit : fitBadge(b, left, bandFit?.px),
+	);
+	if (fits.every((f) => f.px === 12 && f.of)) return group;
+	const body = chunks
+		.map((chunk, i) => {
+			const fit = fits[i]!;
+			const sized = fit.px === 12 ? chunk : `rank-px-${fit.px} ${chunk}`;
+			return fit.of
+				? sized
+				: sized.replace(/<p class="accRankOf">[^<]*<\/p>/, "");
+		})
+		.join('<div class="accAvg ');
+	return `${head}<div class="accAvg ${body}`;
+}
+
+function fitRankBadges(html: string) {
+	const open = '<div class="accRanks">';
+	let out = "";
+	let i = 0;
+	for (;;) {
+		const at = html.indexOf(open, i);
+		if (at < 0) break;
+		const end = closeDiv(html, at);
+		out += html.slice(i, at) + fitRankGroup(html.slice(at, end));
+		i = end;
+	}
+	return out + html.slice(i);
 }
 
 // .playerInfo is 50% of the 1200px card; .playerId sits at right 6% with width 51%
@@ -378,10 +470,7 @@ function rksBoxRight(html: string) {
 	);
 }
 
-/**
- * Shrink the player name to fit the bar. Names that fit stay centred where
- * they always were; wider ones take the whole bar right of the rks box
- */
+/** Names that fit stay centred where they always were; wider ones take the whole bar right of the rks box */
 function fitPlayerName(html: string) {
 	const left = Math.max(
 		NAME_LEFT,
@@ -586,10 +675,7 @@ const TEMPLATE_MAX_RATIO: Record<string, number> = {
 	update: 3,
 };
 
-/**
- * Alternative card layouts (see lib/variants) are self-contained templates: they get
- * only variant-base.css plus their own <tpl>.css, none of the classic markup rewrites
- */
+/** Variant layouts (lib/variants) get only variant-base.css plus their own <tpl>.css, none of the classic markup rewrites */
 function polishVariantHtml(html: string, tpl: string) {
 	let out = html.replace(/<title>[^<]*<\/title>/gi, "<title>phi</title>");
 	out = out.replace(/<script\b[\s\S]*?<\/script>/gi, "");

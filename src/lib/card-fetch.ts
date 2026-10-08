@@ -1,8 +1,14 @@
 import {
+	CARD_PROGRESS_HEADER,
+	CARD_PROGRESS_TYPE,
+	readCardProgress,
+} from "@/lib/card-progress";
+import {
 	CARD_STATS_HEADER,
 	type CardStats,
 	parseCardStats,
 } from "@/lib/card-stats";
+import type { CardPhase } from "@/phi/lib/external";
 
 const CARD_FETCH_REUSE_MS = 2_500;
 const CARD_FETCH_MAX = 8;
@@ -19,12 +25,14 @@ type Slot = {
 	promise: Promise<CardBlob>;
 	at: number;
 	value?: CardBlob;
+	phase?: CardPhase;
+	watchers: Set<(phase: CardPhase) => void>;
 };
 
 const slots = new Map<string, Slot>();
 let freshUntil = 0;
 
-/** Drops every loaded card; `fresh` also skips the browser cache and the server memo briefly */
+/** `fresh` also skips the browser cache and the server memo briefly */
 export function clearCardBlobs(opts: { fresh?: boolean } = {}) {
 	for (const slot of slots.values()) {
 		if (slot.value) forgetUrl(slot.value.url);
@@ -45,15 +53,29 @@ export function peekCardBlob(src: string): CardBlob | undefined {
 	return slot.value;
 }
 
-export function loadCardBlob(src: string): Promise<CardBlob> {
+export function loadCardBlob(
+	src: string,
+	onPhase?: (phase: CardPhase) => void,
+): Promise<CardBlob> {
 	const now = Date.now();
 	const hit = slots.get(src);
 	if (hit?.value && now - hit.at <= CARD_FETCH_REUSE_MS) {
 		return Promise.resolve(hit.value);
 	}
-	if (hit?.promise) return hit.promise;
-	const promise = fetchCard(src);
-	const slot: Slot = { promise, at: now };
+	if (hit?.promise) {
+		if (onPhase) {
+			hit.watchers.add(onPhase);
+			if (hit.phase) onPhase(hit.phase);
+		}
+		return hit.promise;
+	}
+	const watchers = new Set(onPhase ? [onPhase] : []);
+	// Called after the response starts, so `slot` is set by then
+	const promise = fetchCard(src, (phase) => {
+		slot.phase = phase;
+		for (const watch of watchers) watch(phase);
+	});
+	const slot: Slot = { promise, at: now, watchers };
 	slots.set(src, slot);
 	trimSlots();
 	promise.then(
@@ -74,7 +96,14 @@ export function loadCardBlob(src: string): Promise<CardBlob> {
 
 async function cardFromResponse(res: Response, t0: number): Promise<CardBlob> {
 	const parsed = parseCardStats(res.headers.get(CARD_STATS_HEADER));
-	const blob = await res.blob();
+	return cardFromBlob(await res.blob(), parsed, t0);
+}
+
+function cardFromBlob(
+	blob: Blob,
+	parsed: CardStats | undefined,
+	t0: number,
+): CardBlob {
 	const waitMs = Math.round(performance.now() - t0);
 	const stats = parsed
 		? { ...parsed, waitMs }
@@ -89,7 +118,10 @@ function httpError(data: { error?: string; code?: string }, fallback: string) {
 	return err;
 }
 
-async function fetchCard(src: string): Promise<CardBlob> {
+async function fetchCard(
+	src: string,
+	onPhase?: (phase: CardPhase) => void,
+): Promise<CardBlob> {
 	const ctrl = new AbortController();
 	const timer = setTimeout(() => ctrl.abort(), CARD_FETCH_TIMEOUT_MS);
 	const t0 = performance.now();
@@ -105,7 +137,25 @@ async function fetchCard(src: string): Promise<CardBlob> {
 			const res = await fetch(src, {
 				cache: Date.now() < freshUntil ? "reload" : "no-cache",
 				signal: ctrl.signal,
+				headers: privateCard ? { [CARD_PROGRESS_HEADER]: "1" } : undefined,
 			});
+			if (
+				res.ok &&
+				res.body &&
+				res.headers.get("content-type")?.startsWith(CARD_PROGRESS_TYPE)
+			) {
+				const out = await readCardProgress(res.body, onPhase);
+				if ("done" in out) {
+					const blob = new Blob(out.image as BlobPart[], {
+						type: out.done.mime,
+					});
+					return cardFromBlob(blob, out.done.stats, t0);
+				}
+				last = { ...out.error, fallback: out.error.error || "error" };
+				if (out.error.code !== "not_bound" && out.error.code !== "no_save")
+					break;
+				continue;
+			}
 			if (res.ok) return cardFromResponse(res, t0);
 			const data = (await res.json().catch(() => ({
 				error: res.statusText,

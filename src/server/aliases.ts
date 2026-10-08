@@ -14,17 +14,14 @@ import { assetsDir } from "./paths";
 import { fetchR2Object, r2Ready } from "./r2";
 import { aliasesSha, ensureSongInfo, loadedCatalogRevision } from "./song-info";
 
-/** Song nicknames: bundled nicklist.yaml, then ill-sync's approved snapshot; deduped per song */
 export type AliasLayer = "base" | "approved";
 export type AliasEntry = { text: string; layer: AliasLayer };
 
 export type AliasIndex = {
-	/** Changes with the catalog and with the approved snapshot */
 	rev: string;
 	byId: ReadonlyMap<string, readonly AliasEntry[]>;
 	approvedSha?: string;
 	approvedAt?: string;
-	/** ill-sync published a snapshot this index does not include (yet) */
 	stale: boolean;
 };
 
@@ -36,9 +33,7 @@ export type ApprovedSnapshot = {
 
 export type AliasDeps = {
 	ensureCatalog: () => Promise<void>;
-	/** Revision of the catalog `known` checks against (what `getInfo` holds) */
 	catalogRevision: () => string;
-	/** `aliasesSha` from `_sync/info.json` */
 	aliasesSha: () => string | undefined;
 	readBase: () => unknown;
 	getApproved: () => Promise<Buffer | undefined>;
@@ -67,7 +62,6 @@ const LIVE_BREAKER_AFTER = 3;
 const LIVE_BREAKER_MS = 60_000;
 const LIVE_MAX = 1_000;
 const LIVE_PER_MIN = 30;
-/** One client (IP) cannot spend the whole per-minute budget */
 const LIVE_PER_CLIENT_MIN = 10;
 export const ALIAS_MAX_LEN = 64;
 
@@ -85,10 +79,7 @@ function invalid(why: string): never {
 	throw new Error(`invalid alias snapshot: ${why}`);
 }
 
-/**
- * ill-sync's `info/aliases.json`. Any bad entry rejects the whole snapshot
- * (phi-plugin's `validateApprovedAliasSnapshot`), so the last good one stays
- */
+/** Like phi-plugin's `validateApprovedAliasSnapshot`: any bad entry rejects the whole snapshot */
 export function parseApprovedSnapshot(raw: unknown): ApprovedSnapshot {
 	if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
 		invalid("not an object");
@@ -119,10 +110,7 @@ export function parseApprovedSnapshot(raw: unknown): ApprovedSnapshot {
 	};
 }
 
-/**
- * Layers in order; ids get `.0`, aliases are `String()`-coerced (the bundled
- * yaml has a bare `7`) and trimmed, and ids the catalog lacks are dropped
- */
+/** Aliases are `String()`-coerced: the bundled yaml has a bare `7` */
 export function mergeAliasLayers(
 	layers: readonly { layer: AliasLayer; data: unknown }[],
 	known: (id: string) => boolean,
@@ -175,7 +163,6 @@ type AliasState = {
 	baseRev?: string;
 	base?: unknown;
 	approved?: ApprovedSnapshot;
-	/** `aliasesSha` the approved layer was last fetched for */
 	loadedFor?: string;
 	retryAt: number;
 	loading?: Promise<void>;
@@ -270,7 +257,6 @@ function wait(ms: number): Promise<void> {
 	});
 }
 
-/** By `fetchedAt`; snapshots without one are never called older */
 function isOlder(a: ApprovedSnapshot, b: ApprovedSnapshot): boolean {
 	const at = Date.parse(a.fetchedAt ?? "");
 	const bt = Date.parse(b.fetchedAt ?? "");
@@ -456,7 +442,7 @@ function takeLiveBudget(client: string | undefined): boolean {
 	return true;
 }
 
-/** phib19's /aliases/resolve via the Worker for aliases newer than the mirror: cached, single-flight, rate-capped */
+/** phib19's /aliases/resolve, for aliases newer than the mirror */
 export async function resolveAliasLive(
 	q: string,
 	client?: string,

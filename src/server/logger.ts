@@ -31,7 +31,6 @@ function emit(
 	else write(c.dim(stamp()), color(level), ...args);
 }
 
-/** Keep the Discord user on every log until `fn` (and its promise) settles */
 export function withDiscordUid<T>(
 	uid: string | null | undefined,
 	fn: () => T,

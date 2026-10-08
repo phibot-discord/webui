@@ -1,4 +1,3 @@
-/* "Timeline" history layout; geometry mirrored in variants/update-timeline.ts */
 :root {
 	--tl-bg: #0a101c;
 	--tl-panel: rgba(17, 25, 41, 0.94);
@@ -9,7 +8,6 @@
 	--tl-faint: #7f8aa1;
 	--tl-accent: #5fd4ff;
 	--tl-accent-soft: rgba(95, 212, 255, 0.5);
-	/* Jacket slot behind the image: still reads as a slot when a jacket is missing */
 	--tl-slot: repeating-linear-gradient(
 		115deg,
 		#1a2438 0px,
@@ -22,7 +20,6 @@
 	--tl-font:
 		PHI, NotoSansSC, NotoSansJP, NotoSansSymbols2, NotoSansMath-Regular;
 	--tl-tech: Aldrich, PHI, NotoSansSC, NotoSansSymbols2;
-	/* Noto Sans has tabular figures and a real minus sign: number columns align */
 	--tl-num: NOTO, NotoSansMath-Regular, PHI, NotoSansSC;
 }
 
@@ -43,7 +40,6 @@ body {
 	overflow: hidden;
 }
 
-/* Blurred jacket only behind the top of the card, fading into the base colour */
 .tl-bg {
 	position: absolute;
 	left: 0;
@@ -76,7 +72,6 @@ body {
 	max-height: 100%;
 }
 
-/* Faint slanted stripes in the header area: the game's geometric motif */
 .tl-deco {
 	position: absolute;
 	right: -40px;
@@ -117,8 +112,6 @@ body {
 	color: var(--tl-muted);
 	text-transform: uppercase;
 }
-
-/* Header */
 
 .tl-head {
 	position: relative;
@@ -164,10 +157,6 @@ body {
 	overflow: hidden;
 }
 
-/*
- * Block, not flex: rich-text spans (<span style="color">, <b>, <i>) flow inline and
- * keep the spaces between them (a flex container drops whitespace-only text)
- */
 .tl-name-line {
 	display: block;
 	overflow-wrap: anywhere;
@@ -242,8 +231,6 @@ body {
 	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
 }
 
-/* Shared panels */
-
 .tl-panel {
 	display: flex;
 	flex-direction: column;
@@ -285,8 +272,6 @@ body {
 .tl-gold {
 	color: var(--tl-gold);
 }
-
-/* RKS trend */
 
 .tl-trend-sum {
 	display: flex;
@@ -358,7 +343,6 @@ body {
 	color: var(--tl-muted);
 }
 
-/* A single RKS record: one marker and its value instead of a line */
 .tl-first {
 	display: flex;
 	align-items: center;
@@ -407,7 +391,6 @@ body {
 	color: var(--tl-muted);
 }
 
-/* Dashed track fading to the right: where the line will continue */
 .tl-first-track {
 	flex: 1;
 	height: 2px;
@@ -421,8 +404,6 @@ body {
 	);
 	mask-image: linear-gradient(90deg, #000000, transparent);
 }
-
-/* Difficulty chip and tags */
 
 .tl-chip {
 	display: flex;
@@ -505,8 +486,6 @@ body {
 	white-space: nowrap;
 }
 
-/* Tasks */
-
 .tl-task-grid {
 	display: grid;
 	grid-template-columns: 347px 347px;
@@ -560,7 +539,6 @@ body {
 	color: var(--tl-text);
 }
 
-/* Status band across the bottom of the task jacket */
 .tl-task-state {
 	position: absolute;
 	left: 0;
@@ -582,8 +560,6 @@ body {
 	color: #06101d;
 	background: var(--tl-accent);
 }
-
-/* Timeline */
 
 .tl-updates {
 	display: flex;
@@ -608,7 +584,6 @@ body {
 	margin-left: 14px;
 }
 
-/* Right edge lines up with the RKS column below */
 .tl-legend {
 	display: flex;
 	align-items: center;
@@ -634,7 +609,6 @@ body {
 	color: var(--tl-accent);
 }
 
-/* Column labels, repeated in every day header above the number columns */
 .tl-col {
 	flex: none;
 	margin-left: 12px;
@@ -771,7 +745,6 @@ body {
 	color: var(--tl-faint);
 }
 
-/* CJK labels: no Aldrich glyphs, so they fall back to PHI and need a size step */
 .tl-zh .tl-over,
 .tl-zh .tl-k {
 	font-size: 14px;
@@ -825,7 +798,6 @@ body {
 	margin-top: 5px;
 }
 
-/* Two-line titles: tighter leading so the tags keep ~5px from the row edges */
 .tl-2l .tl-title {
 	line-height: 1.08;
 }
@@ -838,7 +810,6 @@ body {
 	margin-right: 6px;
 }
 
-/* Fixed top padding so the "now" line sits at the same height in every cell */
 .tl-cell {
 	display: flex;
 	flex-direction: column;
@@ -850,7 +821,6 @@ body {
 	font-family: var(--tl-num);
 }
 
-/* "Now": the score dominates; accuracy and RKS are one step down */
 .tl-now {
 	display: flex;
 	align-items: flex-end;
@@ -878,12 +848,10 @@ body {
 	color: var(--tl-faint);
 }
 
-/* φ (all perfect): gold is kept for this achievement only */
 .tl-now-score.tl-ap {
 	color: var(--tl-gold);
 }
 
-/* "Before": old value and change in fixed right-aligned boxes, so both form columns */
 .tl-was-row {
 	display: flex;
 	align-items: baseline;
@@ -915,8 +883,6 @@ body {
 .tl-d-acc {
 	width: 60px;
 }
-
-/* Empty state */
 
 .tl-empty {
 	position: relative;
@@ -970,8 +936,6 @@ body {
 .tl-empty-body p {
 	white-space: nowrap;
 }
-
-/* Footer */
 
 .tl-foot {
 	display: flex;

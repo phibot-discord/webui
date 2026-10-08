@@ -44,7 +44,6 @@ test("songIllPath points at the R2 tree without looking on disk", () => {
 		songIllPath(root, "Credits.Frums.0", "blur"),
 		"/no/local/original_ill/illBlur/Credits.Frums.png",
 	);
-	// SP songs have a single jacket; every kind maps to it
 	assert.equal(
 		songIllPath(root, "Introduction.0", "blur", true),
 		"/no/local/original_ill/SP/Introduction.png",
@@ -79,7 +78,6 @@ test("a jacket that exists on disk is used as-is and never fetched", async () =>
 	writeFileSync(local, "png");
 	const escaped = join(dir, "original_ill", "illLow", "A&#38;B.png");
 	const map = await hydrateIlls([escaped, local]);
-	// The template's escaped spelling is mapped to the real file; the plain path needs no rewrite
 	assert.equal(map.get(escaped), local);
 	assert.equal(map.has(local), false);
 });

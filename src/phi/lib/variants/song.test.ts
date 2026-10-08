@@ -106,7 +106,6 @@ test("standing tiles show the rank, the population and a rank-derived Top %", ()
 	assert.equal(all?.of, "/ 70,388");
 	assert.equal(all?.pct, "Top 5.1%");
 	assert.equal(all?.label, "ALL RECORDS");
-	// "/ 70,388" includes the user: the line under it says so
 	assert.equal(
 		all?.sub,
 		"Among 70,387 phib19.top records on this chart, plus you",
@@ -129,12 +128,10 @@ test("standing tiles show the rank, the population and a rank-derived Top %", ()
 		"en",
 	);
 	assert.equal(ap.tiles[0]?.pos, "#1");
-	// #1 next to "Top 2.9%" would contradict itself: an AP shows the AP share
 	assert.equal(ap.tiles[0]?.pct, "AP · 2.9% of records");
 	assert.equal(ap.tiles[0]?.note, "Tied with 2,032 other AP records");
 	assert.equal(ap.record?.badge, "AP");
 	assert.equal(ap.dist.strip.marker?.label, "YOU · AP");
-	// The first AP on a chart is tied with nobody: no "tied with 0"
 	const first = songView(
 		card({
 			record: {
@@ -246,7 +243,6 @@ test("missing lookups explain themselves instead of drawing empty charts", () =>
 	assert.match(late.dist.note, /slow/);
 	assert.ok(!late.counts.ok);
 	assert.match(late.counts.note, /off in your settings/);
-	// A route phib19 (or the proxy) doesn't serve right now: not "turned off"
 	const gone = songView(
 		card({
 			apfc: null,
@@ -278,7 +274,6 @@ test("missing lookups explain themselves instead of drawing empty charts", () =>
 		).dist.note,
 		"排行数据暂时不可用。",
 	);
-	// No records on the chart at all: said plainly, no "0 records" meters
 	const empty = songView(
 		card({
 			overall: null,

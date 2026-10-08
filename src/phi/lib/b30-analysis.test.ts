@@ -17,10 +17,7 @@ import {
 import { localizeChartTagLabels, localizeChartTagName } from "./card-i18n";
 import { tagRadarHtml, tagRadarPlotPng, tagRadarPlotSvg } from "./charts";
 
-/**
- * Radar geometry as phib19 returns it: pentagon, top-first, r=55 around (100,92),
- * radius 0.5 + 0.5·(rks − average category rks)
- */
+/** Radar geometry as phib19 returns it */
 function radarFixture(
 	categories: { name: string; rks: number; votes: number; hasVotes: boolean }[],
 ): TagRadar {

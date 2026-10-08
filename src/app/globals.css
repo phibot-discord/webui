@@ -1,5 +1,3 @@
-/* Partials, in cascade order: tokens and shared primitives first, then
-   the site chrome, then one partial per page area, motion last */
 @import "./styles/tokens.css";
 @import "./styles/base.css";
 @import "./styles/primitives.css";
@@ -8,6 +6,8 @@
 @import "./styles/desk.css";
 @import "./styles/card-view.css";
 @import "./styles/landing.css";
+@import "./styles/legal.css";
+@import "./styles/status.css";
 @import "./styles/tags.css";
 @import "./styles/bind.css";
 @import "./styles/chart-search.css";

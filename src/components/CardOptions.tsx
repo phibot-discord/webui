@@ -1,7 +1,7 @@
 "use client";
 
 import { CaretRight } from "@phosphor-icons/react";
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import { type ReactNode, useCallback, useId, useRef, useState } from "react";
 import {
 	type BackgroundOption,
 	BackgroundPicker,
@@ -12,20 +12,28 @@ import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
 import { type CardStats, cardSource, formatDuration } from "@/lib/card-stats";
 import type { CardStyle } from "@/phi/lib/card-styles";
-import type { B30AvgKind } from "@/phi/lib/notes";
+import type { B30AvgKind, RankBandShow, RankScope } from "@/phi/lib/notes";
 import type { CardKind } from "@/server/card-kinds";
 import type { PaintQuality } from "@/server/render/paint-budget";
 
-/** Peer comparison modes, in menu order (the notes module is server-only) */
 export const PEER_KINDS = [
 	"none",
 	"all",
-	"b30",
 	"top",
 	"rank",
 ] as const satisfies readonly B30AvgKind[];
 
-/** POST /api/notes; true when the server stored it */
+export const RANK_SCOPE_KINDS = [
+	"all",
+	"band",
+	"both",
+] as const satisfies readonly RankScope[];
+
+export const RANK_BAND_SHOW_KINDS = [
+	"place",
+	"percent",
+] as const satisfies readonly RankBandShow[];
+
 async function saveNotes(body: object): Promise<boolean> {
 	try {
 		const res = await fetch("/api/notes", {
@@ -40,16 +48,13 @@ async function saveNotes(body: object): Promise<boolean> {
 }
 
 export type NoteSetting<T> = {
-	/** The choice shown in the control */
 	value: T;
-	/** The last choice that took effect, saved or not saving: the card uses this */
 	applied: T;
 	set: (next: T) => void;
 	pending: boolean;
 	failed: boolean;
 };
 
-/** A card setting saved to the user's notes: it applies once saved, and reverts if the save fails */
 export function useNoteSetting<T>(
 	initial: T,
 	toBody: ((next: T) => object) | undefined,
@@ -80,7 +85,6 @@ export function useNoteSetting<T>(
 		const id = ++seq.current;
 		setPending(true);
 		void saveNotes(body(next)).then((ok) => {
-			// A newer choice is on its way; let it decide
 			if (id !== seq.current) return;
 			setPending(false);
 			if (ok) {
@@ -155,12 +159,12 @@ function statsRows(stats: CardStats, card: Messages["card"]): StatsRow[] {
 	ms(stats.rasterMs, "raster", card.statsRaster, card.statsHintRaster);
 	ms(stats.encodeMs, "encode", card.statsEncode, card.statsHintEncode);
 	ms(stats.paintMs, "paint", card.statsPaint, card.statsHintPaint);
+	ms(stats.extMs, "external", card.statsExternal, card.statsHintExternal);
 	ms(stats.totalMs, "server", card.statsServer, card.statsHintServer);
 	ms(stats.waitMs, "wait", card.statsWait, card.statsHintWait);
 	return rows;
 }
 
-/** Cache and timing for the last render, behind a disclosure */
 function Diagnostics({ stats }: { stats?: CardStats }) {
 	const { m } = useI18n();
 	const card = m.card;
@@ -176,6 +180,11 @@ function Diagnostics({ stats }: { stats?: CardStats }) {
 						<span className="stats-source">{sourceLabel(source, card)}</span>
 					) : null}
 					<span className="stats-time">{time}</span>
+					{stats?.extMs ? (
+						<span className="stats-ext">
+							{card.statsExternal} {formatDuration(stats.extMs)}
+						</span>
+					) : null}
 				</span>
 			</summary>
 			{stats ? (
@@ -193,7 +202,6 @@ function Diagnostics({ stats }: { stats?: CardStats }) {
 	);
 }
 
-/** The settings behind the "Card options" disclosure */
 export function CardOptions({
 	kind,
 	styles,
@@ -206,6 +214,9 @@ export function CardOptions({
 	tags,
 	recordStats,
 	peer,
+	rankScope,
+	rankBandShow,
+	peerWait,
 	stats,
 	diagnostics = false,
 	extra,
@@ -221,13 +232,16 @@ export function CardOptions({
 	tags?: NoteSetting<boolean>;
 	recordStats?: NoteSetting<boolean>;
 	peer?: NoteSetting<B30AvgKind>;
+	rankScope?: NoteSetting<RankScope>;
+	rankBandShow?: NoteSetting<RankBandShow>;
+	peerWait?: NoteSetting<boolean>;
 	stats?: CardStats;
-	/** Cache and timings of the last render: the owner's desk only */
 	diagnostics?: boolean;
 	extra?: ReactNode;
 }) {
 	const { m } = useI18n();
 	const card = m.card;
+	const waitNoteId = useId();
 	const saving = (s?: { pending: boolean }) =>
 		s?.pending ? card.optionsSaving : undefined;
 	const failed = (s?: { failed: boolean }) =>
@@ -292,6 +306,66 @@ export function CardOptions({
 					}))}
 					onChange={peer.set}
 				/>
+			) : null}
+			{peer && rankScope && peerValue === "rank" ? (
+				<SegRadio
+					legend={card.rankScope}
+					className="opt-peer"
+					value={rankScope.value}
+					status={saving(rankScope)}
+					error={failed(rankScope)}
+					note={card.rankScopeHints[rankScope.value]}
+					options={RANK_SCOPE_KINDS.map((k) => ({
+						value: k,
+						label: card.rankScopeNames[k],
+					}))}
+					onChange={rankScope.set}
+				/>
+			) : null}
+			{peer &&
+			rankScope &&
+			rankBandShow &&
+			peerValue === "rank" &&
+			rankScope.value !== "all" ? (
+				<SegRadio
+					legend={card.rankBandShow}
+					className="opt-peer"
+					value={rankBandShow.value}
+					status={saving(rankBandShow)}
+					error={failed(rankBandShow)}
+					note={card.rankBandShowHints[rankBandShow.value]}
+					options={RANK_BAND_SHOW_KINDS.map((k) => ({
+						value: k,
+						label: card.rankBandShowNames[k],
+					}))}
+					onChange={rankBandShow.set}
+				/>
+			) : null}
+			{peer && peerWait && peerValue !== "none" ? (
+				<fieldset className="opt" aria-describedby={waitNoteId}>
+					<legend className="opt-label">
+						{card.peerWaitLegend}
+						<OptStatus>{saving(peerWait)}</OptStatus>
+					</legend>
+					<div className="opt-checks">
+						<label className="opt-check">
+							<input
+								type="checkbox"
+								checked={peerWait.value}
+								onChange={(e) => peerWait.set(e.target.checked)}
+							/>
+							{card.peerWait}
+						</label>
+					</div>
+					<p className="opt-note" id={waitNoteId}>
+						{card.peerWaitHint}
+					</p>
+					{peerWait.failed ? (
+						<p className="field-error opt-error" role="alert">
+							{card.saveFailed}
+						</p>
+					) : null}
+				</fieldset>
 			) : null}
 			{tags || recordStats ? (
 				<fieldset className="opt">

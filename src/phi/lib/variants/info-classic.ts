@@ -1,7 +1,6 @@
 import { infoView } from "./info-common";
 import type { CardVariant } from "./types";
 
-/** Player info, default layout: profile hero, progress per difficulty, trends */
 export const variant: CardVariant = {
 	tpl: "info-classic",
 	width: 1200,

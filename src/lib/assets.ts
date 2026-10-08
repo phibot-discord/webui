@@ -102,7 +102,6 @@ export function assetCanPreview(
 	return false;
 }
 
-/** Browser-facing URL. The file bytes stay on R2; this app only hands out the address */
 export function publicAssetUrl(base: string, key: string): string {
 	const root = base.replace(/\/+$/, "");
 	const path = key

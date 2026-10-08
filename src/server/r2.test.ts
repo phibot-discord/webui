@@ -66,7 +66,6 @@ test("streamR2Object asks for unencoded bytes and drops the length of an encoded
 			res.end("hello");
 			return;
 		}
-		// A server that compresses anyway: the declared length is the gzip size
 		res.setHeader("content-encoding", "gzip");
 		res.setHeader("content-length", String(packed.byteLength));
 		res.end(packed);

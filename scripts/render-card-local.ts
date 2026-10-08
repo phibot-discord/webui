@@ -1,23 +1,6 @@
-// Offline render of one card kind + layout from data/raw-save.json → JPEG
-// No Discord, KV or R2: jackets / avatars / icons come from a local phi-assets copy
-// (default ../discord-bot/phi-assets), the catalog from the bundled phi-assets/info
-//
+// Offline card render from data/raw-save.json to JPEG; images from PHI_LOCAL_ASSETS, options from the env reads below
 //   node --import tsx scripts/render-card-local.ts <b30|x30|fc30|hisb30|info|song> [out.jpg]
-//
-// Env: STYLE=classic|table|portrait|timeline|summary  COUNT=33..99  LOCALE=en|zh
-//      QUALITY=fast|high  BG=<illustration id>  TIPS="…"  HIDE_STATS=1
-//      SAVE=data/raw-save.json  PHI_LOCAL_ASSETS=<dir with original_ill/ and html/>
-//      HTML_OUT=/tmp/card.html (also dump the final HTML Takumi parses)
-//      EMPTY_HISTORY=1 (hisb30 / info with no history: the empty state)
-//      DUMP_DATA=/tmp/data.json (also write the template data)
-//      song: CHART=<song id> LEVEL=EZ|HD|IN|AT  BUDGET=<ms, default 8000>
-//            OFFLINE=1 (no phib19 lookups: the "turned off" state)
-//      AVG=rank|top|all|b30 (b30/x30/fc30: peer badges, looked up before the render)
-//      LB_KV=/tmp/phi-lb-kv.json (keep the in-memory KV in a file between runs, so
-//            phib19 answers are reused). phib19 lookups go to PHI_CHART_TAG_API, e.g.
-//            PHI_CHART_TAG_API=https://phib19.top:8080
-// Run `node scripts/precompile-art.mjs && node scripts/bundle-css.mjs` after editing
-// templates or CSS: the renderer reads the generated art-compiled.ts / bundle.ts
+// After editing templates or CSS, rerun precompile-art.mjs and bundle-css.mjs: the renderer reads their generated output
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -124,7 +107,7 @@ const save = new Save(
 const notes = {
 	...(await getNotes(db, "local")),
 	allowApiUsage: false, // no phib19 peer-average calls
-	showTagAnalysis: false, // no chart-tag API calls
+	showTagAnalysis: false,
 	locale,
 	cardBackground: process.env.BG || undefined,
 };
@@ -132,8 +115,7 @@ const notes = {
 let id: string;
 let data: Record<string, unknown>;
 if (KIND === "info") {
-	// Seed 12 weeks of RKS + data history (and two B30 snapshots) so the charts
-	// have something to draw; EMPTY_HISTORY=1 leaves them empty
+	// Seed 12 weeks of RKS + data history and two B30 snapshots so the charts have something to draw
 	const { infoCard } = await import("../src/phi/lib/cards");
 	const empty = process.env.EMPTY_HISTORY === "1";
 	const token = "localinfotoken00000000000";
@@ -230,8 +212,7 @@ if (KIND === "info") {
 		data: [],
 		challengeModeRank: [],
 	} as never);
-	// B30 snapshots like snapshotB30 writes: the current B30, and a previous one in
-	// which the 3 lowest B27 charts were 3 others (so "entered / left B30" has data)
+	// Like snapshotB30: the current B30 and an older one with 3 other low B27 charts, so "entered / left B30" has data
 	const b30 = await new Save(
 		JSON.parse(readFileSync(process.env.SAVE || "data/raw-save.json", "utf8")),
 	).getB19(undefined, 33, { avgType: "none" } as never);
@@ -269,8 +250,7 @@ if (KIND === "info") {
 } else {
 	const avg = process.env.AVG;
 	if (avg) {
-		// Look the badges up first with a long budget, so the card's own 2.5 s wait
-		// is answered from memory (and LB_KV keeps them for the next run)
+		// Warm the badges with a long budget so the card's own 2.5 s wait is answered from memory
 		const { attachB19AccAvg } = await import("../src/phi/lib/score-avg");
 		const warm = await new Save(
 			JSON.parse(

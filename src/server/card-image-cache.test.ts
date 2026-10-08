@@ -177,6 +177,8 @@ test("the avg key follows the badge mode the card draws", () => {
 		allowApiUsage?: boolean;
 		b30AvgKind?: string;
 		b30AvgColor?: "red" | "gold" | "blue" | "green";
+		rankScope?: "all" | "band" | "both";
+		rankBandShow?: "place" | "percent";
 	}) =>
 		cardCacheInput({
 			kind: "b30",
@@ -192,20 +194,43 @@ test("the avg key follows the badge mode the card draws", () => {
 				allowApiUsage: notes.allowApiUsage ?? true,
 				b30AvgKind: notes.b30AvgKind ?? "all",
 				b30AvgColor: notes.b30AvgColor ?? "blue",
+				rankScope: notes.rankScope,
+				rankBandShow: notes.rankBandShow,
 			},
 			tagOn: true,
 			statsOn: true,
 		}).avgFlag;
 	assert.equal(flag({}), "avg:all:blue");
-	// A mode only the Discord bot knows is drawn as "all", so it shares that key
 	assert.equal(flag({ b30AvgKind: "botOnly" }), "avg:all:blue");
 	assert.equal(flag({ b30AvgKind: "" }), "avg:all:blue");
 	assert.equal(flag({ b30AvgKind: "rank" }), "avg:rank:blue");
-	assert.equal(flag({ b30AvgKind: "b30", b30AvgColor: "red" }), "avg:b30:red");
+	assert.equal(flag({ b30AvgKind: "rank", rankScope: "all" }), "avg:rank:blue");
+	assert.equal(
+		flag({ b30AvgKind: "rank", rankScope: "band" }),
+		"avg:rank-band:blue",
+	);
+	assert.equal(
+		flag({ b30AvgKind: "rank", rankScope: "both" }),
+		"avg:rank-both:blue",
+	);
+	assert.equal(flag({ b30AvgKind: "top", rankScope: "both" }), "avg:top:blue");
+	assert.equal(
+		flag({ b30AvgKind: "rank", rankScope: "band", rankBandShow: "place" }),
+		"avg:rank-band:blue",
+	);
+	assert.equal(
+		flag({ b30AvgKind: "rank", rankScope: "both", rankBandShow: "percent" }),
+		"avg:rank-both-pct:blue",
+	);
+	assert.equal(
+		flag({ b30AvgKind: "rank", rankScope: "all", rankBandShow: "percent" }),
+		"avg:rank:blue",
+	);
+	// B30 average is no longer offered: a stored one draws as Average
+	assert.equal(flag({ b30AvgKind: "b30", b30AvgColor: "red" }), "avg:all:red");
 	assert.equal(flag({ b30AvgKind: "none" }), "avg:none:blue");
 	assert.equal(flag({ allowApiUsage: false, b30AvgKind: "rank" }), "avg:none");
-	// API usage off also hides the tag radar and live lookups, and nothing else
-	// in the key records it: it must never share a key with kind "none"
+	// API off also hides the tag radar and live lookups, which nothing else in the key records
 	assert.notEqual(
 		flag({ allowApiUsage: false, b30AvgKind: "all" }),
 		flag({ b30AvgKind: "none" }),

@@ -26,10 +26,7 @@ export const outgoingAgentDefaults = { allowH2: false as const };
 /** Longest Retry-After the retry interceptor waits; past that the caller sees the 429/5xx */
 export const RETRY_AFTER_CAP_MS = 2_000;
 
-/**
- * Which layer retries: by default undici retries idempotent requests; "status" only 429/5xx
- * (tapFetch retries the rest); false none (cfFetch retries everything)
- */
+/** `"status"`: only 429/5xx here, tapFetch retries the rest; `false`: cfFetch does every retry */
 export function outgoingAgent(
 	opts?: ConstructorParameters<typeof Agent>[0],
 	{ retry = true }: { retry?: boolean | "status" } = {},
@@ -67,12 +64,7 @@ export type OutgoingInit = {
 	dispatcher?: Dispatcher;
 };
 
-/**
- * Use undici's `fetch` (not Next's, not `request()`)
- * Next.js `fetch` drops `dispatcher` (10s connect)
- * `request()` skips fetch headers and TapTap RST the socket ("other side closed")
- * Node `FormData` is not undici's brand — it is sent as the text `[object FormData]`
- */
+/** undici's fetch: Next's drops `dispatcher`, `request()` gets RST by TapTap; a Node `FormData` body is sent as "[object FormData]" */
 export async function outgoingFetch(
 	url: string | URL,
 	init: OutgoingInit = {},

@@ -1,6 +1,7 @@
 "use client";
 
 import { Heart } from "@phosphor-icons/react";
+import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 
 const GITHUB = "https://github.com/YueMiyuki";
@@ -24,6 +25,11 @@ export function SiteFooter() {
 						{m.credit.name}
 					</a>
 				</p>
+				<nav className="site-foot-links" aria-label={m.legal.nav}>
+					<Link href="/status">{m.status.title}</Link>
+					<Link href="/tos">{m.legal.terms}</Link>
+					<Link href="/privacy">{m.legal.privacy}</Link>
+				</nav>
 			</div>
 		</footer>
 	);
