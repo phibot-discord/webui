@@ -32,11 +32,20 @@ const nextAuth = NextAuth({
 		}),
 	],
 	callbacks: {
-		async signIn({ account }) {
+		async signIn({ account, user }) {
 			if (account?.provider !== "discord") return true;
 			// Loaded here only: the link reaches KV and the Phigros runtime
-			const { finishDiscordLink } = await import("@/server/account-link");
-			return finishDiscordLink(account.providerAccountId);
+			const [{ finishDiscordLink }, { rememberDiscordAvatar }] =
+				await Promise.all([
+					import("@/server/account-link"),
+					import("@/server/avatar"),
+				]);
+			// Independent KV writes; rememberDiscordAvatar never throws
+			const [result] = await Promise.all([
+				finishDiscordLink(account.providerAccountId),
+				rememberDiscordAvatar(account.providerAccountId, user.image),
+			]);
+			return result;
 		},
 		jwt({ token, account, profile }) {
 			// A Discord snowflake, or the user a TapTap ticket names (`tap:…` or a linked snowflake)

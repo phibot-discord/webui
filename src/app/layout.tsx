@@ -9,6 +9,7 @@ import { VersionNotice } from "@/components/VersionNotice";
 import { localeTag } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/provider";
 import { getMessages } from "@/i18n/server";
+import { avatarPath } from "@/server/avatar";
 import { withDiscordUid } from "@/server/logger";
 import { THEME_COLORS } from "@/theme/config";
 import { fontClasses } from "@/theme/fonts";
@@ -85,7 +86,7 @@ export default async function RootLayout({
 							<SiteHeader
 								signedIn={Boolean(session?.user?.id)}
 								name={session?.user?.name}
-								image={session?.user?.image}
+								image={avatarPath(session?.user?.image)}
 								theme={theme ?? "system"}
 							/>
 							{children}

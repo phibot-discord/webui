@@ -5,6 +5,7 @@ import type { TapLogin } from "@/phi/lib/taptap";
 import { isGlobalTapLogin } from "@/phi/lib/taptap";
 import { tapSignInUser } from "./account-link";
 import { sealTapTicket } from "./auth-tickets";
+import { signInAvatar } from "./avatar";
 import {
 	asServer,
 	type BindErr,
@@ -127,6 +128,8 @@ export async function finishTapLogin(
 			return failBind(new Error("TapTap sign-in returned no Phigros account."));
 		const userId = await tapSignInUser(objectId, token);
 		return await withDiscordUid(userId, async () => {
+			// Read while the save binds; signInAvatar never rejects
+			const image = signInAvatar(userId, login.avatar);
 			try {
 				await songInfo;
 				const save = await bindSignIn(host, userId, token, resume.useGlobal);
@@ -134,7 +137,7 @@ export async function finishTapLogin(
 				const ticket = await sealTapTicket(loginId, {
 					id: userId,
 					name: login.name || player.playerId || undefined,
-					image: login.avatar,
+					image: await image,
 				});
 				return { ticket, ...player };
 			} catch (err) {

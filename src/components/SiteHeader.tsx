@@ -142,7 +142,15 @@ export function SiteHeader({
 							<div className="topbar-account">
 								<div className="who">
 									{image ? (
-										<img src={image} alt="" width={28} height={28} />
+										<img
+											src={image}
+											alt=""
+											width={28}
+											height={28}
+											onError={(e) => {
+												e.currentTarget.hidden = true;
+											}}
+										/>
 									) : null}
 									<span>{name || m.signedIn}</span>
 								</div>
