@@ -133,6 +133,8 @@ class GetInfo {
 	> = {};
 	MAX_DIFFICULTY = 0;
 	avatarid: string[] = [];
+	/** 4/1 specials with their own jackets in R2 (`4-1/`); set from the manifest, so `init` leaves it alone */
+	private fools = new Set<string>();
 	private totals: [number, number, number, number] | undefined;
 	resources = "";
 	originalIll = "";
@@ -410,10 +412,16 @@ class GetInfo {
 		return tot;
 	}
 
+	setFools(ids: Iterable<string>) {
+		this.fools = new Set([...ids].map(withDotZero));
+	}
+
 	getill(id: string, kind: "common" | "blur" | "low" = "common"): string {
 		const key = withDotZero(id);
-		const sp = !this.ori_info[key] && Boolean(this.sp_info[key]);
-		return songIllPath(this.originalIll, id, kind, sp);
+		const listed = Boolean(this.ori_info[key]);
+		const fools = !listed && this.fools.has(key);
+		const sp = !listed && !fools && Boolean(this.sp_info[key]);
+		return songIllPath(this.originalIll, id, kind, sp, fools);
 	}
 
 	getChapIll(name: string) {

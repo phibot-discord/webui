@@ -47,3 +47,36 @@ test("a malformed or odd-shaped chaplist.yaml leaves the song catalog intact", a
 		assert.equal(getInfo.ori_info["Igallta.SeURa.0"]?.song, "Igallta");
 	}
 });
+
+test("getill sends a listed 4/1 special to its own jackets, and only while it is not a normal song", async () => {
+	await getInfo.init(
+		assets({
+			"spinfo.json": JSON.stringify({
+				"Special.One": { song: "Special", chapter: "SP", chart: {} },
+			}),
+		}),
+	);
+	const root = getInfo.originalIll;
+	assert.equal(
+		getInfo.getill("Special.One.0", "low"),
+		`${root}/SP/Special.One.png`,
+	);
+	getInfo.setFools(["Special.One.0", "Igallta.SeURa"]);
+	try {
+		assert.equal(
+			getInfo.getill("Special.One.0", "low"),
+			`${root}/4-1/illLow/Special.One.png`,
+		);
+		assert.equal(
+			getInfo.getill("Special.One.0", "common"),
+			`${root}/4-1/ill/Special.One.png`,
+		);
+		// In info.csv: the normal jacket wins
+		assert.equal(
+			getInfo.getill("Igallta.SeURa.0", "low"),
+			`${root}/illLow/Igallta.SeURa.png`,
+		);
+	} finally {
+		getInfo.setFools([]);
+	}
+});

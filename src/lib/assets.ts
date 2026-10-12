@@ -1,3 +1,6 @@
+/** April Fools specials: a copy of the normal tree (`4-1/original_ill/…`, `4-1/phira/…`) plus `4-1/index.json` */
+export const FOOLS_PREFIX = "4-1";
+
 /** ponytail: public trees only. Add a prefix when a new public tree lands in the bucket */
 export const PUBLIC_ASSET_PREFIXES = [
 	"original_ill/",
@@ -6,6 +9,7 @@ export const PUBLIC_ASSET_PREFIXES = [
 	"info/",
 	"phira/",
 	"music/",
+	`${FOOLS_PREFIX}/`,
 ] as const;
 
 const KINDS = {
@@ -50,12 +54,27 @@ export function isPublicAssetKey(key: string): boolean {
 	);
 }
 
+/** The files page keeps the 4/1 specials on a tab of their own, apart from the game's files */
+export const ASSET_TABS = ["files", "fools"] as const;
+export type AssetTab = (typeof ASSET_TABS)[number];
+
+export function assetTab(key: string): AssetTab {
+	return key.startsWith(`${FOOLS_PREFIX}/`) ? "fools" : "files";
+}
+
+/** `4-1/phira/IN/a.pez` → `["4-1/", "phira/IN/a.pez"]`: the specials mirror the normal tree */
+function splitFools(key: string): [root: string, rest: string] {
+	const root = `${FOOLS_PREFIX}/`;
+	return key.startsWith(root) ? [root, key.slice(root.length)] : ["", key];
+}
+
 export function assetKind(key: string): AssetKind {
+	const rest = splitFools(key)[1];
 	for (const [kind, prefix] of Object.entries(KINDS) as [
 		Exclude<AssetKind, "other">,
 		string,
 	][]) {
-		if (key.startsWith(prefix)) return kind;
+		if (rest.startsWith(prefix)) return kind;
 	}
 	return "other";
 }
@@ -121,12 +140,13 @@ export function assetDisposition(key: string, download: boolean): string {
 
 /** Low-res jacket when one exists, so a result row does not pull the full illustration (music shows its song's) */
 export function assetThumbKey(key: string): string {
-	if (key.startsWith("original_ill/ill/"))
-		return `original_ill/illLow/${key.slice("original_ill/ill/".length)}`;
-	if (key.startsWith("original_ill/illBlur/"))
-		return `original_ill/illLow/${key.slice("original_ill/illBlur/".length)}`;
-	if (key.startsWith("music/"))
-		return `original_ill/illLow/${key.slice("music/".length).replace(/\.ogg$/, ".png")}`;
+	const [root, rest] = splitFools(key);
+	if (rest.startsWith("original_ill/ill/"))
+		return `${root}original_ill/illLow/${rest.slice("original_ill/ill/".length)}`;
+	if (rest.startsWith("original_ill/illBlur/"))
+		return `${root}original_ill/illLow/${rest.slice("original_ill/illBlur/".length)}`;
+	if (rest.startsWith("music/"))
+		return `${root}original_ill/illLow/${rest.slice("music/".length).replace(/\.ogg$/, ".png")}`;
 	return key;
 }
 

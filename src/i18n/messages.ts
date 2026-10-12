@@ -184,6 +184,8 @@ export type Messages = {
 		searchLabel: string;
 		searchPlaceholder: string;
 		kindLabel: string;
+		tabsLabel: string;
+		tabs: { files: string; fools: string };
 		empty: string;
 		loading: string;
 		failed: string;
@@ -833,6 +835,8 @@ export const en: Messages = {
 		searchLabel: "Search files",
 		searchPlaceholder: "Title, nickname or file name",
 		kindLabel: "Kind",
+		tabsLabel: "File group",
+		tabs: { files: "Assets", fools: "4/1 charts" },
 		empty: "No files yet.",
 		loading: "Loading files…",
 		failed: "File list unavailable.",
@@ -1532,6 +1536,8 @@ export const zh: Messages = {
 		searchLabel: "搜索文件",
 		searchPlaceholder: "曲名、别名或文件名",
 		kindLabel: "分类",
+		tabsLabel: "文件分组",
+		tabs: { files: "资源", fools: "4/1 特别谱面" },
 		empty: "暂时没有文件。",
 		loading: "正在加载文件…",
 		failed: "文件列表暂不可用。",

@@ -1,6 +1,7 @@
 import { existsSync as fsExists } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { FOOLS_PREFIX } from "@/lib/assets";
 import { logger } from "./logger";
 import { illDir } from "./paths";
 import { fetchR2Object, r2Config } from "./r2";
@@ -30,17 +31,19 @@ function pngName(id: string): string {
 	return id.replace(/\.0$/, ".png");
 }
 
+/** `fools`: a 4/1 special, whose jackets sit in R2 under `4-1/original_ill/`; locally it is `<illDir>/4-1/<dir>/` */
 export function songIllPath(
 	originalIll: string,
 	id: string,
 	kind: "common" | "blur" | "low" = "common",
 	sp = false,
+	fools = false,
 ): string {
 	const png = pngName(id);
+	const dir = kind === "blur" ? "illBlur" : kind === "low" ? "illLow" : "ill";
+	if (fools) return join(originalIll, FOOLS_PREFIX, dir, png);
 	if (sp) return join(originalIll, "SP", png);
-	if (kind === "blur") return join(originalIll, "illBlur", png);
-	if (kind === "low") return join(originalIll, "illLow", png);
-	return join(originalIll, "ill", png);
+	return join(originalIll, dir, png);
 }
 
 export function chapIllPath(originalIll: string, name: string): string {
@@ -85,6 +88,10 @@ export function assetKeyOf(rawPath: string): string | undefined {
 	const ill = underIllTree(absPath);
 	if (ill) {
 		const prefix = r2Config().prefix;
+		const root = `${FOOLS_PREFIX}/`;
+		if (ill.startsWith(root)) {
+			return `${root}${prefix ? `${prefix}/` : ""}${ill.slice(root.length)}`;
+		}
 		return prefix ? `${prefix}/${ill}` : ill;
 	}
 	const html = HTML_IMAGE_RE.exec(absPath.replace(/\\/g, "/"))?.[1];
@@ -94,10 +101,13 @@ export function assetKeyOf(rawPath: string): string | undefined {
 
 export function fallbackKeyOf(key: string): string | undefined {
 	const { prefix, htmlPrefix } = r2Config();
-	const illBase = prefix ? `${prefix}/ill/` : "ill/";
+	// 4/1 specials mirror the tree under `4-1/`
+	const root = key.startsWith(`${FOOLS_PREFIX}/`) ? `${FOOLS_PREFIX}/` : "";
+	const illBase = `${root}${prefix ? `${prefix}/` : ""}ill/`;
 	if (key.startsWith(illBase)) {
-		return `${prefix ? `${prefix}/` : ""}illLow/${key.slice(illBase.length)}`;
+		return `${root}${prefix ? `${prefix}/` : ""}illLow/${key.slice(illBase.length)}`;
 	}
+	if (root) return undefined;
 	const avatarBase = `${htmlPrefix}/avatar/`;
 	const defaultAvatar = `${avatarBase}Introduction.png`;
 	if (key.startsWith(avatarBase) && key !== defaultAvatar) return defaultAvatar;

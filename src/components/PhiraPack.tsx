@@ -15,6 +15,7 @@ import {
 	CHART_LEVELS,
 	type ChartLevel,
 	type ChartSummary,
+	cellLabel,
 } from "@/lib/chart-catalog";
 
 type Download =
@@ -47,7 +48,7 @@ function saveBlob(blob: Blob, file: string) {
 export function PhiraPack() {
 	const { m } = useI18n();
 	const t = m.phira;
-	const catalog = useChartCatalog();
+	const catalog = useChartCatalog(true);
 	const ids = useId();
 	const labelId = `${ids}-label`;
 	const searchBox = useRef<HTMLDivElement>(null);
@@ -210,7 +211,7 @@ export function PhiraPack() {
 									<li key={rank} className="phira-level">
 										<span className={`chart-level chart-level-${rank}`}>
 											<span>{rank}</span>
-											<span>{cell[0].toFixed(1)}</span>
+											<span>{cellLabel(cell)}</span>
 										</span>
 										<span className="phira-level-notes">
 											{cell[1] != null
@@ -239,7 +240,7 @@ export function PhiraPack() {
 													: t.downloading
 												: t.download}
 											<span className="sr-only">
-												{` · ${song.song} ${rank} ${cell[0].toFixed(1)}`}
+												{` · ${song.song} ${rank} ${cellLabel(cell)}`}
 											</span>
 										</SteadyButton>
 										{busy ? (

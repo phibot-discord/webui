@@ -48,6 +48,10 @@
 	--level: oklch(0.42 0.02 260);
 }
 
+.chart-level-SP {
+	--level: oklch(0.5 0.17 310);
+}
+
 @media (pointer: coarse) {
 	:is(button, [role="option"]).chart-level {
 		min-height: var(--tap);

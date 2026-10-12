@@ -13,6 +13,7 @@ import {
 } from "@/phi/lib/info-file";
 import { applyPhiVersion } from "@/phi/lib/version";
 import { runInBackground } from "./background";
+import { loadFools } from "./fools";
 import { logger } from "./logger";
 import { assetsDir } from "./paths";
 import { fetchR2Object, r2Ready } from "./r2";
@@ -417,6 +418,18 @@ export async function applyKvLevels(
 	}
 }
 
+/** Songs whose 4/1 jackets are in R2 get `getill` paths under `4-1/`; a failed read keeps the last set */
+async function refreshFools(): Promise<void> {
+	try {
+		const songs = await loadFools();
+		getInfo.setFools(songs.filter((s) => s.jacket).map((s) => s.id));
+	} catch (err) {
+		logger.warn(
+			`4-1 jackets skipped: ${err instanceof Error ? err.message : err}`,
+		);
+	}
+}
+
 async function refresh(): Promise<void> {
 	const now = Date.now();
 	const skipRemote = initedCommit != null && now - checkedAt < CHECK_MS;
@@ -451,6 +464,8 @@ async function refresh(): Promise<void> {
 			}
 		}
 		if (kv) await applyKvLevels(kv, hydrated);
+		// Off the critical path: until it lands a 4/1 jacket just takes its `original_ill/SP/` copy
+		runInBackground(refreshFools());
 		checkedAt = now;
 	}
 	await reloadCatalog();

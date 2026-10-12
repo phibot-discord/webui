@@ -1,4 +1,4 @@
-import { chartCatalog } from "@/server/charts";
+import { chartCatalog, chartCatalogWithFools } from "@/server/charts";
 import { etagMatches } from "@/server/http";
 
 export const runtime = "nodejs";
@@ -9,7 +9,11 @@ const CACHE = "public, max-age=300, stale-while-revalidate=86400";
 const CACHE_STALE = "public, max-age=30, stale-while-revalidate=300";
 
 export async function GET(request: Request) {
-	const { json, etag, aliases } = await chartCatalog();
+	// `?fools=1` adds the 4/1 specials: the Phira and asset pages ask, the scoring tools do not
+	const withFools = new URL(request.url).searchParams.get("fools") === "1";
+	const { json, etag, aliases } = await (withFools
+		? chartCatalogWithFools()
+		: chartCatalog());
 	const headers = {
 		ETag: etag,
 		"Cache-Control": aliases.stale ? CACHE_STALE : CACHE,

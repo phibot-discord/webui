@@ -1,0 +1,259 @@
+// Builds the April Fools (4/1) specials' R2 tree (`4-1/…`, read by src/server/fools.ts) from unpacked APKs
+//   node --env-file=.env.local --import tsx scripts/publish-fools.ts <unpack root> <out dir> [--upload [flags]]
+// <unpack root>/<apk>/ is a phi-unpackd-style export of the APK a special shipped in (chart/<folder>/<FILE>.json,
+// original_ill/{ill,illLow,illBlur}/<id>.png, music/<id>.ogg, where <id> is <folder> without a trailing `.0`);
+// <out dir> receives the tree. Song details come from phi-assets/info/spinfo.json (or the special's own
+// `fallback`), and every chart's note count must match the combo there. Without --upload nothing leaves this
+// machine. Upload flags: --no-manifest sends everything but index.json, which is what the site follows;
+// --manifest-only sends just that; --only=<key> sends one special's files (plus index.json unless
+// --no-manifest). Every special in SPECIALS must be unpacked: the manifest is rebuilt from the whole list
+import { existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+
+type Special = {
+	/** spinfo.json key; with `.0` it is the catalog id, and R2 files are named after it */
+	key: string;
+	/** Which APK's export holds it, and the track folder in there */
+	apk: string;
+	folder: string;
+	/** Published level → the chart's file in `chart/<folder>/` and its key in spinfo.json (the joke name) */
+	charts: Record<string, { file: string; spinfo: string }>;
+	/** The entry phi-plugin dropped from spinfo.json once the song joined the game for good */
+	fallback?: SpSong;
+};
+
+// Every special is published as SP, whichever level the game files it under
+const SPECIALS: Special[] = [
+	{
+		key: "Burn(Haocore Mix)",
+		apk: "1.4.1",
+		folder: "BurnHaocoreMix.0",
+		charts: { SP: { file: "SP", spinfo: "禁烟先锋" } },
+	},
+	{
+		key: "Spasmodic(Haocore Mix)",
+		apk: "1.6.5",
+		folder: "SpasmodicHaocoreRemix.0",
+		charts: { SP: { file: "SP", spinfo: "一库呦" } },
+	},
+	{
+		key: "Sigma (Haocore Mix) ~ 105秒の伝説 ~",
+		apk: "2.1.4",
+		folder: "Sigma.AprilFools.0",
+		charts: { SP: { file: "Chart", spinfo: "嘿！" } },
+	},
+	{
+		key: "Sigma (Haocore Mix) ~ Regrets of The Yellow Tulip ~",
+		apk: "2.1.4",
+		folder: "Sigma.AprilFools.1",
+		charts: { SP: { file: "Chart", spinfo: "踏平星空" } },
+	},
+	{
+		key: "今年も「雪降り、メリクリ」目指して頑張ります！！",
+		apk: "2.5.1",
+		folder: "雪降りメリクリ.1",
+		charts: { SP: { file: "IN", spinfo: "lN" } },
+	},
+	{
+		key: "Dlyrotz -SUPER ULTIMATE AMAZING AWESOME PRO MAX EXTRA REMIX-",
+		apk: "3.12.0",
+		folder: "Dlyrotz.Likey.1",
+		charts: { SP: { file: "IN", spinfo: "听采样吧" } },
+	},
+	{
+		key: "OblivionPHIN.Daily天利vsEndCat终猫ftAiSSw夜輪",
+		apk: "3.19.0.1",
+		folder: "OblivionPHIN.Daily天利vsEndCat终猫ftAiSSw夜輪.0",
+		charts: { SP: { file: "IN", spinfo: "测测你的" } },
+	},
+	{
+		key: "Retribution ~ Cycle of Redemption ~",
+		apk: "3.5.2",
+		folder: "Retribution.nmyKryexe.1",
+		charts: { SP: { file: "IN", spinfo: "?!" } },
+		// phi-plugin 69086a2d^:resources/info/spinfo.json (before "报应SP合并")
+		fallback: {
+			song: "Retribution ~ Cycle of Redemption ~",
+			composer: "Ardolf vs. 天利",
+			illustrator: "死と花の大祭司(ʌᴉoƨმᴉϝ);;",
+			chart: {
+				"?!": {
+					combo: "2500",
+					charter: "SPΔDE ~what awaits ahead is destruction and destruction~",
+				},
+			},
+		},
+	},
+];
+
+type SpChart = { level?: string; charter?: string; combo?: string };
+type SpSong = {
+	song?: string;
+	composer?: string;
+	illustrator?: string;
+	chart?: Record<string, SpChart>;
+};
+type Note = { type: number };
+type Line = { notesAbove?: Note[]; notesBelow?: Note[] };
+
+const args = process.argv.slice(2);
+const [srcArg, outArg] = args.filter((a) => !a.startsWith("--"));
+if (!srcArg || !outArg) {
+	console.error("usage: publish-fools.ts <unpack dir> <out dir> [--upload]");
+	process.exit(1);
+}
+const src = resolve(srcArg);
+const out = resolve(outArg);
+const upload = args.includes("--upload");
+const skipManifest = args.includes("--no-manifest");
+const manifestOnly = args.includes("--manifest-only");
+const only = args.find((a) => a.startsWith("--only="))?.slice("--only=".length);
+
+const { packPhiraChart } = await import("../src/phi/lib/phira");
+const { FOOLS_PREFIX } = await import("../src/lib/assets");
+
+const spinfo = JSON.parse(
+	await readFile(join("phi-assets", "info", "spinfo.json"), "utf8"),
+) as Record<string, SpSong>;
+
+/** info.txt is one field per line */
+const oneLine = (s: string | undefined) => (s ?? "").replace(/\s*\n\s*/g, " ");
+
+function countNotes(chart: { judgeLineList?: Line[] }): number {
+	let n = 0;
+	for (const line of chart.judgeLineList ?? []) {
+		n += (line.notesAbove?.length ?? 0) + (line.notesBelow?.length ?? 0);
+	}
+	return n;
+}
+
+const files = new Map<string, { body: Uint8Array; type: string }>();
+const manifest: unknown[] = [];
+
+for (const special of SPECIALS) {
+	const sp = spinfo[special.key] ?? special.fallback;
+	if (!sp?.song) throw new Error(`${special.key} is not in spinfo.json`);
+	const id = `${special.key}.0`;
+	const track = (...parts: string[]) => join(src, special.apk, ...parts);
+	const stem = special.folder.replace(/\.0$/, "");
+	const jackets = ["ill", "illLow", "illBlur"].map((dir) =>
+		track("original_ill", dir, `${stem}.png`),
+	);
+	const jacket = jackets.every((p) => existsSync(p));
+	const picture = await readFile(jackets[1] as string);
+	const song = await readFile(track("music", `${stem}.ogg`));
+	const charts: Record<string, unknown> = {};
+	for (const [level, source] of Object.entries(special.charts)) {
+		const meta = sp.chart?.[source.spinfo];
+		if (!meta) {
+			throw new Error(`${special.key} has no spinfo chart ${source.spinfo}`);
+		}
+		const chart = await readFile(
+			track("chart", special.folder, `${source.file}.json`),
+		);
+		const notes = countNotes(JSON.parse(chart.toString("utf8")));
+		if (meta.combo && Number(meta.combo) !== notes) {
+			throw new Error(
+				`${special.key} ${level}: chart has ${notes} notes, spinfo says ${meta.combo}`,
+			);
+		}
+		const label = meta.level?.trim() || "?";
+		const pack = await packPhiraChart({
+			id: special.key,
+			name: oneLine(sp.song),
+			level,
+			difficulty: label,
+			composer: oneLine(sp.composer),
+			illustrator: oneLine(sp.illustrator),
+			charter: oneLine(meta.charter),
+			chart,
+			picture,
+			song,
+		});
+		files.set(`phira/${level}/${special.key}-${level}.pez`, {
+			body: pack,
+			type: "application/octet-stream",
+		});
+		charts[level] = { label, charter: meta.charter ?? "", notes };
+	}
+	if (jacket) {
+		for (const [i, dir] of ["ill", "illLow", "illBlur"].entries()) {
+			files.set(`original_ill/${dir}/${special.key}.png`, {
+				body: await readFile(jackets[i] as string),
+				type: "image/png",
+			});
+		}
+	}
+	files.set(`music/${special.key}.ogg`, { body: song, type: "audio/ogg" });
+	manifest.push({
+		id,
+		song: sp.song,
+		composer: sp.composer ?? "",
+		jacket,
+		charts,
+	});
+}
+files.set("index.json", {
+	body: Buffer.from(
+		`${JSON.stringify({ v: 1, songs: manifest }, null, "\t")}\n`,
+	),
+	type: "application/json",
+});
+
+for (const [name, { body }] of files) {
+	const path = join(out, FOOLS_PREFIX, name);
+	await mkdir(dirname(path), { recursive: true });
+	await writeFile(path, body);
+	console.log(`${FOOLS_PREFIX}/${name} ${body.byteLength}`);
+}
+
+if (upload) {
+	const { r2Config, r2WriteReady } = await import("../src/server/r2");
+	const cfg = r2Config();
+	if (!r2WriteReady(cfg)) throw new Error("R2 write is not configured");
+	// Plain fetch, not putR2Object: cfFetch gives a request 12 s, which a 4 MB pack on a slow uplink misses
+	const put = async (key: string, body: Uint8Array, type: string) => {
+		const path = key.split("/").map(encodeURIComponent).join("/");
+		const res = await fetch(
+			`https://api.cloudflare.com/client/v4/accounts/${cfg.accountId}/r2/buckets/${encodeURIComponent(cfg.bucket)}/objects/${path}`,
+			{
+				method: "PUT",
+				headers: {
+					Authorization: `Bearer ${cfg.apiToken}`,
+					"Content-Type": type,
+				},
+				body: Buffer.from(body),
+				signal: AbortSignal.timeout(15 * 60 * 1000),
+			},
+		);
+		if (!res.ok) {
+			const text = await res.text().catch(() => "");
+			throw new Error(`R2 PUT ${key}: ${res.status} ${text}`.slice(0, 300));
+		}
+	};
+	// The manifest goes last: the site only lists what it names
+	const order = [...files.keys()]
+		.filter((name) => {
+			if (name === "index.json") return !skipManifest;
+			return !manifestOnly && (!only || name.includes(only));
+		})
+		.sort((a, b) => Number(a === "index.json") - Number(b === "index.json"));
+	for (const name of order) {
+		const file = files.get(name);
+		if (!file) continue;
+		const key = `${FOOLS_PREFIX}/${name}`;
+		for (let attempt = 1; ; attempt++) {
+			try {
+				await put(key, file.body, file.type);
+				break;
+			} catch (err) {
+				if (attempt === 3) throw err;
+				console.warn(
+					`retrying ${key}: ${err instanceof Error ? err.message : err}`,
+				);
+			}
+		}
+		console.log(`uploaded ${key}`);
+	}
+}

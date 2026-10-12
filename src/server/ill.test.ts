@@ -25,6 +25,11 @@ test("jackets, avatars and icons map to R2 keys; css and fonts do not", () => {
 		assetKeyOf(`${res}/original_ill/SP/Revisit(2024 April Fools&#39; Day).png`),
 		"original_ill/SP/Revisit(2024 April Fools' Day).png",
 	);
+	// 4/1 specials: the jacket tree is mirrored under 4-1/
+	assert.equal(
+		assetKeyOf(`${res}/original_ill/4-1/illBlur/Song.A.png`),
+		"4-1/original_ill/illBlur/Song.A.png",
+	);
 	assert.equal(assetKeyOf(`${res}/html/b19/b19.css`), undefined);
 	assert.equal(assetKeyOf(`${res}/html/common/font/phi.woff2`), undefined);
 	assert.equal(assetKeyOf("phi-css://takumi.css"), undefined);
@@ -48,6 +53,15 @@ test("songIllPath points at the R2 tree without looking on disk", () => {
 		songIllPath(root, "Introduction.0", "blur", true),
 		"/no/local/original_ill/SP/Introduction.png",
 	);
+	// A 4/1 special has all three sizes, where SP only ever had the full one
+	assert.equal(
+		songIllPath(root, "Oblivion.Daily.0", "low", true, true),
+		"/no/local/original_ill/4-1/illLow/Oblivion.Daily.png",
+	);
+	assert.equal(
+		songIllPath(root, "Oblivion.Daily.0", "common", false, true),
+		"/no/local/original_ill/4-1/ill/Oblivion.Daily.png",
+	);
 });
 
 test("full jacket R2 miss falls back to illLow; unknown avatar to Introduction", () => {
@@ -66,6 +80,14 @@ test("full jacket R2 miss falls back to illLow; unknown avatar to Introduction",
 	assert.equal(
 		fallbackKeyOf("html/avatar/NotYetSynced.png"),
 		"html/avatar/Introduction.png",
+	);
+	assert.equal(
+		fallbackKeyOf("4-1/original_ill/ill/Oblivion.Daily.png"),
+		"4-1/original_ill/illLow/Oblivion.Daily.png",
+	);
+	assert.equal(
+		fallbackKeyOf("4-1/original_ill/illLow/Oblivion.Daily.png"),
+		undefined,
 	);
 	assert.equal(fallbackKeyOf("html/avatar/Introduction.png"), undefined);
 	assert.equal(fallbackKeyOf("html/otherimg/S.png"), undefined);

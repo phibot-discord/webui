@@ -4,6 +4,7 @@ import {
 	assetContentType,
 	assetDisposition,
 	assetKind,
+	assetTab,
 	assetThumbKey,
 	isPublicAssetKey,
 	publicAssetUrl,
@@ -87,4 +88,33 @@ test("music is a public tree; its rows show the song's jacket", () => {
 		assetThumbKey("music/Stasis.Maozon.ogg"),
 		"original_ill/illLow/Stasis.Maozon.png",
 	);
+});
+
+test("the 4/1 tree is public and classified like the tree it mirrors", () => {
+	assert.equal(isPublicAssetKey("4-1/index.json"), true);
+	assert.equal(isPublicAssetKey("4-1/"), false);
+	assert.equal(isPublicAssetKey("4-1/../info/info.csv"), false);
+	assert.equal(assetKind("4-1/original_ill/ill/a.png"), "jacket");
+	assert.equal(assetKind("4-1/original_ill/illLow/a.png"), "low");
+	assert.equal(assetKind("4-1/original_ill/illBlur/a.png"), "blur");
+	assert.equal(assetKind("4-1/phira/SP/a-SP.pez"), "chart");
+	assert.equal(assetKind("4-1/music/a.ogg"), "music");
+	assert.equal(assetKind("4-1/index.json"), "other");
+	assert.equal(
+		assetThumbKey("4-1/original_ill/ill/a.png"),
+		"4-1/original_ill/illLow/a.png",
+	);
+	assert.equal(
+		assetThumbKey("4-1/music/a.ogg"),
+		"4-1/original_ill/illLow/a.png",
+	);
+	assert.equal(assetThumbKey("4-1/phira/SP/a-SP.pez"), "4-1/phira/SP/a-SP.pez");
+});
+
+test("only the 4/1 tree goes on the fools tab", () => {
+	assert.equal(assetTab("4-1/music/a.ogg"), "fools");
+	assert.equal(assetTab("4-1/index.json"), "fools");
+	assert.equal(assetTab("music/a.ogg"), "files");
+	assert.equal(assetTab("original_ill/ill/4-1.png"), "files");
+	assert.equal(assetTab("info/4-1/a.json"), "files");
 });

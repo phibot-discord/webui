@@ -14,6 +14,7 @@ import {
 	CHART_LEVELS,
 	type ChartLevel,
 	type ChartSummary,
+	cellLabel,
 	loadChartCatalog,
 } from "@/lib/chart-catalog";
 import { rankSongs } from "@/lib/song-search";
@@ -23,11 +24,11 @@ type CatalogState =
 	| { status: "ready"; list: ChartSummary[] }
 	| { status: "failed" };
 
-export function useChartCatalog(): CatalogState {
+export function useChartCatalog(fools = false): CatalogState {
 	const [state, setState] = useState<CatalogState>({ status: "loading" });
 	useEffect(() => {
 		let dead = false;
-		loadChartCatalog()
+		loadChartCatalog(fools)
 			.then((list) => {
 				if (!dead) setState({ status: "ready", list });
 			})
@@ -37,7 +38,7 @@ export function useChartCatalog(): CatalogState {
 		return () => {
 			dead = true;
 		};
-	}, []);
+	}, [fools]);
 	return state;
 }
 
@@ -302,7 +303,7 @@ export function ChartSearch({
 										{levels.map((option) => {
 											const cell = song.charts[option.rank];
 											if (!cell) return null;
-											const level = `${option.rank} ${cell[0].toFixed(1)}`;
+											const level = `${option.rank} ${cellLabel(cell)}`;
 											const detail =
 												cell[1] != null
 													? `${level} · ${cell[1]} ${m.score.notesShort}`
@@ -326,7 +327,7 @@ export function ChartSearch({
 													onClick={() => pick(option)}
 												>
 													<span>{option.rank}</span>
-													<span>{cell[0].toFixed(1)}</span>
+													<span>{cellLabel(cell)}</span>
 												</span>
 											);
 										})}

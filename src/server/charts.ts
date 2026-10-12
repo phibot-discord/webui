@@ -2,14 +2,16 @@ import { createHash } from "node:crypto";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
 import { getInfo } from "@/phi/lib/get-info";
 import { type AliasIndex, ensureAliases } from "./aliases";
+import { foolsSummaries, loadFools } from "./fools";
 
-export type ChartCell = [number, number | null];
+/** [constant, notes, label?]: a label stands in for the constant on charts that have none (4/1 specials) */
+export type ChartCell = [number, number | null, label?: string];
 export type ChartSummary = {
 	id: string;
 	song: string;
 	composer: string;
 	aliases?: string[];
-	charts: Partial<Record<LevelKind, ChartCell>>;
+	charts: Partial<Record<LevelKind | "SP", ChartCell>>;
 };
 
 export type ChartSnapshot = {
@@ -82,6 +84,37 @@ export async function chartCatalog(): Promise<
 		snapshot = buildChartSnapshot(aliases.rev, aliases.byId);
 	}
 	return { ...snapshot, aliases };
+}
+
+let withFools:
+	| {
+			base: string;
+			extra: string;
+			snapshot: Pick<ChartSnapshot, "json" | "etag">;
+	  }
+	| undefined;
+
+/** The catalog plus the 4/1 specials, for the pages that download or browse (never for scoring) */
+export async function chartCatalogWithFools(): Promise<
+	Pick<ChartSnapshot, "json" | "etag"> & { aliases: AliasIndex }
+> {
+	const base = await chartCatalog();
+	const known = new Set(base.list.map((song) => song.id));
+	const extra = foolsSummaries(await loadFools()).filter(
+		(song) => !known.has(song.id),
+	);
+	if (!extra.length) return base;
+	const extraJson = JSON.stringify(extra);
+	if (withFools?.base !== base.etag || withFools.extra !== extraJson) {
+		const json = JSON.stringify([...base.list, ...extra]);
+		const hash = createHash("sha1").update(json).digest("hex").slice(0, 16);
+		withFools = {
+			base: base.etag,
+			extra: extraJson,
+			snapshot: { json, etag: `"charts-${hash}"` },
+		};
+	}
+	return { ...withFools.snapshot, aliases: base.aliases };
 }
 
 export function chartCell(id: string, rank: string): ChartCell | undefined {

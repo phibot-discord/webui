@@ -1,29 +1,40 @@
-import type { ChartSummary } from "@/server/charts";
+import type { ChartCell, ChartSummary } from "@/server/charts";
 import { rankSongs } from "./song-search";
 
-export type { ChartSummary } from "@/server/charts";
+export type { ChartCell, ChartSummary } from "@/server/charts";
 
-export const CHART_LEVELS = ["EZ", "HD", "IN", "AT"] as const;
+// SP is the 4/1 specials' level; the scored catalog never has it
+export const CHART_LEVELS = ["EZ", "HD", "IN", "AT", "SP"] as const;
 export type ChartLevel = (typeof CHART_LEVELS)[number];
 
 export type ChartRef = { id: string; rank: ChartLevel };
 
-let pending: Promise<ChartSummary[]> | undefined;
+const pending: Record<"scored" | "fools", Promise<ChartSummary[]> | undefined> =
+	{ scored: undefined, fools: undefined };
 
-export function loadChartCatalog(): Promise<ChartSummary[]> {
-	if (!pending) {
+/** `fools` adds the 4/1 specials, which have no constant: only for pages that download or browse, never for scoring */
+export function loadChartCatalog(fools = false): Promise<ChartSummary[]> {
+	const slot = fools ? "fools" : "scored";
+	if (!pending[slot]) {
 		// "no-cache" revalidates with the ETag, so an unchanged catalog is a 304
-		pending = fetch("/api/charts", { cache: "no-cache" })
+		pending[slot] = fetch(fools ? "/api/charts?fools=1" : "/api/charts", {
+			cache: "no-cache",
+		})
 			.then(async (res) => {
 				if (!res.ok) throw new Error(`charts ${res.status}`);
 				return (await res.json()) as ChartSummary[];
 			})
 			.catch((err) => {
-				pending = undefined;
+				pending[slot] = undefined;
 				throw err;
 			});
 	}
-	return pending;
+	return pending[slot];
+}
+
+/** The constant, or the label a chart without one carries */
+export function cellLabel(cell: ChartCell): string {
+	return cell[2] ?? cell[0].toFixed(1);
 }
 
 export function searchCharts(

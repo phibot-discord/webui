@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 
-export const PHIRA_LEVELS = ["EZ", "HD", "IN", "AT"] as const;
+/** SP only exists for the 4/1 specials (see src/server/fools.ts) */
+export const PHIRA_LEVELS = ["EZ", "HD", "IN", "AT", "SP"] as const;
 export type PhiraLevel = (typeof PHIRA_LEVELS)[number];
 
 const FIXED_DATE = new Date(Date.UTC(2025, 0, 1));
