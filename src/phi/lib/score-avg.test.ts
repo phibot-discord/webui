@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { rankKey } from "./leaderboard";
+import { LeaderboardError, rankKey } from "./leaderboard";
 import {
 	apiSongId,
 	applyAccAvgMap,
 	applyAccRank,
 	attachB19AccAvg,
 	fetchAllSongAccAvg,
+	memo,
 	RANK_BAND_TAG,
 	rankBand,
+	resetScoreAvgMemForTest,
 	rksAvgBand,
 	rksAvgBandUp,
 	type ScoreAvgSong,
@@ -532,4 +534,26 @@ test("every avg mode reports partial when its lookup fails", async () => {
 		assert.deepEqual(res, { partial: true, missing: true }, avgType);
 		assert.equal(b19[0]?.accAvg, undefined, avgType);
 	}
+});
+
+test("a full local leaderboard queue is not remembered as a failure, an upstream one is", async () => {
+	resetScoreAvgMemForTest();
+	let calls = 0;
+	const busy = memo("busyTest", async () => {
+		calls++;
+		throw new LeaderboardError("busy", "leaderboard queue full");
+	});
+	assert.equal(await busy({ a: 1 }), null);
+	assert.equal(await busy({ a: 1 }), null);
+	assert.equal(calls, 2, "busy asks again on the next render");
+
+	let downCalls = 0;
+	const down = memo("downTest", async () => {
+		downCalls++;
+		throw new LeaderboardError("upstream", "phib19 502");
+	});
+	assert.equal(await down({ a: 1 }), null);
+	assert.equal(await down({ a: 1 }), null);
+	assert.equal(downCalls, 1, "an upstream failure is cached briefly");
+	resetScoreAvgMemForTest();
 });
