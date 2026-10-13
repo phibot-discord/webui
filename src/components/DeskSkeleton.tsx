@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { defaultCardSize } from "@/components/card-shape";
 import { useI18n } from "@/i18n/provider";
 import { parseCardStyle } from "@/phi/lib/card-styles";
+import { CARD_KINDS } from "@/server/card-kinds";
 
 export function DeskSkeleton() {
 	const { m } = useI18n();
@@ -14,14 +15,6 @@ export function DeskSkeleton() {
 		kind,
 		parseCardStyle(kind, query?.get("style")),
 	);
-	const tabs: [kind: string, label: string][] = [
-		["b30", m.nav.b30],
-		["hisb30", m.nav.hisb30],
-		["info", m.nav.info],
-		["x30", m.nav.x30],
-		["fc30", m.nav.fc30],
-		["song", m.nav.song],
-	];
 	return (
 		<main id="content" className="page desk desk-skeleton" aria-busy="true">
 			<p className="sr-only" role="status">
@@ -39,10 +32,10 @@ export function DeskSkeleton() {
 				</div>
 			</div>
 			<ul className="card-nav" aria-hidden="true">
-				{tabs.map(([key, label]) => (
+				{CARD_KINDS.map((key) => (
 					<li key={key}>
 						<span className="sk-tab" data-current={key === kind || undefined}>
-							{label}
+							{m.nav[key]}
 						</span>
 					</li>
 				))}

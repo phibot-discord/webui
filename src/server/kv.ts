@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
-import { runInBackground } from "./background";
-import { cfFetch } from "./cf-fetch";
+import { cfFail, cfFetch } from "./cf-fetch";
 import { logger } from "./logger";
 import type { Kv } from "./sdk";
 
@@ -8,10 +7,6 @@ type KvSetOptions = {
 	ttlMs?: number;
 	nx?: boolean;
 	background?: boolean;
-};
-type KvIncrOptions = {
-	ttlMs?: number;
-	blocking?: boolean;
 };
 type Envelope = { d: string; e?: number };
 
@@ -30,8 +25,6 @@ export type KvStore = {
 	) => Promise<string | null>;
 	del: (...keys: Array<string | string[]>) => Promise<number>;
 	keys: (pattern?: string) => Promise<string[]>;
-	incr: (key: string, options?: KvIncrOptions) => Promise<number>;
-	expire: (key: string, seconds: number) => Promise<number>;
 	ttlMs: (key: string) => Promise<number>;
 };
 
@@ -100,9 +93,8 @@ export type RemoteKv = {
 		ttlSec?: number,
 		opts?: { background?: boolean },
 	) => Promise<void>;
-	delRaw: (key: string, opts?: { background?: boolean }) => Promise<void>;
+	delRaw: (key: string) => Promise<void>;
 	listRaw: (prefix: string) => Promise<string[]>;
-	ping: () => Promise<void>;
 };
 
 function restRemote(cfg: KvConfig): RemoteKv {
@@ -124,12 +116,7 @@ function restRemote(cfg: KvConfig): RemoteKv {
 				headers,
 			});
 			if (res.status === 404) return undefined;
-			if (!res.ok) {
-				const text = await res.text().catch(() => "");
-				throw new Error(
-					`KV GET ${key} failed: ${res.status} ${text}`.slice(0, 500),
-				);
-			}
+			if (!res.ok) await cfFail(res, `KV GET ${key}`);
 			return (await res.text()) || undefined;
 		},
 		putRaw: async (key, value, ttlSec, opts) => {
@@ -142,25 +129,14 @@ function restRemote(cfg: KvConfig): RemoteKv {
 				body: value,
 				background: opts?.background,
 			});
-			if (!res.ok) {
-				const text = await res.text().catch(() => "");
-				throw new Error(
-					`KV PUT ${key} failed: ${res.status} ${text}`.slice(0, 500),
-				);
-			}
+			if (!res.ok) await cfFail(res, `KV PUT ${key}`);
 		},
-		delRaw: async (key, opts) => {
+		delRaw: async (key) => {
 			const res = await cfFetch(`${base}/values/${encodeURIComponent(key)}`, {
 				method: "DELETE",
 				headers,
-				background: opts?.background,
 			});
-			if (!res.ok && res.status !== 404) {
-				const text = await res.text().catch(() => "");
-				throw new Error(
-					`KV DELETE ${key} failed: ${res.status} ${text}`.slice(0, 500),
-				);
-			}
+			if (!res.ok && res.status !== 404) await cfFail(res, `KV DELETE ${key}`);
 		},
 		listRaw: async (prefix) => {
 			const names: string[] = [];
@@ -170,12 +146,7 @@ function restRemote(cfg: KvConfig): RemoteKv {
 				if (prefix) params.set("prefix", prefix);
 				if (cursor) params.set("cursor", cursor);
 				const res = await cfFetch(`${base}/keys?${params}`, { headers });
-				if (!res.ok) {
-					const text = await res.text().catch(() => "");
-					throw new Error(
-						`KV LIST failed: ${res.status} ${text}`.slice(0, 500),
-					);
-				}
+				if (!res.ok) await cfFail(res, "KV LIST");
 				const body = (await res.json()) as {
 					success?: boolean;
 					result?: { name: string }[];
@@ -188,13 +159,6 @@ function restRemote(cfg: KvConfig): RemoteKv {
 				cursor = next;
 			}
 			return names;
-		},
-		ping: async () => {
-			const res = await cfFetch(`${base}/keys?limit=10`, { headers });
-			if (!res.ok) {
-				const text = await res.text().catch(() => "");
-				throw new Error(`KV ping failed: ${res.status} ${text}`.slice(0, 400));
-			}
 		},
 	};
 }
@@ -246,11 +210,10 @@ function localRemote(): RemoteKv {
 		},
 		listRaw: async (prefix) =>
 			[...mem.keys()].filter((k) => k.startsWith(prefix)),
-		ping: async () => {},
 	};
 }
 
-/** No ping on connect: a KV LIST per cold start is a wasted API call; the first read reports problems */
+/** No KV LIST on connect: a LIST per cold start is a wasted API call; the first read reports problems */
 export async function connectKv(
 	cfg: KvConfig,
 	remote: (cfg: KvConfig) => RemoteKv = restRemote,
@@ -339,20 +302,22 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 		await remote.putRaw(key, encodeEnvelope(envl), ttlSec, opts);
 	};
 
-	const delRemote = (key: string, opts?: { background?: boolean }) =>
-		remote.delRaw(key, opts);
-
 	const getRemote = async (key: string): Promise<Envelope | undefined> => {
 		const pending = readInflight.get(key);
 		if (pending) return pending;
 		const job = (async () => {
+			const startedAt = Date.now();
 			const raw = await remote.getRaw(key);
+			// A write that landed while this read was in flight is newer than whatever came back
+			const newer = overlay.get(key);
+			if (newer?.write && newer.at >= startedAt && alive(newer.env))
+				return newer.env;
 			if (!raw) return undefined;
 			const envl = parseEnvelope(raw);
+			// No DELETE: Cloudflare drops it at its expiration_ttl, and a DELETE could land after a newer write
 			if (!alive(envl)) {
 				forget(key);
 				markMiss(key);
-				delRemote(key, { background: true }).catch(() => undefined);
 				return undefined;
 			}
 			clearMiss(key);
@@ -362,8 +327,6 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 		readInflight.set(key, job);
 		return job;
 	};
-
-	const listRemote = (prefix: string) => remote.listRaw(prefix);
 
 	const read = async (key: string): Promise<Envelope | undefined> => {
 		if (missFresh(key)) return undefined;
@@ -414,7 +377,7 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 		for (const key of flat) {
 			forget(key);
 			markMiss(key);
-			await enqueue(key, () => delRemote(key));
+			await enqueue(key, () => remote.delRaw(key));
 			n += 1;
 		}
 		return n;
@@ -423,7 +386,7 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 	const keys = async (pattern = "*"): Promise<string[]> => {
 		const re = globToRegExp(pattern);
 		const prefix = globToPrefix(pattern);
-		const listed = await listRemote(prefix === "*" ? "" : prefix);
+		const listed = await remote.listRaw(prefix === "*" ? "" : prefix);
 		const names = new Set<string>(listed.filter((name) => re.test(name)));
 		const now = Date.now();
 		for (const [key, entry] of overlay) {
@@ -441,56 +404,6 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 		set: write,
 		del,
 		keys,
-		incr: async (key, options = {}) => {
-			const bump = (env: Envelope | undefined): Envelope => ({
-				d: String(Number(env?.d || 0) + 1),
-				e:
-					env?.e ??
-					(options.ttlMs != null ? Date.now() + options.ttlMs : undefined),
-			});
-			if (options.blocking !== false) {
-				return enqueue(key, async () => {
-					const next = bump(await read(key));
-					rememberWrite(key, next);
-					try {
-						await putRemote(key, next);
-					} catch (err) {
-						forget(key);
-						throw err;
-					}
-					return Number(next.d);
-				});
-			}
-			const now = Date.now();
-			let local = overlay.get(key);
-			if (!local || !overlayFresh(key, local, now)) {
-				await read(key);
-				local = overlay.get(key);
-			}
-			const next = bump(local && alive(local.env, now) ? local.env : undefined);
-			rememberWrite(key, next);
-			runInBackground(
-				enqueue(key, async () => {
-					try {
-						await putRemote(key, next, { background: true });
-					} catch (err) {
-						forget(key);
-						throw err;
-					}
-				}),
-				(err) =>
-					logger.warn(
-						`kv incr ${key} deferred write failed: ${err instanceof Error ? err.message : err}`,
-					),
-			);
-			return Number(next.d);
-		},
-		expire: async (key, seconds) => {
-			const env = await read(key);
-			if (!env) return 0;
-			await write(key, env.d, { ttlMs: seconds * 1000 });
-			return 1;
-		},
 		ttlMs: async (key) => remainingMs(await read(key)),
 	};
 
@@ -503,11 +416,6 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 			await del(key);
 		},
 		keys: (prefix = "") => keys(prefix ? `${prefix}*` : "*"),
-		ping: async () => {
-			await remote.ping();
-			return "PONG";
-		},
-		close: async () => undefined,
 	};
 
 	return { store, db, label: remote.label };

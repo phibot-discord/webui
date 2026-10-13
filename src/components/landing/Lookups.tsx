@@ -18,10 +18,10 @@ import { LevelChip } from "@/components/landing/LevelChip";
 import { SignInStatus } from "@/components/landing/SignIn";
 import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
+import { CARD_KINDS } from "@/server/card-kinds";
 
 type LookupKind = keyof Messages["home"]["lookups"];
 
-const KINDS: LookupKind[] = ["b30", "hisb30", "info", "x30", "fc30", "song"];
 const NEW_KINDS: ReadonlySet<LookupKind> = new Set(["song"]);
 const ICONS: Record<LookupKind, typeof ArrowRight> = {
 	b30: SquaresFour,
@@ -89,7 +89,7 @@ export function LandingLookups({ signedIn }: { signedIn: boolean }) {
 	const t = m.home;
 	const list = (
 		<ul className="lookup-grid">
-			{KINDS.map((kind) => (
+			{CARD_KINDS.map((kind) => (
 				<li key={kind}>
 					{signedIn ? (
 						<Link className="lookup" href={`/me/${kind}`}>

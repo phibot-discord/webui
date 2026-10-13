@@ -4,28 +4,11 @@ import { dirname, join } from "node:path";
 import { FOOLS_PREFIX } from "@/lib/assets";
 import { logger } from "./logger";
 import { illDir } from "./paths";
+import { poolAll } from "./pool";
 import { fetchR2Object, r2Config } from "./r2";
 
 const CACHE_ROOT = process.env.PHI_ILL_CACHE?.trim() || "/tmp/phi-web-ill";
 const ILL_FETCH_CONCURRENCY = 48;
-
-async function poolAll<T>(
-	items: T[],
-	limit: number,
-	fn: (item: T) => Promise<void>,
-) {
-	if (!items.length) return;
-	let next = 0;
-	await Promise.all(
-		Array.from({ length: Math.min(limit, items.length) }, async () => {
-			for (;;) {
-				const i = next++;
-				if (i >= items.length) return;
-				await fn(items[i]!);
-			}
-		}),
-	);
-}
 
 function pngName(id: string): string {
 	return id.replace(/\.0$/, ".png");
@@ -44,10 +27,6 @@ export function songIllPath(
 	if (fools) return join(originalIll, FOOLS_PREFIX, dir, png);
 	if (sp) return join(originalIll, "SP", png);
 	return join(originalIll, dir, png);
-}
-
-export function chapIllPath(originalIll: string, name: string): string {
-	return join(originalIll, "chap", `${name}.png`);
 }
 
 function underIllTree(absPath: string): string | undefined {

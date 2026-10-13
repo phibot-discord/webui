@@ -27,22 +27,9 @@ const server = createServer((req, res) => {
 });
 await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 process.env.PHI_CHART_TAG_API = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-const { chartTagJsonFetch, chartTagJsonFetchOnce } = await import(
-	"./chart-tags-api"
-);
+const { chartTagJsonFetchOnce } = await import("./chart-tags-api");
 
 test.after(() => server.close());
-
-test("a body cut off mid-stream is retried, not leaked past the retry loop", async () => {
-	hits = 0;
-	bodies.splice(0, bodies.length, "cut", "ok");
-	const got = await chartTagJsonFetch("/chartsTag/get/b30Analysis", {
-		method: "POST",
-		body: "{}",
-	});
-	assert.deepEqual(got, { data: { ok: true } });
-	assert.equal(hits, 2);
-});
 
 test("the one-shot fetch makes a single attempt", async () => {
 	hits = 0;

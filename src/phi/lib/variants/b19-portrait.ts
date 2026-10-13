@@ -1,5 +1,6 @@
 import type { CardKind } from "@/server/card-kinds";
 import { cardCopy, type PhiLocale } from "../card-i18n";
+import { escapeHtml } from "../html";
 import { fitEm, textEm } from "../text-fit";
 import {
 	type FittedTip,
@@ -463,14 +464,6 @@ export function fitPlayerName(
 		multi: cut.length > 1,
 		html: cut.map(escapeHtml).join("<br>"),
 	};
-}
-
-function escapeHtml(s: string) {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
 }
 
 export function peerAverage(

@@ -6,7 +6,6 @@ import {
 } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { type ComponentProps, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { en } from "@/i18n/messages";
 import { I18nProvider } from "@/i18n/provider";
 import { ChartSearch, comboboxKey } from "./ChartSearch";
 
@@ -74,9 +73,7 @@ test("the listbox is not a Tab stop and is wired to the input", () => {
 		onPick: () => {},
 	});
 	// children come in as the third argument
-	const provider = { locale: "en", m: en } as ComponentProps<
-		typeof I18nProvider
-	>;
+	const provider = { locale: "en" } as ComponentProps<typeof I18nProvider>;
 	const html = renderToStaticMarkup(
 		createElement(
 			AppRouterContext.Provider,

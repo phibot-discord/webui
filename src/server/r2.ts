@@ -1,4 +1,4 @@
-import { cfFetch } from "./cf-fetch";
+import { cfFail, cfFetch } from "./cf-fetch";
 import { logger } from "./logger";
 
 type CacheMode = "default" | "no-store";
@@ -91,11 +91,12 @@ export function publicObjectUrl(
 	return `${cfg.publicBase}/${path}`;
 }
 
-function objectUrl(cfg: R2Config, key: string): string {
-	return `https://api.cloudflare.com/client/v4/accounts/${cfg.accountId}/r2/buckets/${encodeURIComponent(cfg.bucket)}/objects/${key
-		.split("/")
-		.map(encodeURIComponent)
-		.join("/")}`;
+export function bucketObjectsUrl(cfg: R2Config): string {
+	return `https://api.cloudflare.com/client/v4/accounts/${cfg.accountId}/r2/buckets/${encodeURIComponent(cfg.bucket)}/objects`;
+}
+
+export function objectUrl(cfg: R2Config, key: string): string {
+	return `${bucketObjectsUrl(cfg)}/${key.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 function remember(key: string, buf: Buffer) {
@@ -285,10 +286,7 @@ export async function putR2Object(
 		body,
 		background: extra.background,
 	});
-	if (!res.ok) {
-		const text = await res.text().catch(() => "");
-		throw new Error(`R2 PUT ${k} failed: ${res.status} ${text}`.slice(0, 500));
-	}
+	if (!res.ok) await cfFail(res, `R2 PUT ${k}`);
 	missing.delete(k);
 	if (extra.cache !== "no-store") remember(k, body);
 }

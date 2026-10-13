@@ -17,9 +17,6 @@
 
 body {
 	position: relative;
-	background: #0a0e14;
-	color: var(--ib-text);
-	font-family: var(--ib-sans);
 }
 
 .ib-bg {

@@ -1,5 +1,6 @@
 import { getInfo } from "@/phi/lib/get-info";
-import { isPhiraLevel } from "@/phi/lib/phira";
+import { isPhiraLevel, phiraPackFile, phiraPackKey } from "@/phi/lib/phira";
+import { cellOf } from "./charts";
 import { foolsPack } from "./fools";
 import { type R2Stream, streamR2Object } from "./r2";
 import { ensureSongInfo } from "./song-info";
@@ -17,18 +18,15 @@ export async function buildPhira(
 	await ensureSongInfo();
 	const bare = id.replace(/\.0$/, "");
 	const song = getInfo.raw(bare) || getInfo.raw(`${bare}.0`);
-	const chart = song?.chart?.[level];
-	const difficulty = Number(chart?.difficulty);
-	if (!song || !chart || !Number.isFinite(difficulty) || difficulty <= 0) {
+	if (!song || !cellOf(song.chart?.[level])) {
 		// A 4/1 special has no constant, so it never gets this far; its pack sits under 4-1/
 		const special = await foolsPack(id, level);
 		if (!special) return { error: "unknown_chart" };
 		const got = await streamR2Object(special.key);
 		return got ? { filename: special.filename, ...got } : { error: "missing" };
 	}
-	const base = song.id.replace(/\.0$/, "");
-	const filename = `${base}-${level}.pez`;
-	const got = await streamR2Object(`phira/${level}/${filename}`);
+	const filename = phiraPackFile(song.id, level);
+	const got = await streamR2Object(phiraPackKey(song.id, level));
 	if (!got) return { error: "missing" };
 	return { filename, ...got };
 }

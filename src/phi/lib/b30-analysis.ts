@@ -12,32 +12,28 @@ export function getB30AnalysisRecords(b30: {
 	phi?: LooseB30[] | unknown[];
 	b19_list?: LooseB30[] | unknown[];
 }): B30Record[] {
-	const asRow = (record: unknown): LooseB30 => record as LooseB30;
-	const phi = (b30.phi || []).slice(0, 3).map((record, index) => {
-		const row = asRow(record);
-		return row
-			? {
-					id: row.id,
-					rank: row.rank,
-					rks: Number(row.rks),
-					kind: "phi" as const,
-					slot: `P${index + 1}`,
-				}
-			: null;
-	});
-	const best = (b30.b19_list || []).slice(0, 27).map((record, index) => {
-		const row = asRow(record);
-		return row
-			? {
-					id: row.id,
-					rank: row.rank,
-					rks: Number(row.rks),
-					kind: "best" as const,
-					slot: `B${index + 1}`,
-				}
-			: null;
-	});
-	return [...phi, ...best].filter((record): record is B30Record => {
+	const rows = (
+		list: unknown[] | undefined,
+		count: number,
+		kind: B30Record["kind"],
+		prefix: string,
+	) =>
+		(list || []).slice(0, count).map((record, index) => {
+			const row = record as LooseB30;
+			return row
+				? {
+						id: row.id,
+						rank: row.rank,
+						rks: Number(row.rks),
+						kind,
+						slot: `${prefix}${index + 1}`,
+					}
+				: null;
+		});
+	return [
+		...rows(b30.phi, 3, "phi", "P"),
+		...rows(b30.b19_list, 27, "best", "B"),
+	].filter((record): record is B30Record => {
 		if (record == null || !record.id) return false;
 		return (
 			["EZ", "HD", "IN", "AT", "LEGACY"].includes(record.rank ?? "") &&
@@ -47,9 +43,11 @@ export function getB30AnalysisRecords(b30: {
 }
 
 /** Population SD: the P3 + B27 slots are the whole set that defines RKS */
-export function equivRksStddev(values: number[]): number {
+export function equivRksStddev(
+	values: number[],
+	average = values.reduce((sum, value) => sum + value, 0) / values.length,
+): number {
 	if (values.length < 2) return 0;
-	const average = values.reduce((sum, value) => sum + value, 0) / values.length;
 	return Math.sqrt(
 		values.reduce((sum, value) => sum + (value - average) ** 2, 0) /
 			values.length,
@@ -93,24 +91,18 @@ export function buildRksHistogram(records: B30Record[], targetTickCount = 4) {
 		});
 	}
 
-	const slotCounters = { phi: 0, best: 0 };
-	const slots = valid.map((record) => {
-		slotCounters[record.kind] += 1;
-		return {
-			label:
-				record.slot ||
-				`${record.kind === "phi" ? "P" : "B"}${slotCounters[record.kind]}`,
-			rks: record.rks,
-			kind: record.kind,
-			height: Math.min(
-				100,
-				Math.max(0, ((record.rks - domainMin) / domainRange) * 100),
-			),
-		};
-	});
+	const slots = valid.map((record) => ({
+		label: record.slot,
+		rks: record.rks,
+		kind: record.kind,
+		height: Math.min(
+			100,
+			Math.max(0, ((record.rks - domainMin) / domainRange) * 100),
+		),
+	}));
 
 	const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-	const stddev = equivRksStddev(values);
+	const stddev = equivRksStddev(values, average);
 	return {
 		slots,
 		ticks,

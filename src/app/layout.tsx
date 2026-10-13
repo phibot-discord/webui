@@ -8,7 +8,7 @@ import { SkipLink } from "@/components/SkipLink";
 import { VersionNotice } from "@/components/VersionNotice";
 import { localeTag } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/provider";
-import { getMessages } from "@/i18n/server";
+import { getMessages, getRequestLocale } from "@/i18n/server";
 import { avatarPath } from "@/server/avatar";
 import { withDiscordUid } from "@/server/logger";
 import { THEME_COLORS } from "@/theme/config";
@@ -69,7 +69,7 @@ export default async function RootLayout({
 }) {
 	const session = await auth();
 	return withDiscordUid(session?.user?.id, async () => {
-		const { locale, m } = await getMessages();
+		const locale = await getRequestLocale();
 		const theme = await getRequestTheme();
 		return (
 			<html
@@ -80,7 +80,7 @@ export default async function RootLayout({
 				suppressHydrationWarning
 			>
 				<body>
-					<I18nProvider locale={locale} m={m}>
+					<I18nProvider locale={locale}>
 						<SkipLink />
 						<div className="shell">
 							<SiteHeader

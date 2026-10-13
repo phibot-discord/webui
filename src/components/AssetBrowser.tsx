@@ -17,7 +17,7 @@ import {
 	useState,
 } from "react";
 import { useChartCatalog } from "@/components/ChartSearch";
-import { Announce } from "@/components/Tool";
+import { Announce, useSettled } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 import {
 	ASSET_KINDS,
@@ -33,14 +33,10 @@ import {
 	publicAssetUrl,
 } from "@/lib/assets";
 import type { ChartSummary } from "@/lib/chart-catalog";
-import { rankSongs } from "@/lib/song-search";
+import { looseFold, rankSongs } from "@/lib/song-search";
 
 const PAGE = 48;
 const TEXT_PREVIEW_MAX = 200_000;
-
-function fold(value: string) {
-	return value.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
-}
 
 function formatSize(size: number) {
 	if (size < 1024) return `${size} B`;
@@ -222,7 +218,7 @@ export function AssetBrowser() {
 	);
 
 	const trimmed = query.trim();
-	const q = fold(trimmed);
+	const q = looseFold(trimmed);
 	const named = useMemo(
 		() =>
 			catalog.status === "ready" && trimmed
@@ -238,7 +234,7 @@ export function AssetBrowser() {
 		() =>
 			(files ?? []).filter((file) => {
 				if (!q) return true;
-				if (fold(file.key).includes(q)) return true;
+				if (looseFold(file.key).includes(q)) return true;
 				const song = songOf(file.key, songs);
 				return song ? (named?.has(song.id) ?? false) : false;
 			}),
@@ -307,11 +303,7 @@ export function AssetBrowser() {
 					.replaceAll("{total}", String(hits.length))
 			: t.none
 		: "";
-	const [said, setSaid] = useState("");
-	useEffect(() => {
-		const id = window.setTimeout(() => setSaid(count), 700);
-		return () => window.clearTimeout(id);
-	}, [count]);
+	const said = useSettled(count);
 
 	useEffect(() => {
 		if (!files || !retried.current) return;

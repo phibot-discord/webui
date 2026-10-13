@@ -108,8 +108,6 @@ function mockDb(opts: { log: string[]; save?: string }) {
 		},
 		del: async () => undefined,
 		keys: async () => [],
-		ping: async () => "PONG",
-		close: async () => undefined,
 	} satisfies Kv;
 }
 

@@ -3,6 +3,7 @@ import { logger, withDiscordUid } from "@/server/logger";
 import type { Kv } from "@/server/sdk";
 import { ensureSongInfo } from "@/server/song-info";
 import { kvKey } from "./const";
+import { evictOldest } from "./lru";
 import type { PhiRuntime } from "./runtime";
 import type { Save, SavePayload } from "./save";
 import { isTapApiFailure, tapCnProxyUrl } from "./tapapi";
@@ -32,14 +33,6 @@ const SAVE_DROPS_MAX = 1_000;
 
 function saveDropGen(token: string): number {
 	return saveDrops.get(token) ?? 0;
-}
-
-function evictOldest(map: Map<string, unknown>, max: number) {
-	while (map.size > max) {
-		const oldest = map.keys().next().value;
-		if (oldest === undefined) break;
-		map.delete(oldest);
-	}
 }
 
 function rememberBlob(
@@ -78,11 +71,7 @@ const SESSION_REGION_MAX = 500;
 function rememberRegion(userId: string, global: boolean) {
 	sessionRegion.delete(userId);
 	sessionRegion.set(userId, global);
-	while (sessionRegion.size > SESSION_REGION_MAX) {
-		const oldest = sessionRegion.keys().next().value;
-		if (oldest === undefined) break;
-		sessionRegion.delete(oldest);
-	}
+	evictOldest(sessionRegion, SESSION_REGION_MAX);
 }
 
 export function asSessionToken(raw: unknown): string | undefined {
@@ -369,9 +358,9 @@ export async function snapshotB30(
 	prev?: Promise<string | undefined>,
 ) {
 	const key = HISB30(userId);
-	let b19: Awaited<ReturnType<Save["getB19"]>>;
+	let b19: ReturnType<Save["getB19"]>;
 	try {
-		b19 = await save.getB19(undefined, 33, { avgType: "none" });
+		b19 = save.getB19(33);
 	} catch {
 		return;
 	}

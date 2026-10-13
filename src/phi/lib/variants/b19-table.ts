@@ -1,5 +1,6 @@
-import { cardCopy, type PhiLocale } from "../card-i18n";
+import { cardCopy, fill, type PhiLocale } from "../card-i18n";
 import { fCompute } from "../fcompute";
+import { escapeHtml } from "../html";
 import { fitEm, splitTwoLines, textEm } from "../text-fit";
 import {
 	type FittedTip,
@@ -172,20 +173,6 @@ function num(v: unknown, fallback = 0): number {
 
 function str(v: unknown): string {
 	return typeof v === "string" ? v : v == null ? "" : String(v);
-}
-
-function escapeHtml(s: string): string {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
-}
-
-function fill(template: string, vars: Record<string, string | number>) {
-	return template.replace(/\{(\w+)\}/g, (m, k: string) =>
-		k in vars ? String(vars[k]) : m,
-	);
 }
 
 export function paddedScore(score: unknown): { lead: string; rest: string } {

@@ -1,5 +1,10 @@
 import { FOOLS_PREFIX } from "@/lib/assets";
-import { PHIRA_LEVELS, type PhiraLevel } from "@/phi/lib/phira";
+import {
+	PHIRA_LEVELS,
+	type PhiraLevel,
+	phiraPackFile,
+	phiraPackKey,
+} from "@/phi/lib/phira";
 import type { ChartCell, ChartSummary } from "./charts";
 import { logger } from "./logger";
 import { fetchR2Object, r2Ready } from "./r2";
@@ -123,12 +128,8 @@ function bare(id: string): string {
 	return id.replace(/\.0$/, "");
 }
 
-export function foolsPackFile(song: FoolsSong, level: PhiraLevel): string {
-	return `${bare(song.id)}-${level}.pez`;
-}
-
 export function foolsPackKey(song: FoolsSong, level: PhiraLevel): string {
-	return `${FOOLS_PREFIX}/phira/${level}/${foolsPackFile(song, level)}`;
+	return phiraPackKey(song.id, level, FOOLS_PREFIX);
 }
 
 /** Where the Phira pack for `id`'s `level` lives, when the manifest lists that chart */
@@ -140,7 +141,7 @@ export async function foolsPack(
 	const song = (await loadFools()).find((s) => bare(s.id) === want);
 	if (!song?.charts[level]) return undefined;
 	return {
-		filename: foolsPackFile(song, level),
+		filename: phiraPackFile(song.id, level),
 		key: foolsPackKey(song, level),
 	};
 }

@@ -220,10 +220,6 @@
 	font-weight: 500;
 }
 
-.text-link {
-	color: var(--primary);
-}
-
 .bind-manual-col .lede,
 .bind-alt-col .lede {
 	font-size: 0.9375rem;

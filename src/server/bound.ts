@@ -36,7 +36,6 @@ export type BoundErr = {
 	error: ErrorCode;
 	status: number;
 	retryAfter?: number;
-	reason?: ErrorCode;
 	detail?: string;
 };
 
@@ -50,6 +49,21 @@ export function lastSyncedIso(save: Save): string | undefined {
 	if (!iso) return undefined;
 	const d = iso instanceof Date ? iso : new Date(String(iso));
 	return Number.isFinite(d.getTime()) ? d.toISOString() : String(iso);
+}
+
+export type PlayerSummary = {
+	playerId: string;
+	rks?: number;
+	lastSynced?: string;
+};
+
+export function playerFromSave(save: Save): PlayerSummary {
+	const rks = save.saveInfo.summary?.rankingScore;
+	return {
+		playerId: String(save.saveInfo.PlayerId || ""),
+		rks: typeof rks === "number" ? rks : undefined,
+		lastSynced: lastSyncedIso(save),
+	};
 }
 
 export function resolveCardEpoch(
@@ -101,17 +115,17 @@ async function loadBoundFor(
 			};
 		}
 		logger.info("session token miss");
-		return { error: "not_bound", status: 409, reason: "not_bound" };
+		return { error: "not_bound", status: 409 };
 	}
 	const [banned, save] = await Promise.all([
 		host.rt.store.isSessionTokenBanned(token),
 		host.lib.loadSaveByToken(host.rt, host.db, token, memo),
 	]);
 	if (banned) {
-		return { error: "banned", status: 403, reason: "banned" };
+		return { error: "banned", status: 403 };
 	}
 	if (!save) {
-		return { error: "no_save", status: 409, reason: "no_save" };
+		return { error: "no_save", status: 409 };
 	}
 	return { save, token };
 }
@@ -145,9 +159,9 @@ async function refreshSaveFor(
 	const songInfo = ensureSongInfo();
 	songInfo.catch(() => undefined);
 	const token = await host.lib.getToken(host.rt, userId);
-	if (!token) return { error: "not_bound", status: 409, reason: "not_bound" };
+	if (!token) return { error: "not_bound", status: 409 };
 	if (await host.rt.store.isSessionTokenBanned(token)) {
-		return { error: "banned", status: 403, reason: "banned" };
+		return { error: "banned", status: 403 };
 	}
 	const coolKey = kvKey("webRefresh", userId);
 	const claimed = await claimCooldown(host.store, coolKey, REFRESH_COOLDOWN_MS);
@@ -155,7 +169,6 @@ async function refreshSaveFor(
 		return {
 			error: "refresh_cooldown",
 			status: 429,
-			reason: "refresh_cooldown",
 			retryAfter: retryAfterSec(claimed.remainMs),
 		};
 	}
@@ -177,19 +190,10 @@ async function refreshSaveFor(
 	} catch (err) {
 		await host.store.del(coolKey);
 		if (isTapApiFailure(err)) {
-			return {
-				error: "tapapi_unavailable",
-				status: 502,
-				reason: "tapapi_unavailable",
-			};
+			return { error: "tapapi_unavailable", status: 502 };
 		}
 		const detail = err instanceof Error ? err.message : undefined;
-		return {
-			error: "refresh_failed",
-			status: 502,
-			reason: "refresh_failed",
-			detail,
-		};
+		return { error: "refresh_failed", status: 502, detail };
 	}
 }
 
@@ -215,7 +219,6 @@ async function bypassCardCacheFor(
 		return {
 			error: "cache_bypass_cooldown",
 			status: 429,
-			reason: "cache_bypass_cooldown",
 			retryAfter: retryAfterSec(claimed.remainMs),
 		};
 	}

@@ -22,7 +22,6 @@ import { mountBytes } from "./vfs";
 export const INFO_STATE_KEY = "_sync/info.json";
 const INFO_FILES = [
 	"avatar.txt",
-	"chaplist.yaml",
 	"info.csv",
 	"infolist.json",
 	"nicklist.yaml",

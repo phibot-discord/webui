@@ -132,18 +132,19 @@ export function getBustEpoch(): string {
 	return bustEpoch;
 }
 
-export function persistCardReload(_lastSynced?: string) {
+function reloadCards(fresh: boolean) {
 	hydrateFromSession();
 	reloadToken = String(Date.now());
-	clearCardBlobs({ fresh: true });
+	clearCardBlobs({ fresh });
 	emit();
 }
 
+export function persistCardReload() {
+	reloadCards(true);
+}
+
 export function bumpCardReload() {
-	hydrateFromSession();
-	reloadToken = String(Date.now());
-	clearCardBlobs();
-	emit();
+	reloadCards(false);
 }
 
 export function cardFetchUrl(

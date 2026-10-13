@@ -27,7 +27,7 @@ export default async function MePage() {
 		]);
 
 		if ("error" in got) {
-			if (got.reason === "not_bound") {
+			if (got.error === "not_bound") {
 				return (
 					<main id="content" className="page page-bind">
 						<BindPanel />
@@ -36,7 +36,7 @@ export default async function MePage() {
 			}
 			return (
 				<MeGate
-					reason={got.reason === "banned" ? "banned" : "no_save"}
+					reason={got.error === "banned" ? "banned" : "no_save"}
 					cooldown={cooldown}
 				/>
 			);

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { isTimeoutError } from "@/server/outgoing";
 import {
 	isRetryableTapNet,
-	isTimeoutError,
 	setTapHttpForTest,
 	TAPAPI_TIMEOUT_MS,
 	TapApiError,

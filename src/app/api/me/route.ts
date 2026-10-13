@@ -1,7 +1,7 @@
 import { authed } from "@/server/authed";
 import {
-	lastSyncedIso,
 	loadBound,
+	playerFromSave,
 	refreshCooldownRemaining,
 } from "@/server/bound";
 import { getDataHost } from "@/server/data-host";
@@ -20,23 +20,20 @@ export async function GET() {
 		]);
 		if ("error" in got) {
 			return Response.json({
-				bound: got.reason === "no_save",
-				banned: got.reason === "banned",
+				bound: got.error === "no_save",
+				banned: got.error === "banned",
 				hasSave: false,
 				error: got.error,
 				shareSlug,
 				refreshCooldownMs,
 			});
 		}
-		const rks = got.save.saveInfo.summary?.rankingScore;
 		return Response.json({
 			bound: true,
 			banned: false,
 			hasSave: true,
 			manual: got.manual === true,
-			playerId: String(got.save.saveInfo.PlayerId || ""),
-			rks: typeof rks === "number" ? rks : undefined,
-			lastSynced: lastSyncedIso(got.save),
+			...playerFromSave(got.save),
 			shareSlug,
 			refreshCooldownMs,
 		});

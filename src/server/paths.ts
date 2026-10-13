@@ -1,6 +1,6 @@
 import { join, resolve } from "node:path";
 
-function appRoot(): string {
+export function appRoot(): string {
 	const fromEnv = process.env.PHI_APP_ROOT?.trim();
 	if (fromEnv) return resolve(fromEnv);
 	return process.cwd();

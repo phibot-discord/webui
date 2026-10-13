@@ -1,5 +1,5 @@
 import { sessionUserId } from "@/auth";
-import { lastSyncedIso, loadBound } from "@/server/bound";
+import { loadBound, playerFromSave } from "@/server/bound";
 import { getDataHost } from "@/server/data-host";
 import { localizedError } from "@/server/i18n-http";
 import { withDiscordUid } from "@/server/logger";
@@ -23,13 +23,8 @@ export async function GET(
 				got.status === 403 ? 404 : got.status,
 				"profile_unavailable",
 			);
-		const rks = got.save.saveInfo.summary?.rankingScore;
+		const player = playerFromSave(got.save);
 		const viewer = await sessionUserId();
-		return Response.json({
-			playerId: String(got.save.saveInfo.PlayerId || ""),
-			rks: typeof rks === "number" ? rks : undefined,
-			lastSynced: lastSyncedIso(got.save),
-			owner: viewer === userId,
-		});
+		return Response.json({ ...player, owner: viewer === userId });
 	});
 }

@@ -22,6 +22,7 @@ import {
 	rankKey,
 	rankRows,
 } from "./leaderboard";
+import { TtlLru } from "./lru";
 import type { RankBandShow, RankScope } from "./notes";
 
 export { apiSongId };
@@ -72,7 +73,6 @@ export type ScoreAvgSong = {
 type B19AvgOption = {
 	avgType?: string;
 	color?: string;
-	avgValue?: boolean;
 	db?: Pick<Kv, "get" | "set">;
 	owner?: string;
 	rankScope?: RankScope;
@@ -151,8 +151,8 @@ function lookupAccAvg(map: AccAvgMap, id: string, rank: string) {
 	return Number(n);
 }
 
-function formatAvg(accAvg: number, prefix: string, avgValue?: boolean) {
-	return avgValue ? accAvg : `${prefix} ${accAvg.toFixed(4)}%`;
+function formatAvg(accAvg: number, prefix: string) {
+	return `${prefix} ${accAvg.toFixed(4)}%`;
 }
 
 export function applyAccAvgMap(
@@ -162,7 +162,6 @@ export function applyAccAvgMap(
 		low: string;
 		high: string;
 		prefix: string;
-		avgValue?: boolean;
 		stopAfter?: number;
 	},
 ) {
@@ -173,7 +172,7 @@ export function applyAccAvgMap(
 		if (!x || x.rank === "LEGACY") continue;
 		const accAvg = lookupAccAvg(map, x.id, x.rank);
 		if (accAvg == null) continue;
-		x.accAvg = formatAvg(accAvg, opts.prefix, opts.avgValue);
+		x.accAvg = formatAvg(accAvg, opts.prefix);
 		if (x.acc < accAvg) {
 			allHigher = false;
 			x.accKind = opts.low;
@@ -303,7 +302,7 @@ type ScoreAvgFetchers = {
 const AVG_TTL_MS = 10 * 60 * 1000;
 const AVG_FAIL_TTL_MS = 90 * 1000;
 const AVG_MAX = 128;
-const avgMem = new Map<string, { until: number; value: Promise<unknown> }>();
+const avgMem = new TtlLru<Promise<unknown>>(AVG_MAX);
 
 function avgKey(name: string, params: object) {
 	return `${name}|${JSON.stringify(params, (_k, v) =>
@@ -311,16 +310,6 @@ function avgKey(name: string, params: object) {
 			? [...v].sort()
 			: v,
 	)}`;
-}
-
-function remember(key: string, value: Promise<unknown>, ttlMs: number) {
-	avgMem.delete(key);
-	avgMem.set(key, { until: Date.now() + ttlMs, value });
-	while (avgMem.size > AVG_MAX) {
-		const oldest = avgMem.keys().next().value;
-		if (oldest === undefined) break;
-		avgMem.delete(oldest);
-	}
 }
 
 // Resolves to null on any failure, never rejects
@@ -331,7 +320,7 @@ function memo<P extends object, R>(
 	return (params) => {
 		const key = avgKey(name, params);
 		const hit = avgMem.get(key);
-		if (hit && Date.now() < hit.until) return hit.value as Promise<R | null>;
+		if (hit) return hit as Promise<R | null>;
 		const value: Promise<R | null> = fn(params)
 			.catch((err) => {
 				logger.warn(
@@ -340,12 +329,12 @@ function memo<P extends object, R>(
 				return null;
 			})
 			.then((res) => {
-				if (res == null && avgMem.get(key)?.value === value) {
-					remember(key, Promise.resolve(null), AVG_FAIL_TTL_MS);
+				if (res == null && avgMem.peek(key) === value) {
+					avgMem.set(key, Promise.resolve(null), AVG_FAIL_TTL_MS);
 				}
 				return res;
 			});
-		remember(key, value, AVG_TTL_MS);
+		avgMem.set(key, value, AVG_TTL_MS);
 		return value;
 	};
 }
@@ -409,6 +398,38 @@ function rankQueries(rows: ScoreAvgSong[]): RankQuery[] {
 	return rows.map((row) => ({ songId: row.id, rank: row.rank, acc: row.acc }));
 }
 
+type RankGet = (
+	queries: RankQuery[],
+	band?: RksBand,
+) => RankRowsResult | Promise<RankRowsResult>;
+
+async function rankBadges(
+	payload: AvgPayload,
+	option: B19AvgOption,
+	get: RankGet,
+): Promise<AvgLookup> {
+	const rows = rankModeRows(payload);
+	const scope = option.rankScope ?? "all";
+	const range = rankBand(payload.com_rks);
+	const queries = rankQueries(rows);
+	// Never reject: a failed chunk still returns the rows that arrived
+	const [all, near] = await Promise.all([
+		scope === "band" ? undefined : get(queries),
+		scope === "all" ? undefined : get(queries, range),
+	]);
+	const a = rankGaps(all);
+	const b = rankGaps(near);
+	return {
+		apply: () =>
+			applyRowRanks(
+				rows,
+				all?.rows,
+				near && { ranks: near.rows, range, show: option.rankBandShow },
+			),
+		...outcome(a.missing || b.missing, a.stale || b.stale),
+	};
+}
+
 // Writes nothing to rows, so a late answer can't touch a card being drawn
 async function lookupAvg(
 	avgType: string,
@@ -422,7 +443,7 @@ async function lookupAvg(
 		const band = rksAvgBand(payload.com_rks);
 		const res = await allAccAvg({ songIds, ...band });
 		if (!res) throw new Error("avg-getAllSongAccAvg failed");
-		const fmt = { prefix: "Avg:", avgValue: option.avgValue };
+		const fmt = { prefix: "Avg:" };
 		const probe = payload.b19_list.map((row) => ({ ...row }));
 		const allHigher = applyAccAvgMap(probe, res, {
 			low: "Lower",
@@ -485,28 +506,11 @@ async function lookupAvg(
 		};
 	}
 	if (avgType === "rank") {
-		const rows = rankModeRows(payload);
-		const scope = option.rankScope ?? "all";
-		const range = rankBand(payload.com_rks);
 		const lookup = fetchers.rankRows ?? rankRows;
-		const queries = rankQueries(rows);
 		const cache = { db: option.db, owner: option.owner };
-		// Never reject: a failed chunk still returns the rows that arrived
-		const [all, near] = await Promise.all([
-			scope === "band" ? undefined : lookup(queries, cache),
-			scope === "all" ? undefined : lookup(queries, { ...cache, band: range }),
-		]);
-		const a = rankGaps(all);
-		const b = rankGaps(near);
-		return {
-			apply: () =>
-				applyRowRanks(
-					rows,
-					all?.rows,
-					near && { ranks: near.rows, range, show: option.rankBandShow },
-				),
-			...outcome(a.missing || b.missing, a.stale || b.stale),
-		};
+		return rankBadges(payload, option, (queries, band) =>
+			lookup(queries, band ? { ...cache, band } : cache),
+		);
 	}
 	// A mode the webui doesn't know (the Discord bot may store others): no badges
 	return { apply: () => undefined, ...COMPLETE };
@@ -532,22 +536,14 @@ export async function attachB19AccAvg(
 	} catch (err) {
 		logger.warn(`b30 avg skip: ${err instanceof Error ? err.message : err}`);
 		if (avgType === "rank") {
-			const rows = rankModeRows(payload);
-			const scope = option.rankScope ?? "all";
-			const range = rankBand(payload.com_rks);
-			const peek = fetchers.peekRankRows ?? peekRankRows;
-			const queries = rankQueries(rows);
-			const all = scope === "band" ? undefined : peek(queries);
-			const near = scope === "all" ? undefined : peek(queries, range);
-			applyRowRanks(
-				rows,
-				all?.rows,
-				near && { ranks: near.rows, range, show: option.rankBandShow },
-			);
 			// Often every row is there, from ranks past their 6 h: then nothing is missing
-			const a = rankGaps(all);
-			const b = rankGaps(near);
-			return outcome(a.missing || b.missing, a.stale || b.stale);
+			const { apply, ...result } = await rankBadges(
+				payload,
+				option,
+				fetchers.peekRankRows ?? peekRankRows,
+			);
+			apply();
+			return result;
 		}
 		return outcome(true, false);
 	}

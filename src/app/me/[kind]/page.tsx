@@ -79,10 +79,10 @@ export default async function KindPage({
 		);
 
 		if ("error" in got) {
-			if (got.reason === "not_bound") redirect("/me");
+			if (got.error === "not_bound") redirect("/me");
 			return (
 				<MeGate
-					reason={got.reason === "banned" ? "banned" : "no_save"}
+					reason={got.error === "banned" ? "banned" : "no_save"}
 					cooldown={cooldown}
 				/>
 			);

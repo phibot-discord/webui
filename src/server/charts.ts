@@ -23,6 +23,20 @@ export type ChartSnapshot = {
 
 let snapshot: ChartSnapshot | undefined;
 
+/** A chart with a positive constant as a catalog cell; undefined when the chart is missing or has no constant */
+export function cellOf(
+	chart: { difficulty?: unknown; combo?: unknown } | undefined,
+): ChartCell | undefined {
+	const difficulty = Number(chart?.difficulty);
+	if (!chart || !Number.isFinite(difficulty) || difficulty <= 0) return;
+	const notes = Number(chart.combo);
+	return [difficulty, Number.isInteger(notes) && notes > 0 ? notes : null];
+}
+
+function chartsEtag(json: string): string {
+	return `"charts-${createHash("sha1").update(json).digest("hex").slice(0, 16)}"`;
+}
+
 function build(aliases: AliasIndex["byId"]): ChartSummary[] {
 	const byId = new Map<string, ChartSummary>();
 	for (const song of [
@@ -32,14 +46,9 @@ function build(aliases: AliasIndex["byId"]): ChartSummary[] {
 		const charts: ChartSummary["charts"] = {};
 		let any = false;
 		for (const level of LEVEL) {
-			const chart = song.chart?.[level];
-			const difficulty = Number(chart?.difficulty);
-			if (!chart || !Number.isFinite(difficulty) || difficulty <= 0) continue;
-			const notes = Number(chart.combo);
-			charts[level] = [
-				difficulty,
-				Number.isInteger(notes) && notes > 0 ? notes : null,
-			];
+			const cell = cellOf(song.chart?.[level]);
+			if (!cell) continue;
+			charts[level] = cell;
 			any = true;
 		}
 		if (!any) continue;
@@ -71,8 +80,7 @@ export function buildChartSnapshot(
 ): ChartSnapshot {
 	const list = build(aliases);
 	const json = JSON.stringify(list);
-	const hash = createHash("sha1").update(json).digest("hex").slice(0, 16);
-	return { rev, list, json, etag: `"charts-${hash}"` };
+	return { rev, list, json, etag: chartsEtag(json) };
 }
 
 export async function chartCatalog(): Promise<
@@ -107,25 +115,15 @@ export async function chartCatalogWithFools(): Promise<
 	const extraJson = JSON.stringify(extra);
 	if (withFools?.base !== base.etag || withFools.extra !== extraJson) {
 		const json = JSON.stringify([...base.list, ...extra]);
-		const hash = createHash("sha1").update(json).digest("hex").slice(0, 16);
 		withFools = {
 			base: base.etag,
 			extra: extraJson,
-			snapshot: { json, etag: `"charts-${hash}"` },
+			snapshot: { json, etag: chartsEtag(json) },
 		};
 	}
 	return { ...withFools.snapshot, aliases: base.aliases };
 }
 
 export function chartCell(id: string, rank: string): ChartCell | undefined {
-	const song =
-		getInfo.ori_info[id] ??
-		getInfo.sp_info[id] ??
-		getInfo.ori_info[`${id}.0`] ??
-		getInfo.sp_info[`${id}.0`];
-	const chart = song?.chart?.[rank];
-	const difficulty = Number(chart?.difficulty);
-	if (!chart || !Number.isFinite(difficulty) || difficulty <= 0) return;
-	const notes = Number(chart.combo);
-	return [difficulty, Number.isInteger(notes) && notes > 0 ? notes : null];
+	return cellOf(getInfo.raw(id)?.chart?.[rank]);
 }

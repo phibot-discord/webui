@@ -1,21 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useSyncExternalStore } from "react";
+import type { ReactNode } from "react";
 import { RefreshButton } from "@/components/RefreshButton";
+import { useHydrated } from "@/components/Tool";
 import { UnbindButton } from "@/components/UnbindButton";
 import { formatDateTime } from "@/i18n/datetime";
 import { useI18n } from "@/i18n/provider";
 
-const noSubscribe = () => () => {};
-
 function SyncTime({ iso }: { iso: string }) {
 	const { locale, m } = useI18n();
-	const client = useSyncExternalStore(
-		noSubscribe,
-		() => true,
-		() => false,
-	);
+	const client = useHydrated();
 	const d = new Date(iso);
 	if (!Number.isFinite(d.getTime())) return <>{iso}</>;
 	if (!client) {

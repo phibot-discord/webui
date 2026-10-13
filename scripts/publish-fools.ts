@@ -10,6 +10,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import type { PhiraLevel } from "../src/phi/lib/phira";
 
 type Special = {
 	/** spinfo.json key; with `.0` it is the catalog id, and R2 files are named after it */
@@ -110,7 +111,7 @@ const skipManifest = args.includes("--no-manifest");
 const manifestOnly = args.includes("--manifest-only");
 const only = args.find((a) => a.startsWith("--only="))?.slice("--only=".length);
 
-const { packPhiraChart } = await import("../src/phi/lib/phira");
+const { packPhiraChart, phiraPackKey } = await import("../src/phi/lib/phira");
 const { FOOLS_PREFIX } = await import("../src/lib/assets");
 
 const spinfo = JSON.parse(
@@ -171,7 +172,7 @@ for (const special of SPECIALS) {
 			picture,
 			song,
 		});
-		files.set(`phira/${level}/${special.key}-${level}.pez`, {
+		files.set(phiraPackKey(id, level as PhiraLevel), {
 			body: pack,
 			type: "application/octet-stream",
 		});
@@ -209,24 +210,22 @@ for (const [name, { body }] of files) {
 }
 
 if (upload) {
-	const { r2Config, r2WriteReady } = await import("../src/server/r2");
+	const { objectUrl, r2Config, r2WriteReady } = await import(
+		"../src/server/r2"
+	);
 	const cfg = r2Config();
 	if (!r2WriteReady(cfg)) throw new Error("R2 write is not configured");
 	// Plain fetch, not putR2Object: cfFetch gives a request 12 s, which a 4 MB pack on a slow uplink misses
 	const put = async (key: string, body: Uint8Array, type: string) => {
-		const path = key.split("/").map(encodeURIComponent).join("/");
-		const res = await fetch(
-			`https://api.cloudflare.com/client/v4/accounts/${cfg.accountId}/r2/buckets/${encodeURIComponent(cfg.bucket)}/objects/${path}`,
-			{
-				method: "PUT",
-				headers: {
-					Authorization: `Bearer ${cfg.apiToken}`,
-					"Content-Type": type,
-				},
-				body: Buffer.from(body),
-				signal: AbortSignal.timeout(15 * 60 * 1000),
+		const res = await fetch(objectUrl(cfg, key), {
+			method: "PUT",
+			headers: {
+				Authorization: `Bearer ${cfg.apiToken}`,
+				"Content-Type": type,
 			},
-		);
+			body: Buffer.from(body),
+			signal: AbortSignal.timeout(15 * 60 * 1000),
+		});
 		if (!res.ok) {
 			const text = await res.text().catch(() => "");
 			throw new Error(`R2 PUT ${key}: ${res.status} ${text}`.slice(0, 300));

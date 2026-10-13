@@ -152,12 +152,8 @@ export function rewriteLocalUrls(
 			}
 			return m;
 		}
-		if (/^(data:|https?:|cid:|#|phi-css:)/i.test(spec)) return m;
-		let file = spec.startsWith("file://")
-			? decodeURIComponent(spec.replace(/^file:\/\//, ""))
-			: spec;
-		if (!isAbsolute(file) && !file.startsWith("phi-css://"))
-			file = resolve(baseDir, file);
+		const file = localFileFromSpec(spec, baseDir);
+		if (!file) return m;
 		if (!exists(file)) return m;
 		const url = file.startsWith("phi-css://") ? file : pathToFileURL(file).href;
 		if (!seen.has(url) && isImage(file)) {

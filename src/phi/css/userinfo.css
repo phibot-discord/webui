@@ -205,27 +205,7 @@ body {
 .date_box p {
 	white-space: nowrap !important;
 }
-.song_Id {
-	height: 40px !important;
-}
-
-.data_score p {
-	white-space: nowrap !important;
-}
-.data_mid {
-	gap: 10px !important;
-}
-.no_info p {
-	font-size: 60px !important;
-}
 .scoreHistory {
 	max-height: none !important;
 	overflow: visible !important;
-}
-.oneHistory {
-	margin-top: 30px !important;
-}
-.HistoryDate p {
-	font-size: 14px !important;
-	white-space: nowrap !important;
 }

@@ -28,6 +28,7 @@ import {
 } from "./external";
 import {
 	accRksLines,
+	challengeOf,
 	loadHisb30Snaps,
 	loadSaveHistory,
 	rksLineFor,
@@ -57,10 +58,7 @@ function iconImages(
 ) {
 	const out = [
 		htmlImage(rt, `avatar/${rt.getInfo.idgetavatar(save.gameuser.avatar)}.png`),
-		htmlImage(
-			rt,
-			`otherimg/${Math.floor(save.saveInfo.summary.challengeModeRank / 100)}.png`,
-		),
+		htmlImage(rt, `otherimg/${challengeOf(save).ChallengeMode}.png`),
 		htmlImage(rt, "otherimg/data.png"),
 	];
 	for (const rating of new Set(rows.map((r) => r?.Rating).filter(Boolean))) {
@@ -200,7 +198,7 @@ export async function b19Card(
 		);
 		spInfo.push(t.x30Mode);
 	} else {
-		const b19 = await save.getB19(undefined, nnum, { avgType: "none" });
+		const b19 = save.getB19(nnum);
 		save_b19 = b19;
 		if (notes.allowApiUsage !== false) {
 			avgJob = external.track(
@@ -259,13 +257,11 @@ export async function b19Card(
 		...(b30Analysis?.tagLookupFailed === true ? (["tags"] as const) : []),
 	];
 	const stats = await save.getStats();
-	const money = save.gameProgress?.money || [0, 0, 0, 0, 0];
 	const gameuser = {
 		avatar: rt.getInfo.idgetavatar(save.gameuser.avatar),
-		ChallengeMode: Math.floor(save.saveInfo.summary.challengeModeRank / 100),
-		ChallengeModeRank: save.saveInfo.summary.challengeModeRank % 100,
+		...challengeOf(save),
 		rks: save.saveInfo.summary.rankingScore,
-		data: moneyText(money),
+		data: moneyText(save.gameProgress?.money),
 		selfIntro: rt.fCompute.convertRichText(save.gameuser.selfIntro),
 		backgroundUrl: await rt.fCompute.getBackground(save.gameuser.background),
 		PlayerId: rt.fCompute.convertRichText(save.saveInfo.PlayerId),
@@ -309,7 +305,6 @@ export async function infoCard(
 	const notes = extra.notes ?? (await getNotes(db, userId));
 	const locale = resolvePhiLocale(extra.locale, notes.locale);
 	const stats = await save.getStats();
-	const money = save.gameProgress?.money || [0, 0, 0, 0, 0];
 	let backgroundurl = "";
 	try {
 		backgroundurl = await rt.fCompute.getBackground(save.gameuser.background);
@@ -326,10 +321,9 @@ export async function infoCard(
 	prefetchIlls([backgroundurl, background, ...iconImages(rt, save, [])]);
 	const gameuser = {
 		avatar: rt.getInfo.idgetavatar(save.gameuser.avatar),
-		ChallengeMode: Math.floor(save.saveInfo.summary.challengeModeRank / 100),
-		ChallengeModeRank: save.saveInfo.summary.challengeModeRank % 100,
+		...challengeOf(save),
 		rks: Number(save.saveInfo.summary.rankingScore) || 0,
-		data: moneyText(money),
+		data: moneyText(save.gameProgress?.money),
 		selfIntro: rt.fCompute.convertRichText(save.gameuser.selfIntro),
 		backgroundurl,
 		PlayerId: rt.fCompute.convertRichText(save.saveInfo.PlayerId),
@@ -351,16 +345,17 @@ export async function infoCard(
 	let data_date: [string, string] = ["", ""];
 	let rks_date: [string, string] = ["", ""];
 	try {
-		const [token, snaps] = await Promise.all([
-			extra.token ?? getToken(rt, userId),
+		const tokenP = Promise.resolve(extra.token ?? getToken(rt, userId));
+		const [token, snaps, history] = await Promise.all([
+			tokenP,
 			loadHisb30Snaps(db, userId),
+			tokenP.then((t) => loadSaveHistory(rt, db, t ?? "")),
 		]);
+		const line = await rksLineFor(history, snaps);
+		rks_history = line.rks_history;
+		rks_range = line.rks_range;
+		rks_date = line.rks_date;
 		if (token) {
-			const history = await loadSaveHistory(rt, db, token);
-			const line = await rksLineFor(rt, history, snaps);
-			rks_history = line.rks_history;
-			rks_range = line.rks_range;
-			rks_date = line.rks_date;
 			const dataLine = history.getDataLine();
 			data_history = (dataLine.data_history || []) as number[][];
 			data_range = dataLine.data_range || [0, 1];
@@ -372,15 +367,6 @@ export async function infoCard(
 					? rt.fCompute.formatDate(dataLine.data_date[1])
 					: "",
 			];
-		} else if (snaps.length) {
-			const line = await rksLineFor(
-				rt,
-				await loadSaveHistory(rt, db, ""),
-				snaps,
-			);
-			rks_history = line.rks_history;
-			rks_range = line.rks_range;
-			rks_date = line.rks_date;
 		}
 	} catch {
 		/* charts stay empty */

@@ -175,14 +175,6 @@ p {
 	font-size: var(--text-sm);
 }
 
-.btn-mini {
-	min-height: 1.5rem;
-	min-width: 1.5rem;
-	padding: 2px var(--space-2);
-	font-size: var(--text-sm);
-	line-height: 1.2;
-}
-
 .btn-icon {
 	width: var(--control-h);
 	padding: 0;
@@ -301,8 +293,7 @@ p {
 	.field input:not([type="checkbox"], [type="radio"]),
 	.field select,
 	.chart-search input,
-	.asset-search,
-	.manual-table input[type="text"]
+	.asset-search
 ) {
 	appearance: none;
 	min-height: var(--control-h);
@@ -333,13 +324,7 @@ p {
 	cursor: pointer;
 }
 
-:where(
-	.input,
-	.field input,
-	.chart-search input,
-	.asset-search,
-	.manual-table input
-)::placeholder {
+:where(.input, .field input, .chart-search input, .asset-search)::placeholder {
 	color: var(--muted);
 	opacity: 1;
 }
@@ -350,8 +335,7 @@ p {
 		.field input:not([type="checkbox"], [type="radio"]),
 		.field select,
 		.chart-search input,
-		.asset-search,
-		.manual-table input[type="text"]
+		.asset-search
 	):hover:not(:disabled, :focus) {
 		border-color: var(--muted);
 	}
@@ -362,8 +346,7 @@ p {
 	.field input:not([type="checkbox"], [type="radio"]),
 	.field select,
 	.chart-search input,
-	.asset-search,
-	.manual-table input[type="text"]
+	.asset-search
 ):focus {
 	border-color: var(--primary);
 }
@@ -373,8 +356,7 @@ p {
 	.field input,
 	.field select,
 	.chart-search input,
-	.asset-search,
-	.manual-table input
+	.asset-search
 )[aria-invalid="true"] {
 	border-color: var(--danger);
 }
@@ -384,8 +366,7 @@ p {
 	.field input,
 	.field select,
 	.chart-search input,
-	.asset-search,
-	.manual-table input
+	.asset-search
 ):disabled {
 	background-color: var(--surface);
 	border-color: var(--line);
@@ -438,14 +419,6 @@ p {
 	max-width: none;
 }
 
-.tool-pop-alert {
-	width: max-content;
-	max-width: min(18rem, calc(100vw - 2 * var(--gutter)));
-	margin: 0;
-	color: var(--danger);
-	font-size: var(--text-xs);
-}
-
 .tool-pop-actions {
 	display: flex;
 	flex-wrap: wrap;
@@ -472,12 +445,6 @@ p {
 		box-shadow: var(--shadow-lg);
 	}
 
-	.tool-pop-alert {
-		width: auto;
-		max-width: none;
-		font-size: var(--text-sm);
-	}
-
 	.tool-pop-actions > * {
 		flex: 1 1 0;
 	}
@@ -497,8 +464,7 @@ p {
 }
 
 @media (pointer: coarse) {
-	.btn-sm,
-	.btn-mini {
+	.btn-sm {
 		min-height: var(--tap);
 		min-width: var(--tap);
 	}
@@ -508,8 +474,7 @@ p {
 		.field input:not([type="checkbox"], [type="radio"]),
 		.field select,
 		.chart-search input,
-		.asset-search,
-		.manual-table input[type="text"]
+		.asset-search
 	) {
 		font-size: max(1rem, 16px);
 	}

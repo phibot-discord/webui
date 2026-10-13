@@ -7,25 +7,27 @@ import {
 	useEffect,
 	useLayoutEffect,
 	useRef,
+	useState,
+	useSyncExternalStore,
 } from "react";
 
 export function useToolDismiss(
 	open: boolean,
-	onClose: () => void,
+	onClose: (reason: "outside" | "escape" | "blur") => void,
 	root: RefObject<HTMLElement | null>,
 ) {
 	useEffect(() => {
 		if (!open) return;
 		const node = root.current;
 		const onPointer = (e: PointerEvent) => {
-			if (!root.current?.contains(e.target as Node)) onClose();
+			if (!root.current?.contains(e.target as Node)) onClose("outside");
 		};
 		const onKey = (e: KeyboardEvent) => {
-			if (e.key === "Escape") onClose();
+			if (e.key === "Escape") onClose("escape");
 		};
 		const onFocusOut = (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;
-			if (next && !root.current?.contains(next)) onClose();
+			if (next && !root.current?.contains(next)) onClose("blur");
 		};
 		document.addEventListener("pointerdown", onPointer);
 		document.addEventListener("keydown", onKey);
@@ -116,5 +118,24 @@ export function Announce({ children }: { children?: ReactNode }) {
 		<p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
 			{children}
 		</p>
+	);
+}
+
+export function useSettled(text: string, ms = 700) {
+	const [settled, setSettled] = useState("");
+	useEffect(() => {
+		const id = window.setTimeout(() => setSettled(text), ms);
+		return () => window.clearTimeout(id);
+	}, [text, ms]);
+	return settled;
+}
+
+const noSubscribe = () => () => {};
+
+export function useHydrated(): boolean {
+	return useSyncExternalStore(
+		noSubscribe,
+		() => true,
+		() => false,
 	);
 }

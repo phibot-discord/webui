@@ -17,6 +17,7 @@ import {
 	persistCooldown,
 } from "@/lib/save-refresh";
 import { readJsonWithTapWait, tapWaitFailed } from "@/lib/tap-wait";
+import { REFRESH_COOLDOWN_MS } from "@/server/cooldown";
 
 export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 	const { m } = useI18n();
@@ -30,7 +31,10 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 		"{seconds}",
 		cooldownSeconds(remaining),
 	);
-	const waitWide = m.refresh.wait.replaceAll("{seconds}", "120");
+	const waitWide = m.refresh.wait.replaceAll(
+		"{seconds}",
+		cooldownSeconds(REFRESH_COOLDOWN_MS),
+	);
 	const live = pending
 		? waitingTap
 			? m.refresh.waitingTap
@@ -63,9 +67,7 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 				);
 				return;
 			}
-			persistCardReload(
-				typeof data.lastSynced === "string" ? data.lastSynced : undefined,
-			);
+			persistCardReload();
 			persistCooldown(cooldownMsFromServer(data, res.headers));
 			window.setTimeout(() => router.refresh(), 0);
 		} catch {

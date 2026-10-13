@@ -10,6 +10,7 @@ import type { Kv } from "@/server/sdk";
 import { chartTagHeaders, chartTagUrl } from "./chart-tags-api";
 import { kvKey } from "./const";
 import { getInfo } from "./get-info";
+import { TtlLru } from "./lru";
 
 /** Anonymous per-chart standings from phib19.top: only aggregates and anonymous lists are read, never player names */
 
@@ -540,37 +541,6 @@ export async function fetchAccRanks(
 		opts.startBy,
 	);
 	return out;
-}
-
-class TtlLru<V> {
-	private map = new Map<string, { until: number; value: V }>();
-	constructor(private max: number) {}
-
-	has(key: string) {
-		const hit = this.map.get(key);
-		if (!hit) return false;
-		if (Date.now() < hit.until) return true;
-		this.map.delete(key);
-		return false;
-	}
-
-	get(key: string): V | undefined {
-		return this.has(key) ? this.map.get(key)?.value : undefined;
-	}
-
-	set(key: string, value: V, ttlMs: number) {
-		this.map.delete(key);
-		this.map.set(key, { until: Date.now() + ttlMs, value });
-		while (this.map.size > this.max) {
-			const oldest = this.map.keys().next().value;
-			if (oldest === undefined) break;
-			this.map.delete(oldest);
-		}
-	}
-
-	clear() {
-		this.map.clear();
-	}
 }
 
 type RankCell = { row: AccRankRow | null; at: number };

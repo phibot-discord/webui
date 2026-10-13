@@ -1,6 +1,5 @@
 :root {
 	--tbl-bg: #0b1019;
-	--tbl-panel: #0f1621;
 	--tbl-head: #172131;
 	--tbl-text: #eef2f8;
 	--tbl-text-2: #cdd5e1;
@@ -21,10 +20,6 @@
 
 body {
 	background: var(--tbl-bg);
-}
-
-p {
-	margin: 0;
 }
 
 .tbl {

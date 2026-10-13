@@ -1,11 +1,10 @@
 import { kvKey } from "@/phi/lib/const";
 import type { PhiRuntime } from "@/phi/lib/runtime";
-import type { Save } from "@/phi/lib/save";
 import { clearUser, getToken, updateSave } from "@/phi/lib/saves";
 import { isTapApiFailure } from "@/phi/lib/tapapi";
-import { isGlobalTapLogin } from "@/phi/lib/taptap";
+import { isGlobalTapLogin, type TapQrData } from "@/phi/lib/taptap";
 import { noteTokenUser } from "./account-link";
-import { lastSyncedIso } from "./bound";
+import { type PlayerSummary, playerFromSave } from "./bound";
 import { getDataHost } from "./data-host";
 import { logger, withDiscordUid } from "./logger";
 import { clearManual, leaveManualMode } from "./manual";
@@ -18,16 +17,11 @@ const QR_LOCK = (userId: string) => kvKey("qrbind", userId);
 
 export type QrStored = {
 	deviceId: string;
-	data: {
-		device_code?: string;
-		expires_in?: number;
-		qrcode_url?: string;
-		interval?: number;
-	};
+	data: TapQrData;
 	global: boolean;
 };
 
-export type BindOk = { playerId: string; rks?: number; lastSynced?: string };
+export type BindOk = PlayerSummary;
 
 export type BindErr = {
 	error:
@@ -62,33 +56,6 @@ export function failBind(err: unknown): BindErr {
 	return { error: "bind_failed", status: 502, detail: msg || undefined };
 }
 
-function qrFields(request: {
-	deviceId?: string;
-	data?: {
-		device_code?: string;
-		expires_in?: number;
-		qrcode_url?: string;
-		interval?: number;
-	};
-	device_code?: string;
-	expires_in?: number;
-	qrcode_url?: string;
-	interval?: number;
-}) {
-	const nested = request.data;
-	const url = nested?.qrcode_url || request.qrcode_url;
-	return {
-		deviceId: request.deviceId,
-		data: {
-			device_code: nested?.device_code || request.device_code,
-			expires_in: nested?.expires_in ?? request.expires_in,
-			qrcode_url: url,
-			interval: nested?.interval ?? request.interval,
-		},
-		url,
-	};
-}
-
 export function qrSucceeded(
 	result: {
 		success?: boolean;
@@ -98,15 +65,6 @@ export function qrSucceeded(
 	if (!result) return false;
 	if (result.success) return true;
 	return Boolean(result.data?.kid && result.data?.access_token);
-}
-
-export function playerFromSave(save: Save): BindOk {
-	const rks = save.saveInfo.summary?.rankingScore;
-	return {
-		playerId: String(save.saveInfo.PlayerId || ""),
-		rks: typeof rks === "number" ? rks : undefined,
-		lastSynced: lastSyncedIso(save),
-	};
 }
 
 export async function startQrBind(
@@ -161,30 +119,32 @@ export async function requestQr(
 	openUrl: string;
 }> {
 	const request = await rt.getQRcode.getRequest(global);
-	const fields = qrFields(request);
-	if (!fields.url || !fields.deviceId) {
+	const data = request.data;
+	const url = data?.qrcode_url;
+	if (!url || !request.deviceId) {
 		logger.error(`qr missing url ${JSON.stringify(request).slice(0, 400)}`);
 		throw new Error("TapTap did not return a QR login URL.");
 	}
 	const expiresIn = Math.min(
-		Math.max(Number(fields.data.expires_in) || 300, 30),
+		Math.max(Number(data?.expires_in) || 300, 30),
 		840,
 	);
-	const intervalMs = Math.max(2000, (Number(fields.data.interval) || 2) * 1000);
+	const intervalMs = Math.max(2000, (Number(data?.interval) || 2) * 1000);
 	return {
 		stored: {
-			deviceId: fields.deviceId,
+			deviceId: request.deviceId,
+			// Raw TapTap JSON, so keep only these fields and drop "" / null
 			data: {
-				device_code: fields.data.device_code,
-				expires_in: fields.data.expires_in,
-				qrcode_url: fields.url,
-				interval: fields.data.interval,
+				device_code: data?.device_code || undefined,
+				expires_in: data?.expires_in ?? undefined,
+				qrcode_url: url,
+				interval: data?.interval ?? undefined,
 			},
 			global,
 		},
 		expiresIn,
 		intervalMs,
-		openUrl: fields.url,
+		openUrl: url,
 	};
 }
 
@@ -199,12 +159,16 @@ export function parseQrStored(
 	}
 }
 
-export async function qrPng(userId: string): Promise<Buffer | BindErr> {
+export async function qrPngAt(key: string): Promise<Buffer | BindErr> {
 	const host = await getDataHost();
-	const stored = parseQrStored(await host.db.get(QR_KEY(userId)));
+	const stored = parseQrStored(await host.db.get(key));
 	const url = stored?.data.qrcode_url;
 	if (!stored || !url) return { error: "qr_missing", status: 404 };
 	return host.rt.getQRcode.getQRcode(url, stored.global);
+}
+
+export function qrPng(userId: string): Promise<Buffer | BindErr> {
+	return qrPngAt(QR_KEY(userId));
 }
 
 export type QrResume = {

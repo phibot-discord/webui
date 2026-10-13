@@ -2,16 +2,6 @@
 export const JARO_PUNCT =
 	/[\s~`!@#$%^&*()\-=_+[\]「」『』{}|;:'",<.>/?！￥…（）—【】、；‘’：“”，《。》？↑↓←→]/g;
 
-export function jaroWinklerDistance(a: string, b: string): number {
-	const s1 = a.trim();
-	const s2 = b.trim();
-	if (s1 === s2) return 1;
-	return jaroWinkler(
-		s1.replace(JARO_PUNCT, "").toLowerCase(),
-		s2.replace(JARO_PUNCT, "").toLowerCase(),
-	);
-}
-
 /** Expects strings the caller already folded (no trim, case or punctuation handling) */
 export function jaroWinkler(s1: string, s2: string): number {
 	if (s1.length === 0 || s2.length === 0) return 0;

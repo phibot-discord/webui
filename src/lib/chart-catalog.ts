@@ -1,5 +1,4 @@
 import type { ChartCell, ChartSummary } from "@/server/charts";
-import { rankSongs } from "./song-search";
 
 export type { ChartCell, ChartSummary } from "@/server/charts";
 
@@ -35,14 +34,6 @@ export function loadChartCatalog(fools = false): Promise<ChartSummary[]> {
 /** The constant, or the label a chart without one carries */
 export function cellLabel(cell: ChartCell): string {
 	return cell[2] ?? cell[0].toFixed(1);
-}
-
-export function searchCharts(
-	list: ChartSummary[],
-	query: string,
-	limit = 12,
-): ChartSummary[] {
-	return rankSongs(list, query, { limit }).map((m) => m.song);
 }
 
 export function findChart(

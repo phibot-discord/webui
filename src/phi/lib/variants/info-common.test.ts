@@ -152,7 +152,10 @@ test("infoView: progress per difficulty, totals, hidden empty bits", () => {
 	assert.equal(v.totals.unlocked, 14);
 	assert.ok(v.charts.rks);
 	assert.equal(v.charts.data, null);
-	assert.deepEqual(v.charts.rksDates, ["2026/07/06", "2026/09/21"]);
+	assert.deepEqual(
+		v.charts.rks?.xTicks.map((t) => t.label),
+		["2026/07/06", "2026/09/21"],
+	);
 	assert.equal(v.trends.length, 2);
 	assert.equal(v.generated, "2026/10/07");
 });

@@ -9,12 +9,10 @@ import {
 	chartTagAnalysisKvKey,
 	chartTagCacheId,
 	chartTagHeaders,
-	chartTagRemainMs,
 	chartTagTreeR2Key,
 	chartTagUrl,
 	gameRecordPayload,
 	isChartTagTimeout,
-	isRetryableChartTagNet,
 	loadChartTagTree,
 	parseB30TagAnalysis,
 	parseChartTagTree,
@@ -141,12 +139,6 @@ test("phib19 timeout is 60s including TCP connect, not AbortSignal alone", () =>
 	assert.equal(chartTagAgent.connect.timeout, 60_000);
 });
 
-test("AbortSignal.timeout rejects fractional leftover ms from performance.now", () => {
-	const remain = chartTagRemainMs(0, 0.00488699999);
-	assert.equal(remain, 59_999);
-	assert.doesNotThrow(() => AbortSignal.timeout(remain));
-});
-
 test("no-auth chart-tag routes keep GET vs POST", () => {
 	assert.equal(PHI_CHART_TAG_API, "https://phi-ill-sync.ymyk.workers.dev");
 	assert.equal(
@@ -174,15 +166,6 @@ test("isChartTagTimeout detects undici connect timeouts", () => {
 	(err as { code?: string }).code = "UND_ERR_CONNECT_TIMEOUT";
 	assert.equal(isChartTagTimeout(err), true);
 	assert.equal(isChartTagTimeout(new Error("nope")), false);
-});
-
-test("isRetryableChartTagNet retries kernel SYN deaths, not HTTP errors", () => {
-	const timed = new TypeError("fetch failed");
-	(timed as { cause?: unknown }).cause = Object.assign(new Error("connect"), {
-		code: "ETIMEDOUT",
-	});
-	assert.equal(isRetryableChartTagNet(timed), true);
-	assert.equal(isRetryableChartTagNet(new Error("chart-tag 502")), false);
 });
 
 test("isChartTagTimeout unwraps TypeError fetch failed causes", () => {

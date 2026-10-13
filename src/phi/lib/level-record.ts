@@ -25,7 +25,6 @@ export class LevelRecordInfo {
 		data: { fc?: boolean | number; score?: number; acc?: number },
 		id: string,
 		rank: number,
-		ver?: string,
 	) {
 		this.fc = Boolean(data.fc);
 		this.score = data.score || 0;
@@ -33,7 +32,7 @@ export class LevelRecordInfo {
 		this.id = id;
 		this.rank = ALL_LEVEL[rank] || String(rank);
 		this.Rating = fCompute.rate(this.score, this.fc);
-		// Read-only lookup: a save has ~1k records and `info()` clones per call
+		// Read-only lookup: a save has ~1k records
 		const info = getInfo.raw(id);
 		if (!info) {
 			this.difficulty = 0;
@@ -42,15 +41,8 @@ export class LevelRecordInfo {
 		}
 		this.song = info.song;
 		this.illustration = getInfo.getill(id, "low");
-		if (!ver || this.rank === "LEGACY") {
-			const difficulty = info.chart?.[this.rank]?.difficulty;
-			this.difficulty = difficulty || 0;
-			this.rks = difficulty ? fCompute.rks(this.acc, difficulty) : 0;
-		} else {
-			const difficulty =
-				getInfo.historyDifficultyBySongId[id]?.[ver]?.[this.rank];
-			this.difficulty = difficulty || 0;
-			this.rks = difficulty ? fCompute.rks(this.acc, difficulty) : 0;
-		}
+		const difficulty = info.chart?.[this.rank]?.difficulty;
+		this.difficulty = difficulty || 0;
+		this.rks = difficulty ? fCompute.rks(this.acc, difficulty) : 0;
 	}
 }

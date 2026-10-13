@@ -10,7 +10,7 @@ import {
 import { loadWebConfig } from "./config";
 import { connectKv, type KvStore } from "./kv";
 import { logger } from "./logger";
-import type { App, Kv } from "./sdk";
+import type { Kv } from "./sdk";
 
 const dataLib = {
 	loadSave,
@@ -45,21 +45,8 @@ export function getDataHost(): Promise<DataHost> {
 async function bootData(): Promise<DataHost> {
 	const config = loadWebConfig();
 	const { store, db } = await connectKv(config.kv);
-	const services = new Map<string, unknown>([["kv", store]]);
 
-	const app: App = {
-		config,
-		db,
-		template: () => undefined,
-		service: (name, value) => void services.set(name, value),
-		getService: (name) => {
-			if (!services.has(name)) throw new Error(`unknown service: ${name}`);
-			return services.get(name) as never;
-		},
-		fonts: { fromDir: async () => undefined },
-	};
-
-	const rt = await bootPhiRuntime(app, { loadInfo: false });
+	const rt = bootPhiRuntime(store);
 	logger.ok("data host (kv only)");
 	return { db, store, rt, lib: dataLib };
 }

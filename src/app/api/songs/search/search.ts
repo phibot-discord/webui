@@ -13,7 +13,7 @@ import {
 	resolveAliasLive,
 } from "@/server/aliases";
 import { type ChartSummary, chartCatalog } from "@/server/charts";
-import { etagMatches, jsonError } from "@/server/http";
+import { jsonError, jsonEtagResponse } from "@/server/http";
 import { clientIp } from "@/server/rate-limit";
 
 export const SEARCH_LIMIT_MAX = 25;
@@ -155,15 +155,5 @@ export async function songSearchResponse(
 	const etag = `songs-${hash}`;
 	const transient =
 		body.stale || body.live === "timeout" || body.live === "error";
-	const headers = {
-		ETag: `"${etag}"`,
-		"Cache-Control": transient ? CACHE_SHORT : CACHE,
-	};
-	if (etagMatches(request.headers.get("if-none-match"), etag)) {
-		return new Response(null, { status: 304, headers });
-	}
-	return new Response(json, {
-		status: 200,
-		headers: { ...headers, "Content-Type": "application/json; charset=utf-8" },
-	});
+	return jsonEtagResponse(request, json, etag, transient ? CACHE_SHORT : CACHE);
 }

@@ -1,5 +1,5 @@
 import { chartCatalog, chartCatalogWithFools } from "@/server/charts";
-import { etagMatches } from "@/server/http";
+import { jsonEtagResponse } from "@/server/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,15 +14,11 @@ export async function GET(request: Request) {
 	const { json, etag, aliases } = await (withFools
 		? chartCatalogWithFools()
 		: chartCatalog());
-	const headers = {
-		ETag: etag,
-		"Cache-Control": aliases.stale ? CACHE_STALE : CACHE,
-	};
-	if (etagMatches(request.headers.get("if-none-match"), etag.slice(1, -1))) {
-		return new Response(null, { status: 304, headers });
-	}
-	return new Response(json, {
-		status: 200,
-		headers: { ...headers, "Content-Type": "application/json; charset=utf-8" },
-	});
+	// chartCatalog's etag is already quoted
+	return jsonEtagResponse(
+		request,
+		json,
+		etag.slice(1, -1),
+		aliases.stale ? CACHE_STALE : CACHE,
+	);
 }

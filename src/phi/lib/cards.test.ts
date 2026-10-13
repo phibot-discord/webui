@@ -69,7 +69,7 @@ function fakeSave(rev: string) {
 		gameuser: { avatar: "Introduction", selfIntro: "", background: "" },
 		gameProgress: { money: [0, 0, 0, 0, 0] },
 		gameRecord: { b0: [null, null, { acc: 99, score: 990_000, fc: false }] },
-		async getB19() {
+		getB19() {
 			return { phi: copy(phiRows), b19_list: copy(bestRows), com_rks: 16 };
 		},
 		async getBestWithLimit(_n: number, _limit: unknown, withPhi = true) {
@@ -114,10 +114,6 @@ function memoryDb() {
 			async keys() {
 				return [];
 			},
-			async ping() {
-				return "ok";
-			},
-			async close() {},
 		},
 	};
 }

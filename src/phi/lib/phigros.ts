@@ -1,7 +1,7 @@
-import { createCipheriv, createDecipheriv } from "node:crypto";
+import { createDecipheriv } from "node:crypto";
 import JSZip from "jszip";
 import { logger } from "@/server/logger";
-import { TAPAPI_SAVE_TIMEOUT_MS, tapFetch } from "./tapapi";
+import { TAPAPI_SAVE_TIMEOUT_MS, tapFetch, tapRegion } from "./tapapi";
 
 const KEY = Buffer.from(
 	"6Jaa0qVAJZuXkZCLiOa/Ax5tIZVu+taKUN1V1nqwkks=",
@@ -9,32 +9,17 @@ const KEY = Buffer.from(
 );
 const IV = Buffer.from("Kk/wisgNYwcAV8WVGMgyUw==", "base64");
 
-function encrypt(text: string) {
-	const cipher = createCipheriv("aes-256-cbc", KEY, IV);
-	return Buffer.concat([cipher.update(text, "utf8"), cipher.final()]).toString(
-		"base64",
-	);
-}
-
-function decrypt(word: string) {
+function decrypt(data: Buffer) {
 	const decipher = createDecipheriv("aes-256-cbc", KEY, IV);
-	return Buffer.concat([
-		decipher.update(Buffer.from(word, "base64")),
-		decipher.final(),
-	]).toString("hex");
+	return Buffer.concat([decipher.update(data), decipher.final()]);
 }
 
 class ByteReader {
 	data: Buffer;
 	position: number;
 
-	constructor(data: string | Buffer | Uint8Array | ArrayBuffer, position = 0) {
-		this.data =
-			typeof data === "string"
-				? Buffer.from(data, "hex")
-				: data instanceof ArrayBuffer
-					? Buffer.from(new Uint8Array(data))
-					: Buffer.from(data);
+	constructor(data: Buffer, position = 0) {
+		this.data = data;
 		this.position = position;
 	}
 
@@ -44,10 +29,6 @@ class ByteReader {
 
 	getByte() {
 		return this.data[this.position++]!;
-	}
-
-	getAllByte() {
-		return this.data.toString("base64", this.position);
 	}
 
 	getShort() {
@@ -104,10 +85,6 @@ function getBit(data: number, index: number) {
 	return Boolean(data & (1 << index));
 }
 
-function decodeSummaryBytes(data: string) {
-	return Buffer.from(data, "base64").toString("hex");
-}
-
 class Summary {
 	updatedAt: string;
 	saveVersion = 0;
@@ -122,7 +99,7 @@ class Summary {
 	constructor(summary: string) {
 		const now = Date().toString().split(" ");
 		this.updatedAt = `${now[3]} ${now[1]}.${now[2]} ${now[4]}`;
-		const reader = new ByteReader(decodeSummaryBytes(summary));
+		const reader = new ByteReader(Buffer.from(summary, "base64"));
 		this.saveVersion = reader.getByte();
 		this.challengeModeRank = reader.getShort();
 		this.rankingScore = reader.getFloat();
@@ -148,7 +125,7 @@ class GameRecord {
 	Record: Record<string, (LevelRecord | undefined)[]> = {};
 	songsnum = 0;
 
-	constructor(data: string) {
+	constructor(data: Buffer) {
 		this.data = new ByteReader(data);
 	}
 
@@ -184,7 +161,7 @@ class GameUser {
 	avatar: string;
 	background: string;
 
-	constructor(data: string) {
+	constructor(data: Buffer) {
 		const reader = new ByteReader(data);
 		this.showPlayerId = getBit(reader.getByte(), 0);
 		this.selfIntro = reader.getString();
@@ -212,7 +189,7 @@ class GameProgress {
 	chapter8Passed: boolean;
 	chapter8SongUnlocked: number;
 
-	constructor(data: string) {
+	constructor(data: Buffer) {
 		const reader = new ByteReader(data);
 		const tem = reader.getByte();
 		this.isFirstRun = getBit(tem, 0);
@@ -255,7 +232,7 @@ class GameSettings {
 	soundOffset: number;
 	noteScale: number;
 
-	constructor(data: string) {
+	constructor(data: Buffer) {
 		const reader = new ByteReader(data);
 		const tem = reader.getByte();
 		this.chordSupport = getBit(tem, 0);
@@ -278,22 +255,12 @@ type TapRegion = {
 };
 
 function region(isGlobal: boolean): TapRegion {
-	if (isGlobal) {
-		return {
-			baseUrl: "https://kviehlel.cloud.ap-sg.tapapis.com/1.1",
-			headers: {
-				"X-LC-Id": "kviehleldgxsagpozb",
-				"X-LC-Key": "tG9CTm0LDD736k9HMM9lBZrbeBGRmUkjSfNLDNib",
-				"User-Agent": "LeanCloud-CSharp-SDK/1.0.3",
-				Accept: "application/json",
-			},
-		};
-	}
+	const r = tapRegion(isGlobal);
 	return {
-		baseUrl: "https://rak3ffdi.cloud.tds1.tapapis.cn/1.1",
+		baseUrl: r.lcBase,
 		headers: {
-			"X-LC-Id": "rAK3FfdieFob2Nn8Am",
-			"X-LC-Key": "Qr9AEqtuoSVS3zeD6iVbM4ZC0AtkJcQ89tywVyi0",
+			"X-LC-Id": r.clientId,
+			"X-LC-Key": r.appKey,
 			"User-Agent": "LeanCloud-CSharp-SDK/1.0.3",
 			Accept: "application/json",
 		},
@@ -389,14 +356,6 @@ class SaveManager {
 		);
 		return { saveInfo: results[0], playerInfo: userInfo };
 	}
-
-	static decrypt(data: string) {
-		return decrypt(data);
-	}
-
-	static encrypt(data: string) {
-		return encrypt(data);
-	}
 }
 
 export class PhigrosUser {
@@ -450,36 +409,23 @@ export class PhigrosUser {
 		}
 		this.Recordver = 1;
 
-		let file = new ByteReader(
-			Buffer.from(await savezip.file("gameProgress")!.async("nodebuffer")),
-		);
-		file.getByte();
+		const entry = async (name: string) => {
+			const buf = await savezip.file(name)!.async("nodebuffer");
+			return { ver: buf[0], body: buf.subarray(1) };
+		};
 		this.gameProgress = new GameProgress(
-			SaveManager.decrypt(file.getAllByte()),
+			decrypt((await entry("gameProgress")).body),
 		);
-
-		file = new ByteReader(
-			Buffer.from(await savezip.file("user")!.async("nodebuffer")),
-		);
-		file.getByte();
-		this.gameuser = new GameUser(SaveManager.decrypt(file.getAllByte()));
-
-		file = new ByteReader(
-			Buffer.from(await savezip.file("settings")!.async("nodebuffer")),
-		);
-		file.getByte();
+		this.gameuser = new GameUser(decrypt((await entry("user")).body));
 		this.gamesettings = new GameSettings(
-			SaveManager.decrypt(file.getAllByte()),
+			decrypt((await entry("settings")).body),
 		);
-
-		file = new ByteReader(
-			Buffer.from(await savezip.file("gameRecord")!.async("nodebuffer")),
-		);
-		if (file.getByte() !== GameRecord.version) {
+		const rec = await entry("gameRecord");
+		if (rec.ver !== GameRecord.version) {
 			this.gameRecord = {};
 			throw new Error("版本号已更新");
 		}
-		const record = new GameRecord(SaveManager.decrypt(file.getAllByte()));
+		const record = new GameRecord(decrypt(rec.body));
 		await record.init();
 		this.gameRecord = record.Record;
 		return false;

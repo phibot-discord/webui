@@ -36,9 +36,11 @@ export async function noteTokenUser(userId: string, token: string) {
 	}
 }
 
-async function tokenHolder(host: DataHost, token: string) {
+/** `holds`: a user already read as holding `token`, so its binding is not read again */
+async function tokenHolder(host: DataHost, token: string, holds?: string) {
 	const userId = await host.db.get(TOKEN_USER(token));
 	if (!userId || isTapUserId(userId)) return undefined;
+	if (userId === holds) return userId;
 	return (await getToken(host.rt, userId)) === token ? userId : undefined;
 }
 
@@ -73,7 +75,7 @@ export async function tapSignInOpens(discordId: string): Promise<boolean> {
 	if (await host.db.get(DISCORD_TAP(discordId))) return true;
 	const token = await getToken(host.rt, discordId);
 	if (!token) return false;
-	const holder = await tokenHolder(host, token);
+	const holder = await tokenHolder(host, token, discordId);
 	if (holder) return holder === discordId;
 	await noteTokenUser(discordId, token);
 	return true;

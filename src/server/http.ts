@@ -32,13 +32,13 @@ export function wantsReload(headers: Headers): boolean {
 	return /(^|,)\s*no-cache\s*(,|$)/i.test(headers.get("pragma") ?? "");
 }
 
-export function attachmentDisposition(filename: string): string {
+function attachmentDisposition(filename: string): string {
 	const safe = filename.replace(/["\\\r\n]+/g, "_");
 	return `attachment; filename="${safe}"`;
 }
 
 /** Carries the stats so a revalidated view still reports them */
-export function notModifiedResponse(opts: {
+function notModifiedResponse(opts: {
 	etag: string;
 	cacheControl: string;
 	stats?: CardStats;
@@ -53,64 +53,22 @@ export function notModifiedResponse(opts: {
 	});
 }
 
-export function cardImageResponse(
-	bytes: Buffer,
-	opts: {
-		etag: string;
-		cacheControl: string;
-		request: Request;
-		mime?: string;
-		ext?: string;
-		stats?: CardStats;
-		filename?: string;
-	},
-) {
-	const mime = opts.mime ?? "image/png";
-	const tag = `"${opts.etag}"`;
-	const cacheable = !opts.cacheControl.includes("no-store");
-	const extra = statsHeaders(opts.stats);
-	if (
-		!opts.filename &&
-		cacheable &&
-		etagMatches(opts.request.headers.get("if-none-match"), opts.etag)
-	) {
-		return notModifiedResponse(opts);
+/** A matching If-None-Match gets a 304; `etag` is unquoted */
+export function jsonEtagResponse(
+	request: Request,
+	json: string,
+	etag: string,
+	cacheControl: string,
+): Response {
+	if (etagMatches(request.headers.get("if-none-match"), etag)) {
+		return notModifiedResponse({ etag, cacheControl });
 	}
-	const headers: Record<string, string> = {
-		"Content-Type": mime,
-		ETag: tag,
-		"Cache-Control": opts.cacheControl,
-		"Content-Length": String(bytes.byteLength),
-		...extra,
-	};
-	if (opts.filename) {
-		headers["Content-Disposition"] = attachmentDisposition(opts.filename);
-	}
-	return new NextResponse(
-		new Uint8Array(
-			bytes.buffer as ArrayBuffer,
-			bytes.byteOffset,
-			bytes.byteLength,
-		),
-		{ status: 200, headers },
-	);
-}
-
-export function cardRedirectResponse(
-	url: string,
-	opts: {
-		etag: string;
-		cacheControl: string;
-		stats?: CardStats;
-	},
-) {
-	return new NextResponse(null, {
-		status: 302,
+	return new Response(json, {
+		status: 200,
 		headers: {
-			Location: url,
-			ETag: `"${opts.etag}"`,
-			"Cache-Control": opts.cacheControl,
-			...statsHeaders(opts.stats),
+			ETag: `"${etag}"`,
+			"Cache-Control": cacheControl,
+			"Content-Type": "application/json; charset=utf-8",
 		},
 	});
 }
@@ -121,45 +79,47 @@ function statsHeaders(stats?: CardStats): Record<string, string> {
 }
 
 export function cardResultResponse(
-	result:
-		| { redirect: string; etag: string; stats?: CardStats }
-		| {
-				bytes: Buffer;
-				etag: string;
-				mime?: string;
-				stats?: CardStats;
-				notModified?: boolean;
-		  },
+	result: {
+		bytes: Buffer;
+		etag: string;
+		mime?: string;
+		stats?: CardStats;
+		notModified?: boolean;
+	},
 	opts: {
 		cacheControl: string;
-		request: Request;
 		filename?: string;
 		renderVersion?: string;
 		vary?: string;
 	},
 ) {
-	const stats = result.stats;
-	const res =
-		"redirect" in result
-			? cardRedirectResponse(result.redirect, {
-					etag: result.etag,
-					cacheControl: opts.cacheControl,
-					stats,
-				})
-			: result.notModified
-				? notModifiedResponse({
-						etag: result.etag,
-						cacheControl: opts.cacheControl,
-						stats,
-					})
-				: cardImageResponse(result.bytes, {
-						etag: result.etag,
-						cacheControl: opts.cacheControl,
-						request: opts.request,
-						mime: result.mime,
-						stats,
-						filename: opts.filename,
-					});
+	let res: NextResponse;
+	if (result.notModified) {
+		res = notModifiedResponse({
+			etag: result.etag,
+			cacheControl: opts.cacheControl,
+			stats: result.stats,
+		});
+	} else {
+		const headers: Record<string, string> = {
+			"Content-Type": result.mime ?? "image/png",
+			ETag: `"${result.etag}"`,
+			"Cache-Control": opts.cacheControl,
+			"Content-Length": String(result.bytes.byteLength),
+			...statsHeaders(result.stats),
+		};
+		if (opts.filename) {
+			headers["Content-Disposition"] = attachmentDisposition(opts.filename);
+		}
+		res = new NextResponse(
+			new Uint8Array(
+				result.bytes.buffer as ArrayBuffer,
+				result.bytes.byteOffset,
+				result.bytes.byteLength,
+			),
+			{ status: 200, headers },
+		);
+	}
 	if (opts.renderVersion) res.headers.set("X-Phi-Render", opts.renderVersion);
 	if (opts.vary) res.headers.append("Vary", opts.vary);
 	return res;

@@ -1,13 +1,11 @@
 import type { KvStore } from "@/server/kv";
 import { logger } from "@/server/logger";
-import type { App } from "@/server/sdk";
-import { ensureSongInfo } from "@/server/song-info";
 import { initCredentials } from "./credentials";
 import { fCompute } from "./fcompute";
 import { getInfo } from "./get-info";
 import { PhigrosUser } from "./phigros";
 import { Save } from "./save";
-import { getQRcode, type TapLogin } from "./taptap";
+import { getQRcode, type TapLogin, type TapQrData } from "./taptap";
 
 export type PhiRuntime = {
 	getInfo: typeof getInfo;
@@ -16,15 +14,9 @@ export type PhiRuntime = {
 	fCompute: typeof fCompute;
 	store: ReturnType<typeof initCredentials>;
 	getQRcode: {
-		getRequest: (useGlobal?: boolean) => Promise<{
-			deviceId?: string;
-			data?: {
-				device_code?: string;
-				expires_in?: number;
-				qrcode_url?: string;
-				interval?: number;
-			};
-		}>;
+		getRequest: (
+			useGlobal?: boolean,
+		) => Promise<{ deviceId?: string; data?: TapQrData }>;
 		getQRcode: (url: string, useGlobal?: boolean) => Promise<Buffer>;
 		checkQRCodeResult: (
 			request: unknown,
@@ -41,12 +33,7 @@ export type PhiRuntime = {
 	};
 };
 
-export async function bootPhiRuntime(
-	app: App,
-	opts: { loadInfo?: boolean } = {},
-): Promise<PhiRuntime> {
-	const kv = app.getService<KvStore>("kv");
-	if (opts.loadInfo !== false) await ensureSongInfo();
+export function bootPhiRuntime(kv: KvStore): PhiRuntime {
 	const store = initCredentials(kv);
 	logger.ok("phi runtime (getInfo + Save + TapTap) attached to KV");
 	return {

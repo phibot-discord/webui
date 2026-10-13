@@ -42,6 +42,12 @@ export type CfResponse = {
 	json: () => Promise<unknown>;
 };
 
+/** Reads the body and throws `<label> failed: <status> <body>`, capped at 500 characters */
+export async function cfFail(res: CfResponse, label: string): Promise<never> {
+	const text = await res.text().catch(() => "");
+	throw new Error(`${label} failed: ${res.status} ${text}`.slice(0, 500));
+}
+
 export function isNoResponseError(err: unknown): boolean {
 	for (let cur = err, depth = 0; cur && depth < 4; depth++) {
 		const e = cur as { name?: string; code?: string; cause?: unknown };

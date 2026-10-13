@@ -1,5 +1,3 @@
-import { jaroWinklerDistance } from "./jaro";
-
 let backgroundOf = (_name: string): string => "";
 
 export function bindBackground(fn: (name: string) => string) {
@@ -42,9 +40,6 @@ export const fCompute = {
 		const tar = 900000 * (1 - 0.35 / maxc) + 100000;
 		return Math.abs(score - tar) <= 2;
 	},
-	objectKeys<T extends Record<PropertyKey, unknown>>(record: T): (keyof T)[] {
-		return Object.keys(record) as (keyof T)[];
-	},
 	randArray<T>(arr: T[]): T[] {
 		return [...arr].sort(() => Math.random() - 0.5);
 	},
@@ -65,38 +60,6 @@ export const fCompute = {
 	},
 	getBackground(saveBackground: string) {
 		return backgroundOf(saveBackground);
-	},
-	fuzzySearch(str: string, data: Record<string, string[]>) {
-		const result: { key: string; score: number; value: string }[] = [];
-		for (const [key, values] of Object.entries(data || {})) {
-			const score = jaroWinklerDistance(str, key);
-			if (score > 0.8)
-				for (const value of values || []) result.push({ key, score, value });
-		}
-		return result.sort((a, b) => b.score - a.score);
-	},
-	updateB30<
-		T extends { rks: number; acc: number; id: string; difficulty?: number },
-	>(b30List: { phi: T[]; b27: T[] }, incoming: T[]) {
-		let phi = [...b30List.phi];
-		let b27 = [...b30List.b27];
-		const newRecords = [...incoming].sort((a, b) => b.rks - a.rks);
-		const newPhis = newRecords.filter((record) => record.acc >= 100);
-		const newPhiKeys = newPhis.map((item) => `${item.id}-${item.difficulty}`);
-		const newRecordKeys = newRecords.map(
-			(item) => `${item.id}-${item.difficulty}`,
-		);
-		phi = phi.filter(
-			(item) => !newPhiKeys.includes(`${item.id}-${item.difficulty}`),
-		);
-		b27 = b27.filter(
-			(item) => !newRecordKeys.includes(`${item.id}-${item.difficulty}`),
-		);
-		phi.push(...newPhis);
-		phi = phi.sort((a, b) => b.rks - a.rks).slice(0, 3);
-		b27.push(...newRecords);
-		b27 = b27.sort((a, b) => b.rks - a.rks).slice(0, 27);
-		return { phi, b27 };
 	},
 	convertRichText(richText?: string, onlyText = false) {
 		if (!richText) return richText;
@@ -144,19 +107,6 @@ export const fCompute = {
 		if (ans >= 100) return count !== undefined ? "无法推分" : -1;
 		return count !== undefined ? `${ans.toFixed(count)}%` : ans;
 	},
-	getValueFromRange(percent: number, range: [number, number]) {
-		if (range[0] === range[1]) return range[0];
-		return Math.round(((range[1] - range[0]) * percent) / 100 + range[0]);
-	},
-	ped(num: number, cover: number) {
-		return num.toString().padStart(cover, "0");
-	},
-	std_score(score: number) {
-		const s1 = Math.floor(score / 1e6);
-		const s2 = Math.floor(score / 1e3) % 1e3;
-		const s3 = score % 1e3;
-		return `${s1}'${fCompute.ped(s2, 3)}'${fCompute.ped(s3, 3)}`;
-	},
 	formatDate(date?: Date | string | number, formater = "YYYY/MM/DD hh:mm:ss") {
 		const d = date ? new Date(date) : new Date();
 		const parts = Object.fromEntries(
@@ -171,14 +121,5 @@ export const fCompute = {
 			.replace("hh", parts.hour ?? "")
 			.replace("mm", parts.minute ?? "")
 			.replace("ss", parts.second ?? "");
-	},
-	rgbaToGradient(rgba?: string) {
-		if (!rgba) return undefined;
-		const parts = rgba.split(",");
-		if (parts.length < 3) return undefined;
-		const r = parts[0]!.trim();
-		const g = parts[1]!.trim();
-		const b = parts[2]!.trim();
-		return `linear-gradient(90deg, rgb(${r},${g},${b}) 95px, transparent 95px, rgba(${r},${g},${b},0.53) 105px, rgba(${r},${g},${b},0.53) 50%, transparent 100%)`;
 	},
 };

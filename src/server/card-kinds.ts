@@ -1,9 +1,10 @@
+// Order is the tab order in CardNav, DeskSkeleton and Lookups
 export const CARD_KINDS = [
 	"b30",
-	"x30",
-	"fc30",
 	"hisb30",
 	"info",
+	"x30",
+	"fc30",
 	"song",
 ] as const;
 export type CardKind = (typeof CARD_KINDS)[number];

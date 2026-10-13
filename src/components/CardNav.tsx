@@ -3,7 +3,7 @@
 import Link, { useLinkStatus } from "next/link";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useI18n } from "@/i18n/provider";
-import type { CardKind } from "@/server/card-kinds";
+import { CARD_KINDS, isPublicKind } from "@/server/card-kinds";
 
 function Pending() {
 	const { pending } = useLinkStatus();
@@ -27,24 +27,17 @@ let followedAt = 0;
 export function CardNav({
 	current,
 	base = "/me",
+	publicOnly = false,
 }: {
 	current?: string;
 	base?: string;
+	publicOnly?: boolean;
 }) {
 	const { m } = useI18n();
 	const list = useRef<HTMLUListElement>(null);
-	const items: { kind: CardKind; label: string }[] = [
-		{ kind: "b30", label: m.nav.b30 },
-		{ kind: "hisb30", label: m.nav.hisb30 },
-		{ kind: "info", label: m.nav.info },
-		{ kind: "x30", label: m.nav.x30 },
-		{ kind: "fc30", label: m.nav.fc30 },
-		{ kind: "song", label: m.nav.song },
-	];
-	const visible = base.startsWith("/p/")
-		? items.filter(
-				(i) => i.kind === "b30" || i.kind === "hisb30" || i.kind === "info",
-			)
+	const items = CARD_KINDS.map((kind) => ({ kind, label: m.nav[kind] }));
+	const visible = publicOnly
+		? items.filter((i) => isPublicKind(i.kind))
 		: items;
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: runs again when the current tab changes, read from the DOM

@@ -2,7 +2,6 @@ import { logger } from "@/server/logger";
 import { fCompute } from "./fcompute";
 import { getInfo } from "./get-info";
 import { LevelRecordInfo } from "./level-record";
-import { attachB19AccAvg } from "./score-avg";
 
 type Limit =
 	| { type: "acc" | "score" | "rks"; value: number[] }
@@ -97,12 +96,6 @@ export class Save {
 	gameuser: SaveGameUser;
 	gameRecord: Record<string, (LevelRecordInfo | null)[]> = {};
 	sortedRecord?: LevelRecordInfo[];
-	B19List?: {
-		phi: (LevelRecordInfo | undefined)[];
-		b19_list: LevelRecordInfo[];
-	};
-	b19_rks?: number;
-	b0_rks?: number;
 
 	constructor(data: SavePayload, ignore = false) {
 		this.session = data.session;
@@ -184,7 +177,7 @@ export class Save {
 		return sortedRecord;
 	}
 
-	findAccRecord(acc: number, same = false) {
+	findAccRecord(acc: number) {
 		const record: LevelRecordInfo[] = [];
 		for (const id of Object.keys(this.gameRecord)) {
 			for (const level of [0, 1, 2, 3]) {
@@ -194,40 +187,10 @@ export class Save {
 			}
 		}
 		record.sort((a, b) => b.rks - a.rks);
-		if (same) {
-			for (let i = 0; i < record.length - 1; i++) {
-				if (record[i]!.rks !== record[i + 1]?.rks)
-					return record.slice(0, i + 1);
-			}
-		}
 		return record;
 	}
 
-	minUpRks() {
-		const minuprks =
-			Math.floor(this.saveInfo.summary.rankingScore * 100) / 100 +
-			0.005 -
-			this.saveInfo.summary.rankingScore;
-		return minuprks < 0 ? minuprks + 0.01 : minuprks;
-	}
-
-	getSongsRecord(id: string) {
-		return this.gameRecord[id] ? [...this.gameRecord[id]!] : undefined;
-	}
-
-	async getB19(
-		_e: unknown,
-		num: number,
-		option: {
-			avgType?: string;
-			color?: string;
-			avgValue?: boolean;
-			allPhi?: boolean;
-		} = {
-			avgType: "all",
-			color: "blue",
-		},
-	) {
+	getB19(num: number) {
 		let sum_rks = 0;
 		const philist = this.findAccRecord(100);
 		for (let i = 0, j = 0; i < philist.length; ++i) {
@@ -246,8 +209,7 @@ export class Save {
 			}
 		}
 		const phi: (LevelRecordInfo | undefined)[] = [];
-		const phiNum = Math.max(option.allPhi ? philist.length : 3, 3);
-		for (let i = 0; i < phiNum; ++i) {
+		for (let i = 0; i < 3; ++i) {
 			if (!philist[i]) {
 				phi[i] = undefined;
 				continue;
@@ -298,9 +260,6 @@ export class Save {
 			b19_list.push(row);
 		}
 		const com_rks = sum_rks / 30;
-		this.B19List = { phi, b19_list };
-		this.b19_rks = b19_list[Math.min(b19_list.length - 1, 26)]?.rks || 0;
-		await attachB19AccAvg({ phi, b19_list, com_rks }, option);
 		return { phi, b19_list, com_rks };
 	}
 
@@ -369,76 +328,6 @@ export class Save {
 			b19_list.push(x);
 		}
 		return { phi, b19_list, com_rks: sum_rks / 30 };
-	}
-
-	getRks() {
-		return Number(this.saveInfo.summary.rankingScore);
-	}
-
-	getSessionToken() {
-		return this.session;
-	}
-
-	getPlayerInfo() {
-		const money = this.gameProgress?.money || [0, 0, 0, 0, 0];
-		return {
-			avatar: getInfo.idgetavatar(this.gameuser.avatar),
-			ChallengeMode: Math.floor(this.saveInfo.summary.challengeModeRank / 100),
-			ChallengeModeRank: this.saveInfo.summary.challengeModeRank % 100,
-			rks: this.saveInfo.summary.rankingScore,
-			data:
-				`${money[4] ? `${money[4]}PiB ` : ""}${money[3] ? `${money[3]}TiB ` : ""}${money[2] ? `${money[2]}GiB ` : ""}${money[1] ? `${money[1]}MiB ` : ""}${money[0] ? `${money[0]}KiB ` : ""}`.trim() ||
-				"0KiB",
-			selfIntro: this.gameuser.selfIntro,
-			backgroundUrl: fCompute.getBackground(this.gameuser.background),
-			PlayerId: fCompute.convertRichText(this.saveInfo.PlayerId),
-			date: fCompute.formatDate(this.saveInfo.summary.updatedAt),
-		};
-	}
-
-	getSuggest(
-		id: string,
-		lv: number,
-		count: undefined,
-		difficulty: number,
-	): number;
-	getSuggest(id: string, lv: number, count: number, difficulty: number): string;
-	getSuggest(
-		id: string,
-		lv: number,
-		count: number | undefined,
-		difficulty: number,
-	): string | number;
-	getSuggest(
-		id: string,
-		lv: number,
-		count: number | undefined,
-		difficulty: number,
-	): string | number {
-		if (this.b19_rks === undefined || this.b0_rks === undefined) {
-			const record = this.getRecord();
-			this.b19_rks = record.length > 26 ? record[26]!.rks : 0;
-			this.b0_rks = this.findAccRecord(100, true)[0]?.rks;
-		}
-		const b19 = this.b19_rks ?? 0;
-		const b0 = this.b0_rks ?? 0;
-		let suggest: number | string;
-		if (!this.gameRecord[id]?.[lv]?.rks) {
-			suggest = fCompute.suggest(
-				Math.max(b19, 0) + this.minUpRks() * 30,
-				difficulty,
-			);
-		} else {
-			suggest = fCompute.suggest(
-				Math.max(b19, this.gameRecord[id]![lv]!.rks) + this.minUpRks() * 30,
-				difficulty,
-			);
-		}
-		if (suggest === -1 && difficulty > b0 + this.minUpRks() * 30) suggest = 100;
-		if (count == null) return suggest;
-		return suggest !== -1 && typeof suggest === "number"
-			? `${suggest.toFixed(count)}%`
-			: "无法推分";
 	}
 
 	async getStats() {

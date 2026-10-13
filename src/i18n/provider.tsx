@@ -28,16 +28,14 @@ function writeLocaleCookie(locale: Locale) {
 
 export function I18nProvider({
 	locale: initialLocale,
-	m: initialM,
 	children,
 }: {
 	locale: Locale;
-	m: Messages;
 	children: ReactNode;
 }) {
 	const router = useRouter();
 	const [locale, setLocaleState] = useState(initialLocale);
-	const m = locale === initialLocale ? initialM : catalogs[locale];
+	const m = catalogs[locale];
 
 	const setLocale = useCallback(
 		(next: Locale) => {
