@@ -20,7 +20,7 @@ for (const k of [
 ]) {
 	delete process.env[k];
 }
-const { b19Card, isPartialResult } = await import("./cards");
+const { b19Card, isPartialResult, lookupBudgetMs } = await import("./cards");
 const {
 	chartTagAnalysisKvKey,
 	chartTagCacheId,
@@ -210,6 +210,17 @@ test("a failed tag lookup renders 'No data' and marks the card partial", async (
 	assert.equal(analysis.tagMeta, "No data");
 	assert.equal(analysis.tagMessage, cardCopy("en").tagUnavailable);
 	assert.equal(data.renderPartial, true);
+});
+
+test("Wait for every badge gives the tag lookup the time left until the peer deadline", () => {
+	const floor = 8_000;
+	const deadline = Date.now() + 50_000;
+	const waiting = { ...notes, peerWait: true };
+	assert.equal(lookupBudgetMs(notes, deadline, floor), floor);
+	assert.equal(lookupBudgetMs(waiting, undefined, floor), floor);
+	const budget = lookupBudgetMs(waiting, deadline, floor);
+	assert.ok(budget > 49_000 && budget <= 50_000);
+	assert.equal(lookupBudgetMs(waiting, Date.now() - 1, floor), floor);
 });
 
 test("x30/fc30 keep the histogram without P slots", async () => {

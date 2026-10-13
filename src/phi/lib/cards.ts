@@ -67,6 +67,17 @@ function iconImages(
 	return out;
 }
 
+/** With notes.peerWait a slow phib19 lookup may use whatever is left until `peerDeadline`, otherwise `floorMs` */
+export function lookupBudgetMs(
+	notes: UserNotes,
+	peerDeadline: number | undefined,
+	floorMs: number,
+): number {
+	return notes.peerWait === true && peerDeadline != null
+		? Math.max(floorMs, peerDeadline - Date.now())
+		: floorMs;
+}
+
 async function b30AnalysisFor(
 	records: ReturnType<typeof getB30AnalysisRecords>,
 	withPhi: boolean,
@@ -75,6 +86,7 @@ async function b30AnalysisFor(
 	locale: PhiLocale,
 	db: Kv,
 	save: Save,
+	tagBudgetMs: number,
 	external?: ExternalWatch,
 ) {
 	if (notes.showB30Analysis === false || nnum !== 33) return null;
@@ -88,7 +100,7 @@ async function b30AnalysisFor(
 			const lookup = tagAnalysisFor(save, {
 				saveRevision: saveIdentity(save.saveInfo),
 				db,
-				budgetMs: CHART_TAG_RENDER_BUDGET_MS,
+				budgetMs: tagBudgetMs,
 			});
 			tagAnalysis = localizeChartTagLabels(
 				await (external ? external.track(lookup) : lookup),
@@ -209,10 +221,7 @@ export async function b19Card(
 					owner: userId,
 					rankScope: rankScopeOf(notes),
 					rankBandShow: rankBandShowOf(notes),
-					budgetMs:
-						notes.peerWait === true && extra.peerDeadline != null
-							? Math.max(LB_ROW_BUDGET_MS, extra.peerDeadline - Date.now())
-							: undefined,
+					budgetMs: lookupBudgetMs(notes, extra.peerDeadline, LB_ROW_BUDGET_MS),
 				}),
 			);
 		}
@@ -237,6 +246,7 @@ export async function b19Card(
 			locale,
 			db,
 			save,
+			lookupBudgetMs(notes, extra.peerDeadline, CHART_TAG_RENDER_BUDGET_MS),
 			external,
 		),
 		avgJob,
