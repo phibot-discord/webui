@@ -17,14 +17,17 @@ export async function GET(
 	if (!userId) return localizedError(404, "share_not_found");
 	return withDiscordUid(userId, async () => {
 		const host = await getDataHost();
-		const got = await loadBound(host, userId);
+		// Anonymous views tolerate the 10 s token/save memo; the viewer check does not depend on the load
+		const [got, viewer] = await Promise.all([
+			loadBound(host, userId, { memo: true }),
+			sessionUserId(),
+		]);
 		if ("error" in got)
 			return localizedError(
 				got.status === 403 ? 404 : got.status,
 				"profile_unavailable",
 			);
 		const player = playerFromSave(got.save);
-		const viewer = await sessionUserId();
 		return Response.json({ ...player, owner: viewer === userId });
 	});
 }

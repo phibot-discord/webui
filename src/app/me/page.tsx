@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { BindPanel } from "@/components/BindPanel";
-import { MeGate } from "@/components/Desk";
 import { getMessages } from "@/i18n/server";
-import { loadBound, refreshCooldownRemaining } from "@/server/bound";
 import { getDataHost } from "@/server/data-host";
 import { withDiscordUid } from "@/server/logger";
+import { loadManual } from "@/server/manual";
 
 export const dynamic = "force-dynamic";
 
@@ -21,27 +20,13 @@ export default async function MePage() {
 	const userId = session.user.id;
 	return withDiscordUid(userId, async () => {
 		const host = await getDataHost();
-		const [got, cooldown] = await Promise.all([
-			loadBound(host, userId),
-			refreshCooldownRemaining(userId),
-		]);
-
-		if ("error" in got) {
-			if (got.error === "not_bound") {
-				return (
-					<main id="content" className="page page-bind">
-						<BindPanel />
-					</main>
-				);
-			}
-			return (
-				<MeGate
-					reason={got.error === "banned" ? "banned" : "no_save"}
-					cooldown={cooldown}
-				/>
-			);
-		}
-
-		redirect("/me/b30");
+		// Only the binding decides here: /me/[kind] loads the save and gates a banned token or a missing save
+		if (await host.lib.getToken(host.rt, userId)) redirect("/me/b30");
+		if (await loadManual(host.db, userId)) redirect("/me/b30");
+		return (
+			<main id="content" className="page page-bind">
+				<BindPanel />
+			</main>
+		);
 	});
 }
