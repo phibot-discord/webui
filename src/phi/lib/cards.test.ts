@@ -152,7 +152,12 @@ const pool = parseB30TagAnalysis({
 async function card(
 	rev: string,
 	mode: "b30" | "x30" | "fc30",
-	opts: { cached?: boolean; tags?: boolean; locale?: "en" | "zh" } = {},
+	opts: {
+		cached?: boolean;
+		tags?: boolean;
+		locale?: "en" | "zh";
+		peerWait?: boolean;
+	} = {},
 ) {
 	const save = fakeSave(rev);
 	const { db } = memoryDb();
@@ -168,7 +173,9 @@ async function card(
 		mode,
 		locale: opts.locale ?? "en",
 		showTagAnalysis: opts.tags ?? true,
-		notes,
+		notes: opts.peerWait ? { ...notes, peerWait: true } : notes,
+		// Fractional like src/server/cards.ts, which subtracts performance.now()
+		...(opts.peerWait ? { peerDeadline: Date.now() + 50_000.5 } : {}),
 	});
 }
 
@@ -221,6 +228,25 @@ test("Wait for every badge gives the tag lookup the time left until the peer dea
 	const budget = lookupBudgetMs(waiting, deadline, floor);
 	assert.ok(budget > 49_000 && budget <= 50_000);
 	assert.equal(lookupBudgetMs(waiting, Date.now() - 1, floor), floor);
+});
+
+test("after phib19 fails, only 'Wait for every badge' cards ask again", async () => {
+	resetChartTagVoteMemForTest();
+	posts.length = 0;
+	await card("rev-trip", "b30");
+	assert.equal(posts.length, 1);
+	const skipped = await card("rev-skip", "b30");
+	const analysis = skipped.b30Analysis as unknown as Analysis;
+	assert.equal(posts.length, 1);
+	assert.equal(analysis.tagLookupFailed, true);
+	assert.equal(analysis.tagMeta, "No data");
+	assert.equal(skipped.renderPartial, true);
+	const cached = await card("rev-cached", "b30", { cached: true });
+	assert.equal(posts.length, 1);
+	assert.equal(cached.renderPartial, false);
+	const waited = await card("rev-wait", "b30", { peerWait: true });
+	assert.equal(posts.length, 2);
+	assert.equal(waited.renderPartial, true);
 });
 
 test("x30/fc30 keep the histogram without P slots", async () => {

@@ -3,12 +3,14 @@ import test from "node:test";
 import {
 	CHART_TAG_ANALYSIS_TTL_MS,
 	CHART_TAG_BACKGROUND_MS,
+	CHART_TAG_BREAKER_MS,
 	CHART_TAG_RENDER_BUDGET_MS,
 	CHART_TAG_TIMEOUT_MS,
 	chartTagAgent,
 	chartTagAnalysisKvKey,
 	chartTagCacheId,
 	chartTagHeaders,
+	chartTagLifetimeMs,
 	chartTagTreeR2Key,
 	chartTagUrl,
 	gameRecordPayload,
@@ -109,6 +111,32 @@ function deferred<T>() {
 	});
 	return { promise, resolve, reject };
 }
+
+/** Settles like the real POST under `signal`: the answer, or the abort once it fires */
+function underSignal<T>(answer: Promise<T>, signal?: AbortSignal | null) {
+	return new Promise<T>((resolve, reject) => {
+		signal?.addEventListener("abort", () => reject(signal.reason), {
+			once: true,
+		});
+		answer.then(resolve, reject);
+	});
+}
+
+/** AbortSignal.timeout on the mocked setTimeout, so a 30 s lifetime needs no 30 s wait */
+function mockedTimeout(ms: number) {
+	// Rejects what the real one rejects (fractions, negatives)
+	if (!Number.isInteger(ms) || ms < 0) {
+		throw new RangeError(`AbortSignal.timeout(${ms}): must be an integer`);
+	}
+	const ctl = new AbortController();
+	setTimeout(
+		() => ctl.abort(new DOMException("signal timed out", "TimeoutError")),
+		ms,
+	);
+	return ctl.signal;
+}
+
+const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 test("proxy key goes to the Worker, never to phib19 itself", () => {
 	const key = "shared-secret";
@@ -573,9 +601,11 @@ test("concurrent lookups for one save share a single POST", async () => {
 	await assert.rejects(x, TypeError);
 	await assert.rejects(y, TypeError);
 	assert.equal(tries, 1);
+	// The failure tripped the breaker; a waiting render still asks again
 	const retry = await tagAnalysisFor(oneSave, {
 		fetchJson: failing,
 		saveRevision: "rev-f",
+		wait: true,
 	});
 	assert.equal(tries, 2);
 	assert.equal(retry.totalVotes, 9);
@@ -623,6 +653,188 @@ test("budget passes answers and errors through untouched", async () => {
 	assert.equal(CHART_TAG_RENDER_BUDGET_MS, 8_000);
 	assert.ok(CHART_TAG_BACKGROUND_MS > CHART_TAG_RENDER_BUDGET_MS);
 	assert.ok(CHART_TAG_BACKGROUND_MS >= 25_000);
+});
+
+test("a waiting render's POST lives as long as its budget, up to 60 s", async (t) => {
+	assert.equal(chartTagLifetimeMs(), CHART_TAG_BACKGROUND_MS);
+	assert.equal(
+		chartTagLifetimeMs(CHART_TAG_RENDER_BUDGET_MS),
+		CHART_TAG_BACKGROUND_MS,
+	);
+	assert.equal(chartTagLifetimeMs(45_000), 45_000);
+	assert.equal(chartTagLifetimeMs(90_000), CHART_TAG_TIMEOUT_MS);
+	// The peer deadline subtracts performance.now(), so budgets have fractions
+	assert.equal(chartTagLifetimeMs(45_000.5), 45_001);
+
+	resetChartTagVoteMemForTest();
+	t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000_000 });
+	const timeout = t.mock.method(AbortSignal, "timeout", mockedTimeout);
+	const { db, store } = memoryKv();
+	const answer = deferred<unknown>();
+	let fetches = 0;
+	const fetchJson = (_path: string, init?: RequestInit) => {
+		fetches += 1;
+		return underSignal(answer.promise, init?.signal);
+	};
+	const render = tagAnalysisFor(oneSave, {
+		fetchJson,
+		saveRevision: "rev-wait",
+		db,
+		budgetMs: 45_000,
+		wait: true,
+	});
+	await flush();
+	assert.deepEqual(
+		timeout.mock.calls.map((call) => call.arguments[0]),
+		[45_000],
+	);
+	// Past the old fixed 30 s cutoff, inside the budget
+	t.mock.timers.tick(CHART_TAG_BACKGROUND_MS + 5_000);
+	await flush();
+	answer.resolve(poolResponse(45));
+	assert.equal((await render).totalVotes, 45);
+	assert.equal(fetches, 1);
+	assert.ok(store.has(chartTagAnalysisKvKey(chartTagCacheId("rev-wait"))));
+
+	// Without waiting the POST still gets the 30 s background lifetime
+	await tagAnalysisFor(oneSave, {
+		fetchJson: async () => poolResponse(8),
+		saveRevision: "rev-short",
+		budgetMs: CHART_TAG_RENDER_BUDGET_MS,
+	});
+	assert.equal(timeout.mock.calls[1]?.arguments[0], CHART_TAG_BACKGROUND_MS);
+});
+
+test("a fractional waiting budget still reaches phib19 under the real AbortSignal.timeout", async () => {
+	resetChartTagVoteMemForTest();
+	const signals: (AbortSignal | null | undefined)[] = [];
+	const analysis = await tagAnalysisFor(oneSave, {
+		fetchJson: async (_path: string, init?: RequestInit) => {
+			signals.push(init?.signal);
+			return poolResponse(46);
+		},
+		saveRevision: "rev-fraction",
+		budgetMs: 45_000.25,
+		wait: true,
+	});
+	assert.equal(analysis.totalVotes, 46);
+	assert.equal(signals.length, 1);
+	assert.equal(signals[0]?.aborted, false);
+});
+
+test("after a timeout, renders that don't wait skip the POST until one succeeds", async (t) => {
+	resetChartTagVoteMemForTest();
+	t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000_000 });
+	t.mock.method(AbortSignal, "timeout", mockedTimeout);
+	const { db, store } = memoryKv();
+	let fetches = 0;
+	const hang = (_path: string, init?: RequestInit) => {
+		fetches += 1;
+		return underSignal(new Promise<unknown>(() => {}), init?.signal);
+	};
+	const first = assert.rejects(
+		tagAnalysisFor(oneSave, {
+			fetchJson: hang,
+			saveRevision: "rev-hang",
+			db,
+			budgetMs: CHART_TAG_RENDER_BUDGET_MS,
+		}),
+		(err) => isChartTagTimeout(err),
+	);
+	await flush();
+	t.mock.timers.tick(CHART_TAG_RENDER_BUDGET_MS);
+	await first;
+	// The background attempt runs out of its 30 s and trips the breaker
+	t.mock.timers.tick(CHART_TAG_BACKGROUND_MS - CHART_TAG_RENDER_BUDGET_MS);
+	await flush();
+	assert.equal(fetches, 1);
+
+	const answers = async () => {
+		fetches += 1;
+		return poolResponse(77);
+	};
+	const quick = {
+		fetchJson: answers,
+		db,
+		budgetMs: CHART_TAG_RENDER_BUDGET_MS,
+	};
+	// Fails at once (no budget tick) with the error the 8 s budget would give
+	await assert.rejects(
+		tagAnalysisFor(oneSave, { ...quick, saveRevision: "rev-skip" }),
+		(err) => isChartTagTimeout(err),
+	);
+	assert.equal(fetches, 1);
+
+	// Cached answers are still served from KV and from memory
+	store.set(
+		chartTagAnalysisKvKey(chartTagCacheId("rev-kv")),
+		JSON.stringify({
+			at: Date.now(),
+			analysis: parseB30TagAnalysis(poolResponse(55)),
+		}),
+	);
+	for (let i = 0; i < 2; i++) {
+		const hit = await tagAnalysisFor(oneSave, {
+			...quick,
+			saveRevision: "rev-kv",
+		});
+		assert.equal(hit.totalVotes, 55);
+	}
+	assert.equal(fetches, 1);
+
+	// "Wait for every badge" still asks, and its answer closes the breaker
+	const waited = await tagAnalysisFor(oneSave, {
+		...quick,
+		saveRevision: "rev-skip",
+		budgetMs: 45_000,
+		wait: true,
+	});
+	assert.equal(fetches, 2);
+	assert.equal(waited.totalVotes, 77);
+	await tagAnalysisFor(oneSave, { ...quick, saveRevision: "rev-after" });
+	assert.equal(fetches, 3);
+});
+
+test("only outages trip the breaker, and it closes on its own", async (t) => {
+	resetChartTagVoteMemForTest();
+	t.mock.timers.enable({ apis: ["Date"], now: 1_000_000 });
+	let fetches = 0;
+	const lookup = (rev: string, answer: () => unknown) =>
+		tagAnalysisFor(oneSave, {
+			saveRevision: rev,
+			fetchJson: async () => {
+				fetches += 1;
+				return answer();
+			},
+		});
+	// phib19 answered: a 4xx or an unusable body leaves the breaker closed
+	await assert.rejects(
+		lookup("rev-400", () => {
+			throw new Error('chart-tag 400: {"error":"bad gameRecord"}');
+		}),
+		/chart-tag 400/,
+	);
+	await assert.rejects(
+		lookup("rev-empty", () => ({ data: {} })),
+		/empty chart-tag analysis/,
+	);
+	assert.equal((await lookup("rev-ok", () => poolResponse(1))).totalVotes, 1);
+	assert.equal(fetches, 3);
+
+	await assert.rejects(
+		lookup("rev-502", () => {
+			throw new Error("chart-tag 502: bad gateway");
+		}),
+		/chart-tag 502/,
+	);
+	await assert.rejects(
+		lookup("rev-net", () => poolResponse(2)),
+		(err) => isChartTagTimeout(err),
+	);
+	assert.equal(fetches, 4);
+	t.mock.timers.tick(CHART_TAG_BREAKER_MS);
+	assert.equal((await lookup("rev-net", () => poolResponse(2))).totalVotes, 2);
+	assert.equal(fetches, 5);
 });
 
 test("loadChartTagTree stops waiting at the budget but keeps the live fetch", async () => {

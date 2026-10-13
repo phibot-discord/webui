@@ -42,3 +42,19 @@ test("the one-shot fetch makes a single attempt", async () => {
 	);
 	assert.equal(hits, 1);
 });
+
+test("the caller's signal replaces the fixed 30 s cutoff", async (t) => {
+	hits = 0;
+	bodies.splice(0, bodies.length, "ok");
+	const timeout = t.mock.method(AbortSignal, "timeout");
+	assert.deepEqual(
+		await chartTagJsonFetchOnce("/chartsTag/get/b30Analysis", {
+			method: "POST",
+			body: "{}",
+			signal: new AbortController().signal,
+		}),
+		{ data: { ok: true } },
+	);
+	assert.equal(timeout.mock.callCount(), 0);
+	assert.equal(hits, 1);
+});

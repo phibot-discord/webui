@@ -26,6 +26,16 @@ export const CHART_TAG_TIMEOUT_MS = 60_000;
 export const CHART_TAG_RENDER_BUDGET_MS = 8_000;
 /** The attempt keeps running this long after the render gives up, to fill the cache */
 export const CHART_TAG_BACKGROUND_MS = 30_000;
+/** After a timeout, network error or 5xx, renders that don't wait skip the b30Analysis POST this long */
+export const CHART_TAG_BREAKER_MS = 90_000;
+
+/** A waiting render's POST lives as long as its budget, within the agent's 60 s; whole ms, as AbortSignal.timeout requires */
+export function chartTagLifetimeMs(budgetMs = 0) {
+	return Math.min(
+		CHART_TAG_TIMEOUT_MS,
+		Math.max(CHART_TAG_BACKGROUND_MS, Math.ceil(budgetMs)),
+	);
+}
 
 export const chartTagAgent = {
 	...socketTimeouts(CHART_TAG_TIMEOUT_MS),
@@ -174,10 +184,32 @@ const ANALYSIS_MEM_MAX = 64;
 const analysisMem = new TtlLru<TagAnalysis>(ANALYSIS_MEM_MAX);
 /** Concurrent cold renders of one save (b30/x30/fc30, several styles) share a POST */
 const analysisInflight = new Map<string, Promise<TagAnalysis>>();
+/** b30Analysis is one endpoint, so one breaker (leaderboard.ts keeps one per path) */
+let breakerUntil = 0;
 
 export function resetChartTagVoteMemForTest() {
 	analysisMem.clear();
 	analysisInflight.clear();
+	breakerUntil = 0;
+}
+
+function breakerOpen() {
+	return Date.now() < breakerUntil;
+}
+
+function trip(why: string) {
+	breakerUntil = Date.now() + CHART_TAG_BREAKER_MS;
+	logger.warn(
+		`chart-tag b30Analysis off for ${CHART_TAG_BREAKER_MS / 1000}s: ${why}`,
+	);
+}
+
+/** Timeouts, network errors and 5xx (and 429, which the agent's retry interceptor throws for); another 4xx is phib19 answering */
+function upstreamDown(err: unknown): boolean {
+	const status = /^chart-tag (\d{3})\b/.exec(
+		err instanceof Error ? err.message : "",
+	)?.[1];
+	return status ? Number(status) >= 500 : true;
 }
 
 function isFresh(at: unknown): at is number {
@@ -454,6 +486,8 @@ type TagAnalysisOpts = {
 	saveRevision?: string;
 	db?: Pick<Kv, "get" | "set">;
 	budgetMs?: number;
+	/** "Wait for every badge": ask phib19 even while the breaker is open */
+	wait?: boolean;
 };
 
 async function loadAnalysis(
@@ -468,6 +502,12 @@ async function loadAnalysis(
 			return stored;
 		}
 	}
+	// Only the POST is skipped: the cache reads above still serve while it is open
+	if (!opts.wait && breakerOpen()) {
+		throw new ChartTagTimeoutError(
+			"chart-tag b30Analysis skipped: recently failed",
+		);
+	}
 	const fetchJson = opts.fetchJson ?? chartTagJsonFetchOnce;
 	const gameRecord = gameRecordPayload(save.gameRecord || {});
 	try {
@@ -475,9 +515,16 @@ async function loadAnalysis(
 			await fetchJson("/chartsTag/get/b30Analysis", {
 				method: "POST",
 				body: JSON.stringify({ gameRecord }),
+				signal: AbortSignal.timeout(chartTagLifetimeMs(opts.budgetMs)),
+			}).catch((err: unknown) => {
+				if (upstreamDown(err)) {
+					trip(err instanceof Error ? `${err.name} ${err.message}` : `${err}`);
+				}
+				throw err;
 			}),
 		);
 		if (!parsed) throw new Error("empty chart-tag analysis");
+		breakerUntil = 0;
 		if (cacheId) writeAnalysisCache(cacheId, parsed, opts.db);
 		logger.info(
 			`chart-tag analysis RKS≥${parsed.threshold} records ${parsed.recordCount} votes ${parsed.totalVotes} insufficient ${parsed.insufficient}`,
