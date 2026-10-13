@@ -28,10 +28,10 @@ const saveInfo = {
 	PlayerId: "p",
 };
 
-function cachedSave() {
+function cachedSave(global = false) {
 	return JSON.stringify({
 		session: TOKEN,
-		global: false,
+		global,
 		saveInfo,
 		gameRecord: { song: [] },
 	});
@@ -143,7 +143,13 @@ test("failed TapTap fetch reads only the save blob and writes nothing", async ()
 		() => updateSave(rt, db, "tap-timeout", { bound: TOKEN }),
 		(err: unknown) => err instanceof TapApiError,
 	);
-	assert.deepEqual(log, [`kv:${SAVE_KEY}`, "user:false", "taptap"]);
+	assert.deepEqual(log, [
+		`kv:${SAVE_KEY}`,
+		"user:false",
+		"taptap",
+		"user:true",
+		"taptap",
+	]);
 });
 
 test("the save blob read overlaps the TapTap call", async () => {
@@ -336,6 +342,94 @@ test("bind with an explicit region does not retry the other TapTap host", async 
 		updateSave(rt, db, "bind-cn", { token: TOKEN, global: false }),
 	);
 	assert.deepEqual(log, ["kv:token", `kv:${SAVE_KEY}`, "user:false", "taptap"]);
+});
+
+test("an unknown region whose first TapTap host times out tries the other host and remembers it", async () => {
+	const log: string[] = [];
+	const rt = mockRt({
+		log,
+		getSaveInfo: async (global) => {
+			if (!global) throw new TapApiError("TapAPI timed out", true);
+		},
+	});
+	const db = mockDb({ log, save: cachedSave(true) });
+	await updateSave(rt, db, "gb-timeout", { bound: TOKEN });
+	assert.deepEqual(log.filter((step) => !step.startsWith("kv:")).slice(0, 4), [
+		"user:false",
+		"taptap",
+		"user:true",
+		"taptap",
+	]);
+	log.length = 0;
+	await updateSave(rt, db, "gb-timeout", { bound: TOKEN });
+	assert.deepEqual(
+		log.filter((step) => step.startsWith("user:")),
+		["user:true"],
+		"the region that answered is tried first",
+	);
+});
+
+test("an unknown region still reports TapTap down when the other host rejects the token", async () => {
+	const log: string[] = [];
+	const rt = mockRt({
+		log,
+		getSaveInfo: async (global) => {
+			if (!global) throw new TapApiError("TapAPI timed out", true);
+			throw new Error("Phigros cloud 400 Bad Request");
+		},
+	});
+	const db = mockDb({ log, save: cachedSave() });
+	await assert.rejects(
+		() => updateSave(rt, db, "cn-down", { bound: TOKEN }),
+		(err: unknown) => err instanceof TapApiError,
+	);
+	assert.deepEqual(
+		log.filter((step) => step.startsWith("user:")),
+		["user:false", "user:true"],
+	);
+});
+
+test("a remembered region does not retry the other TapTap host when TapTap is down", async () => {
+	const log: string[] = [];
+	let down = false;
+	const rt = mockRt({
+		log,
+		getSaveInfo: async () => {
+			if (down) throw new TapApiError("TapAPI timed out", true);
+		},
+	});
+	const db = mockDb({ log, save: cachedSave() });
+	await updateSave(rt, db, "cn-known", { bound: TOKEN });
+	down = true;
+	log.length = 0;
+	await assert.rejects(
+		() => updateSave(rt, db, "cn-known", { bound: TOKEN }),
+		(err: unknown) => err instanceof TapApiError,
+	);
+	assert.deepEqual(log, ["user:false", "taptap"]);
+});
+
+test("a save blob already in memory picks the TapTap host it was saved under", async () => {
+	const log: string[] = [];
+	const rt = mockRt({
+		log,
+		getSaveInfo: async (global) => {
+			if (global) throw new TapApiError("TapAPI timed out", true);
+		},
+	});
+	const db = mockDb({ log, save: cachedSave(true) });
+	// The page view before the refresh read the blob on this instance
+	assert.ok(await readSaveRaw(db, TOKEN));
+	log.length = 0;
+	await assert.rejects(
+		() => updateSave(rt, db, "gb-blob", { bound: TOKEN }),
+		(err: unknown) => err instanceof TapApiError,
+	);
+	assert.deepEqual(
+		log.filter((step) => !step.startsWith("kv:")),
+		["user:true", "taptap"],
+		"no CN hop first, and no CN retry while GB is down",
+	);
 });
 
 test("re-signed save URL with the same modified time does not re-download", async () => {

@@ -62,7 +62,7 @@ export function resetManualMemForTest() {
 	manualMem.clear();
 }
 
-/** `opts.memo` is for the card route only: pages and the editor must see writes from other instances */
+/** `opts.memo` is for the card route and public share views only: the owner's pages and the editor must see writes from other instances */
 export async function loadManual(
 	db: Pick<Kv, "get">,
 	userId: string,
