@@ -1,8 +1,24 @@
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
+
+/** Vercel hands its build the commit; a local build asks git, and has none outside a checkout */
+export function commitSha(): string {
+	const fromVercel = process.env.VERCEL_GIT_COMMIT_SHA?.trim();
+	if (fromVercel) return fromVercel;
+	try {
+		return execFileSync("git", ["rev-parse", "HEAD"], {
+			cwd: dir,
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+		}).trim();
+	} catch {
+		return "";
+	}
+}
 
 // Keys are picomatch globs: a pattern without "/" matches at any depth, and includes apply after excludes
 
@@ -82,6 +98,7 @@ const webFonts = [
 const nextConfig: NextConfig = {
 	agentRules: false,
 	poweredByHeader: false,
+	env: { NEXT_PUBLIC_COMMIT_SHA: commitSha() },
 	outputFileTracingRoot: dir,
 	outputFileTracingIncludes: {
 		"/api/card/*": phiRenderAssets,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import test from "node:test";
-import nextConfig from "../../next.config";
+import nextConfig, { commitSha } from "../../next.config";
 
 const require = createRequire(import.meta.url);
 const picomatch = require("next/dist/compiled/picomatch") as (
@@ -33,4 +33,18 @@ test("routes that load the song catalog ship phi-assets/info", () => {
 			);
 		}
 	}
+});
+
+test("the footer commit is Vercel's when it sets one, else git's HEAD", () => {
+	const prev = process.env.VERCEL_GIT_COMMIT_SHA;
+	try {
+		process.env.VERCEL_GIT_COMMIT_SHA = "  abc1234def  ";
+		assert.equal(commitSha(), "abc1234def");
+		delete process.env.VERCEL_GIT_COMMIT_SHA;
+		assert.match(commitSha(), /^(?:[0-9a-f]{40})?$/);
+	} finally {
+		if (prev === undefined) delete process.env.VERCEL_GIT_COMMIT_SHA;
+		else process.env.VERCEL_GIT_COMMIT_SHA = prev;
+	}
+	assert.equal(nextConfig.env?.NEXT_PUBLIC_COMMIT_SHA, commitSha());
 });

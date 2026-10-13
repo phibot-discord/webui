@@ -86,6 +86,11 @@ html {
 	flex: none;
 }
 
+.site-foot-rev {
+	font-family: ui-monospace, Menlo, Monaco, monospace;
+	opacity: 0.7;
+}
+
 .version-notice {
 	position: fixed;
 	right: var(--gutter);
