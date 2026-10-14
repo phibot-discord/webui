@@ -598,11 +598,55 @@ test("a slot gate runs at most `limit` jobs and refuses past its queue", async (
 	const jobs = Array.from({ length: 5 }, () => run(job));
 	await assert.rejects(
 		run(job),
-		(err) => err instanceof LeaderboardError && err.code === "breaker",
+		(err) => err instanceof LeaderboardError && err.code === "busy",
 	);
 	assert.deepEqual(await Promise.all(jobs), [1, 1, 1, 1, 1]);
 	assert.equal(peak, 2);
 	assert.equal(await run(job), 1);
+});
+
+test("a full local queue is busy, not a phib19 failure: nothing is cached and the next try is sent", async () => {
+	let release!: () => void;
+	const held = new Promise<void>((r) => {
+		release = r;
+	});
+	const hold = async () => {
+		await held;
+		return {
+			status: 200,
+			body: { data: { AT: { total: 1, apCount: 0, fcCount: 0 } } },
+		};
+	};
+	// 4 in flight + 48 waiting fill the allAccRank/songApFcCount gate
+	const fillers = Array.from({ length: 52 }, (_, i) =>
+		songApFc(`hold${i}`, {}, { post: hold, known }),
+	);
+	await tick();
+	const fake = fakePhib19();
+	const rows = [{ songId: "a.0", rank: "IN", acc: 97 }];
+	try {
+		const full = await rankRows(rows, {}, { post: fake.post, known });
+		assert.equal(full.error?.code, "busy");
+		assert.equal(full.rows.size, 0);
+		assert.deepEqual(
+			await leaderboardJson(
+				{ chart: "b.0", level: "AT", acc: 97 },
+				{},
+				{ post: fake.post, known },
+			),
+			{ status: 503, body: { error: "upstream_busy" } },
+		);
+		assert.equal(fake.calls.length, 0);
+	} finally {
+		// The gate is module-wide: drain it even when an assertion fails
+		release();
+		await Promise.all(fillers);
+	}
+	// Neither the row set nor the endpoint is held back once the queue drains
+	const again = await rankRows(rows, {}, { post: fake.post, known });
+	assert.equal(fake.calls.length, 1);
+	assert.equal(again.error, undefined);
+	assert.equal(again.rows.get(rankKey(rows[0]!))?.better, 3);
 });
 
 test("phib19 requests wait for a slot (4 at once) before they are sent", async () => {

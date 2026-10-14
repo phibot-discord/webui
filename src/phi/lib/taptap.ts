@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import QRCode from "qrcode";
 import { logger } from "@/server/logger";
-import { TAPAPI_QR_POLL_TIMEOUT_MS, tapFetch } from "./tapapi";
+import { TAPAPI_QR_POLL_TIMEOUT_MS, tapFetch, tapRegion } from "./tapapi";
 
 type PartialQR = {
 	deviceId?: string;
@@ -13,6 +13,8 @@ type PartialQR = {
 	};
 	global?: boolean;
 };
+
+export type TapQrData = NonNullable<PartialQR["data"]>;
 
 class CompleteQRCodeData {
 	deviceID: string;
@@ -32,30 +34,6 @@ class CompleteQRCodeData {
 
 const TapSDKVersion = "2.1";
 
-type TapLoginRegion = {
-	clientId: string;
-	appKey: string;
-	webHost: string;
-	apiHost: string;
-	lcBase: string;
-};
-
-const CN_LOGIN: TapLoginRegion = {
-	clientId: "rAK3FfdieFob2Nn8Am",
-	appKey: "Qr9AEqtuoSVS3zeD6iVbM4ZC0AtkJcQ89tywVyi0",
-	webHost: "https://accounts.tapapis.cn",
-	apiHost: "https://open.tapapis.cn",
-	lcBase: "https://rak3ffdi.cloud.tds1.tapapis.cn/1.1",
-};
-
-const GB_LOGIN: TapLoginRegion = {
-	clientId: "kviehleldgxsagpozb",
-	appKey: "tG9CTm0LDD736k9HMM9lBZrbeBGRmUkjSfNLDNib",
-	webHost: "https://accounts.tapapis.com",
-	apiHost: "https://open.tapapis.com",
-	lcBase: "https://kviehlel.cloud.ap-sg.tapapis.com/1.1",
-};
-
 export function isGlobalTapLogin(
 	request?: PartialQR,
 	useGlobal = false,
@@ -65,10 +43,6 @@ export function isGlobalTapLogin(
 	if (/taptap\.cn|tapapis\.cn/i.test(url)) return false;
 	if (typeof request?.global === "boolean") return request.global;
 	return useGlobal;
-}
-
-function tapLogin(useGlobal: boolean): TapLoginRegion {
-	return useGlobal ? GB_LOGIN : CN_LOGIN;
 }
 
 function authorization(
@@ -95,7 +69,7 @@ async function requestLoginQrCode(
 	permissions = ["public_profile"],
 	useGlobal = false,
 ) {
-	const tap = tapLogin(useGlobal);
+	const tap = tapRegion(useGlobal);
 	const deviceId = randomUUID().replace(/-/g, "");
 	const params = new URLSearchParams({
 		client_id: tap.clientId,
@@ -116,7 +90,7 @@ async function requestLoginQrCode(
 }
 
 async function checkQRCodeResult(data: PartialQR, useGlobal = false) {
-	const tap = tapLogin(isGlobalTapLogin(data, useGlobal));
+	const tap = tapRegion(isGlobalTapLogin(data, useGlobal));
 	const qr = new CompleteQRCodeData(data);
 	const params = new URLSearchParams({
 		grant_type: "device_token",
@@ -170,7 +144,7 @@ async function getProfile(
 ) {
 	if (!token.scope?.includes("public_profile"))
 		throw new Error("Public profile permission is required.");
-	const tap = tapLogin(useGlobal);
+	const tap = tapRegion(useGlobal);
 	const url = `${tap.apiHost}/account/profile/v1?client_id=${tap.clientId}`;
 	const response = await tapFetch(url, {
 		method: "GET",
@@ -194,7 +168,7 @@ async function loginAndGetToken(
 	if (typeof data.openid !== "string" || !data.openid) {
 		throw new Error("TapTap profile missing openid");
 	}
-	const tap = tapLogin(withGlobal);
+	const tap = tapRegion(withGlobal);
 	const url = `${tap.lcBase}/users`;
 	const timestamp = Math.floor(Date.now() / 1000);
 	const sign = `${createHash("md5").update(`${timestamp}${tap.appKey}`).digest("hex")},${timestamp}`;

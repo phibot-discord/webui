@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { searchCharts } from "./chart-catalog";
 import { fuzzyFold, looseFold, rankSongs } from "./song-search";
 
 const SONGS = [
@@ -259,19 +258,4 @@ test("one result per song, limit respected", () => {
 	assert.equal(hits.length, 2);
 	const all = ids("a", { limit: 50 });
 	assert.equal(new Set(all).size, all.length);
-});
-
-test("searchCharts wraps rankSongs for existing callers", () => {
-	const list = SONGS.map(({ id, song, composer, aliases }) => ({
-		id,
-		song,
-		composer,
-		...(aliases ? { aliases } : {}),
-		charts: {},
-	}));
-	assert.deepEqual(
-		searchCharts(list, "ad").map((s) => s.song),
-		["AbsoluTe disoRdeR", "Ad astra per aspera", "After Dawn"],
-	);
-	assert.equal(searchCharts(list, "a", 1).length, 1);
 });

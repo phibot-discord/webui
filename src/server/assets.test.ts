@@ -6,9 +6,12 @@ import {
 	assetKind,
 	assetTab,
 	assetThumbKey,
+	FOOLS_ILL_DIR,
+	FOOLS_PREFIX,
 	isPublicAssetKey,
 	publicAssetUrl,
 	readAssetPage,
+	splitFools,
 } from "@/lib/assets";
 
 test("public asset keys stay inside the published trees", () => {
@@ -71,6 +74,11 @@ test("downloads name the file and images can open inline", () => {
 		assetDisposition("original_ill/ill/a.png", true),
 		/^attachment;/,
 	);
+	// A quote or backslash would end or escape the quoted name early
+	assert.match(
+		assetDisposition('4-1/phira/SP/a"b\\c-SP.pez', true),
+		/filename="abc-SP\.pez";/,
+	);
 });
 
 test("public asset urls stay on the R2 host", () => {
@@ -117,4 +125,26 @@ test("only the 4/1 tree goes on the fools tab", () => {
 	assert.equal(assetTab("music/a.ogg"), "files");
 	assert.equal(assetTab("original_ill/ill/4-1.png"), "files");
 	assert.equal(assetTab("info/4-1/a.json"), "files");
+});
+
+test("splitFools takes the 4/1 root off a key, and only a whole leading segment", () => {
+	assert.deepEqual(splitFools("4-1/phira/IN/a.pez"), [
+		"4-1/",
+		"phira/IN/a.pez",
+	]);
+	assert.deepEqual(splitFools("4-1/original_ill/ill/a.png"), [
+		"4-1/",
+		"original_ill/ill/a.png",
+	]);
+	assert.deepEqual(splitFools("phira/IN/a.pez"), ["", "phira/IN/a.pez"]);
+	assert.deepEqual(splitFools("4-1x/a.png"), ["", "4-1x/a.png"]);
+	assert.deepEqual(splitFools("info/4-1/a.json"), ["", "info/4-1/a.json"]);
+	assert.deepEqual(splitFools("4-1"), ["", "4-1"]);
+});
+
+test("the 4/1 jackets live in a fixed directory the files page classifies as jackets", () => {
+	const ill = `${FOOLS_PREFIX}/${FOOLS_ILL_DIR}`;
+	assert.equal(ill, "4-1/original_ill");
+	assert.equal(assetKind(`${ill}/ill/a.png`), "jacket");
+	assert.equal(assetThumbKey(`${ill}/ill/a.png`), `${ill}/illLow/a.png`);
 });

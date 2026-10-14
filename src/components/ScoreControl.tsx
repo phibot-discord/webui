@@ -7,7 +7,7 @@ import {
 	type ChartSearchText,
 	useChartCatalog,
 } from "@/components/ChartSearch";
-import { Announce } from "@/components/Tool";
+import { Announce, useSettled } from "@/components/Tool";
 import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
 import {
@@ -62,15 +62,6 @@ export function chartSearchText(m: Messages): ChartSearchText {
 		results: (n) =>
 			n === 1 ? t.resultsOne : t.results.replaceAll("{n}", String(n)),
 	};
-}
-
-function useSettled(text: string, ms = 700) {
-	const [settled, setSettled] = useState("");
-	useEffect(() => {
-		const id = window.setTimeout(() => setSettled(text), ms);
-		return () => window.clearTimeout(id);
-	}, [text, ms]);
-	return settled;
 }
 
 type RankState =

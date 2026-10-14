@@ -14,8 +14,9 @@ import { Catalog } from "./lib/catalog";
 import { polishSvgCharts } from "./lib/charts";
 import { fCompute } from "./lib/fcompute";
 import { layoutHistogram } from "./lib/histogram";
+import { escapeHtml } from "./lib/html";
 import { knobNum } from "./lib/knobs";
-import { bootPhiRuntime, type PhiRuntime } from "./lib/runtime";
+import type { PhiRuntime } from "./lib/runtime";
 import { fitEm, fitFontPx, splitTwoLines, textEm } from "./lib/text-fit";
 import { cardVariant } from "./lib/variants";
 import { readPhiVersion } from "./lib/version";
@@ -55,23 +56,8 @@ function stripDivsWithClass(html: string, className: string): string {
 	for (;;) {
 		const m = openRe.exec(out);
 		if (!m) break;
-		const start = m.index;
-		let i = start + m[0].length;
-		let depth = 1;
-		while (i < out.length && depth > 0) {
-			const nextDiv = out.indexOf("<div", i);
-			const nextClose = out.indexOf("</div>", i);
-			if (nextClose < 0) break;
-			if (nextDiv !== -1 && nextDiv < nextClose) {
-				depth++;
-				i = nextDiv + 4;
-			} else {
-				depth--;
-				i = nextClose + 6;
-			}
-		}
-		out = `${out.slice(0, start)}${out.slice(i)}`;
-		openRe.lastIndex = 0;
+		const end = scanDivEnd(out, m.index + m[0].length).end;
+		out = `${out.slice(0, m.index)}${out.slice(end)}`;
 	}
 	return out;
 }
@@ -80,14 +66,6 @@ function pickTip(tips: string[]): string {
 	const list = tips.map((t) => t.trim()).filter(Boolean);
 	if (!list.length) return "";
 	return list[Math.floor(Math.random() * list.length)]!;
-}
-
-function escapeHtml(s: string): string {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
 }
 
 function ensureTipFooter(html: string, tip: string): string {
@@ -198,20 +176,7 @@ function convertSheetToTable(html: string) {
 	const marker = '<div class="sheet">';
 	const start = html.indexOf(marker);
 	if (start < 0) return html;
-	let i = start + marker.length;
-	let depth = 1;
-	while (i < html.length && depth > 0) {
-		const nextDiv = html.indexOf("<div", i);
-		const nextClose = html.indexOf("</div>", i);
-		if (nextClose < 0) break;
-		if (nextDiv !== -1 && nextDiv < nextClose) {
-			depth++;
-			i = nextDiv + 4;
-		} else {
-			depth--;
-			i = nextClose + 6;
-		}
-	}
+	const i = scanDivEnd(html, start + marker.length).end;
 	const block = html.slice(start, i);
 	const texts = [
 		...block.matchAll(/<div class="poz"[^>]*>\s*<p>([\s\S]*?)<\/p>/g),
@@ -497,15 +462,17 @@ function fitPlayerName(html: string) {
 	);
 }
 
-function closeDiv(html: string, openIdx: number) {
-	const gt = html.indexOf(">", openIdx);
-	if (gt < 0) return html.length;
-	let i = gt + 1;
+/** Index past the `</div>` matching a `<div` whose open tag ends at `from`; `unterminated` when the `</div>`s run out first */
+function scanDivEnd(
+	html: string,
+	from: number,
+): { end: number; unterminated: boolean } {
+	let i = from;
 	let depth = 1;
 	while (i < html.length && depth > 0) {
 		const nextDiv = html.indexOf("<div", i);
 		const nextClose = html.indexOf("</div>", i);
-		if (nextClose < 0) return html.length;
+		if (nextClose < 0) return { end: i, unterminated: true };
 		if (nextDiv !== -1 && nextDiv < nextClose) {
 			depth++;
 			i = nextDiv + 4;
@@ -514,7 +481,14 @@ function closeDiv(html: string, openIdx: number) {
 			i = nextClose + 6;
 		}
 	}
-	return i;
+	return { end: i, unterminated: false };
+}
+
+function closeDiv(html: string, openIdx: number) {
+	const gt = html.indexOf(">", openIdx);
+	if (gt < 0) return html.length;
+	const { end, unterminated } = scanDivEnd(html, gt + 1);
+	return unterminated ? html.length : end;
 }
 
 function decodeHtmlText(raw: string) {
@@ -621,10 +595,6 @@ function layoutUpdateCard(html: string) {
 		},
 	);
 	out = out.replace(
-		/<div class="songsinfo">/g,
-		`<div class="songsinfo" style="height:32px;width:135px;flex:none;margin-top:auto;position:relative;background:rgba(0,0,0,0.78);display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;padding:2px 4px;box-sizing:border-box;">`,
-	);
-	out = out.replace(
 		/<div class="songsinfo_ed">/g,
 		`<div class="songsinfo_ed" style="height:32px;width:135px;flex:none;margin-top:auto;position:relative;background:rgba(255,217,0,0.78);display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;padding:2px 4px;box-sizing:border-box;">`,
 	);
@@ -643,10 +613,6 @@ function layoutUpdateCard(html: string) {
 	out = out.replace(
 		/<div class="acc">/g,
 		`<div class="acc" style="position:static;display:flex;flex-direction:row;align-items:flex-end;margin-left:auto;">`,
-	);
-	out = out.replace(
-		/<div class="rks">\s*<p>([^<]*)<\/p>/g,
-		`<div class="rks" style="position:static;left:auto;height:auto;min-width:0;min-height:0;width:auto;padding:0;overflow:visible;flex:none;margin-left:6px;"><p style="font-size:9px;margin:0;color:#fff;line-height:1.1;">$1</p>`,
 	);
 	// Collapse rank / score / acc / rks into two plain text lines per tile
 	out = out.replace(
@@ -691,26 +657,17 @@ function screenshotTheme(theme: unknown) {
 	return t;
 }
 
-export async function setupPhi(app: App) {
+export async function setupPhi(
+	app: App,
+	runtime: PhiRuntime,
+): Promise<{ catalog: Catalog }> {
 	const resources = app.config.paths.phiResources;
 	const fontDir = join(resources, "html/common/font");
 	await app.fonts.fromDir(fontDir, PHI_FONT_FILES);
 
 	await ensureSongInfo();
 	const catalog = new Catalog(resources);
-	app.service("phi.catalog", catalog);
-	app.service("phi.resources", resources);
 	logger.ok(`phi catalog: ${catalog.size} songs`);
-	let runtime: PhiRuntime | undefined;
-	try {
-		const rt = await bootPhiRuntime(app);
-		app.service("phi.runtime", rt);
-		runtime = rt;
-	} catch (err) {
-		logger.error(
-			`phi runtime failed: ${err instanceof Error ? err.message : err}`,
-		);
-	}
 
 	const scale = app.config.render.scale || 1;
 	const pages = artPages(join(resources, "html"));
@@ -795,4 +752,5 @@ export async function setupPhi(app: App) {
 		);
 	}
 	logger.ok(`phi templates: ${pages.length} art pages (takumi)`);
+	return { catalog };
 }

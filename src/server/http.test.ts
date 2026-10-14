@@ -6,9 +6,6 @@ import {
 	parseCardStats,
 } from "../lib/card-stats";
 import {
-	attachmentDisposition,
-	cardImageResponse,
-	cardRedirectResponse,
 	cardResultResponse,
 	etagMatches,
 	jsonError,
@@ -37,54 +34,31 @@ test("jsonError is not stored by caches", async () => {
 	assert.equal(body.code, "not_bound");
 });
 
-test("cardImageResponse attaches X-Phi-Stats", () => {
+test("a card image response attaches X-Phi-Stats", () => {
 	const stats = {
 		cache: "hit" as const,
 		store: "r2" as const,
 		cacheMs: 12,
 		totalMs: 40,
 	};
-	const res = cardImageResponse(Buffer.from("jpeg"), {
-		etag: "abc",
-		cacheControl: "private, max-age=60",
-		request: new Request("http://localhost/api/card/b30"),
-		mime: "image/jpeg",
-		stats,
-	});
+	const res = cardResultResponse(
+		{ bytes: Buffer.from("jpeg"), etag: "abc", mime: "image/jpeg", stats },
+		{ cacheControl: "private, max-age=60" },
+	);
 	assert.equal(res.status, 200);
 	assert.equal(res.headers.get(CARD_STATS_HEADER), encodeCardStats(stats));
 	assert.equal(parseCardStats(res.headers.get(CARD_STATS_HEADER))?.store, "r2");
 });
 
-test("cardImageResponse download skips 304 and attaches a filename", () => {
-	const res = cardImageResponse(Buffer.from("jpeg"), {
-		etag: "abc",
-		cacheControl: "private, max-age=60",
-		request: new Request("http://localhost/api/card/b30", {
-			headers: { "if-none-match": '"abc"' },
-		}),
-		mime: "image/jpeg",
-		filename: "b30.jpg",
-	});
+test("a card download attaches a filename", () => {
+	const res = cardResultResponse(
+		{ bytes: Buffer.from("jpeg"), etag: "abc", mime: "image/jpeg" },
+		{ cacheControl: "private, max-age=60", filename: "b30.jpg" },
+	);
 	assert.equal(res.status, 200);
 	assert.equal(
 		res.headers.get("content-disposition"),
-		attachmentDisposition("b30.jpg"),
-	);
-});
-
-test("cardRedirectResponse sends the browser to the cached object", () => {
-	const res = cardRedirectResponse(
-		"https://r2.example.test/web-cards/b30.jpg",
-		{
-			etag: "abc",
-			cacheControl: "private, max-age=60",
-		},
-	);
-	assert.equal(res.status, 302);
-	assert.equal(
-		res.headers.get("location"),
-		"https://r2.example.test/web-cards/b30.jpg",
+		'attachment; filename="b30.jpg"',
 	);
 });
 
@@ -100,9 +74,6 @@ test("a not-modified card result is a real 304 with the ETag, cache policy and s
 		{ bytes: Buffer.alloc(0), etag: "abc", notModified: true, stats },
 		{
 			cacheControl: "private, no-cache",
-			request: new Request("http://localhost/api/card/b30", {
-				headers: { "if-none-match": '"abc"' },
-			}),
 			renderVersion: "v1",
 		},
 	);
@@ -115,25 +86,11 @@ test("a not-modified card result is a real 304 with the ETag, cache policy and s
 	assert.equal(await res.text(), "");
 });
 
-test("private no-cache cards revalidate; no-store (transient) cards never answer 304", () => {
-	const request = new Request("http://localhost/api/card/b30", {
-		headers: { "if-none-match": 'W/"abc"' },
-	});
-	const revalidated = cardImageResponse(Buffer.from("jpeg"), {
-		etag: "abc",
-		cacheControl: "private, no-cache",
-		request,
-		mime: "image/jpeg",
-	});
-	assert.equal(revalidated.status, 304);
-	const transient = cardImageResponse(Buffer.from("jpeg"), {
-		etag: "abc-p",
-		cacheControl: "no-store",
-		request: new Request("http://localhost/api/card/b30", {
-			headers: { "if-none-match": '"abc-p"' },
-		}),
-		mime: "image/jpeg",
-	});
+test("a transient card is served no-store with its bytes", () => {
+	const transient = cardResultResponse(
+		{ bytes: Buffer.from("jpeg"), etag: "abc-p", mime: "image/jpeg" },
+		{ cacheControl: "no-store" },
+	);
 	assert.equal(transient.status, 200);
 	assert.equal(transient.headers.get("cache-control"), "no-store");
 	assert.equal(transient.headers.get("content-length"), "4");
@@ -142,7 +99,6 @@ test("private no-cache cards revalidate; no-store (transient) cards never answer
 test("a card that depends on Accept-Language says so on both 200 and 304", () => {
 	const opts = {
 		cacheControl: "public, s-maxage=300",
-		request: new Request("http://localhost/api/public/s/card/b30"),
 		vary: "Accept-Language",
 	};
 	const full = cardResultResponse(

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import sharp from "sharp";
+import type { TagRadar } from "./b30-analysis";
 
 export type LineSeg = [number, number, number, number];
 
@@ -50,21 +51,6 @@ function percentLineChartSvg(
 	);
 }
 
-type TagRadarPlot = {
-	grids: string[];
-	axes: { x: number; y: number }[];
-	points: string;
-	categories: {
-		name: string;
-		displayRks: string;
-		pointX: number;
-		pointY: number;
-		labelX: number;
-		labelY: number;
-		anchor: "start" | "middle" | "end";
-	}[];
-};
-
 function labelShift(anchor: "start" | "middle" | "end") {
 	if (anchor === "end") return "translate(-100%, -10px)";
 	if (anchor === "start") return "translate(0, -10px)";
@@ -97,7 +83,7 @@ function radarNameHtml(
 		.join("");
 }
 
-function radarLabels(radar: TagRadarPlot) {
+function radarLabels(radar: TagRadar) {
 	return radar.categories
 		.map((category) => {
 			const score = esc(category.displayRks);
@@ -111,7 +97,7 @@ function radarLabels(radar: TagRadarPlot) {
 		.join("");
 }
 
-export function tagRadarPlotSvg(radar: TagRadarPlot, scale = 1) {
+export function tagRadarPlotSvg(radar: TagRadar, scale = 1) {
 	const grids = radar.grids
 		.map(
 			(grid) =>
@@ -139,14 +125,14 @@ export function tagRadarPlotSvg(radar: TagRadarPlot, scale = 1) {
 	);
 }
 
-export async function tagRadarPlotPng(radar: TagRadarPlot) {
+export async function tagRadarPlotPng(radar: TagRadar) {
 	return sharp(Buffer.from(tagRadarPlotSvg(radar, 2)))
 		.png({ compressionLevel: 1 })
 		.toBuffer();
 }
 
 /** Keyed by the SVG source, so an already-plotted radar skips the rasterisation */
-async function radarPlotFileSrc(radar: TagRadarPlot) {
+async function radarPlotFileSrc(radar: TagRadar) {
 	const svg = tagRadarPlotSvg(radar, 2);
 	const dir = join(tmpdir(), "phi-tag-radar");
 	const file = join(
@@ -166,7 +152,7 @@ async function radarPlotFileSrc(radar: TagRadarPlot) {
 }
 
 /** Plot is a PNG file so Takumi uses the same image path as song ills */
-export async function tagRadarHtml(radar: TagRadarPlot) {
+export async function tagRadarHtml(radar: TagRadar) {
 	const src = await radarPlotFileSrc(radar);
 	return (
 		`<div class="tag-radar" style="width:200px;height:184px;position:relative;flex:none;overflow:visible;margin-left:16px;">` +
@@ -176,20 +162,8 @@ export async function tagRadarHtml(radar: TagRadarPlot) {
 	);
 }
 
-function paintTagRadarSvg(html: string) {
-	if (!html.includes("tag-radar")) return html;
-	return html.replace(
-		/<svg\b[^>]*class="[^"]*\btag-radar\b[^"]*"[^>]*>[\s\S]*?<\/svg>/i,
-		"",
-	);
-}
-
 /** userinfo.art draws its rks/acc lines as percent-coordinate <line>s; Takumi wants paths */
 export function polishSvgCharts(html: string) {
-	return paintTagRadarSvg(replacePercentSvgLines(html));
-}
-
-function replacePercentSvgLines(html: string) {
 	return html.replace(
 		/<svg\b[^>]*>([\s\S]*?)<\/svg>/g,
 		(full, inner: string) => {

@@ -1,6 +1,9 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { logger } from "@/server/logger";
 import {
+	errChain,
+	errCode,
+	isTimeoutError,
 	type OutgoingInit,
 	outgoingAgent,
 	outgoingFetch,
@@ -15,6 +18,35 @@ const TAPAPI_MAX_ATTEMPTS = 4;
 const TAP_RETRY_METHODS = new Set(["GET", "HEAD", "OPTIONS", "PUT", "DELETE"]);
 const TAP_CN_HOST = /(?:^|\.)tapapis\.cn$|(?:^|\.)tapfiles\.cn$/i;
 const DEFAULT_TAP_PROXY = "https://phi-ill-sync.ymyk.workers.dev/tap-proxy";
+
+export type TapLoginRegion = {
+	clientId: string;
+	appKey: string;
+	webHost: string;
+	apiHost: string;
+	lcBase: string;
+};
+
+const CN_LOGIN: TapLoginRegion = {
+	clientId: "rAK3FfdieFob2Nn8Am",
+	appKey: "Qr9AEqtuoSVS3zeD6iVbM4ZC0AtkJcQ89tywVyi0",
+	webHost: "https://accounts.tapapis.cn",
+	apiHost: "https://open.tapapis.cn",
+	lcBase: "https://rak3ffdi.cloud.tds1.tapapis.cn/1.1",
+};
+
+const GB_LOGIN: TapLoginRegion = {
+	clientId: "kviehleldgxsagpozb",
+	appKey: "tG9CTm0LDD736k9HMM9lBZrbeBGRmUkjSfNLDNib",
+	webHost: "https://accounts.tapapis.com",
+	apiHost: "https://open.tapapis.com",
+	lcBase: "https://kviehlel.cloud.ap-sg.tapapis.com/1.1",
+};
+
+/** LeanCloud/TapTap app credentials and hosts per region */
+export function tapRegion(isGlobal: boolean): TapLoginRegion {
+	return isGlobal ? GB_LOGIN : CN_LOGIN;
+}
 
 function tapProxyBase(): string {
 	const raw = process.env.TAP_PROXY_URL;
@@ -99,27 +131,6 @@ export class TapApiError extends Error {
 	}
 }
 
-export function isTimeoutError(err: unknown): boolean {
-	let cur: unknown = err;
-	for (let i = 0; i < 4 && cur; i++) {
-		if (!(cur instanceof Error)) return false;
-		if (
-			cur.name === "TimeoutError" ||
-			cur.name === "AbortError" ||
-			cur.name === "ConnectTimeoutError" ||
-			cur.name === "HeadersTimeoutError" ||
-			cur.name === "BodyTimeoutError"
-		) {
-			return true;
-		}
-		const code = (cur as { code?: string }).code;
-		if (typeof code === "string" && /TIMEOUT/i.test(code)) return true;
-		if (/timeout|timed out|aborted/i.test(cur.message)) return true;
-		cur = cur.cause;
-	}
-	return false;
-}
-
 function toTapApiError(err: unknown): TapApiError {
 	if (err instanceof TapApiError) return err;
 	const timeout = isTimeoutError(err);
@@ -140,32 +151,6 @@ export function withTapWait<T>(
 	fn: () => Promise<T>,
 ): Promise<T> {
 	return tapWait.run({ notify, sent: false }, fn);
-}
-
-function errCode(err: unknown): string | undefined {
-	return err && typeof err === "object" && "code" in err
-		? String((err as { code?: unknown }).code || "")
-		: undefined;
-}
-
-function errChain(err: unknown): string {
-	const bits: string[] = [];
-	let cur: unknown = err;
-	for (let i = 0; i < 5 && cur; i++) {
-		if (cur instanceof Error) {
-			const code = errCode(cur);
-			bits.push(
-				[cur.name, cur.message, code]
-					.filter((p) => p && p !== "undefined")
-					.join(" "),
-			);
-			cur = cur.cause;
-			continue;
-		}
-		bits.push(String(cur));
-		break;
-	}
-	return bits.join(" <- ") || String(err);
 }
 
 /** Kernel SYN to TapTap often dies ~15s; undici's 30s connect timer never fires */

@@ -1,5 +1,7 @@
 /** April Fools specials: a copy of the normal tree (`4-1/original_ill/…`, `4-1/phira/…`) plus `4-1/index.json` */
 export const FOOLS_PREFIX = "4-1";
+/** The specials' jacket directory (`4-1/original_ill/…`): fixed, whatever CLOUDFLARE_R2_ILL_PREFIX the main tree uses */
+export const FOOLS_ILL_DIR = "original_ill";
 
 /** ponytail: public trees only. Add a prefix when a new public tree lands in the bucket */
 export const PUBLIC_ASSET_PREFIXES = [
@@ -63,7 +65,7 @@ export function assetTab(key: string): AssetTab {
 }
 
 /** `4-1/phira/IN/a.pez` → `["4-1/", "phira/IN/a.pez"]`: the specials mirror the normal tree */
-function splitFools(key: string): [root: string, rest: string] {
+export function splitFools(key: string): [root: string, rest: string] {
 	const root = `${FOOLS_PREFIX}/`;
 	return key.startsWith(root) ? [root, key.slice(root.length)] : ["", key];
 }
@@ -133,7 +135,7 @@ export function publicAssetUrl(base: string, key: string): string {
 
 export function assetDisposition(key: string, download: boolean): string {
 	const file = key.split("/").pop() || "file";
-	const ascii = file.replace(/[^\x20-\x7E]/g, "_").replace(/"/g, "");
+	const ascii = file.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "");
 	const mode = download || !assetCanPreview(key) ? "attachment" : "inline";
 	return `${mode}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(file)}`;
 }

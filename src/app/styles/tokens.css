@@ -49,7 +49,6 @@
 	--space-10: 2.5rem;
 	--space-12: 3rem;
 	--space-16: 4rem;
-	--space: var(--space-1);
 
 	--radius-xs: 3px;
 	--radius-sm: 5px;
@@ -71,7 +70,6 @@
 	--z-dropdown: 30;
 	--z-toast: 40;
 	--z-sheet: 50;
-	--z-modal: 60;
 	--z-skip: 70;
 
 	--gutter: 1rem;

@@ -1,6 +1,5 @@
 import { join } from "node:path";
 import type { Catalog } from "@/phi/lib/catalog";
-import type { PhiRuntime } from "@/phi/lib/runtime";
 import { loadWebConfig } from "./config";
 import { type DataHost, getDataHost } from "./data-host";
 import { logger } from "./logger";
@@ -64,7 +63,6 @@ async function bootRender(): Promise<WebHost> {
 	hydrateCss(PHI_CSS);
 	const engine = new RenderEngine();
 	const templates = new Map<string, TemplateDefinition>();
-	const services = new Map<string, unknown>([["kv", data.store]]);
 
 	const res = resources.replace(/\\/g, "/");
 	const helpers = {
@@ -100,11 +98,6 @@ async function bootRender(): Promise<WebHost> {
 		template: (def) => {
 			templates.set(def.id, def);
 		},
-		service: (name, value) => void services.set(name, value),
-		getService: (name) => {
-			if (!services.has(name)) throw new Error(`unknown service: ${name}`);
-			return services.get(name) as never;
-		},
 		fonts: {
 			fromDir: async (dir, map) => {
 				for (const f of await loadFontsFromDir(dir, map))
@@ -119,9 +112,7 @@ async function bootRender(): Promise<WebHost> {
 		},
 	};
 
-	await setupPhi(app);
-	const rt = app.getService<PhiRuntime>("phi.runtime");
-	const catalog = app.getService<Catalog>("phi.catalog");
+	const { catalog } = await setupPhi(app, data.rt);
 
-	return { ...data, rt, catalog, render };
+	return { ...data, catalog, render };
 }

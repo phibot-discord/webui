@@ -1,5 +1,5 @@
 import { sessionUserId } from "@/auth";
-import { lastSyncedIso, loadBound } from "@/server/bound";
+import { loadBound, playerFromSave } from "@/server/bound";
 import { getDataHost } from "@/server/data-host";
 import { localizedError } from "@/server/i18n-http";
 import { withDiscordUid } from "@/server/logger";
@@ -17,19 +17,17 @@ export async function GET(
 	if (!userId) return localizedError(404, "share_not_found");
 	return withDiscordUid(userId, async () => {
 		const host = await getDataHost();
-		const got = await loadBound(host, userId);
+		// Anonymous views tolerate the 10 s token/save memo; the viewer check does not depend on the load
+		const [got, viewer] = await Promise.all([
+			loadBound(host, userId, { memo: true }),
+			sessionUserId(),
+		]);
 		if ("error" in got)
 			return localizedError(
 				got.status === 403 ? 404 : got.status,
 				"profile_unavailable",
 			);
-		const rks = got.save.saveInfo.summary?.rankingScore;
-		const viewer = await sessionUserId();
-		return Response.json({
-			playerId: String(got.save.saveInfo.PlayerId || ""),
-			rks: typeof rks === "number" ? rks : undefined,
-			lastSynced: lastSyncedIso(got.save),
-			owner: viewer === userId,
-		});
+		const player = playerFromSave(got.save);
+		return Response.json({ ...player, owner: viewer === userId });
 	});
 }

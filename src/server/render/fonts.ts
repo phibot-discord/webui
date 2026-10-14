@@ -1,6 +1,7 @@
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { exists, readFileAsync } from "@/server/vfs";
 import { logger } from "../logger";
+import { appRoot } from "../paths";
 import type { FontEntry } from "../sdk";
 
 /** Values must match the font-family names in common.css */
@@ -40,9 +41,7 @@ export const PHI_FONT_FAMILIES = [
 
 /** `<app root>/src/fonts`, ignored by the tracer; next.config.ts lists the file */
 export function appFontDir(): string {
-	const root = process.env.PHI_APP_ROOT?.trim();
-	const base = root ? resolve(root) : process.cwd();
-	return join(/*turbopackIgnore: true*/ base, "src/fonts");
+	return join(/*turbopackIgnore: true*/ appRoot(), "src/fonts");
 }
 
 async function readFont(

@@ -105,13 +105,6 @@ export async function loadHisb30Snaps(
 	}
 }
 
-function rangePct(value: number, span: number[]) {
-	const a = span[0] ?? 0;
-	const b = span[span.length - 1] ?? a;
-	if (a === b) return 50;
-	return Math.abs(((value - a) / (b - a)) * 100);
-}
-
 function rksLineFromRecords(
 	items: { date: Date | string | number; value: number }[],
 ) {
@@ -149,10 +142,10 @@ function rksLineFromRecords(
 		const b = kept[i + 1]!;
 		if (a.date.getTime() === b.date.getTime() && a.value === b.value) continue;
 		segs.push([
-			rangePct(a.date.getTime(), rks_date),
-			rangePct(a.value, rks_range),
-			rangePct(b.date.getTime(), rks_date),
-			rangePct(b.value, rks_range),
+			fCompute.range(a.date.getTime(), rks_date),
+			fCompute.range(a.value, rks_range),
+			fCompute.range(b.date.getTime(), rks_date),
+			fCompute.range(b.value, rks_range),
 		]);
 	}
 	if (!segs.length) segs.push([0, 50, 100, 50]);
@@ -180,25 +173,10 @@ function formatHistoryDate(rt: PhiRuntime, value: unknown) {
 }
 
 export async function rksLineFor(
-	rt: PhiRuntime,
 	history: Awaited<ReturnType<typeof loadSaveHistory>>,
 	snaps: HisSnap[],
 ) {
 	if (history.rks?.length) return rksLineFromRecords(history.rks);
-	const fromHist = history.getRksLine();
-	if (fromHist.rks_history?.length) {
-		return {
-			rks_history: fromHist.rks_history as LineSeg[],
-			rks_range:
-				fromHist.rks_range?.[0] === fromHist.rks_range?.[1]
-					? [fromHist.rks_range[0]! - 0.01, fromHist.rks_range[1]! + 0.01]
-					: fromHist.rks_range,
-			rks_date: [
-				formatHistoryDate(rt, fromHist.rks_date[0]),
-				formatHistoryDate(rt, fromHist.rks_date[1]),
-			] as [string, string],
-		};
-	}
 	if (snaps.length) {
 		return rksLineFromRecords(
 			snaps.map((s) => ({ date: s.t, value: Number(s.rks) || 0 })),
@@ -218,6 +196,11 @@ function randomColor(rt: PhiRuntime) {
 		const n = Math.floor(Math.random() * 0xa0a0a0);
 		return `#${n.toString(16).padStart(6, "0")}`;
 	}
+}
+
+export function challengeOf(save: Save) {
+	const clg = save.saveInfo.summary.challengeModeRank;
+	return { ChallengeMode: Math.floor(clg / 100), ChallengeModeRank: clg % 100 };
 }
 
 export function accRksLines(save: Save) {
@@ -262,13 +245,13 @@ export function accRksLines(save: Save) {
 		const prev = acc_rks_data[i - 1]!;
 		const cur = acc_rks_data[i]!;
 		if (segs.length && prev[1] === cur[1]) {
-			segs[segs.length - 1]![2] = rangePct(cur[0], acc_rks_AccRange);
+			segs[segs.length - 1]![2] = fCompute.range(cur[0], acc_rks_AccRange);
 		} else {
 			segs.push([
-				rangePct(prev[0], acc_rks_AccRange),
-				rangePct(prev[1], acc_rks_range),
-				rangePct(cur[0], acc_rks_AccRange),
-				rangePct(cur[1], acc_rks_range),
+				fCompute.range(prev[0], acc_rks_AccRange),
+				fCompute.range(prev[1], acc_rks_range),
+				fCompute.range(cur[0], acc_rks_AccRange),
+				fCompute.range(cur[1], acc_rks_range),
 			]);
 		}
 	}
@@ -378,11 +361,14 @@ function updateGroups(
 		level: string;
 		row: ScoreDetail;
 		prev?: ScoreDetail;
+		acc: number;
+		difficulty: number | undefined;
 		rks: number;
 	};
-	const byDate = new Map<
-		string,
-		{ date: string; time: number; color: string; pending: Pending[] }
+	// Whole seconds match the Asia/Shanghai date label buckets
+	const bySecond = new Map<
+		number,
+		{ at: Date; time: number; pending: Pending[] }
 	>();
 	for (const id of Object.keys(history.scoreHistory || {})) {
 		const tem = history.scoreHistory[id];
@@ -394,28 +380,28 @@ function updateGroups(
 			for (let i = 0; i < rows.length; i++) {
 				const row = rows[i]!;
 				const cur = openHistory(row);
-				const date = formatHistoryDate(rt, cur.date);
-				let group = byDate.get(date);
+				const time = cur.date.getTime();
+				// Invalid dates throw like formatHistoryDate
+				if (Number.isNaN(time)) formatHistoryDate(rt, cur.date);
+				const key = Math.floor(time / 1000);
+				let group = bySecond.get(key);
 				if (!group) {
-					group = {
-						date,
-						time: cur.date.getTime(),
-						color: randomColor(rt),
-						pending: [],
-					};
-					byDate.set(date, group);
+					group = { at: cur.date, time, pending: [] };
+					bySecond.set(key, group);
 				}
 				group.pending.push({
 					id,
 					level,
 					row,
 					prev: i ? rows[i - 1] : undefined,
-					rks: difficulty == null ? 0 : rt.fCompute.rks(cur.acc, difficulty),
+					acc: cur.acc,
+					difficulty,
+					rks: 0,
 				});
 			}
 		}
 	}
-	const sorted = [...byDate.values()].sort((a, b) => b.time - a.time);
+	const sorted = [...bySecond.values()].sort((a, b) => b.time - a.time);
 	const groups: UpdateGroup[] = [];
 	let show = 0;
 	for (let i = 0; i < sorted.length; i++) {
@@ -427,15 +413,17 @@ function updateGroups(
 		) {
 			break;
 		}
+		for (const p of g.pending)
+			p.rks = p.difficulty == null ? 0 : rt.fCompute.rks(p.acc, p.difficulty);
 		g.pending.sort((a, b) => b.rks - a.rks);
 		const song = g.pending
 			.slice(0, Math.min(HISTORY_DAY, HISTORY_TOT - show))
 			.map((p) => extendScore(rt, p.id, p.level, p.row, p.prev));
 		show += song.length;
 		groups.push({
-			date: g.date,
+			date: formatHistoryDate(rt, g.at),
 			time: g.time,
-			color: g.color,
+			color: randomColor(rt),
 			update_num,
 			song,
 		});
@@ -528,7 +516,7 @@ export async function buildUpdateCard(
 	const { groups, show } = updateGroups(rt, history);
 	const box_line = packUpdateRows(groups);
 
-	const line = await rksLineFor(rt, history, snaps);
+	const line = await rksLineFor(history, snaps);
 
 	const added: [string, string] = ["", ""];
 	if (snaps.length >= 2) {
@@ -558,8 +546,7 @@ export async function buildUpdateCard(
 		PlayerId: rt.fCompute.convertRichText(save.saveInfo.PlayerId),
 		Rks: Number(save.saveInfo.summary.rankingScore).toFixed(4),
 		Date: formatHistoryDate(rt, save.saveInfo.summary.updatedAt),
-		ChallengeMode: Math.floor(save.saveInfo.summary.challengeModeRank / 100),
-		ChallengeModeRank: save.saveInfo.summary.challengeModeRank % 100,
+		...challengeOf(save),
 		background: chosenIll(catalog, notes.cardBackground, "blur"),
 		box_line,
 		show,

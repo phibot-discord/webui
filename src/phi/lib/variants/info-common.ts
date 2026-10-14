@@ -1,4 +1,5 @@
 import type { PhiLocale } from "../card-i18n";
+import { escapeHtml } from "../html";
 import { fitFontPx, textEm } from "../text-fit";
 import type { CardData } from "./types";
 
@@ -101,7 +102,6 @@ export type InfoLevel = {
 	phiPct: number;
 	clearRate: string;
 	score: string;
-	scoreMax: string;
 	scorePct: string;
 	best: string;
 	lowest: string;
@@ -145,14 +145,6 @@ export function richPlain(html: string): string {
 		.replace(/<[^>]*>/g, "")
 		.replace(/&[a-z#0-9]+;/gi, (m) => ENTITIES[m.toLowerCase()] ?? m)
 		.replace(/\r/g, "");
-}
-
-function escapeHtml(s: string): string {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
 }
 
 export function lineCount(text: string, widthPx: number, px: number): number {
@@ -316,17 +308,12 @@ export type InfoView = {
 		phi: number;
 		clearRate: string;
 		score: string;
-		scoreMax: string;
 		scorePct: string;
 	};
 	charts: {
 		rks: InfoChart | null;
 		data: InfoChart | null;
 		acc: InfoChart | null;
-		rksRange: [string, string];
-		dataRange: [string, string];
-		accRange: [string, string];
-		rksDates: [string, string];
 	};
 	trends: { chart: InfoChart | null; title: string; value: string }[];
 	tip: string;
@@ -375,7 +362,6 @@ export function infoView(
 			phiPct: pct(phi, unlocked),
 			clearRate: `${pct(cleared, unlocked).toFixed(1)}%`,
 			score: fmtInt(real),
-			scoreMax: fmtInt(max),
 			scorePct: max > 0 ? `${((real / max) * 100).toFixed(2)}%` : "—",
 			best: best > 0 ? best.toFixed(2) : "—",
 			lowest: low > 0 ? low.toFixed(2) : "—",
@@ -403,7 +389,6 @@ export function infoView(
 			sum((l) => l.unlocked),
 		).toFixed(1)}%`,
 		score: fmtInt(realSum),
-		scoreMax: fmtInt(maxSum),
 		scorePct: maxSum > 0 ? `${((realSum / maxSum) * 100).toFixed(2)}%` : "—",
 	};
 
@@ -450,10 +435,6 @@ export function infoView(
 			yBottom: fmtRks(accRange[0]),
 			xTicks: accTicks,
 		}),
-		rksRange: [fmtRks(rksRange[0]), fmtRks(rksRange[1])],
-		dataRange: [fmtData(dataRange[0]), fmtData(dataRange[1])],
-		accRange: [fmtRks(accRange[0]), fmtRks(accRange[1])],
-		rksDates,
 	};
 	return {
 		copy,

@@ -3,11 +3,12 @@
 import { List, X } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { signOutAction } from "@/auth-actions";
 import { LocaleSwitch } from "@/components/LocaleSwitch";
 import { focusMain } from "@/components/SkipLink";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
+import { useToolDismiss } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 import type { ThemeChoice } from "@/theme/config";
 
@@ -31,7 +32,6 @@ export function SiteHeader({
 	const menuId = useId();
 	const root = useRef<HTMLElement>(null);
 	const toggle = useRef<HTMLButtonElement>(null);
-	const scrim = useRef<HTMLDivElement>(null);
 	const leftFrom = useRef<string | null>(null);
 	const [open, setOpen] = useState(false);
 	const [openedOn, setOpenedOn] = useState(path);
@@ -45,34 +45,11 @@ export function SiteHeader({
 		if (!focusMain()) toggle.current?.focus();
 	}, [path]);
 
-	useEffect(() => {
-		if (!open) return;
-		const node = root.current;
-		const shade = scrim.current;
-		const onPointer = (e: PointerEvent) => {
-			if (!root.current?.contains(e.target as Node)) setOpen(false);
-		};
-		const onScrim = () => setOpen(false);
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key !== "Escape") return;
-			setOpen(false);
-			toggle.current?.focus();
-		};
-		const onFocusOut = (e: FocusEvent) => {
-			const next = e.relatedTarget as Node | null;
-			if (next && !root.current?.contains(next)) setOpen(false);
-		};
-		document.addEventListener("pointerdown", onPointer);
-		document.addEventListener("keydown", onKey);
-		node?.addEventListener("focusout", onFocusOut);
-		shade?.addEventListener("click", onScrim);
-		return () => {
-			document.removeEventListener("pointerdown", onPointer);
-			document.removeEventListener("keydown", onKey);
-			node?.removeEventListener("focusout", onFocusOut);
-			shade?.removeEventListener("click", onScrim);
-		};
-	}, [open]);
+	const close = useCallback((why: "outside" | "escape" | "blur") => {
+		setOpen(false);
+		if (why === "escape") toggle.current?.focus();
+	}, []);
+	useToolDismiss(open, close, root);
 
 	const links = [
 		{ href: "/tags", match: "/tags", label: m.nav.tags },
@@ -91,7 +68,11 @@ export function SiteHeader({
 	return (
 		<header className="topbar" ref={root} data-open={open || undefined}>
 			{open ? (
-				<div ref={scrim} className="topbar-scrim" aria-hidden="true" />
+				<div
+					className="topbar-scrim"
+					aria-hidden="true"
+					onClick={() => setOpen(false)}
+				/>
 			) : null}
 			<div className="topbar-inner">
 				<Link className="wordmark" href={signedIn ? "/home" : "/"}>

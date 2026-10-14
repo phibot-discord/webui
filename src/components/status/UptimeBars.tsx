@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CheckBucket } from "@/lib/status";
 import { uptimeBand, uptimeHeight } from "@/lib/status-chart";
+import { ChartScrub } from "./ChartScrub";
 
 export function UptimeBars({
 	label,
@@ -36,21 +37,12 @@ export function UptimeBars({
 
 	return (
 		<div className="uptime" onPointerLeave={() => setActive(null)}>
-			<input
-				className="chart-scrub"
-				type="range"
-				min={0}
-				max={Math.max(0, n - 1)}
-				step={1}
-				value={active ?? Math.max(0, n - 1)}
-				aria-label={label}
-				aria-valuetext={n ? readout(active ?? n - 1) : undefined}
-				onChange={(e) => setActive(Number(e.target.value))}
-				onFocus={() => setActive((a) => a ?? n - 1)}
-				onBlur={() => setActive(null)}
-				onKeyDown={(e) => {
-					if (e.key === "Escape") setActive(null);
-				}}
+			<ChartScrub
+				label={label}
+				count={n}
+				active={active}
+				setActive={setActive}
+				readout={readout}
 			/>
 			<div className="uptime-bars" aria-hidden="true">
 				{buckets.map((b, i) => (

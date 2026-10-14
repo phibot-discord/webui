@@ -35,6 +35,20 @@ export async function localizedError(status: number, key: ErrorKey) {
 	return jsonError(status, catalogs[locale].errors[key], key);
 }
 
+/** A stored-QR PNG as an uncached image, or its localized JSON error */
+export async function qrPngResponse(
+	result: Buffer | { error: ErrorKey; status: number },
+): Promise<Response> {
+	if ("error" in result) return localizedError(result.status, result.error);
+	return new Response(new Uint8Array(result), {
+		status: 200,
+		headers: {
+			"Content-Type": "image/png",
+			"Cache-Control": "private, no-store",
+		},
+	});
+}
+
 export async function localizedBindError(err: {
 	error: string;
 	status: number;

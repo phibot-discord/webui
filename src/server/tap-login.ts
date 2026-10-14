@@ -12,12 +12,13 @@ import {
 	type BindOk,
 	failBind,
 	parseQrStored,
-	playerFromSave,
 	QR_PENDING,
 	type QrResume,
+	qrPngAt,
 	qrSucceeded,
 	requestQr,
 } from "./bind";
+import { playerFromSave } from "./bound";
 import { type DataHost, getDataHost } from "./data-host";
 import { withDiscordUid } from "./logger";
 import { leaveManualMode } from "./manual";
@@ -55,14 +56,8 @@ export async function startTapLogin(
 	}
 }
 
-export async function tapLoginQrPng(
-	loginId: string,
-): Promise<Buffer | BindErr> {
-	const host = await getDataHost();
-	const stored = parseQrStored(await host.db.get(LOGIN_KEY(loginId)));
-	const url = stored?.data.qrcode_url;
-	if (!stored || !url) return { error: "qr_missing", status: 404 };
-	return host.rt.getQRcode.getQRcode(url, stored.global);
+export function tapLoginQrPng(loginId: string): Promise<Buffer | BindErr> {
+	return qrPngAt(LOGIN_KEY(loginId));
 }
 
 export async function peekTapLogin(

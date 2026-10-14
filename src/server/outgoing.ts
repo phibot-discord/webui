@@ -79,3 +79,50 @@ export async function outgoingFetch(
 	});
 	return res as unknown as Response;
 }
+
+export function isTimeoutError(err: unknown): boolean {
+	let cur: unknown = err;
+	for (let i = 0; i < 4 && cur; i++) {
+		if (!(cur instanceof Error)) return false;
+		if (
+			cur.name === "TimeoutError" ||
+			cur.name === "AbortError" ||
+			cur.name === "ConnectTimeoutError" ||
+			cur.name === "HeadersTimeoutError" ||
+			cur.name === "BodyTimeoutError"
+		) {
+			return true;
+		}
+		const code = (cur as { code?: string }).code;
+		if (typeof code === "string" && /TIMEOUT/i.test(code)) return true;
+		if (/timeout|timed out|aborted/i.test(cur.message)) return true;
+		cur = cur.cause;
+	}
+	return false;
+}
+
+export function errCode(err: unknown): string | undefined {
+	return err && typeof err === "object" && "code" in err
+		? String((err as { code?: unknown }).code || "")
+		: undefined;
+}
+
+export function errChain(err: unknown): string {
+	const bits: string[] = [];
+	let cur: unknown = err;
+	for (let i = 0; i < 5 && cur; i++) {
+		if (cur instanceof Error) {
+			const code = errCode(cur);
+			bits.push(
+				[cur.name, cur.message, code]
+					.filter((p) => p && p !== "undefined")
+					.join(" "),
+			);
+			cur = cur.cause;
+			continue;
+		}
+		bits.push(String(cur));
+		break;
+	}
+	return bits.join(" <- ") || String(err);
+}

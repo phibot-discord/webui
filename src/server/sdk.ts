@@ -40,8 +40,6 @@ export type Kv = {
 	set: (key: string, value: string, ttlMs?: number) => Promise<void>;
 	del: (key: string) => Promise<void>;
 	keys: (prefix?: string) => Promise<string[]>;
-	ping: () => Promise<string>;
-	close: () => Promise<void>;
 };
 
 export type FontEntry = {
@@ -67,8 +65,6 @@ export type App = {
 	config: AppConfig;
 	db: Kv;
 	template: (def: TemplateDefinition) => void;
-	service: (name: string, value: unknown) => void;
-	getService: <T = unknown>(name: string) => T;
 	fonts: {
 		fromDir: (dir: string, map?: Record<string, string>) => Promise<void>;
 	};

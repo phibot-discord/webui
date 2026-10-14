@@ -14,7 +14,7 @@ import {
 } from "react";
 import { CardLightbox } from "@/components/CardLightbox";
 import type { CardSize } from "@/components/card-shape";
-import { Announce } from "@/components/Tool";
+import { Announce, useHydrated } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 import { loadCardBlob, peekCardBlob } from "@/lib/card-fetch";
 import type { CardStats } from "@/lib/card-stats";
@@ -33,8 +33,6 @@ function reloadSnapshot(): string {
 function reloadServerSnapshot() {
 	return "";
 }
-
-const noSubscribe = () => () => {};
 
 const SETTLE_MS = 350;
 
@@ -108,11 +106,7 @@ export function CardViewer({
 		reloadSnapshot,
 		reloadServerSnapshot,
 	);
-	const client = useSyncExternalStore(
-		noSubscribe,
-		() => true,
-		() => false,
-	);
+	const client = useHydrated();
 	const fetchSrc = cardFetchUrl(src, {
 		locale,
 		epoch: getBustEpoch() || undefined,

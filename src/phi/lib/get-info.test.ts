@@ -26,28 +26,6 @@ test("withDotZero is idempotent", () => {
 	assert.equal(withDotZero("Igallta.SeURa.0"), "Igallta.SeURa.0");
 });
 
-test("chaplist.yaml indexes chapter nicknames, coercing bare numbers", async () => {
-	await getInfo.init(
-		assets({
-			"chaplist.yaml": "Chapter 5 霓虹灯牌:\n  - C5\n  - 5\n  - '  '\n",
-			"nicklist.yaml": "Igallta.SeURa:\n  - 7\n",
-		}),
-	);
-	assert.deepEqual(getInfo.chapList, { "Chapter 5 霓虹灯牌": ["C5", "5"] });
-	assert.deepEqual(getInfo.chapNick.C5, ["Chapter 5 霓虹灯牌"]);
-	assert.deepEqual(getInfo.chapNick["5"], ["Chapter 5 霓虹灯牌"]);
-	assert.equal(getInfo.ori_info["Igallta.SeURa.0"]?.song, "Igallta");
-});
-
-test("a malformed or odd-shaped chaplist.yaml leaves the song catalog intact", async () => {
-	for (const body of ["- C5\n- C6\n", "Chapter 5: C5\n", "a: [b\n", ""]) {
-		await getInfo.init(assets({ "chaplist.yaml": body }));
-		assert.deepEqual(getInfo.chapList, {}, JSON.stringify(body));
-		assert.deepEqual(getInfo.chapNick, {});
-		assert.equal(getInfo.ori_info["Igallta.SeURa.0"]?.song, "Igallta");
-	}
-});
-
 test("getill sends a listed 4/1 special to its own jackets, and only while it is not a normal song", async () => {
 	await getInfo.init(
 		assets({
@@ -79,4 +57,50 @@ test("getill sends a listed 4/1 special to its own jackets, and only while it is
 	} finally {
 		getInfo.setFools([]);
 	}
+});
+
+test("getill gives an id without .0 the same path as the catalog id, in every tree", async () => {
+	await getInfo.init(
+		assets({
+			"spinfo.json": JSON.stringify({
+				"Special.One": { song: "Special", chapter: "SP", chart: {} },
+			}),
+		}),
+	);
+	const root = getInfo.originalIll;
+	assert.equal(
+		getInfo.getill("Igallta.SeURa", "low"),
+		`${root}/illLow/Igallta.SeURa.png`,
+	);
+	assert.equal(
+		getInfo.getill("Special.One", "common"),
+		`${root}/SP/Special.One.png`,
+	);
+	// A special the manifest lists that spinfo.json no longer has
+	getInfo.setFools(["Special.One", "Retribution ~ Cycle of Redemption ~"]);
+	try {
+		assert.equal(
+			getInfo.getill("Special.One", "low"),
+			`${root}/4-1/illLow/Special.One.png`,
+		);
+		assert.equal(
+			getInfo.getill("Special.One", "low"),
+			getInfo.getill("Special.One.0", "low"),
+		);
+		// A save background with no catalog id falls back to its name
+		assert.equal(
+			getInfo.getBackground("Retribution ~ Cycle of Redemption ~"),
+			`${root}/4-1/ill/Retribution ~ Cycle of Redemption ~.png`,
+		);
+		assert.equal(
+			getInfo.getBackground("Special"),
+			`${root}/4-1/ill/Special.One.png`,
+		);
+	} finally {
+		getInfo.setFools([]);
+	}
+	assert.equal(
+		getInfo.getBackground("Not.A.Song"),
+		`${root}/ill/Not.A.Song.png`,
+	);
 });

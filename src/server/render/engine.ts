@@ -293,7 +293,7 @@ export class RenderEngine {
 			[...rewritten.images, ...sharedSheets.flatMap(collectCssImages)].map(
 				(i) => ({
 					src: i.src,
-					data: i.data instanceof Uint8Array ? i.data : new Uint8Array(i.data),
+					data: i.data,
 					cache: "auto" as const,
 				}),
 			),

@@ -40,7 +40,7 @@ export async function GET(
 				localeParam,
 				request.headers.get("accept-language"),
 			),
-			ifNoneMatch: download ? null : request.headers.get("if-none-match"),
+			ifNoneMatch: request.headers.get("if-none-match"),
 			paintQuality:
 				qualityParam == null ? undefined : parsePaintQuality(qualityParam),
 			download,
@@ -49,7 +49,6 @@ export async function GET(
 		if ("error" in result) return localizedRenderError(result);
 		return cardResultResponse(result, {
 			cacheControl: result.transient ? "no-store" : PUBLIC_CACHE,
-			request,
 			filename: download ? cardDownloadFilename(kind) : undefined,
 			// Shared for 5 min by the CDN: without ?locale the language comes from the viewer
 			vary: localeParam ? undefined : "Accept-Language",

@@ -129,7 +129,7 @@ test("peerAvg parses every attachB19AccAvg format into one line", () => {
 	});
 	assert.equal(peerAvg("BAvg: 99.5%", 99)?.dir, "down");
 	assert.equal(peerAvg("BAvg: 99%", 99)?.dir, "up");
-	// avgValue mode hands over a bare number
+	// A bare number is accepted too
 	assert.equal(peerAvg(98.5, 99)?.text, "98.5000%");
 	assert.deepEqual(peerAvg("Top 12.34% / 5.67%", 99), {
 		dir: "",

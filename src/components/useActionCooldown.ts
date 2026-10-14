@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { subscribeSaveRefresh } from "@/lib/save-refresh";
+import { retryAfterSec } from "@/server/cooldown";
 
 /** The action's error is kept until cleared (WCAG 2.2.1) */
 export function useActionCooldown(
@@ -48,5 +49,5 @@ export function useActionCooldown(
 
 /** Whole seconds left, never 0 while still cooling */
 export function cooldownSeconds(remaining: number) {
-	return String(Math.max(1, Math.ceil(remaining / 1000)));
+	return String(retryAfterSec(remaining));
 }

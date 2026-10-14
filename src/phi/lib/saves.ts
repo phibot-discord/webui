@@ -3,6 +3,7 @@ import { logger, withDiscordUid } from "@/server/logger";
 import type { Kv } from "@/server/sdk";
 import { ensureSongInfo } from "@/server/song-info";
 import { kvKey } from "./const";
+import { evictOldest } from "./lru";
 import type { PhiRuntime } from "./runtime";
 import type { Save, SavePayload } from "./save";
 import { isTapApiFailure, tapCnProxyUrl } from "./tapapi";
@@ -32,14 +33,6 @@ const SAVE_DROPS_MAX = 1_000;
 
 function saveDropGen(token: string): number {
 	return saveDrops.get(token) ?? 0;
-}
-
-function evictOldest(map: Map<string, unknown>, max: number) {
-	while (map.size > max) {
-		const oldest = map.keys().next().value;
-		if (oldest === undefined) break;
-		map.delete(oldest);
-	}
 }
 
 function rememberBlob(
@@ -78,11 +71,13 @@ const SESSION_REGION_MAX = 500;
 function rememberRegion(userId: string, global: boolean) {
 	sessionRegion.delete(userId);
 	sessionRegion.set(userId, global);
-	while (sessionRegion.size > SESSION_REGION_MAX) {
-		const oldest = sessionRegion.keys().next().value;
-		if (oldest === undefined) break;
-		sessionRegion.delete(oldest);
-	}
+	evictOldest(sessionRegion, SESSION_REGION_MAX);
+}
+
+// The region a blob was saved under, read off its head: updateSave writes `session` then `global`
+function blobRegion(raw: string | undefined): boolean | undefined {
+	const m = /^\{"session":"[^"]*","global":(true|false)/.exec(raw ?? "");
+	return m ? m[1] === "true" : undefined;
 }
 
 export function asSessionToken(raw: unknown): string | undefined {
@@ -114,7 +109,7 @@ export async function getToken(
 	return token;
 }
 
-// getToken with a 10 s memo, card route only; misses are not remembered
+// getToken with a 10 s memo, for the card route and public share views; misses are not remembered
 export async function getBoundToken(
 	rt: PhiRuntime,
 	userId: string,
@@ -283,13 +278,20 @@ async function updateSaveFor(
 	const hot =
 		mem?.rev && Date.now() - mem.kvAt < SAVE_REV_TRUST_MS ? mem : undefined;
 	const savedJob = hot ? undefined : quiet(readSaveRaw(db, token));
-	const preferred = opts.global ?? sessionRegion.get(userId) ?? false;
+	const known =
+		opts.global ?? sessionRegion.get(userId) ?? blobRegion(mem?.raw);
+	const preferred = known ?? false;
 	let user: InstanceType<PhiRuntime["PhigrosUser"]>;
 	try {
 		user = await fetchSaveInfo(rt, token, preferred);
 	} catch (err) {
-		if (opts.global != null || isTapApiFailure(err)) throw err;
-		user = await fetchSaveInfo(rt, token, !preferred);
+		// Only a guessed region tries the other host when the first one is down
+		if (opts.global != null || (known != null && isTapApiFailure(err)))
+			throw err;
+		user = await fetchSaveInfo(rt, token, !preferred).catch((other) => {
+			// The other host rejecting the token says nothing; the first one was down
+			throw isTapApiFailure(err) && !isTapApiFailure(other) ? err : other;
+		});
 	}
 	rememberRegion(userId, user.global);
 	if (await bannedJob) throw new Error("This sessionToken is banned.");
@@ -369,9 +371,9 @@ export async function snapshotB30(
 	prev?: Promise<string | undefined>,
 ) {
 	const key = HISB30(userId);
-	let b19: Awaited<ReturnType<Save["getB19"]>>;
+	let b19: ReturnType<Save["getB19"]>;
 	try {
-		b19 = await save.getB19(undefined, 33, { avgType: "none" });
+		b19 = save.getB19(33);
 	} catch {
 		return;
 	}

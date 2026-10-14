@@ -20,9 +20,10 @@ const { compileArt } = await import("../src/server/render/html");
 const { hydrateCss, mountBytes } = await import("../src/server/vfs");
 const { PHI_CSS } = await import("../src/phi/css/bundle");
 const { setupPhi } = await import("../src/phi/setup");
+const { bootPhiRuntime } = await import("../src/phi/lib/runtime");
 const { loadWebConfig } = await import("../src/server/config");
 const { assetsDir } = await import("../src/server/paths");
-const { cardStyleTemplate, parseCardStyle } = await import(
+const { cardStyleTemplate, classicCardTemplate, parseCardStyle } = await import(
 	"../src/phi/lib/card-styles"
 );
 
@@ -40,7 +41,6 @@ const { store, db } = createKv({
 		mem.delete(k);
 	},
 	listRaw: async (p: string) => [...mem.keys()].filter((k) => k.startsWith(p)),
-	ping: async () => {},
 } as never);
 
 const resources = assetsDir();
@@ -57,7 +57,6 @@ for (const dir of ["avatar", "otherimg"]) {
 hydrateCss(PHI_CSS);
 const engine = new RenderEngine();
 const templates = new Map<string, any>();
-const services = new Map<string, unknown>([["kv", store]]);
 const helpers = {
 	resources,
 	compileArt: (page: string, data: Record<string, unknown>) =>
@@ -77,20 +76,14 @@ const app = {
 	config: loadWebConfig(),
 	db,
 	template: (def: { id: string }) => void templates.set(def.id, def),
-	service: (n: string, v: unknown) => void services.set(n, v),
-	getService: (n: string) => {
-		if (!services.has(n)) throw new Error(`unknown service ${n}`);
-		return services.get(n);
-	},
 	fonts: {
 		fromDir: async (dir: string, map: never) => {
 			for (const f of await loadFontsFromDir(dir, map)) engine.registerFont(f);
 		},
 	},
 };
-await setupPhi(app as never);
-const rt = app.getService("phi.runtime") as never;
-const catalog = app.getService("phi.catalog") as never;
+const rt = bootPhiRuntime(store);
+const { catalog } = await setupPhi(app as never, rt);
 
 const { Save } = await import("../src/phi/lib/save");
 const { getNotes } = await import("../src/phi/lib/notes");
@@ -152,7 +145,7 @@ if (KIND === "info") {
 		notes: notes as never,
 		token: empty ? "" : token,
 	});
-	id = cardStyleTemplate(KIND, style) ?? "phi/userinfo/userinfo";
+	id = cardStyleTemplate(KIND, style) ?? classicCardTemplate(KIND);
 } else if (KIND === "song") {
 	const { buildSongCard } = await import("../src/phi/lib/song-card");
 	const { parseSongLevel } = await import("../src/server/card-kinds");
@@ -213,9 +206,9 @@ if (KIND === "info") {
 		challengeModeRank: [],
 	} as never);
 	// Like snapshotB30: the current B30 and an older one with 3 other low B27 charts, so "entered / left B30" has data
-	const b30 = await new Save(
+	const b30 = new Save(
 		JSON.parse(readFileSync(process.env.SAVE || "data/raw-save.json", "utf8")),
-	).getB19(undefined, 33, { avgType: "none" } as never);
+	).getB19(33);
 	const pick = (x: { id: string; rank: string } | undefined) =>
 		x ? [{ id: x.id, rank: x.rank }] : [];
 	const phi = (b30.phi || []).flatMap(pick);
@@ -230,7 +223,7 @@ if (KIND === "info") {
 				{ t: now - day, rks: rksNow - 0.0123, phi, b27: older },
 				{ t: now, rks: rksNow, phi, b27 },
 			];
-	id = cardStyleTemplate(KIND, style) ?? "phi/update/update";
+	id = cardStyleTemplate(KIND, style) ?? classicCardTemplate(KIND);
 	data = {
 		...(await buildUpdateCard(
 			rt,
@@ -252,13 +245,11 @@ if (KIND === "info") {
 	if (avg) {
 		// Warm the badges with a long budget so the card's own 2.5 s wait is answered from memory
 		const { attachB19AccAvg } = await import("../src/phi/lib/score-avg");
-		const warm = await new Save(
+		const warm = new Save(
 			JSON.parse(
 				readFileSync(process.env.SAVE || "data/raw-save.json", "utf8"),
 			),
-		).getB19(undefined, Number(process.env.COUNT || 33), {
-			avgType: "none",
-		} as never);
+		).getB19(Number(process.env.COUNT || 33));
 		console.log(
 			"avg warm-up",
 			await attachB19AccAvg(warm as never, {
@@ -269,7 +260,7 @@ if (KIND === "info") {
 		);
 		Object.assign(notes, { allowApiUsage: true, b30AvgKind: avg });
 	}
-	id = cardStyleTemplate(KIND, style) ?? "phi/b19/b19";
+	id = cardStyleTemplate(KIND, style) ?? classicCardTemplate(KIND);
 	data = {
 		...(await b19Card(rt, save, db, "local", catalog, {
 			nnum: Number(process.env.COUNT || 33),

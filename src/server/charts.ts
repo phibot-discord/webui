@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
 import { getInfo } from "@/phi/lib/get-info";
+import { PHIRA_LEVELS } from "@/phi/lib/phira";
 import { type AliasIndex, ensureAliases } from "./aliases";
-import { foolsSummaries, loadFools } from "./fools";
+import { type FoolsSong, foolsSummaries, loadFools } from "./fools";
 
 /** [constant, notes, label?]: a label stands in for the constant on charts that have none (4/1 specials) */
 export type ChartCell = [number, number | null, label?: string];
@@ -23,6 +24,20 @@ export type ChartSnapshot = {
 
 let snapshot: ChartSnapshot | undefined;
 
+/** A chart with a positive constant as a catalog cell; undefined when the chart is missing or has no constant */
+export function cellOf(
+	chart: { difficulty?: unknown; combo?: unknown } | undefined,
+): ChartCell | undefined {
+	const difficulty = Number(chart?.difficulty);
+	if (!chart || !Number.isFinite(difficulty) || difficulty <= 0) return;
+	const notes = Number(chart.combo);
+	return [difficulty, Number.isInteger(notes) && notes > 0 ? notes : null];
+}
+
+function chartsEtag(json: string): string {
+	return `"charts-${createHash("sha1").update(json).digest("hex").slice(0, 16)}"`;
+}
+
 function build(aliases: AliasIndex["byId"]): ChartSummary[] {
 	const byId = new Map<string, ChartSummary>();
 	for (const song of [
@@ -32,14 +47,9 @@ function build(aliases: AliasIndex["byId"]): ChartSummary[] {
 		const charts: ChartSummary["charts"] = {};
 		let any = false;
 		for (const level of LEVEL) {
-			const chart = song.chart?.[level];
-			const difficulty = Number(chart?.difficulty);
-			if (!chart || !Number.isFinite(difficulty) || difficulty <= 0) continue;
-			const notes = Number(chart.combo);
-			charts[level] = [
-				difficulty,
-				Number.isInteger(notes) && notes > 0 ? notes : null,
-			];
+			const cell = cellOf(song.chart?.[level]);
+			if (!cell) continue;
+			charts[level] = cell;
 			any = true;
 		}
 		if (!any) continue;
@@ -71,8 +81,7 @@ export function buildChartSnapshot(
 ): ChartSnapshot {
 	const list = build(aliases);
 	const json = JSON.stringify(list);
-	const hash = createHash("sha1").update(json).digest("hex").slice(0, 16);
-	return { rev, list, json, etag: `"charts-${hash}"` };
+	return { rev, list, json, etag: chartsEtag(json) };
 }
 
 export async function chartCatalog(): Promise<
@@ -88,44 +97,67 @@ export async function chartCatalog(): Promise<
 
 let withFools:
 	| {
-			base: string;
-			extra: string;
+			list: readonly ChartSummary[];
+			aliases: AliasIndex["byId"];
+			songs: readonly FoolsSong[];
 			snapshot: Pick<ChartSnapshot, "json" | "etag">;
 	  }
 	| undefined;
+
+/** `list` plus the 4/1 rows; a special already in `list` only adds the levels its row lacks. Reused while the three inputs are the same objects */
+export function withFoolsSnapshot(
+	list: readonly ChartSummary[],
+	aliases: AliasIndex["byId"],
+	songs: readonly FoolsSong[],
+): Pick<ChartSnapshot, "json" | "etag"> {
+	if (
+		withFools?.list === list &&
+		withFools.aliases === aliases &&
+		withFools.songs === songs
+	) {
+		return withFools.snapshot;
+	}
+	const out = [...list];
+	const at = new Map(out.map((song, i) => [song.id, i]));
+	for (const extra of foolsSummaries(songs, aliases)) {
+		const i = at.get(extra.id) ?? out.length;
+		const seen = out[i];
+		if (!seen) {
+			at.set(extra.id, i);
+			out.push(extra);
+			continue;
+		}
+		const add = PHIRA_LEVELS.filter(
+			(level) => extra.charts[level] && !seen.charts[level],
+		);
+		if (!add.length) continue;
+		// A copy: `list` is the scoring catalog
+		const charts = { ...seen.charts };
+		for (const level of add) charts[level] = extra.charts[level];
+		out[i] = { ...seen, composer: seen.composer || extra.composer, charts };
+	}
+	const json = JSON.stringify(out);
+	withFools = {
+		list,
+		aliases,
+		songs,
+		snapshot: { json, etag: chartsEtag(json) },
+	};
+	return withFools.snapshot;
+}
 
 /** The catalog plus the 4/1 specials, for the pages that download or browse (never for scoring) */
 export async function chartCatalogWithFools(): Promise<
 	Pick<ChartSnapshot, "json" | "etag"> & { aliases: AliasIndex }
 > {
-	const base = await chartCatalog();
-	const known = new Set(base.list.map((song) => song.id));
-	const extra = foolsSummaries(await loadFools()).filter(
-		(song) => !known.has(song.id),
-	);
-	if (!extra.length) return base;
-	const extraJson = JSON.stringify(extra);
-	if (withFools?.base !== base.etag || withFools.extra !== extraJson) {
-		const json = JSON.stringify([...base.list, ...extra]);
-		const hash = createHash("sha1").update(json).digest("hex").slice(0, 16);
-		withFools = {
-			base: base.etag,
-			extra: extraJson,
-			snapshot: { json, etag: `"charts-${hash}"` },
-		};
-	}
-	return { ...withFools.snapshot, aliases: base.aliases };
+	const [base, songs] = await Promise.all([chartCatalog(), loadFools()]);
+	if (!songs.length) return base;
+	return {
+		...withFoolsSnapshot(base.list, base.aliases.byId, songs),
+		aliases: base.aliases,
+	};
 }
 
 export function chartCell(id: string, rank: string): ChartCell | undefined {
-	const song =
-		getInfo.ori_info[id] ??
-		getInfo.sp_info[id] ??
-		getInfo.ori_info[`${id}.0`] ??
-		getInfo.sp_info[`${id}.0`];
-	const chart = song?.chart?.[rank];
-	const difficulty = Number(chart?.difficulty);
-	if (!chart || !Number.isFinite(difficulty) || difficulty <= 0) return;
-	const notes = Number(chart.combo);
-	return [difficulty, Number.isInteger(notes) && notes > 0 ? notes : null];
+	return cellOf(getInfo.raw(id)?.chart?.[rank]);
 }

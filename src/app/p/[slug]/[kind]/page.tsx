@@ -97,7 +97,7 @@ export default async function PublicKindPage({
 					<ArrowRight aria-hidden="true" size={16} />
 				</Link>
 			}
-			nav={<CardNav current={kind} base={`/p/${slug}`} />}
+			nav={<CardNav current={kind} base={`/p/${slug}`} publicOnly />}
 		>
 			<CardStage
 				kind={kind}

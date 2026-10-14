@@ -27,6 +27,16 @@ export function isPhiraLevel(v: string): v is PhiraLevel {
 	return (PHIRA_LEVELS as readonly string[]).includes(v);
 }
 
+/** `<id without .0>-<level>.pez` */
+export function phiraPackFile(id: string, level: PhiraLevel): string {
+	return `${id.replace(/\.0$/, "")}-${level}.pez`;
+}
+
+/** R2 key of a Phira pack; `root` is a key prefix such as FOOLS_PREFIX for the 4/1 specials */
+export function phiraPackKey(id: string, level: PhiraLevel, root = ""): string {
+	return `${root ? `${root}/` : ""}phira/${level}/${phiraPackFile(id, level)}`;
+}
+
 export async function packPhiraChart(input: {
 	id: string;
 	name: string;

@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { runInBackground } from "@/server/background";
 import { logger } from "@/server/logger";
 import {
+	errChain,
+	isTimeoutError,
 	outgoingAgent,
 	outgoingFetch,
 	socketTimeouts,
@@ -15,22 +17,25 @@ import {
 	PHI_PROXY_KEY,
 	PROXY_KEY_HEADER,
 } from "./const";
+import { TtlLru } from "./lru";
 
 type TreeBody = { data?: unknown };
 type OriRecord = { score: number; acc: number; fc: boolean };
 
 export const CHART_TAG_TIMEOUT_MS = 60_000;
-const CHART_TAG_MAX_ATTEMPTS = 4;
 export const CHART_TAG_RENDER_BUDGET_MS = 8_000;
 /** The attempt keeps running this long after the render gives up, to fill the cache */
 export const CHART_TAG_BACKGROUND_MS = 30_000;
+/** After a timeout, network error or 5xx, renders that don't wait skip the b30Analysis POST this long */
+export const CHART_TAG_BREAKER_MS = 90_000;
 
-type FetchPlan = { timeoutMs: number; attempts: number };
-const PATIENT: FetchPlan = {
-	timeoutMs: CHART_TAG_TIMEOUT_MS,
-	attempts: CHART_TAG_MAX_ATTEMPTS,
-};
-const ONE_SHOT: FetchPlan = { timeoutMs: CHART_TAG_BACKGROUND_MS, attempts: 1 };
+/** A waiting render's POST lives as long as its budget, within the agent's 60 s; whole ms, as AbortSignal.timeout requires */
+export function chartTagLifetimeMs(budgetMs = 0) {
+	return Math.min(
+		CHART_TAG_TIMEOUT_MS,
+		Math.max(CHART_TAG_BACKGROUND_MS, Math.ceil(budgetMs)),
+	);
+}
 
 export const chartTagAgent = {
 	...socketTimeouts(CHART_TAG_TIMEOUT_MS),
@@ -62,86 +67,12 @@ class ChartTagTimeoutError extends Error {
 	}
 }
 
-function errCode(err: unknown): string | undefined {
-	return err && typeof err === "object" && "code" in err
-		? String((err as { code?: unknown }).code || "")
-		: undefined;
-}
-
-function errChain(err: unknown): string {
-	const bits: string[] = [];
-	let cur: unknown = err;
-	for (let i = 0; i < 5 && cur; i++) {
-		if (cur instanceof Error) {
-			const code = errCode(cur);
-			bits.push(
-				[cur.name, cur.message, code]
-					.filter((p) => p && p !== "undefined")
-					.join(" "),
-			);
-			cur = cur.cause;
-			continue;
-		}
-		bits.push(String(cur));
-		break;
-	}
-	return bits.join(" <- ") || String(err);
-}
-
 export function isChartTagTimeout(err: unknown): boolean {
-	let cur: unknown = err;
-	for (let i = 0; i < 4 && cur; i++) {
-		if (cur instanceof ChartTagTimeoutError) return true;
-		if (!(cur instanceof Error)) return false;
-		if (
-			cur.name === "TimeoutError" ||
-			cur.name === "AbortError" ||
-			cur.name === "ConnectTimeoutError" ||
-			cur.name === "HeadersTimeoutError" ||
-			cur.name === "BodyTimeoutError"
-		) {
-			return true;
-		}
-		const code = errCode(cur);
-		if (code && /TIMEOUT/i.test(code)) return true;
-		if (/timeout|timed out|aborted/i.test(cur.message)) return true;
-		cur = cur.cause;
-	}
-	return false;
-}
-
-export function isRetryableChartTagNet(err: unknown): boolean {
-	if (err instanceof ChartTagTimeoutError) return true;
-	let cur: unknown = err;
-	for (let i = 0; i < 4 && cur; i++) {
-		if (!(cur instanceof Error)) return false;
-		const code = errCode(cur) || "";
-		if (
-			/^(ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|EPIPE|UND_ERR_CONNECT_TIMEOUT|UND_ERR_SOCKET)$/i.test(
-				code,
-			)
-		) {
-			return true;
-		}
-		if (cur.name === "TypeError" && /fetch failed/i.test(cur.message)) {
-			return true;
-		}
-		if (isChartTagTimeout(cur)) return true;
-		cur = cur.cause;
-	}
-	return false;
+	return err instanceof ChartTagTimeoutError || isTimeoutError(err);
 }
 
 export function chartTagUrl(path: string) {
 	return `${PHI_CHART_TAG_API}${path}`;
-}
-
-export function chartTagRemainMs(
-	started: number,
-	now = performance.now(),
-	total = CHART_TAG_TIMEOUT_MS,
-) {
-	return Math.max(1_000, Math.floor(total - (now - started)));
 }
 
 export type ChartTagJsonFetch = (
@@ -161,69 +92,48 @@ export function chartTagHeaders(
 	return headers;
 }
 
-async function jsonFetch(
-	path: string,
-	init: RequestInit = {},
-	plan: FetchPlan = PATIENT,
-) {
-	const method = (init.method ?? "GET").toUpperCase();
-	const url = chartTagUrl(path);
-	const started = performance.now();
-	let last: unknown;
-	for (let attempt = 1; attempt <= plan.attempts; attempt++) {
-		const remain = chartTagRemainMs(started, performance.now(), plan.timeoutMs);
-		try {
-			const res = await outgoingFetch(url, {
-				method,
-				body:
-					method === "GET" || method === "HEAD"
-						? undefined
-						: typeof init.body === "string"
-							? init.body
-							: undefined,
-				signal: init.signal ?? AbortSignal.timeout(remain),
-				headers: chartTagHeaders(url),
-				dispatcher: agent,
-			});
-			const ms = `${Math.round(performance.now() - started)}ms`;
-			if (!res.ok) {
-				const detail = await res.text().catch(() => "");
-				logger.warn(`chart-tag ${method} ${url} ${res.status} ${ms}`);
-				throw new Error(
-					`chart-tag ${res.status}${detail ? `: ${detail.slice(0, 160)}` : ""}`,
-				);
-			}
-			logger.info(`chart-tag ${method} ${url} ${res.status} ${ms}`);
-			// Awaited here so a body cut off mid-stream is retried and classified too
-			return await res.json();
-		} catch (err) {
-			last = err;
-			if (err instanceof Error && err.message.startsWith("chart-tag ")) {
-				throw err;
-			}
-			const elapsed = Math.round(performance.now() - started);
-			const left = plan.timeoutMs - elapsed;
-			const retry =
-				attempt < plan.attempts && left > 2_000 && isRetryableChartTagNet(err);
-			logger.warn(
-				`chart-tag ${method} ${url} fail ${elapsed}ms try ${attempt}${retry ? " retry" : ""} ${errChain(err)}`,
-			);
-			if (!retry) break;
-		}
-	}
-	if (isChartTagTimeout(last)) throw new ChartTagTimeoutError();
-	throw last instanceof Error ? last : new Error(errChain(last));
-}
-
-export async function chartTagJsonFetch(path: string, init: RequestInit = {}) {
-	return jsonFetch(path, init);
-}
-
 export async function chartTagJsonFetchOnce(
 	path: string,
 	init: RequestInit = {},
 ) {
-	return jsonFetch(path, init, ONE_SHOT);
+	const method = (init.method ?? "GET").toUpperCase();
+	const url = chartTagUrl(path);
+	const started = performance.now();
+	try {
+		const res = await outgoingFetch(url, {
+			method,
+			body:
+				method === "GET" || method === "HEAD"
+					? undefined
+					: typeof init.body === "string"
+						? init.body
+						: undefined,
+			signal: init.signal ?? AbortSignal.timeout(CHART_TAG_BACKGROUND_MS),
+			headers: chartTagHeaders(url),
+			dispatcher: agent,
+		});
+		const ms = `${Math.round(performance.now() - started)}ms`;
+		if (!res.ok) {
+			const detail = await res.text().catch(() => "");
+			logger.warn(`chart-tag ${method} ${url} ${res.status} ${ms}`);
+			throw new Error(
+				`chart-tag ${res.status}${detail ? `: ${detail.slice(0, 160)}` : ""}`,
+			);
+		}
+		logger.info(`chart-tag ${method} ${url} ${res.status} ${ms}`);
+		// Awaited here so a body cut off mid-stream is classified too
+		return await res.json();
+	} catch (err) {
+		if (err instanceof Error && err.message.startsWith("chart-tag ")) {
+			throw err;
+		}
+		const elapsed = Math.round(performance.now() - started);
+		logger.warn(
+			`chart-tag ${method} ${url} fail ${elapsed}ms try 1 ${errChain(err)}`,
+		);
+		if (isChartTagTimeout(err)) throw new ChartTagTimeoutError();
+		throw err instanceof Error ? err : new Error(errChain(err));
+	}
 }
 
 /** `work` keeps running past the budget to fill the cache */
@@ -269,38 +179,44 @@ export function chartTagAnalysisKvKey(id: string) {
 	return kvKey("b30Analysis", "v2", id);
 }
 
-type StoredAnalysis = { at: number; analysis: TagAnalysis };
-
-/** One entry per save revision; keep the hot set small (KV holds the rest) */
-const analysisMem = new Map<string, StoredAnalysis>();
 const ANALYSIS_MEM_MAX = 64;
-/** Concurrent cold renders of one save (b30/x30/fc30, several styles) share a POST */
-const analysisInflight = new Map<string, Promise<TagAnalysis>>();
-
-function rememberAnalysis(id: string, entry: StoredAnalysis) {
-	analysisMem.delete(id);
-	analysisMem.set(id, entry);
-	while (analysisMem.size > ANALYSIS_MEM_MAX) {
-		const oldest = analysisMem.keys().next().value;
-		if (oldest === undefined) break;
-		analysisMem.delete(oldest);
-	}
-}
+/** One entry per save revision; keep the hot set small (KV holds the rest) */
+const analysisMem = new TtlLru<TagAnalysis>(ANALYSIS_MEM_MAX);
+/** Concurrent cold renders of one save (b30/x30/fc30, several styles) share a POST; a waiting render only joins a waiting one */
+const analysisInflight = new Map<
+	string,
+	{ job: Promise<TagAnalysis>; wait: boolean }
+>();
+/** b30Analysis is one endpoint, so one breaker (leaderboard.ts keeps one per path) */
+let breakerUntil = 0;
 
 export function resetChartTagVoteMemForTest() {
 	analysisMem.clear();
 	analysisInflight.clear();
+	breakerUntil = 0;
+}
+
+function breakerOpen() {
+	return Date.now() < breakerUntil;
+}
+
+function trip(why: string) {
+	breakerUntil = Date.now() + CHART_TAG_BREAKER_MS;
+	logger.warn(
+		`chart-tag b30Analysis off for ${CHART_TAG_BREAKER_MS / 1000}s: ${why}`,
+	);
+}
+
+/** Timeouts, network errors and 5xx (and 429, which the agent's retry interceptor throws for); another 4xx is phib19 answering */
+function upstreamDown(err: unknown): boolean {
+	const status = /^chart-tag (\d{3})\b/.exec(
+		err instanceof Error ? err.message : "",
+	)?.[1];
+	return status ? Number(status) >= 500 : true;
 }
 
 function isFresh(at: unknown): at is number {
 	return typeof at === "number" && Date.now() - at < CHART_TAG_ANALYSIS_TTL_MS;
-}
-
-function readMemAnalysis(id: string): TagAnalysis | undefined {
-	const hot = analysisMem.get(id);
-	if (!hot) return;
-	if (isFresh(hot.at)) return hot.analysis;
-	analysisMem.delete(id);
 }
 
 async function readStoredAnalysis(
@@ -314,7 +230,11 @@ async function readStoredAnalysis(
 		if (!isFresh(stored.at)) return;
 		const analysis = parseB30TagAnalysis(stored.analysis);
 		if (!analysis) return;
-		rememberAnalysis(id, { at: stored.at, analysis });
+		analysisMem.set(
+			id,
+			analysis,
+			stored.at + CHART_TAG_ANALYSIS_TTL_MS - Date.now(),
+		);
 		return analysis;
 	} catch {
 		return;
@@ -328,7 +248,7 @@ function writeAnalysisCache(
 	db?: Pick<Kv, "set">,
 ) {
 	const entry = { at: Date.now(), analysis };
-	rememberAnalysis(id, entry);
+	analysisMem.set(id, analysis, CHART_TAG_ANALYSIS_TTL_MS);
 	if (!db) return;
 	runInBackground(
 		db.set(
@@ -569,6 +489,8 @@ type TagAnalysisOpts = {
 	saveRevision?: string;
 	db?: Pick<Kv, "get" | "set">;
 	budgetMs?: number;
+	/** "Wait for every badge": ask phib19 even while the breaker is open */
+	wait?: boolean;
 };
 
 async function loadAnalysis(
@@ -583,6 +505,12 @@ async function loadAnalysis(
 			return stored;
 		}
 	}
+	// Only the POST is skipped: the cache reads above still serve while it is open
+	if (!opts.wait && breakerOpen()) {
+		throw new ChartTagTimeoutError(
+			"chart-tag b30Analysis skipped: recently failed",
+		);
+	}
 	const fetchJson = opts.fetchJson ?? chartTagJsonFetchOnce;
 	const gameRecord = gameRecordPayload(save.gameRecord || {});
 	try {
@@ -590,9 +518,19 @@ async function loadAnalysis(
 			await fetchJson("/chartsTag/get/b30Analysis", {
 				method: "POST",
 				body: JSON.stringify({ gameRecord }),
+				signal: AbortSignal.timeout(chartTagLifetimeMs(opts.budgetMs)),
+			}).catch((err: unknown) => {
+				if (upstreamDown(err)) {
+					trip(err instanceof Error ? `${err.name} ${err.message}` : `${err}`);
+				}
+				throw err;
 			}),
 		);
 		if (!parsed) throw new Error("empty chart-tag analysis");
+		breakerUntil = 0;
+		// A waiting render's own POST overlapped a shorter one: the first answer stays the cached one
+		const first = cacheId ? analysisMem.get(cacheId) : undefined;
+		if (first) return first;
 		if (cacheId) writeAnalysisCache(cacheId, parsed, opts.db);
 		logger.info(
 			`chart-tag analysis RKS≥${parsed.threshold} records ${parsed.recordCount} votes ${parsed.totalVotes} insufficient ${parsed.insufficient}`,
@@ -613,19 +551,27 @@ export async function tagAnalysisFor(
 	const cacheId = opts.saveRevision
 		? chartTagCacheId(opts.saveRevision)
 		: undefined;
-	const hot = cacheId ? readMemAnalysis(cacheId) : undefined;
+	const hot = cacheId ? analysisMem.get(cacheId) : undefined;
 	if (hot) {
 		logger.info(`chart-tag analysis cache hit ${cacheId}`);
 		return hot;
 	}
-	let work = cacheId ? analysisInflight.get(cacheId) : undefined;
+	const inflight = cacheId ? analysisInflight.get(cacheId) : undefined;
+	// A job that doesn't wait would cut a waiting render short (30 s, or the open breaker)
+	let work =
+		inflight && (inflight.wait || !opts.wait) ? inflight.job : undefined;
 	if (!work) {
-		const job = loadAnalysis(save, cacheId, opts);
+		const own = loadAnalysis(save, cacheId, opts);
+		// The replaced job may still answer first; fail only when neither does
+		const job = inflight
+			? Promise.any([own, inflight.job]).catch(() => own)
+			: own;
 		if (cacheId) {
 			const id = cacheId;
-			analysisInflight.set(id, job);
+			const entry = { job, wait: opts.wait === true };
+			analysisInflight.set(id, entry);
 			const done = () => {
-				if (analysisInflight.get(id) === job) analysisInflight.delete(id);
+				if (analysisInflight.get(id) === entry) analysisInflight.delete(id);
 			};
 			job.then(done, done);
 		}

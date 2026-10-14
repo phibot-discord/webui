@@ -2,6 +2,7 @@
 
 import { type PointerEvent, useRef, useState } from "react";
 import { areaPath, linePath, nearestIndex, niceMax } from "@/lib/status-chart";
+import { ChartScrub } from "./ChartScrub";
 import { useWidth } from "./useWidth";
 
 export type ChartSeries = {
@@ -103,21 +104,12 @@ export function LineChart({
 				</ul>
 			) : null}
 			<div ref={ref} className="line-chart-plot" style={{ height }}>
-				<input
-					className="chart-scrub"
-					type="range"
-					min={0}
-					max={Math.max(0, n - 1)}
-					step={1}
-					value={active ?? Math.max(0, n - 1)}
-					aria-label={label}
-					aria-valuetext={n ? readout(active ?? n - 1) : undefined}
-					onChange={(e) => setActive(Number(e.target.value))}
-					onFocus={() => setActive((a) => a ?? n - 1)}
-					onBlur={() => setActive(null)}
-					onKeyDown={(e) => {
-						if (e.key === "Escape") setActive(null);
-					}}
+				<ChartScrub
+					label={label}
+					count={n}
+					active={active}
+					setActive={setActive}
+					readout={readout}
 				/>
 				{width > 0 ? (
 					<svg width={width} height={height} aria-hidden="true">

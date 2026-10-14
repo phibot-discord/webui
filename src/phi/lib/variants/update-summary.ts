@@ -1,7 +1,8 @@
-import type { PhiLocale } from "../card-i18n";
+import { fill, type PhiLocale } from "../card-i18n";
 import { fCompute } from "../fcompute";
 import { getInfo } from "../get-info";
 import type { UpdateBox, UpdateTile } from "../history";
+import { escapeHtml } from "../html";
 import { fitEm, fitFontPx, splitTwoLines, textEm } from "../text-fit";
 import type { CardData, CardVariant, VariantContext } from "./types";
 
@@ -172,12 +173,6 @@ function fmtTime(t: unknown, format: string) {
 	return fCompute.formatDate(n, format);
 }
 
-function fill(text: string, vars: Record<string, string | number>) {
-	return text.replace(/\{(\w+)\}/g, (m, k: string) =>
-		k in vars ? String(vars[k]) : m,
-	);
-}
-
 function num(v: unknown): number | undefined {
 	if (v == null || v === "") return undefined;
 	const n = Number(v);
@@ -192,14 +187,6 @@ function decodeHtml(raw: string) {
 		.replace(/&#39;/g, "'")
 		.replace(/&#(\d+);/g, (_m, d: string) => String.fromCharCode(Number(d)))
 		.replace(/&amp;/g, "&");
-}
-
-function escapeHtml(s: string) {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
 }
 
 export function ellipsize(text: string, widthPx: number, px: number) {

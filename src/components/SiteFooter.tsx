@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 
 const GITHUB = "https://github.com/YueMiyuki";
+const COMMIT = process.env.NEXT_PUBLIC_COMMIT_SHA ?? "";
 
 export function SiteFooter() {
 	const { m } = useI18n();
@@ -24,6 +25,11 @@ export function SiteFooter() {
 					<a href={GITHUB} rel="noopener noreferrer" target="_blank">
 						{m.credit.name}
 					</a>
+					{COMMIT ? (
+						<span className="site-foot-rev" title={COMMIT}>
+							{COMMIT.slice(0, 7)}
+						</span>
+					) : null}
 				</p>
 				<nav className="site-foot-links" aria-label={m.legal.nav}>
 					<Link href="/status">{m.status.title}</Link>

@@ -4,7 +4,7 @@ import { connectKv, createKv, type RemoteKv } from "./kv";
 
 function fakeRemote() {
 	const data = new Map<string, string>();
-	const calls = { get: 0, put: 0, del: 0, ping: 0, background: 0 };
+	const calls = { get: 0, put: 0, del: 0, background: 0 };
 	const remote: RemoteKv = {
 		label: "fake",
 		getRaw: async (key) => {
@@ -22,9 +22,6 @@ function fakeRemote() {
 		},
 		listRaw: async (prefix) =>
 			[...data.keys()].filter((k) => k.startsWith(prefix)),
-		ping: async () => {
-			calls.ping += 1;
-		},
 	};
 	return { remote, data, calls };
 }
@@ -94,7 +91,7 @@ test("overlay size stays bounded", async () => {
 	assert.equal(calls.get, 1_051, "oldest key was evicted");
 });
 
-test("expired envelopes are dropped and deleted remotely", async () => {
+test("expired envelopes are dropped and left to Cloudflare's TTL", async () => {
 	const { remote, data, calls } = fakeRemote();
 	data.set("phi:t", JSON.stringify({ d: "x", e: 10 }));
 	const { store } = createKv(remote);
@@ -106,44 +103,118 @@ test("expired envelopes are dropped and deleted remotely", async () => {
 		},
 	);
 	await new Promise((r) => setImmediate(r));
-	assert.equal(calls.del, 1);
+	assert.equal(calls.del, 0);
 });
 
-test("non-blocking incr answers from the overlay and writes behind", async () => {
-	const { remote, data, calls } = fakeRemote();
+/** Holds the next remote read until `release()`, so a write can land while it is in flight */
+function gateNextRead(remote: RemoteKv) {
 	let release!: () => void;
 	const gate = new Promise<void>((r) => {
 		release = r;
 	});
-	const slowPut = remote.putRaw;
-	remote.putRaw = async (key, value, ttl) => {
+	const getRaw = remote.getRaw;
+	remote.getRaw = async (key) => {
+		remote.getRaw = getRaw;
+		const raw = await getRaw(key);
 		await gate;
-		return slowPut(key, value, ttl);
+		return raw;
+	};
+	return release;
+}
+
+for (const [label, before] of [
+	["a missing copy", undefined],
+	["an expired copy", JSON.stringify({ d: "old", e: 1 })],
+	["an older live copy", JSON.stringify({ d: "old" })],
+] as const) {
+	test(`a write that lands while a read of ${label} is in flight is kept`, async () => {
+		const { remote, data } = fakeRemote();
+		if (before) data.set("phi:webQr:u", before);
+		const { store } = createKv(remote);
+		const release = gateNextRead(remote);
+		const reading = store.get("phi:webQr:u");
+		await store.set("phi:webQr:u", "new", { ttlMs: 120_000 });
+		release();
+		assert.equal(await reading, "new", "the read finished after the write");
+		assert.equal(await store.get("phi:webQr:u"), "new");
+		await new Promise((r) => setImmediate(r));
+		assert.equal(JSON.parse(data.get("phi:webQr:u") ?? "{}").d, "new");
+	});
+}
+
+for (const key of ["phi:qrbind:u", "phi:save:tk"]) {
+	test(`a delete while a read of ${key} is in flight does not bring the old value back`, async () => {
+		const { remote, data } = fakeRemote();
+		data.set(key, JSON.stringify({ d: "old" }));
+		const { store } = createKv(remote);
+		const release = gateNextRead(remote);
+		const reading = store.get(key);
+		await store.del(key);
+		const joining = store.get(key);
+		release();
+		assert.equal(await reading, null, "the read finished after the delete");
+		assert.equal(await joining, null);
+		assert.equal(await store.get(key), null);
+		assert.equal(await store.set(key, "new", { nx: true }), "OK");
+		assert.equal(await store.get(key), "new");
+	});
+}
+
+test("a delete issued while a write is still queued leaves the key deleted", async () => {
+	const { remote, data } = fakeRemote();
+	const { store } = createKv(remote);
+	const writing = store.set("phi:qrbind:u", "1", { ttlMs: 120_000 });
+	await store.del("phi:qrbind:u");
+	await writing;
+	assert.equal(data.has("phi:qrbind:u"), false);
+	assert.equal(await store.get("phi:qrbind:u"), null);
+});
+
+test("a delete that arrives during an nx claim applies after it", async () => {
+	const { remote, data } = fakeRemote();
+	data.set("phi:qrbind:u", JSON.stringify({ d: "1" }));
+	const { store } = createKv(remote);
+	const release = gateNextRead(remote);
+	const claiming = store.set("phi:qrbind:u", "2", { nx: true });
+	const deleting = store.del("phi:qrbind:u");
+	release();
+	assert.equal(await claiming, null, "the lock was held when the claim ran");
+	await deleting;
+	assert.equal(data.has("phi:qrbind:u"), false);
+	assert.equal(await store.get("phi:qrbind:u"), null);
+	assert.equal(await store.set("phi:qrbind:u", "3", { nx: true }), "OK");
+});
+
+test("a stale expired copy seen by another instance does not delete a newer write", async () => {
+	const { remote, data } = fakeRemote();
+	const stale: RemoteKv = {
+		...remote,
+		getRaw: async () => JSON.stringify({ d: "old", e: 1 }),
+	};
+	await createKv(remote).store.set("phi:lbBoard:x", "fresh", {
+		ttlMs: 60_000,
+	});
+	assert.equal(await createKv(stale).store.get("phi:lbBoard:x"), null);
+	await new Promise((r) => setImmediate(r));
+	assert.equal(JSON.parse(data.get("phi:lbBoard:x") ?? "{}").d, "fresh");
+});
+
+test("claiming a lock whose expired copy is not purged yet keeps the new lock", async () => {
+	const { remote, data } = fakeRemote();
+	data.set("phi:cooldown:u", JSON.stringify({ d: "1", e: 1 }));
+	const delRaw = remote.delRaw;
+	remote.delRaw = async (key) => {
+		await new Promise((r) => setTimeout(r, 5));
+		return delRaw(key);
 	};
 	const { store } = createKv(remote);
-	await withNow(
-		() => 7_000_000,
-		async () => {
-			const first = await store.incr("phi:webRl:ip:1.2.3.4:1", {
-				ttlMs: 60_000,
-				blocking: false,
-			});
-			assert.equal(first, 1, "count is available before the PUT lands");
-			assert.equal(calls.put, 0);
-			const second = await store.incr("phi:webRl:ip:1.2.3.4:1", {
-				ttlMs: 60_000,
-				blocking: false,
-			});
-			assert.equal(second, 2, "second count does not wait for the first PUT");
-			assert.equal(await store.ttlMs("phi:webRl:ip:1.2.3.4:1"), 60_000);
-			release();
-			await new Promise((r) => setTimeout(r, 10));
-			assert.equal(calls.put, 2, "both writes reached the remote in order");
-			const stored = JSON.parse(data.get("phi:webRl:ip:1.2.3.4:1") ?? "{}");
-			assert.equal(stored.d, "2");
-			assert.equal(stored.e, 7_060_000, "ttl set once, on creation");
-		},
+	assert.equal(
+		await store.set("phi:cooldown:u", "1", { nx: true, ttlMs: 120_000 }),
+		"OK",
 	);
+	await new Promise((r) => setTimeout(r, 10));
+	const stored = JSON.parse(data.get("phi:cooldown:u") ?? "{}");
+	assert.ok(stored.e > Date.now(), "a late DELETE would drop the new lock");
 });
 
 test("nx set refuses to overwrite and ttl reports remaining time", async () => {
@@ -166,14 +237,13 @@ test("nx set refuses to overwrite and ttl reports remaining time", async () => {
 	);
 });
 
-test("connecting does not ping (no KV LIST per cold start)", async () => {
+test("connecting makes no remote calls (no KV LIST per cold start)", async () => {
 	const { remote, calls } = fakeRemote();
 	await connectKv(
 		{ accountId: "a", namespaceId: "n", apiToken: "t" },
 		() => remote,
 	);
 	await new Promise((r) => setTimeout(r, 5));
-	assert.equal(calls.ping, 0);
 	assert.equal(calls.get + calls.put, 0);
 });
 

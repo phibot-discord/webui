@@ -1,3 +1,4 @@
+import type { Dispatcher } from "undici";
 import {
 	outgoingAgent,
 	outgoingFetch,
@@ -24,12 +25,22 @@ export const cfAgent = {
 // cfFetch is the only retry layer for Cloudflare: no undici retry interceptor here
 const agent = outgoingAgent(cfAgent, { retry: false });
 
+/** undici's headersTimeout also runs while the body is still being sent, so a longer budget must lift it too */
+function withHeadersTimeout(ms: number): Dispatcher {
+	return agent.compose(
+		(dispatch) => (opts, handler) =>
+			dispatch({ ...opts, headersTimeout: ms }, handler),
+	);
+}
+
 export type CfFetchInit = {
 	method?: string;
 	headers?: Record<string, string>;
 	body?: string | Buffer | Uint8Array;
 	background?: boolean;
 	stream?: boolean;
+	/** Replaces the 12 s budget, for a large upload on a slow uplink */
+	timeoutMs?: number;
 };
 
 export type CfResponse = {
@@ -41,6 +52,12 @@ export type CfResponse = {
 	text: () => Promise<string>;
 	json: () => Promise<unknown>;
 };
+
+/** Reads the body and throws `<label> failed: <status> <body>`, capped at 500 characters */
+export async function cfFail(res: CfResponse, label: string): Promise<never> {
+	const text = await res.text().catch(() => "");
+	throw new Error(`${label} failed: ${res.status} ${text}`.slice(0, 500));
+}
 
 export function isNoResponseError(err: unknown): boolean {
 	for (let cur = err, depth = 0; cur && depth < 4; depth++) {
@@ -87,6 +104,9 @@ export async function cfFetch(
 	url: string,
 	init: CfFetchInit = {},
 ): Promise<CfResponse> {
+	const timeoutMs = init.timeoutMs || CF_TIMEOUT_MS;
+	const dispatcher =
+		timeoutMs === CF_TIMEOUT_MS ? agent : withHeadersTimeout(timeoutMs);
 	let netRetries = 0;
 	let httpRetries = 0;
 	for (;;) {
@@ -96,8 +116,8 @@ export async function cfFetch(
 				method: init.method,
 				headers: init.headers,
 				body: init.body,
-				signal: init.stream ? undefined : AbortSignal.timeout(CF_TIMEOUT_MS),
-				dispatcher: agent,
+				signal: init.stream ? undefined : AbortSignal.timeout(timeoutMs),
+				dispatcher,
 			});
 		} catch (err) {
 			// KV/R2 PUTs are idempotent, so retrying any method once is safe

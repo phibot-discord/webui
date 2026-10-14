@@ -10,7 +10,8 @@ export const loadShared = cache(async (slug: string) => {
 	if (!userId) return;
 	const host = await getDataHost();
 	const [got, notes] = await Promise.all([
-		loadBound(host, userId),
+		// Anonymous views tolerate the 10 s token/save memo the card requests share
+		loadBound(host, userId, { memo: true }),
 		getNotes(host.db, userId),
 	]);
 	if ("error" in got) return;

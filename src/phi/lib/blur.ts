@@ -9,6 +9,7 @@ import {
 	stat,
 	touch,
 } from "@/server/vfs";
+import { evictOldest } from "./lru";
 
 const cacheDir = "/tmp/phi-web-ill-blur";
 /** Blurred backgrounds are 5–9 MB: 24 files is ~220 MB of /tmp */
@@ -191,11 +192,8 @@ export function backgroundLuma(
 	if (hit) return hit;
 	const job = sampleLuma(file);
 	job.catch(() => lumaCache.delete(key));
-	if (lumaCache.size >= LUMA_CACHE_MAX) {
-		const oldest = lumaCache.keys().next().value;
-		if (oldest !== undefined) lumaCache.delete(oldest);
-	}
 	lumaCache.set(key, job);
+	evictOldest(lumaCache, LUMA_CACHE_MAX);
 	return job;
 }
 

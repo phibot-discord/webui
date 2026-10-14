@@ -1,6 +1,5 @@
 import { ALL_LEVEL } from "./const";
 import { fCompute } from "./fcompute";
-import { getInfo } from "./get-info";
 import type { LevelRecordInfo } from "./level-record";
 import type { Save } from "./save";
 
@@ -219,43 +218,6 @@ export class SaveHistory {
 		}
 		if (!this.challengeModeRank.length)
 			this.challengeModeRank.push({ date: iso, value: clg });
-	}
-
-	getRksLine() {
-		const rks_history_: Dated<number>[] = [];
-		const user_rks_data = this.rks;
-		const cap = getInfo.MAX_DIFFICULTY;
-		const rks_range = [cap > 0 ? cap : Number.POSITIVE_INFINITY, 0];
-		const rks_date: [number, number] = [0, 0];
-		const rks_history: number[][] = [];
-		if (user_rks_data.length) {
-			rks_date[0] = new Date(user_rks_data[0]!.date).getTime();
-			user_rks_data.forEach((item, i) => {
-				item.date = new Date(item.date);
-				if (
-					i <= 1 ||
-					item.value !== rks_history_[rks_history_.length - 2]!.value
-				) {
-					rks_history_.push(item);
-					rks_range[0] = Math.min(rks_range[0]!, item.value);
-					rks_range[1] = Math.max(rks_range[1]!, item.value);
-				} else {
-					rks_history_[rks_history_.length - 1]!.date = item.date;
-				}
-				rks_date[1] = item.date.getTime();
-			});
-			rks_history_.forEach((item, i) => {
-				if (!rks_history_[i + 1]) return;
-				rks_history.push([
-					fCompute.range(item.date.getTime(), rks_date),
-					fCompute.range(item.value, rks_range),
-					fCompute.range(rks_history_[i + 1]!.date.getTime(), rks_date),
-					fCompute.range(rks_history_[i + 1]!.value, rks_range),
-				]);
-			});
-			if (!rks_history.length) rks_history.push([0, 50, 100, 50]);
-		}
-		return { rks_history, rks_range, rks_date };
 	}
 
 	getDataLine() {

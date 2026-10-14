@@ -20,6 +20,15 @@
 	}
 }
 
+@keyframes skeleton-pulse {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0.45;
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	html {
 		scroll-behavior: auto;

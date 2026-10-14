@@ -15,6 +15,7 @@ import {
 	persistBypassCooldown,
 	persistCardReload,
 } from "@/lib/save-refresh";
+import { BYPASS_CACHE_COOLDOWN_MS } from "@/server/cooldown";
 
 export function BypassCacheButton({ cooldownMs }: { cooldownMs: number }) {
 	const { m } = useI18n();
@@ -28,7 +29,10 @@ export function BypassCacheButton({ cooldownMs }: { cooldownMs: number }) {
 		"{seconds}",
 		cooldownSeconds(remaining),
 	);
-	const waitWide = m.refresh.wait.replaceAll("{seconds}", "300");
+	const waitWide = m.refresh.wait.replaceAll(
+		"{seconds}",
+		cooldownSeconds(BYPASS_CACHE_COOLDOWN_MS),
+	);
 	const live = pending
 		? m.refresh.bypassPending
 		: cooling

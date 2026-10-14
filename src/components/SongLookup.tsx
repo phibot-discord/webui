@@ -21,14 +21,14 @@ import {
 	useMemo,
 	useRef,
 	useState,
-	useSyncExternalStore,
 } from "react";
 import { useChartCatalog } from "@/components/ChartSearch";
-import { Announce } from "@/components/Tool";
+import { Announce, useHydrated } from "@/components/Tool";
 import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
 import { CHART_LEVELS, type ChartSummary } from "@/lib/chart-catalog";
 import { looseFold, rankSongs, type SongMatch } from "@/lib/song-search";
+import { fill } from "@/phi/lib/card-i18n";
 
 export type SongLookupInitial = {
 	q: string;
@@ -45,30 +45,12 @@ type Text = Messages["songs"];
 const PHIB19 = "https://www.phib19.top";
 const SETTLE_MS = 400;
 
-const noSubscribe = () => () => {};
-
-function useHydrated(): boolean {
-	return useSyncExternalStore(
-		noSubscribe,
-		() => true,
-		() => false,
-	);
-}
-
 function songsHref(q: string): string {
 	return q ? `/songs?${new URLSearchParams({ q })}` : "/songs";
 }
 
 function clip(raw: string | null, max: number): string {
 	return (raw ?? "").trim().slice(0, max);
-}
-
-function fill(text: string, values: Record<string, string | number>): string {
-	let out = text;
-	for (const [key, value] of Object.entries(values)) {
-		out = out.replaceAll(`{${key}}`, String(value));
-	}
-	return out;
 }
 
 function replaceQuery(written: RefObject<string>, q: string) {

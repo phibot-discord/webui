@@ -7,7 +7,7 @@ import {
 import {
 	type CardStyle,
 	cardStyleTemplate,
-	DEFAULT_CARD_STYLE,
+	classicCardTemplate,
 	isStyledKind,
 	parseCardStyle,
 } from "@/phi/lib/card-styles";
@@ -20,7 +20,7 @@ import {
 	loadSaveHistory,
 	updateCardImages,
 } from "@/phi/lib/history";
-import { getNotes, type UserNotes } from "@/phi/lib/notes";
+import { getNotes } from "@/phi/lib/notes";
 import type { Save } from "@/phi/lib/save";
 import { buildSongCard } from "@/phi/lib/song-card";
 import {
@@ -59,7 +59,7 @@ import { prefetchIlls } from "./ill";
 import { logger, withDiscordUid } from "./logger";
 import { type PaintQuality, parsePaintQuality } from "./render/paint-budget";
 import { withTimeout } from "./render-lock";
-import { ensureSongInfo } from "./song-info";
+import { foolsPending } from "./song-info";
 
 export type { BoundErr, ErrorCode } from "./bound";
 export {
@@ -139,7 +139,7 @@ async function prepareCardCache(
 	opts: CardRenderOpts = {},
 ): Promise<CardPrep | BoundErr> {
 	const started = performance.now();
-	const [data] = await Promise.all([getDataHost(), ensureSongInfo()]);
+	const data = await getDataHost();
 	// The memo the page view just seeded, unless the save just changed (the client then sends no-cache)
 	const memo = { memo: !opts.fresh };
 	let [bound, notes, epoch] = await Promise.all([
@@ -179,8 +179,7 @@ async function prepareCardCache(
 					level: parseSongLevel(opts.level),
 				}
 			: undefined;
-	if (song && !song.chart)
-		return { error: "unknown_card", status: 404, reason: "unknown_card" };
+	if (song && !song.chart) return { error: "unknown_card", status: 404 };
 	const cacheKind = cardCacheKind(kind);
 	const cacheInput = cardCacheInput({
 		kind: cacheKind,
@@ -400,17 +399,7 @@ async function paintFreshCard(
 		const built = await withTimeout(
 			buildCardData(
 				host,
-				prep.userId,
-				prep.kind,
-				prep.save,
-				prep.token,
-				prep.nnum,
-				prep.locale,
-				prep.notes,
-				prep.tagOn,
-				prep.statsOn,
-				prep.style,
-				prep.song,
+				prep,
 				Date.now() + PEER_WAIT_MS - (performance.now() - prep.started),
 				(waiting) => hooks.onPhase?.(waiting ? "phib19" : "render"),
 			),
@@ -451,8 +440,11 @@ async function paintFreshCard(
 				built.classicTemplateId,
 			);
 		}
-		// Fallback and partial renders are not cached here, by the browser or by the CDN: the next request retries
-		const transient = fellBack || built.data.renderPartial === true;
+		// Fallback and partial renders, and ones whose jackets (the Save's, from prepareCardCache, included) may predate the 4/1 set, are not cached here, by the browser or by the CDN: the next request retries
+		const transient =
+			fellBack ||
+			built.data.renderPartial === true ||
+			foolsPending(prep.started);
 		if (!transient) {
 			await writeCachedPng(host, prep.key, img.bytes);
 			if (!height && img.height > 64) {
@@ -488,7 +480,7 @@ async function paintFreshCard(
 		logger.error(
 			`render ${prep.kind}: ${err instanceof Error ? err.message : err}`,
 		);
-		return { error: "render_failed", status: 504, reason: "render_failed" };
+		return { error: "render_failed", status: 504 };
 	}
 }
 
@@ -512,19 +504,9 @@ function missingOf(v: unknown): CardMissing[] {
 
 async function buildCardData(
 	host: WebHost,
-	userId: string,
-	kind: CardKind,
-	save: Save,
-	token: string,
-	nnum: number,
-	locale: PhiLocale,
-	notes: UserNotes,
-	showTagAnalysis?: boolean,
-	showRecordStats = true,
-	style: CardStyle = DEFAULT_CARD_STYLE,
-	song?: { chart: string; level: SongLevel },
-	peerDeadline?: number,
-	onExternalWait?: (waiting: boolean) => void,
+	prep: CardPrep,
+	peerDeadline: number,
+	onExternalWait: (waiting: boolean) => void,
 ): Promise<
 	| {
 			templateId: string;
@@ -533,6 +515,7 @@ async function buildCardData(
 	  }
 	| BoundErr
 > {
+	const { userId, kind, save, token, nnum, locale, notes, style, song } = prep;
 	const catalog = host.catalog;
 	const themeKey = notes.theme || "default";
 	if (kind === "b30" || kind === "x30" || kind === "fc30") {
@@ -540,38 +523,38 @@ async function buildCardData(
 			nnum,
 			mode: kind,
 			locale,
-			showTagAnalysis,
+			showTagAnalysis: prep.tagOn,
 			notes,
 			peerDeadline,
 			onExternalWait,
 		});
+		const classic = classicCardTemplate(kind);
 		return {
-			templateId: cardStyleTemplate(kind, style) ?? "phi/b19/b19",
-			classicTemplateId: "phi/b19/b19",
+			templateId: cardStyleTemplate(kind, style) ?? classic,
+			classicTemplateId: classic,
 			data: {
 				...data,
-				hideRecordStats: !showRecordStats,
+				hideRecordStats: !prep.statsOn,
 				cardKind: kind,
 				cardStyle: style,
 			},
 		};
 	}
-	if (kind === "song") {
+	if (kind === "song" && song) {
 		const built = await buildSongCard(
 			host.rt,
 			save,
 			host.db,
 			catalog,
 			{
-				chart: song?.chart ?? "",
-				level: song?.level ?? "AT",
+				chart: song.chart,
+				level: song.level,
 				locale,
 				notes,
 			},
 			{ onExternalWait },
 		);
-		if ("error" in built)
-			return { error: built.error, status: built.status, reason: built.error };
+		if ("error" in built) return { error: built.error, status: built.status };
 		return {
 			templateId: built.templateId,
 			classicTemplateId: built.templateId,
@@ -584,9 +567,10 @@ async function buildCardData(
 			notes,
 			token,
 		});
+		const classic = classicCardTemplate(kind);
 		return {
-			templateId: cardStyleTemplate(kind, style) ?? "phi/userinfo/userinfo",
-			classicTemplateId: "phi/userinfo/userinfo",
+			templateId: cardStyleTemplate(kind, style) ?? classic,
+			classicTemplateId: classic,
 			data: { ...data, cardKind: kind, cardStyle: style },
 		};
 	}
@@ -614,9 +598,10 @@ async function buildCardData(
 	};
 	// Jackets / grade icons start downloading while the template compiles
 	prefetchIlls(updateCardImages(host.rt, cardData));
+	const classic = classicCardTemplate(kind);
 	return {
-		templateId: cardStyleTemplate(kind, style) ?? "phi/update/update",
-		classicTemplateId: "phi/update/update",
+		templateId: cardStyleTemplate(kind, style) ?? classic,
+		classicTemplateId: classic,
 		data: cardData,
 	};
 }

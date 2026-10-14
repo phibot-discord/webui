@@ -1,4 +1,4 @@
-import type { PhiLocale } from "../card-i18n";
+import { fill, type PhiLocale } from "../card-i18n";
 import {
 	type Board,
 	fmtCount,
@@ -141,12 +141,6 @@ export const STRIP_W = 600 + AP_GAP + AP_W;
 const TILE_TEXT_W = 356 - 48;
 // Fixed px: Takumi drops % widths inside the AP / FC meters
 const METER_W = 190;
-
-function fill(text: string, vars: Record<string, string | number>) {
-	return text.replace(/\{(\w+)\}/g, (m, k: string) =>
-		k in vars ? String(vars[k]) : m,
-	);
-}
 
 type FitText = { px: number; lines: string[] };
 

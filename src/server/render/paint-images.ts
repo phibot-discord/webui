@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { poolAll } from "../pool";
 
 /** Song tiles are ~95px CSS (~190px at 2×). 640px is still oversampled */
 export const TILE_MAX_EDGE = 640;
@@ -47,28 +48,19 @@ export async function fitPaintImages(
 ): Promise<PaintImage[]> {
 	if (!images.length) return images;
 	const out = new Array<PaintImage>(images.length);
-	let next = 0;
-	const workers = Math.min(8, images.length);
-	await Promise.all(
-		Array.from({ length: workers }, async () => {
-			for (;;) {
-				const i = next++;
-				const image = images[i];
-				if (!image) return;
-				const key = fitKey(image);
-				const hot = key ? fitted.get(key) : undefined;
-				if (key && hot) {
-					fitted.delete(key);
-					fitted.set(key, hot);
-					out[i] = hot === image.data ? image : { ...image, data: hot };
-					continue;
-				}
-				const done = await fitOne(image);
-				if (key) rememberFitted(key, done.data);
-				out[i] = done;
-			}
-		}),
-	);
+	await poolAll(images, 8, async (image, i) => {
+		const key = fitKey(image);
+		const hot = key ? fitted.get(key) : undefined;
+		if (key && hot) {
+			fitted.delete(key);
+			fitted.set(key, hot);
+			out[i] = hot === image.data ? image : { ...image, data: hot };
+			return;
+		}
+		const done = await fitOne(image);
+		if (key) rememberFitted(key, done.data);
+		out[i] = done;
+	});
 	return out;
 }
 

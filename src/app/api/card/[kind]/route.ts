@@ -56,7 +56,7 @@ export async function GET(
 				parsePhiLocale(acceptLanguage) ??
 				uiCookie,
 			fallbackLocale: negotiateLocale(undefined, acceptLanguage),
-			ifNoneMatch: download ? null : request.headers.get("if-none-match"),
+			ifNoneMatch: request.headers.get("if-none-match"),
 			paintQuality:
 				qualityParam == null ? undefined : parsePaintQuality(qualityParam),
 			showTagAnalysis: tags === "1" ? true : tags === "0" ? false : undefined,
@@ -73,7 +73,6 @@ export async function GET(
 			if ("error" in result) return localizedRenderError(result);
 			const res = cardResultResponse(result, {
 				cacheControl: result.transient ? "no-store" : PRIVATE_CACHE,
-				request,
 				filename: download ? cardDownloadFilename(kind) : undefined,
 				renderVersion: RENDER_VERSION,
 			});
