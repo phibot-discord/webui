@@ -168,7 +168,15 @@
 	}
 
 	.desk-tools {
-		justify-content: flex-end;
+		display: grid;
+		grid-auto-flow: column;
+		grid-auto-columns: 1fr;
+		justify-content: end;
+	}
+
+	.desk-tools > .btn,
+	.desk-tools > .tool > .btn {
+		width: 100%;
 	}
 
 	.status-actions .tool-pop {
@@ -995,6 +1003,12 @@
 
 .sk-btn-icon {
 	width: var(--control-h);
+}
+
+@media (min-width: 768px) {
+	.desk-skeleton .desk-tools .sk {
+		width: 9rem;
+	}
 }
 
 @media (max-width: 767px) {
