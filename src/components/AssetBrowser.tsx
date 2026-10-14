@@ -32,7 +32,7 @@ import {
 	assetThumbKey,
 	publicAssetUrl,
 } from "@/lib/assets";
-import type { ChartSummary } from "@/lib/chart-catalog";
+import { CHART_LEVELS, type ChartSummary } from "@/lib/chart-catalog";
 import { looseFold, rankSongs } from "@/lib/song-search";
 
 const PAGE = 48;
@@ -44,9 +44,12 @@ function formatSize(size: number) {
 	return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// Pack files end in -<level>. CHART_LEVELS lists the Phira levels without pulling JSZip into the page
+const LEVEL_SUFFIX = new RegExp(`-(${CHART_LEVELS.join("|")})$`);
+
 function songStem(key: string) {
 	const file = key.split("/").pop() ?? key;
-	return file.replace(/\.[^.]+$/, "").replace(/-(EZ|HD|IN|AT|SP)$/, "");
+	return file.replace(/\.[^.]+$/, "").replace(LEVEL_SUFFIX, "");
 }
 
 function songOf(key: string, songs: Map<string, ChartSummary>) {
@@ -273,6 +276,8 @@ export function AssetBrowser() {
 	}, []);
 
 	const pickTab = (next: AssetTab) => {
+		// Re-picking the open tab (click, Home/End) keeps its filter and paging
+		if (next === tab) return;
 		setPickedTab(next);
 		setKind("all");
 		resetPage();

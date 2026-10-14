@@ -13,7 +13,10 @@ export async function GET(request: Request) {
 		const status = built.error === "bad_level" ? 400 : 404;
 		return Response.json(built, { status });
 	}
-	const ascii = built.filename.replace(/[^\x20-\x7E]/g, "_");
+	// Manifest ids are free text: a quote or backslash would end or escape the quoted name early
+	const ascii = built.filename
+		.replace(/[^\x20-\x7E]/g, "_")
+		.replace(/["\\]/g, "");
 	const headers: Record<string, string> = {
 		"Content-Type": "application/octet-stream",
 		"Content-Disposition": `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(built.filename)}`,
