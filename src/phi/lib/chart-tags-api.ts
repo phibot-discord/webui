@@ -182,8 +182,11 @@ export function chartTagAnalysisKvKey(id: string) {
 const ANALYSIS_MEM_MAX = 64;
 /** One entry per save revision; keep the hot set small (KV holds the rest) */
 const analysisMem = new TtlLru<TagAnalysis>(ANALYSIS_MEM_MAX);
-/** Concurrent cold renders of one save (b30/x30/fc30, several styles) share a POST */
-const analysisInflight = new Map<string, Promise<TagAnalysis>>();
+/** Concurrent cold renders of one save (b30/x30/fc30, several styles) share a POST; a waiting render only joins a waiting one */
+const analysisInflight = new Map<
+	string,
+	{ job: Promise<TagAnalysis>; wait: boolean }
+>();
 /** b30Analysis is one endpoint, so one breaker (leaderboard.ts keeps one per path) */
 let breakerUntil = 0;
 
@@ -525,6 +528,9 @@ async function loadAnalysis(
 		);
 		if (!parsed) throw new Error("empty chart-tag analysis");
 		breakerUntil = 0;
+		// A waiting render's own POST overlapped a shorter one: the first answer stays the cached one
+		const first = cacheId ? analysisMem.get(cacheId) : undefined;
+		if (first) return first;
 		if (cacheId) writeAnalysisCache(cacheId, parsed, opts.db);
 		logger.info(
 			`chart-tag analysis RKS≥${parsed.threshold} records ${parsed.recordCount} votes ${parsed.totalVotes} insufficient ${parsed.insufficient}`,
@@ -550,14 +556,22 @@ export async function tagAnalysisFor(
 		logger.info(`chart-tag analysis cache hit ${cacheId}`);
 		return hot;
 	}
-	let work = cacheId ? analysisInflight.get(cacheId) : undefined;
+	const inflight = cacheId ? analysisInflight.get(cacheId) : undefined;
+	// A job that doesn't wait would cut a waiting render short (30 s, or the open breaker)
+	let work =
+		inflight && (inflight.wait || !opts.wait) ? inflight.job : undefined;
 	if (!work) {
-		const job = loadAnalysis(save, cacheId, opts);
+		const own = loadAnalysis(save, cacheId, opts);
+		// The replaced job may still answer first; fail only when neither does
+		const job = inflight
+			? Promise.any([own, inflight.job]).catch(() => own)
+			: own;
 		if (cacheId) {
 			const id = cacheId;
-			analysisInflight.set(id, job);
+			const entry = { job, wait: opts.wait === true };
+			analysisInflight.set(id, entry);
 			const done = () => {
-				if (analysisInflight.get(id) === job) analysisInflight.delete(id);
+				if (analysisInflight.get(id) === entry) analysisInflight.delete(id);
 			};
 			job.then(done, done);
 		}

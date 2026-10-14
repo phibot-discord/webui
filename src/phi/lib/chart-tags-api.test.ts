@@ -795,6 +795,221 @@ test("after a timeout, renders that don't wait skip the POST until one succeeds"
 	assert.equal(fetches, 3);
 });
 
+test("a waiting lookup during a non-waiting job sends its own POST with the waiting lifetime", async (t) => {
+	resetChartTagVoteMemForTest();
+	t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000_000 });
+	const timeout = t.mock.method(AbortSignal, "timeout", mockedTimeout);
+	const { db, store } = memoryKv();
+	const answers = [deferred<unknown>(), deferred<unknown>()];
+	let fetches = 0;
+	const fetchJson = (_path: string, init?: RequestInit) =>
+		underSignal(answers[fetches++]!.promise, init?.signal);
+	const quick = assert.rejects(
+		tagAnalysisFor(oneSave, {
+			fetchJson,
+			saveRevision: "rev-mixed",
+			db,
+			budgetMs: CHART_TAG_RENDER_BUDGET_MS,
+		}),
+		(err) => isChartTagTimeout(err),
+	);
+	await flush();
+	const waiting = tagAnalysisFor(oneSave, {
+		fetchJson,
+		saveRevision: "rev-mixed",
+		db,
+		budgetMs: 45_000,
+		wait: true,
+	});
+	await flush();
+	assert.equal(fetches, 2);
+	assert.deepEqual(
+		timeout.mock.calls.map((call) => call.arguments[0]),
+		[CHART_TAG_BACKGROUND_MS, 45_000],
+	);
+	// The first POST runs out of its 30 s; the waiting one keeps going
+	t.mock.timers.tick(CHART_TAG_RENDER_BUDGET_MS);
+	await quick;
+	t.mock.timers.tick(CHART_TAG_BACKGROUND_MS - CHART_TAG_RENDER_BUDGET_MS);
+	await flush();
+	// Its cleanup left the waiting job in place, so another waiting render joins it
+	const joined = tagAnalysisFor(oneSave, {
+		fetchJson,
+		saveRevision: "rev-mixed",
+		db,
+		budgetMs: 15_000,
+		wait: true,
+	});
+	await flush();
+	assert.equal(fetches, 2);
+	answers[1]!.resolve(poolResponse(45));
+	assert.equal((await waiting).totalVotes, 45);
+	assert.equal((await joined).totalVotes, 45);
+	assert.ok(store.has(chartTagAnalysisKvKey(chartTagCacheId("rev-mixed"))));
+});
+
+test("a waiting lookup does not take a breaker-skipped job's failure", async () => {
+	resetChartTagVoteMemForTest();
+	let fetches = 0;
+	await assert.rejects(
+		tagAnalysisFor(oneSave, {
+			saveRevision: "rev-down",
+			fetchJson: async () => {
+				fetches += 1;
+				throw new Error("chart-tag 502: bad gateway");
+			},
+		}),
+		/chart-tag 502/,
+	);
+	const fetchJson = async () => {
+		fetches += 1;
+		return poolResponse(12);
+	};
+	const skipped = tagAnalysisFor(oneSave, {
+		fetchJson,
+		saveRevision: "rev-open",
+	});
+	const waiting = tagAnalysisFor(oneSave, {
+		fetchJson,
+		saveRevision: "rev-open",
+		wait: true,
+	});
+	await assert.rejects(skipped, /skipped: recently failed/);
+	assert.equal((await waiting).totalVotes, 12);
+	assert.equal(fetches, 2);
+});
+
+test("a waiting lookup whose own POST fails takes the replaced job's answer", async () => {
+	resetChartTagVoteMemForTest();
+	const answers = [deferred<unknown>(), deferred<unknown>()];
+	let fetches = 0;
+	const fetchJson = () => answers[fetches++]!.promise;
+	const quick = tagAnalysisFor(oneSave, { fetchJson, saveRevision: "rev-any" });
+	await flush();
+	const waiting = tagAnalysisFor(oneSave, {
+		fetchJson,
+		saveRevision: "rev-any",
+		wait: true,
+	});
+	await flush();
+	assert.equal(fetches, 2);
+	// The waiting POST fails first (and trips the breaker); its job still waits on the other
+	answers[1]!.reject(new Error("chart-tag 502: bad gateway"));
+	await flush();
+	const joined = tagAnalysisFor(oneSave, {
+		fetchJson,
+		saveRevision: "rev-any",
+	});
+	await flush();
+	assert.equal(fetches, 2);
+	answers[0]!.resolve(poolResponse(9));
+	assert.equal((await quick).totalVotes, 9);
+	assert.equal((await waiting).totalVotes, 9);
+	assert.equal((await joined).totalVotes, 9);
+});
+
+test("a waiting lookup takes the replaced job's answer inside its budget", async (t) => {
+	resetChartTagVoteMemForTest();
+	t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000_000 });
+	t.mock.method(AbortSignal, "timeout", mockedTimeout);
+	const answers = [deferred<unknown>(), deferred<unknown>()];
+	let fetches = 0;
+	const fetchJson = (_path: string, init?: RequestInit) =>
+		underSignal(answers[fetches++]!.promise, init?.signal);
+	const quick = tagAnalysisFor(oneSave, {
+		fetchJson,
+		saveRevision: "rev-near",
+	});
+	await flush();
+	// Near the peer deadline a waiting render gets as little as 8 s
+	const waiting = tagAnalysisFor(oneSave, {
+		fetchJson,
+		saveRevision: "rev-near",
+		budgetMs: CHART_TAG_RENDER_BUDGET_MS,
+		wait: true,
+	});
+	await flush();
+	assert.equal(fetches, 2);
+	t.mock.timers.tick(5_000);
+	answers[0]!.resolve(poolResponse(9));
+	await flush();
+	t.mock.timers.tick(CHART_TAG_RENDER_BUDGET_MS - 5_000);
+	assert.equal((await waiting).totalVotes, 9);
+	assert.equal((await quick).totalVotes, 9);
+	answers[1]!.resolve(poolResponse(10));
+	await flush();
+});
+
+test("waiting lookups share one POST, and a non-waiting lookup joins it", async () => {
+	resetChartTagVoteMemForTest();
+	// The breaker is open, yet the non-waiting render joins rather than skips
+	await assert.rejects(
+		tagAnalysisFor(oneSave, {
+			saveRevision: "rev-down",
+			fetchJson: async () => {
+				throw new TypeError("fetch failed");
+			},
+		}),
+		TypeError,
+	);
+	const answer = deferred<unknown>();
+	let fetches = 0;
+	const fetchJson = () => {
+		fetches += 1;
+		return answer.promise;
+	};
+	const lookup = (wait: boolean) =>
+		tagAnalysisFor(oneSave, { fetchJson, saveRevision: "rev-share", wait });
+	const lookups = [lookup(true), lookup(true), lookup(false)];
+	answer.resolve(poolResponse(31));
+	const got = await Promise.all(lookups);
+	assert.equal(fetches, 1);
+	assert.deepEqual(
+		got.map((analysis) => analysis.totalVotes),
+		[31, 31, 31],
+	);
+});
+
+test("overlapping POSTs for one save cache the first answer once", async () => {
+	resetChartTagVoteMemForTest();
+	const { db, store } = memoryKv();
+	let writes = 0;
+	const counted = {
+		get: db.get,
+		async set(key: string, value: string, ttlMs?: number) {
+			writes += 1;
+			await db.set(key, value, ttlMs);
+		},
+	};
+	const answers = [deferred<unknown>(), deferred<unknown>()];
+	let fetches = 0;
+	const fetchJson = () => answers[fetches++]!.promise;
+	const quick = tagAnalysisFor(oneSave, {
+		fetchJson,
+		saveRevision: "rev-both",
+		db: counted,
+	});
+	await flush();
+	const waiting = tagAnalysisFor(oneSave, {
+		fetchJson,
+		saveRevision: "rev-both",
+		db: counted,
+		wait: true,
+	});
+	await flush();
+	assert.equal(fetches, 2);
+	answers[0]!.resolve(poolResponse(1));
+	assert.equal((await quick).totalVotes, 1);
+	answers[1]!.resolve(poolResponse(2));
+	assert.equal((await waiting).totalVotes, 1);
+	await flush();
+	assert.equal(writes, 1);
+	const stored = JSON.parse(
+		store.get(chartTagAnalysisKvKey(chartTagCacheId("rev-both")))!,
+	) as { analysis: { totalVotes: number } };
+	assert.equal(stored.analysis.totalVotes, 1);
+});
+
 test("only outages trip the breaker, and it closes on its own", async (t) => {
 	resetChartTagVoteMemForTest();
 	t.mock.timers.enable({ apis: ["Date"], now: 1_000_000 });
