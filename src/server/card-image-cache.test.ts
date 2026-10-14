@@ -172,6 +172,35 @@ test("classic style adds no key part; other styles get their own JPEG and height
 	}
 });
 
+test("leaving P3 out of the SD adds a key part only while it is on", () => {
+	const input = (sdExcludeP3?: boolean) =>
+		cardCacheInput({
+			kind: "b30",
+			userId: "u",
+			saveRevision: "s",
+			locale: "en",
+			paintQuality: "fast",
+			epoch: "",
+			count: 33,
+			notes: {
+				theme: "default",
+				showB30Analysis: true,
+				allowApiUsage: true,
+				b30AvgKind: "all",
+				b30AvgColor: "blue",
+			},
+			tagOn: true,
+			statsOn: true,
+			sdExcludeP3,
+		});
+	const parts = (v?: boolean) => cardCacheParts(input(v), "jpeg");
+	// Cards cached before the option keep their key
+	assert.deepEqual(parts(), parts(false));
+	assert.equal(parts(true).length, parts(false).length + 1);
+	assert.ok(parts(true).includes("sd:xp3:2"));
+	assert.notEqual(cardEtag(parts(true)), cardEtag(parts(false)));
+});
+
 test("the avg key follows the badge mode the card draws", () => {
 	const flag = (notes: {
 		allowApiUsage?: boolean;

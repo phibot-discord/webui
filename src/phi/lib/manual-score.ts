@@ -38,6 +38,13 @@ export function validAcc(v: unknown): v is number {
 	return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 100;
 }
 
+/** A typed accuracy: up to three integer digits and six decimals, 0–100 */
+export function parseAcc(raw: string): number | undefined {
+	if (!/^\d{1,3}(\.\d{0,6})?$/.test(raw)) return;
+	const n = Number(raw);
+	return validAcc(n) ? roundAcc(n) : undefined;
+}
+
 export function validScore(v: unknown): v is number {
 	return (
 		typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 1_000_000

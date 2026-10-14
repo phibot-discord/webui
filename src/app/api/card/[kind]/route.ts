@@ -44,6 +44,7 @@ export async function GET(
 		const count = clampCount(url.searchParams.get("count"));
 		const tags = url.searchParams.get("tags");
 		const stats = url.searchParams.get("stats");
+		const sdP3 = url.searchParams.get("sdp3");
 		const qualityParam = url.searchParams.get("quality");
 		const download = url.searchParams.get("download") === "1";
 		const acceptLanguage = request.headers.get("accept-language");
@@ -61,6 +62,8 @@ export async function GET(
 				qualityParam == null ? undefined : parsePaintQuality(qualityParam),
 			showTagAnalysis: tags === "1" ? true : tags === "0" ? false : undefined,
 			showRecordStats: stats === "1" ? true : stats === "0" ? false : undefined,
+			// "1" leaves P3 out of the SD
+			stddevExcludeP3: sdP3 === "1" ? true : sdP3 === "0" ? false : undefined,
 			download,
 			epoch: url.searchParams.get("epoch") ?? undefined,
 			style: url.searchParams.get("style") ?? undefined,

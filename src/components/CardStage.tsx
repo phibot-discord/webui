@@ -63,6 +63,7 @@ type StageProps = {
 	initialCount: number;
 	tagProfile?: { on: boolean };
 	recordStats?: { on: boolean };
+	stddevExcludeP3?: { on: boolean };
 	initialQuality?: PaintQuality;
 	persist?: boolean;
 	backgrounds?: BackgroundOption[];
@@ -147,6 +148,7 @@ function StageBody({
 	initialCount,
 	tagProfile,
 	recordStats,
+	stddevExcludeP3,
 	initialQuality = "fast",
 	persist = false,
 	backgrounds,
@@ -195,6 +197,10 @@ function StageBody({
 		recordStats?.on ?? true,
 		save((on: boolean) => ({ showRecordStats: on })),
 	);
+	const sdExcludeP3 = useNoteSetting(
+		stddevExcludeP3?.on ?? false,
+		save((on: boolean) => ({ stddevExcludeP3: on })),
+	);
 	const background = useNoteSetting(
 		initialBackground,
 		save((id: string) => ({ cardBackground: id })),
@@ -233,6 +239,9 @@ function StageBody({
 	u.searchParams.set("quality", quality.applied);
 	if (tagProfile) u.searchParams.set("tags", tags.applied ? "1" : "0");
 	if (recordStats) u.searchParams.set("stats", recStats.applied ? "1" : "0");
+	if (stddevExcludeP3) {
+		u.searchParams.set("sdp3", sdExcludeP3.applied ? "1" : "0");
+	}
 	if (styles) u.searchParams.set("style", style.applied);
 	if (song) {
 		u.searchParams.set("chart", song.chart);
@@ -427,6 +436,7 @@ function StageBody({
 					background={persist && backgrounds ? background : undefined}
 					tags={tagProfile ? tags : undefined}
 					recordStats={recordStats ? recStats : undefined}
+					stddevExcludeP3={stddevExcludeP3 ? sdExcludeP3 : undefined}
 					peer={persist && initialPeer ? peer : undefined}
 					rankScope={persist && initialPeer ? rankScope : undefined}
 					rankBandShow={persist && initialPeer ? rankBandShow : undefined}

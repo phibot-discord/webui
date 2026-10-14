@@ -12,6 +12,7 @@ import {
 	equivRksStddev,
 	getB30AnalysisRecords,
 	type RadarCategory,
+	slotsStddev,
 	type TagRadar,
 } from "./b30-analysis";
 import { localizeChartTagLabels, localizeChartTagName } from "./card-i18n";
@@ -156,6 +157,77 @@ test("stddev covers the 30 analysed slots only (population SD)", () => {
 	assert.ok(Math.abs(equivRksStddev(values) - population) < 1e-12);
 	assert.equal(buildRksHistogram(slots).stddev, equivRksStddev(values));
 	assert.equal(equivRksStddev([15]), 0);
+});
+
+test("excluding P3 spreads only the B slots around their own mean", () => {
+	const slots = getB30AnalysisRecords({
+		phi: [
+			record("p1", "IN", 16),
+			record("p2", "AT", 16.2),
+			record("p3", "IN", 16.4),
+		],
+		b19_list: Array.from({ length: 27 }, (_, i) =>
+			record(`b-${i}`, "IN", 15 - i / 40),
+		),
+	});
+	const all = buildRksHistogram(slots);
+	const without = buildRksHistogram(slots, undefined, { excludePhi: true });
+	const best = slots.filter((s) => s.kind === "best").map((s) => s.rks);
+	assert.equal(slots.length, 30);
+	assert.equal(without.stddev, equivRksStddev(best));
+	assert.ok(without.stddev < all.stddev);
+	// Only the SD changes: the bars and the average still cover P1–P3
+	assert.equal(without.average, all.average);
+	assert.equal(without.count, 30);
+	assert.deepEqual(without.slots, all.slots);
+	// Off (or unset) is the SD over all 30 slots
+	assert.equal(buildRksHistogram(slots, undefined, {}).stddev, all.stddev);
+	assert.equal(
+		buildRksHistogram(slots, undefined, { excludePhi: false }).stddev,
+		all.stddev,
+	);
+});
+
+test("the SD without P3 removes the P slots, not their copies in B27", () => {
+	// The same chart as a P slot and as B1
+	const slots = getB30AnalysisRecords({
+		phi: [record("a", "IN", 16.5), record("b", "IN", 16)],
+		b19_list: [
+			record("a", "IN", 16.5),
+			record("b", "IN", 16),
+			record("c", "IN", 15),
+		],
+	});
+	assert.equal(slots.length, 5);
+	assert.equal(
+		slotsStddev(slots, { excludePhi: true }),
+		equivRksStddev([16.5, 16, 15]),
+	);
+	assert.equal(slotsStddev(slots), equivRksStddev([16.5, 16, 16.5, 16, 15]));
+	// The histogram reports the same figure as the header
+	assert.equal(
+		buildRksHistogram(slots, undefined, { excludePhi: true }).stddev,
+		slotsStddev(slots, { excludePhi: true }),
+	);
+});
+
+test("excluding P3 on a list with no P slots changes nothing", () => {
+	const slots = getB30AnalysisRecords({
+		b19_list: Array.from({ length: 27 }, (_, i) =>
+			record(`b-${i}`, "IN", 15 - i / 40),
+		),
+	});
+	assert.equal(
+		buildRksHistogram(slots, undefined, { excludePhi: true }).stddev,
+		buildRksHistogram(slots).stddev,
+	);
+	const onlyPhi = getB30AnalysisRecords({
+		phi: [record("p1", "IN", 16), record("p2", "AT", 16.2)],
+	});
+	assert.equal(
+		buildRksHistogram(onlyPhi, undefined, { excludePhi: true }).stddev,
+		0,
+	);
 });
 
 test("histogram reports population stddev of song equivalent rks", () => {

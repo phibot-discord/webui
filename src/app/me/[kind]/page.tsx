@@ -137,6 +137,9 @@ export default async function KindPage({
 					recordStats={
 						counted ? { on: notes.showRecordStats !== false } : undefined
 					}
+					stddevExcludeP3={
+						kind === "b30" ? { on: notes.stddevExcludeP3 === true } : undefined
+					}
 					backgrounds={kind === "song" ? undefined : backgroundOptions()}
 					initialBackground={knownBackground(notes.cardBackground)}
 					styles={cardStyles(kind)}

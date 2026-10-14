@@ -4,8 +4,8 @@ import { logger } from "@/server/logger";
 import type { Kv } from "@/server/sdk";
 import {
 	buildRksHistogram,
-	equivRksStddev,
 	getB30AnalysisRecords,
+	slotsStddev,
 	type TagAnalysis,
 } from "./b30-analysis";
 import {
@@ -91,7 +91,9 @@ async function b30AnalysisFor(
 ) {
 	if (notes.showB30Analysis === false || nnum !== 33) return null;
 	const t = cardCopy(locale);
-	const histogram = buildRksHistogram(records);
+	const histogram = buildRksHistogram(records, undefined, {
+		excludePhi: notes.stddevExcludeP3 === true,
+	});
 	const showTags = tagAnalysisEnabled(notes);
 	let tagAnalysis: TagAnalysis | null = null;
 	let tagLookupFailed = false;
@@ -154,6 +156,7 @@ export async function b19Card(
 		accMin?: number;
 		locale?: PhiLocale | string;
 		showTagAnalysis?: boolean;
+		stddevExcludeP3?: boolean;
 		notes?: UserNotes;
 		peerDeadline?: number;
 		onExternalWait?: (waiting: boolean) => void;
@@ -163,6 +166,9 @@ export async function b19Card(
 	const notes = { ...(extra.notes ?? (await getNotes(db, userId))) };
 	if (extra.showTagAnalysis != null) {
 		notes.showTagAnalysis = extra.showTagAnalysis;
+	}
+	if (extra.stddevExcludeP3 != null) {
+		notes.stddevExcludeP3 = extra.stddevExcludeP3;
 	}
 	const locale = resolvePhiLocale(extra.locale, notes.locale);
 	const t = cardCopy(locale);
@@ -292,7 +298,10 @@ export async function b19Card(
 		stats,
 		spInfo,
 		locale,
-		rksStddev: equivRksStddev(slots.map((slot) => slot.rks)),
+		// The same figure as the histogram's, with or without P1–P3
+		rksStddev: slotsStddev(slots, {
+			excludePhi: notes.stddevExcludeP3 === true,
+		}),
 		b30Analysis,
 		// A lookup timed out or failed: the server serves this no-store and never caches it
 		renderPartial: missing.length > 0,

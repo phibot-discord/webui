@@ -60,6 +60,7 @@ export function SiteHeader({
 		...(signedIn
 			? [
 					{ href: "/me/b30", match: "/me", label: m.nav.cards, heavy: true },
+					{ href: "/simulate", match: "/simulate", label: m.nav.simulate },
 					{ href: "/account", match: "/account", label: m.nav.account },
 				]
 			: []),

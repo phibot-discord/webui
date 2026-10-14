@@ -213,6 +213,7 @@ export function CardOptions({
 	background,
 	tags,
 	recordStats,
+	stddevExcludeP3,
 	peer,
 	rankScope,
 	rankBandShow,
@@ -231,6 +232,7 @@ export function CardOptions({
 	background?: NoteSetting<string>;
 	tags?: NoteSetting<boolean>;
 	recordStats?: NoteSetting<boolean>;
+	stddevExcludeP3?: NoteSetting<boolean>;
 	peer?: NoteSetting<B30AvgKind>;
 	rankScope?: NoteSetting<RankScope>;
 	rankBandShow?: NoteSetting<RankBandShow>;
@@ -242,6 +244,7 @@ export function CardOptions({
 	const { m } = useI18n();
 	const card = m.card;
 	const waitNoteId = useId();
+	const sdNoteId = useId();
 	const saving = (s?: { pending: boolean }) =>
 		s?.pending ? card.optionsSaving : undefined;
 	const failed = (s?: { failed: boolean }) =>
@@ -400,6 +403,32 @@ export function CardOptions({
 						) : null}
 					</div>
 					{tags?.failed || recordStats?.failed ? (
+						<p className="field-error opt-error" role="alert">
+							{card.saveFailed}
+						</p>
+					) : null}
+				</fieldset>
+			) : null}
+			{stddevExcludeP3 ? (
+				<fieldset className="opt" aria-describedby={sdNoteId}>
+					<legend className="opt-label">
+						{card.stddev}
+						<OptStatus>{saving(stddevExcludeP3)}</OptStatus>
+					</legend>
+					<div className="opt-checks">
+						<label className="opt-check">
+							<input
+								type="checkbox"
+								checked={stddevExcludeP3.value}
+								onChange={(e) => stddevExcludeP3.set(e.target.checked)}
+							/>
+							{card.stddevExcludeP3}
+						</label>
+					</div>
+					<p className="opt-note" id={sdNoteId}>
+						{card.stddevHint}
+					</p>
+					{stddevExcludeP3.failed ? (
 						<p className="field-error opt-error" role="alert">
 							{card.saveFailed}
 						</p>

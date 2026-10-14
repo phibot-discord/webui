@@ -94,6 +94,7 @@ type CardRenderOpts = {
 	paintQuality?: PaintQuality;
 	showTagAnalysis?: boolean;
 	showRecordStats?: boolean;
+	stddevExcludeP3?: boolean;
 	download?: boolean;
 	epoch?: string;
 	style?: string;
@@ -124,6 +125,7 @@ type CardPrep = {
 	paintQuality: PaintQuality;
 	tagOn: boolean;
 	statsOn: boolean;
+	sdExcludeP3: boolean;
 	style: CardStyle;
 	song?: { chart: string; level: SongLevel };
 	notes: Awaited<ReturnType<typeof getNotes>>;
@@ -168,6 +170,9 @@ async function prepareCardCache(
 	notes.cardBackground = knownBackground(notes.cardBackground) || undefined;
 	const tagOn = opts.showTagAnalysis ?? notes.showTagAnalysis !== false;
 	const statsOn = opts.showRecordStats ?? notes.showRecordStats !== false;
+	// Only the B30 list has P slots, so the other cards keep one key whatever this is set to
+	const sdExcludeP3 =
+		kind === "b30" && (opts.stddevExcludeP3 ?? notes.stddevExcludeP3 === true);
 	const style = parseCardStyle(
 		kind,
 		opts.style ?? (isStyledKind(kind) ? notes.cardStyle?.[kind] : undefined),
@@ -192,6 +197,7 @@ async function prepareCardCache(
 		notes,
 		tagOn,
 		statsOn,
+		sdExcludeP3,
 		style,
 		// Leaderboard numbers drift without a save change: re-render a song card daily
 		extra: song
@@ -211,6 +217,7 @@ async function prepareCardCache(
 		paintQuality,
 		tagOn,
 		statsOn,
+		sdExcludeP3,
 		style,
 		song,
 		notes,
@@ -524,6 +531,7 @@ async function buildCardData(
 			mode: kind,
 			locale,
 			showTagAnalysis: prep.tagOn,
+			stddevExcludeP3: prep.sdExcludeP3,
 			notes,
 			peerDeadline,
 			onExternalWait,

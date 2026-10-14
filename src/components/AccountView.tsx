@@ -3,6 +3,7 @@
 import { linkDiscord } from "@/auth-actions";
 import { LinkDiscordButton } from "@/components/LinkDiscordButton";
 import { SignInStatus } from "@/components/landing/SignIn";
+import { SessionTokenRow } from "@/components/SessionTokenRow";
 import { useI18n } from "@/i18n/provider";
 
 export type AccountLinkError = "discord_taken" | "link_expired" | "link_failed";
@@ -10,11 +11,13 @@ export type AccountLinkError = "discord_taken" | "link_expired" | "link_failed";
 export function AccountView({
 	viaTap,
 	tapLinked,
+	hasToken,
 	linkError,
 	linkedOk,
 }: {
 	viaTap: boolean;
 	tapLinked: boolean;
+	hasToken: boolean;
 	linkError?: AccountLinkError;
 	linkedOk: boolean;
 }) {
@@ -60,6 +63,7 @@ export function AccountView({
 						</form>
 					) : null}
 				</li>
+				<SessionTokenRow hasToken={hasToken} />
 			</ul>
 		</section>
 	);

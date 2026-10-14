@@ -20,6 +20,8 @@ export type CardImageCacheInput = {
 	analysisFlag: string;
 	tagFlag: string;
 	statsFlag: string;
+	/** Set only while P3 is out of the SD, so cards cached before the option keep their key */
+	sdFlag?: string;
 	avgFlag: string;
 	background: string;
 	style: string;
@@ -48,6 +50,7 @@ export function cardCacheInput(args: {
 	>;
 	tagOn: boolean;
 	statsOn: boolean;
+	sdExcludeP3?: boolean;
 	style?: string;
 	extra?: string;
 }): CardImageCacheInput {
@@ -65,6 +68,8 @@ export function cardCacheInput(args: {
 		analysisFlag: notes.showB30Analysis === false ? "a0" : "a1",
 		tagFlag: args.tagOn ? "t1" : "t0",
 		statsFlag: args.statsOn ? "s1" : "s0",
+		// :2 because cards cached under the first version of this option carried a header SD that ignored it
+		sdFlag: args.sdExcludeP3 ? "sd:xp3:2" : undefined,
 		avgFlag: avgFlag(notes),
 		background: notes.cardBackground?.trim() || "random",
 		style: args.style || "classic",
@@ -107,6 +112,7 @@ export function cardCacheParts(
 		input.analysisFlag,
 		input.tagFlag,
 		input.statsFlag,
+		...(input.sdFlag ? [input.sdFlag] : []),
 		input.avgFlag,
 		input.background || "random",
 		...(input.style && input.style !== "classic"

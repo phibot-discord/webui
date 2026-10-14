@@ -25,9 +25,8 @@ import {
 	type ManualRecord,
 	type ManualSaveData,
 	manualRecordKey,
+	parseAcc,
 	rankingScoreOf,
-	roundAcc,
-	validAcc,
 	validScore,
 } from "@/phi/lib/manual-score";
 
@@ -43,12 +42,6 @@ type Row = {
 };
 
 type Field = "acc" | "score";
-
-function parseAcc(raw: string): number | undefined {
-	if (!/^\d{1,3}(\.\d{0,6})?$/.test(raw)) return;
-	const n = Number(raw);
-	return validAcc(n) ? roundAcc(n) : undefined;
-}
 
 function parseScore(raw: string): number | undefined | null {
 	if (raw === "") return null;
