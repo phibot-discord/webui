@@ -16,7 +16,7 @@ type ServerKind = "cn" | "gb";
 type TapQrPhase<X extends string> = "idle" | "starting" | "qr" | "scanned" | X;
 type TapWaitData = Awaited<ReturnType<typeof readJsonWithTapWait>>["data"];
 
-/** onPoll returns true once it has handled the poll result */
+/** onPoll returns true once the poll result is final: polling stops and the phase holds busyPhase */
 export function useTapQr<X extends string>({
 	base,
 	failedText,
@@ -86,18 +86,27 @@ export function useTapQr<X extends string>({
 
 	useEffect(() => {
 		if (phase !== "qr" && phase !== "scanned") return;
+		const ctrl = new AbortController();
 		let dead = false;
 		let busy = false;
 		const poll = async () => {
 			if (dead || busy || document.hidden) return;
 			busy = true;
 			try {
-				const res = await fetch(`${base}/poll`, { method: "POST" });
-				const { httpStatus, data } = await readJsonWithTapWait(res, () =>
-					setWaitingTap(true),
-				);
+				const res = await fetch(`${base}/poll`, {
+					method: "POST",
+					signal: ctrl.signal,
+				});
+				const { httpStatus, data } = await readJsonWithTapWait(res, () => {
+					if (!dead) setWaitingTap(true);
+				});
 				if (dead) return;
-				if (onPollRef.current(data, { setPhase, setWaitingTap })) return;
+				if (onPollRef.current(data, { setPhase, setWaitingTap })) {
+					dead = true;
+					setWaitingTap(false);
+					setPhase((p) => (p === "qr" || p === "scanned" ? busyPhase : p));
+					return;
+				}
 				if (data.status === "scanned") setPhase("scanned");
 				if (tapWaitFailed(res, data)) {
 					fail(
@@ -123,12 +132,15 @@ export function useTapQr<X extends string>({
 		void poll();
 		return () => {
 			dead = true;
+			ctrl.abort();
 			window.clearInterval(id);
 			document.removeEventListener("visibilitychange", onVisible);
 		};
-	}, [phase, base, failedText, fail, m.errors.tapapi_unavailable]);
+	}, [phase, base, busyPhase, failedText, fail, m.errors.tapapi_unavailable]);
 
-	const busy = phase === "starting" || phase === busyPhase || waitingTap;
+	// A marker from a poll that was already torn down can land after cancel or expiry; idle never waits
+	const tapWait = waitingTap && phase !== "idle";
+	const busy = phase === "starting" || phase === busyPhase || tapWait;
 	const showQr = phase === "qr" || phase === "scanned";
 
 	async function startQr() {
@@ -187,7 +199,7 @@ export function useTapQr<X extends string>({
 		openUrl,
 		qrSrc,
 		remain,
-		waitingTap,
+		waitingTap: tapWait,
 		setWaitingTap,
 		touch,
 		busy,

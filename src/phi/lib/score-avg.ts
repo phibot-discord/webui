@@ -13,6 +13,7 @@ import {
 	fmtTopPercent,
 	LB_ROW_BUDGET_MS,
 	type AccRankRow as LbRankRow,
+	LeaderboardError,
 	peekRankRows,
 	placeUser,
 	type RankDim,
@@ -313,7 +314,7 @@ function avgKey(name: string, params: object) {
 }
 
 // Resolves to null on any failure, never rejects
-function memo<P extends object, R>(
+export function memo<P extends object, R>(
 	name: string,
 	fn: (params: P) => Promise<R | null>,
 ): (params: P) => Promise<R | null> {
@@ -321,8 +322,10 @@ function memo<P extends object, R>(
 		const key = avgKey(name, params);
 		const hit = avgMem.get(key);
 		if (hit) return hit as Promise<R | null>;
+		let busy = false;
 		const value: Promise<R | null> = fn(params)
 			.catch((err) => {
+				busy = err instanceof LeaderboardError && err.code === "busy";
 				logger.warn(
 					`${name} failed: ${err instanceof Error ? err.message : err}`,
 				);
@@ -330,7 +333,9 @@ function memo<P extends object, R>(
 			})
 			.then((res) => {
 				if (res == null && avgMem.peek(key) === value) {
-					avgMem.set(key, Promise.resolve(null), AVG_FAIL_TTL_MS);
+					// A full local queue says nothing about phib19: the next render asks again
+					if (busy) avgMem.delete(key);
+					else avgMem.set(key, Promise.resolve(null), AVG_FAIL_TTL_MS);
 				}
 				return res;
 			});

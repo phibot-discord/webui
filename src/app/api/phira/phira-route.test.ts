@@ -115,3 +115,56 @@ test("a 4/1 special has no constant but its pack is piped from 4-1/", async () =
 		server.close();
 	}
 });
+
+test("a quote or backslash in a 4/1 id cannot break the download name", async () => {
+	const id = 'Quote"Back\\Slash.Test';
+	const manifest = {
+		v: 1,
+		songs: [
+			{
+				id,
+				song: "Quote",
+				charts: { SP: { label: "?", charter: "x", notes: 1 } },
+			},
+		],
+	};
+	const server = createServer((req, res) => {
+		const path = decodeURIComponent(req.url ?? "");
+		if (path === "/4-1/index.json") {
+			res.end(JSON.stringify(manifest));
+			return;
+		}
+		if (path === `/4-1/phira/SP/${id}-SP.pez`) {
+			res.end(Buffer.alloc(16, 1));
+			return;
+		}
+		res.statusCode = 404;
+		res.end();
+	});
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const { port } = server.address() as { port: number };
+	const env = { ...process.env };
+	process.env.CLOUDFLARE_R2_PUBLIC_BASE = `http://127.0.0.1:${port}`;
+	process.env.CLOUDFLARE_R2_BUCKET = "off";
+	const { resetFoolsForTest } = await import("@/server/fools");
+	resetFoolsForTest();
+	try {
+		const { GET } = await import("./route");
+		const res = await GET(
+			new Request(
+				`http://localhost/api/phira?id=${encodeURIComponent(id)}&level=SP`,
+			),
+		);
+		assert.equal(res.status, 200);
+		assert.equal(
+			res.headers.get("content-disposition"),
+			`attachment; filename="QuoteBackSlash.Test-SP.pez"; filename*=UTF-8''Quote%22Back%5CSlash.Test-SP.pez`,
+		);
+		await res.arrayBuffer();
+	} finally {
+		process.env = env;
+		resetFoolsForTest();
+		server.closeAllConnections();
+		server.close();
+	}
+});

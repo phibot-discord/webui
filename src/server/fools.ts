@@ -1,10 +1,13 @@
 import { FOOLS_PREFIX } from "@/lib/assets";
+import { withDotZero } from "@/phi/lib/get-info";
 import {
 	PHIRA_LEVELS,
 	type PhiraLevel,
 	phiraPackFile,
 	phiraPackKey,
 } from "@/phi/lib/phira";
+import type { AliasIndex } from "./aliases";
+import { runInBackground } from "./background";
 import type { ChartCell, ChartSummary } from "./charts";
 import { logger } from "./logger";
 import { fetchR2Object, r2Ready } from "./r2";
@@ -46,7 +49,7 @@ function text(v: unknown): string {
 	return typeof v === "string" ? v : "";
 }
 
-/** One bad song or chart is skipped, not the whole manifest */
+/** One bad song or chart is skipped, not the whole manifest. Ids get the catalog's `.0` */
 export function parseFoolsManifest(raw: unknown): FoolsSong[] {
 	const body = raw as { v?: unknown; songs?: unknown } | null;
 	if (!body || typeof body !== "object" || body.v !== 1) return [];
@@ -74,7 +77,7 @@ export function parseFoolsManifest(raw: unknown): FoolsSong[] {
 		}
 		if (!id || !song || !Object.keys(charts).length) continue;
 		out.push({
-			id,
+			id: withDotZero(id),
 			song,
 			composer: text(r.composer),
 			jacket: r.jacket === true,
@@ -101,10 +104,7 @@ async function read(): Promise<FoolsSong[] | undefined> {
 	}
 }
 
-/** The manifest's songs, from memory for 5 min. A failed read keeps the last good list and asks again in a minute */
-export function loadFools(): Promise<FoolsSong[]> {
-	if (cached && Date.now() < cached.until) return Promise.resolve(cached.songs);
-	if (!r2Ready()) return Promise.resolve([]);
+function refresh(): Promise<FoolsSong[]> {
 	inflight ??= read()
 		.catch((err: unknown) => {
 			logger.warn(
@@ -122,6 +122,15 @@ export function loadFools(): Promise<FoolsSong[]> {
 			inflight = undefined;
 		});
 	return inflight;
+}
+
+/** The manifest's songs, from memory for 5 min; after that the old list is served while one read refreshes it, so only a cold start waits. A failed read keeps the last good list and asks again in a minute */
+export function loadFools(): Promise<FoolsSong[]> {
+	if (cached && Date.now() < cached.until) return Promise.resolve(cached.songs);
+	if (!r2Ready()) return Promise.resolve([]);
+	if (!cached) return refresh();
+	if (!inflight) runInBackground(refresh());
+	return Promise.resolve(cached.songs);
 }
 
 function bare(id: string): string {
@@ -147,7 +156,10 @@ export async function foolsPack(
 }
 
 /** Catalog rows with difficulty 0 and the label as the third cell element: they can be found and downloaded, not scored */
-export function foolsSummaries(songs: readonly FoolsSong[]): ChartSummary[] {
+export function foolsSummaries(
+	songs: readonly FoolsSong[],
+	aliases?: AliasIndex["byId"],
+): ChartSummary[] {
 	return songs.map((s) => {
 		const charts: ChartSummary["charts"] = {};
 		for (const level of PHIRA_LEVELS) {
@@ -157,6 +169,13 @@ export function foolsSummaries(songs: readonly FoolsSong[]): ChartSummary[] {
 				charts[level] = cell;
 			}
 		}
-		return { id: s.id, song: s.song, composer: s.composer, charts };
+		const nicks = aliases?.get(s.id);
+		return {
+			id: s.id,
+			song: s.song,
+			composer: s.composer,
+			...(nicks?.length ? { aliases: nicks.map((a) => a.text) } : {}),
+			charts,
+		};
 	});
 }

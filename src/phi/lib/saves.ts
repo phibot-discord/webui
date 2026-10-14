@@ -74,6 +74,12 @@ function rememberRegion(userId: string, global: boolean) {
 	evictOldest(sessionRegion, SESSION_REGION_MAX);
 }
 
+// The region a blob was saved under, read off its head: updateSave writes `session` then `global`
+function blobRegion(raw: string | undefined): boolean | undefined {
+	const m = /^\{"session":"[^"]*","global":(true|false)/.exec(raw ?? "");
+	return m ? m[1] === "true" : undefined;
+}
+
 export function asSessionToken(raw: unknown): string | undefined {
 	if (typeof raw !== "string" || !raw) return;
 	const trimmed = raw.replace(/\s/g, "");
@@ -103,7 +109,7 @@ export async function getToken(
 	return token;
 }
 
-// getToken with a 10 s memo, card route only; misses are not remembered
+// getToken with a 10 s memo, for the card route and public share views; misses are not remembered
 export async function getBoundToken(
 	rt: PhiRuntime,
 	userId: string,
@@ -272,13 +278,20 @@ async function updateSaveFor(
 	const hot =
 		mem?.rev && Date.now() - mem.kvAt < SAVE_REV_TRUST_MS ? mem : undefined;
 	const savedJob = hot ? undefined : quiet(readSaveRaw(db, token));
-	const preferred = opts.global ?? sessionRegion.get(userId) ?? false;
+	const known =
+		opts.global ?? sessionRegion.get(userId) ?? blobRegion(mem?.raw);
+	const preferred = known ?? false;
 	let user: InstanceType<PhiRuntime["PhigrosUser"]>;
 	try {
 		user = await fetchSaveInfo(rt, token, preferred);
 	} catch (err) {
-		if (opts.global != null || isTapApiFailure(err)) throw err;
-		user = await fetchSaveInfo(rt, token, !preferred);
+		// Only a guessed region tries the other host when the first one is down
+		if (opts.global != null || (known != null && isTapApiFailure(err)))
+			throw err;
+		user = await fetchSaveInfo(rt, token, !preferred).catch((other) => {
+			// The other host rejecting the token says nothing; the first one was down
+			throw isTapApiFailure(err) && !isTapApiFailure(other) ? err : other;
+		});
 	}
 	rememberRegion(userId, user.global);
 	if (await bannedJob) throw new Error("This sessionToken is banned.");

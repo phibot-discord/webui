@@ -33,6 +33,10 @@ export class TtlLru<V> {
 		evictOldest(this.map, this.max);
 	}
 
+	delete(key: string) {
+		this.map.delete(key);
+	}
+
 	clear() {
 		this.map.clear();
 	}

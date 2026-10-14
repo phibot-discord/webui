@@ -17,12 +17,14 @@ export function BindPanel() {
 	const router = useRouter();
 	const ids = useId();
 	const [token, setToken] = useState("");
+	const [qrBound, setQrBound] = useState(false);
 	const qr = useTapQr({
 		base: "/api/bind",
 		failedText: m.bind.failed,
 		busyPhase: "binding",
 		onPoll: (data) => {
 			if (data.status !== "bound") return false;
+			setQrBound(true);
 			persistCardReload();
 			router.replace("/me/b30");
 			return true;
@@ -82,11 +84,14 @@ export function BindPanel() {
 
 	const typed = token.trim();
 	const tokenOk = new RegExp(`^[a-zA-Z0-9]{${TOKEN_LEN}}$`).test(typed);
-	const qrSaid = waitingTap
-		? m.bind.waitingTap
-		: phase === "scanned"
-			? m.bind.scanned
-			: "";
+	const tokenBinding = phase === "binding" && !qrBound;
+	const qrSaid = qrBound
+		? m.bind.binding
+		: waitingTap
+			? m.bind.waitingTap
+			: phase === "scanned"
+				? m.bind.scanned
+				: "";
 	const tokenCount = (
 		tokenOk
 			? m.bind.tokenReady
@@ -120,7 +125,12 @@ export function BindPanel() {
 			<Announce>{qrSaid}</Announce>
 
 			<div className="bind-methods">
-				<TapQrColumn qr={qr} titleId={qrTitleId} title={m.bind.qrTitle} />
+				<TapQrColumn
+					qr={qr}
+					titleId={qrTitleId}
+					title={m.bind.qrTitle}
+					signingLabel={qrBound ? m.bind.binding : undefined}
+				/>
 				<section className="bind-token-col" aria-labelledby={tokenTitleId}>
 					<p className="bind-or" aria-hidden="true">
 						{m.bind.or}
@@ -155,10 +165,10 @@ export function BindPanel() {
 							className="btn btn-ghost"
 							type="submit"
 							aria-disabled={busy || !tokenOk || undefined}
-							aria-busy={phase === "binding" || undefined}
+							aria-busy={tokenBinding || undefined}
 							aria-describedby={tokenCountId}
 						>
-							{phase === "binding"
+							{tokenBinding
 								? waitingTap
 									? m.bind.waitingTap
 									: m.bind.binding

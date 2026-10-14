@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import JSZip from "jszip";
-import { packPhiraChart } from "./phira";
+import { CHART_LEVELS } from "@/lib/chart-catalog";
+import { PHIRA_LEVELS, packPhiraChart } from "./phira";
 
 test("pez contains the chart, jacket, audio, and info.txt", async () => {
 	const bytes = await packPhiraChart({
@@ -33,4 +34,9 @@ test("pez contains the chart, jacket, audio, and info.txt", async () => {
 		(await zip.file("Stasis.Maozon.png")!.async("uint8array")).length,
 		3,
 	);
+});
+
+test("the client's level list matches the Phira levels it names pack files with", () => {
+	// AssetBrowser matches pack files to songs with CHART_LEVELS, so JSZip stays out of the page
+	assert.deepEqual([...CHART_LEVELS], [...PHIRA_LEVELS]);
 });

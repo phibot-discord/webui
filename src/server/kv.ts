@@ -230,6 +230,8 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 	const knownMissing = new Map<string, number>();
 	const writeTail = new Map<string, Promise<unknown>>();
 	const readInflight = new Map<string, Promise<Envelope | undefined>>();
+	/** Keys deleted while a remote read of them was in flight; cleared when that read ends */
+	const deletedMidRead = new Set<string>();
 
 	const evictOldest = (map: Map<string, unknown>, max: number) => {
 		while (map.size > max) {
@@ -312,6 +314,8 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 			const newer = overlay.get(key);
 			if (newer?.write && newer.at >= startedAt && alive(newer.env))
 				return newer.env;
+			// So is a delete: keep its miss marker and do not cache the old copy again
+			if (deletedMidRead.has(key)) return undefined;
 			if (!raw) return undefined;
 			const envl = parseEnvelope(raw);
 			// No DELETE: Cloudflare drops it at its expiration_ttl, and a DELETE could land after a newer write
@@ -323,7 +327,10 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 			clearMiss(key);
 			if (!BIND_KEY.test(key)) remember(key, envl, false);
 			return envl;
-		})().finally(() => readInflight.delete(key));
+		})().finally(() => {
+			readInflight.delete(key);
+			deletedMidRead.delete(key);
+		});
 		readInflight.set(key, job);
 		return job;
 	};
@@ -375,9 +382,13 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 		const flat = keys.flat().filter(Boolean);
 		let n = 0;
 		for (const key of flat) {
-			forget(key);
-			markMiss(key);
-			await enqueue(key, () => remote.delRaw(key));
+			// Queued behind earlier writes, so one still pending cannot re-cache the key afterwards
+			await enqueue(key, () => {
+				forget(key);
+				markMiss(key);
+				if (readInflight.has(key)) deletedMidRead.add(key);
+				return remote.delRaw(key);
+			});
 			n += 1;
 		}
 		return n;

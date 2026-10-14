@@ -142,6 +142,49 @@ for (const [label, before] of [
 	});
 }
 
+for (const key of ["phi:qrbind:u", "phi:save:tk"]) {
+	test(`a delete while a read of ${key} is in flight does not bring the old value back`, async () => {
+		const { remote, data } = fakeRemote();
+		data.set(key, JSON.stringify({ d: "old" }));
+		const { store } = createKv(remote);
+		const release = gateNextRead(remote);
+		const reading = store.get(key);
+		await store.del(key);
+		const joining = store.get(key);
+		release();
+		assert.equal(await reading, null, "the read finished after the delete");
+		assert.equal(await joining, null);
+		assert.equal(await store.get(key), null);
+		assert.equal(await store.set(key, "new", { nx: true }), "OK");
+		assert.equal(await store.get(key), "new");
+	});
+}
+
+test("a delete issued while a write is still queued leaves the key deleted", async () => {
+	const { remote, data } = fakeRemote();
+	const { store } = createKv(remote);
+	const writing = store.set("phi:qrbind:u", "1", { ttlMs: 120_000 });
+	await store.del("phi:qrbind:u");
+	await writing;
+	assert.equal(data.has("phi:qrbind:u"), false);
+	assert.equal(await store.get("phi:qrbind:u"), null);
+});
+
+test("a delete that arrives during an nx claim applies after it", async () => {
+	const { remote, data } = fakeRemote();
+	data.set("phi:qrbind:u", JSON.stringify({ d: "1" }));
+	const { store } = createKv(remote);
+	const release = gateNextRead(remote);
+	const claiming = store.set("phi:qrbind:u", "2", { nx: true });
+	const deleting = store.del("phi:qrbind:u");
+	release();
+	assert.equal(await claiming, null, "the lock was held when the claim ran");
+	await deleting;
+	assert.equal(data.has("phi:qrbind:u"), false);
+	assert.equal(await store.get("phi:qrbind:u"), null);
+	assert.equal(await store.set("phi:qrbind:u", "3", { nx: true }), "OK");
+});
+
 test("a stale expired copy seen by another instance does not delete a newer write", async () => {
 	const { remote, data } = fakeRemote();
 	const stale: RemoteKv = {

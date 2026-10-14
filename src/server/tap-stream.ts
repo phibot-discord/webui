@@ -12,10 +12,13 @@ export function tapWaitNdjson(
 	},
 ): Response {
 	const encoder = new TextEncoder();
+	// A client that aborts mid-stream (a QR poll on cancel) cancels it; the work still finishes, unheard
+	let gone = false;
 	const stream = new ReadableStream<Uint8Array>({
 		async start(controller) {
 			await withDiscordUid(userId, async () => {
 				const send = (obj: unknown) => {
+					if (gone) return;
 					controller.enqueue(encoder.encode(`${JSON.stringify(obj)}\n`));
 				};
 				try {
@@ -28,9 +31,12 @@ export function tapWaitNdjson(
 					logger.error("tap-wait failed", err);
 					send(fallback);
 				} finally {
-					controller.close();
+					if (!gone) controller.close();
 				}
 			});
+		},
+		cancel() {
+			gone = true;
 		},
 	});
 	return new Response(stream, {

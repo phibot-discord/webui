@@ -93,8 +93,10 @@ export type LbDeps = {
 
 type KvLike = Pick<Kv, "get" | "set">;
 
+/** "busy": this instance's own queue is full; phib19 wasn't asked, so nothing is cached or tripped */
 export type LeaderboardErrorCode =
 	| "breaker"
+	| "busy"
 	| "network"
 	| "upstream"
 	| "bad_request"
@@ -186,7 +188,7 @@ export function slotGate(limit: number, maxWaiting = MAX_WAITING) {
 	return async <T>(job: () => Promise<T>): Promise<T> => {
 		if (active < limit) active++;
 		else if (waiting.length >= maxWaiting) {
-			throw new LeaderboardError("breaker", "leaderboard queue full");
+			throw new LeaderboardError("busy", "leaderboard queue full");
 		} else await new Promise<void>((resolve) => waiting.push(resolve));
 		try {
 			return await job();
@@ -567,11 +569,14 @@ function shared<T>(key: string, run: () => Promise<T>): Promise<T> {
 	};
 	job.then(done, (err) => {
 		const code = err instanceof LeaderboardError ? err.code : "upstream";
-		failMem.set(
-			key,
-			{ code, message: err instanceof Error ? err.message : String(err) },
-			code === "unsupported" ? LB_OFF_MS : LB_BREAKER_MS,
-		);
+		// A full local queue says nothing about phib19: the next render asks again
+		if (code !== "busy") {
+			failMem.set(
+				key,
+				{ code, message: err instanceof Error ? err.message : String(err) },
+				code === "unsupported" ? LB_OFF_MS : LB_BREAKER_MS,
+			);
+		}
 		done();
 	});
 	return job;
@@ -1196,7 +1201,11 @@ export async function leaderboardJson(
 		};
 	} catch (err) {
 		logger.warn(`leaderboard api: ${err instanceof Error ? err.message : err}`);
-		return { status: 503, body: { error: "upstream_unavailable" } };
+		const busy = err instanceof LeaderboardError && err.code === "busy";
+		return {
+			status: 503,
+			body: { error: busy ? "upstream_busy" : "upstream_unavailable" },
+		};
 	}
 }
 

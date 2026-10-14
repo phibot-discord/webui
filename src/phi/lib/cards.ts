@@ -101,6 +101,7 @@ async function b30AnalysisFor(
 				saveRevision: saveIdentity(save.saveInfo),
 				db,
 				budgetMs: tagBudgetMs,
+				wait: notes.peerWait === true,
 			});
 			tagAnalysis = localizeChartTagLabels(
 				await (external ? external.track(lookup) : lookup),
