@@ -21,7 +21,7 @@
 	},
 	"dependencies": {
 		"@phosphor-icons/react": "^2.1.10",
-		"@takumi-rs/core": "2.15.1",
+		"@takumi-rs/core": "2.15.2",
 		"@vercel/analytics": "^2.0.1",
 		"art-template": "^4.13.4",
 		"jszip": "^3.10.2",
@@ -32,7 +32,7 @@
 		"react": "^19.3.0",
 		"react-dom": "^19.3.0",
 		"sharp": "^0.35.5",
-		"takumi-js": "^2.15.1",
+		"takumi-js": "^2.15.2",
 		"tsx": "^4.23.15",
 		"undici": "^8.11.2",
 		"yaml": "^2.9.1"

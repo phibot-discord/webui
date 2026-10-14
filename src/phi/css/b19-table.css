@@ -1358,6 +1358,7 @@ body {
 	font-size: 12px;
 	line-height: 14px;
 	letter-spacing: 0.14em;
+	white-space: nowrap;
 	text-transform: uppercase;
 	color: var(--tbl-accent);
 	border: 1px solid rgba(79, 210, 245, 0.6);
