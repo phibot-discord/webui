@@ -13,10 +13,11 @@ import {
 } from "@/phi/lib/info-file";
 import { applyPhiVersion } from "@/phi/lib/version";
 import { runInBackground } from "./background";
-import { loadFools } from "./fools";
+import { type FoolsSong, loadFools } from "./fools";
 import { logger } from "./logger";
 import { assetsDir } from "./paths";
 import { fetchR2Object, r2Ready } from "./r2";
+import { withTimeout } from "./render-lock";
 import { mountBytes } from "./vfs";
 
 export const INFO_STATE_KEY = "_sync/info.json";
@@ -86,6 +87,14 @@ let staged:
 const MAX_INFO_TRIES = 5;
 const PARTIAL_RETRY_EVERY = 10;
 const PARTIAL = "+partial";
+/** How long a cold start waits for the 4/1 set before the catalog counts as ready */
+const FOOLS_COLD_WAIT_MS = 3_000;
+/** Until the first 4/1 read settles, `getill` sends a special to its SP (or normal) jacket; `late`: a cold start stopped waiting for it */
+let foolsRead: "no" | "reading" | "late" | "yes" = "no";
+/** `performance.now()` when a first 4/1 read that outlasted the cold start's wait landed */
+let foolsLateAt = Number.NEGATIVE_INFINITY;
+/** `loadFools`, or a test's stand-in */
+let foolsLoader: () => Promise<FoolsSong[]> = loadFools;
 
 /** Revision of the mounted info files; moves before `getInfo` re-parses them */
 export function catalogRevision(): string {
@@ -109,7 +118,9 @@ export function onCatalogReload(fn: () => void): void {
 	reloadListeners.add(fn);
 }
 
-export function resetSongInfoForTest() {
+export function resetSongInfoForTest(
+	fools: () => Promise<FoolsSong[]> = loadFools,
+) {
 	gitRevision = BUNDLED;
 	syncLevelsSha = undefined;
 	kvLevelsSha = undefined;
@@ -120,6 +131,9 @@ export function resetSongInfoForTest() {
 	checkedAt = 0;
 	inflight = undefined;
 	staged = undefined;
+	foolsRead = "no";
+	foolsLateAt = Number.NEGATIVE_INFINITY;
+	foolsLoader = fools;
 }
 
 function applyRevision(
@@ -418,21 +432,50 @@ export async function applyKvLevels(
 }
 
 /** Songs whose 4/1 jackets are in R2 get `getill` paths under `4-1/`; a failed read keeps the last set */
-async function refreshFools(): Promise<void> {
+async function refreshFools(load: () => Promise<FoolsSong[]>): Promise<void> {
 	try {
-		const songs = await loadFools();
+		const songs = await load();
 		getInfo.setFools(songs.filter((s) => s.jacket).map((s) => s.id));
 	} catch (err) {
 		logger.warn(
 			`4-1 jackets skipped: ${err instanceof Error ? err.message : err}`,
 		);
+	} finally {
+		if (foolsRead === "late") foolsLateAt = performance.now();
+		foolsRead = "yes";
 	}
+}
+
+/** The first read (a cold start) is waited for, up to `waitMs`, so the first cards already get 4/1 jackets; later ones, or one past that, land in the background */
+export async function syncFools(
+	load = foolsLoader,
+	waitMs = FOOLS_COLD_WAIT_MS,
+): Promise<void> {
+	const first = foolsRead !== "yes";
+	if (foolsRead === "no") foolsRead = "reading";
+	const job = refreshFools(load);
+	runInBackground(job);
+	if (!first) return;
+	// `job` never rejects: only the wait running out lands here
+	await withTimeout(job, waitMs, "4-1 set").catch((err) => {
+		if (foolsRead === "reading") foolsRead = "late";
+		logger.warn(
+			`${err instanceof Error ? err.message : err}; it lands in the background`,
+		);
+	});
+}
+
+/** The first 4/1 read outlasted the cold start's wait and was still out at some point since `since` (a `performance.now()`): a card whose jackets were resolved in that time may show a special's SP jacket, so it is not cached */
+export function foolsPending(since: number): boolean {
+	return foolsRead === "late" || foolsLateAt > since;
 }
 
 async function refresh(): Promise<void> {
 	const now = Date.now();
 	const skipRemote = initedCommit != null && now - checkedAt < CHECK_MS;
 	if (!skipRemote) {
+		// Read alongside the catalog files; only the first refresh waits for it
+		const fools = syncFools();
 		// KV first: a notesInfo.json downloaded after this read is at least as new as its csv
 		const kv = await readKvInfoFile();
 		let hydrated: HydrateResult | undefined;
@@ -463,8 +506,7 @@ async function refresh(): Promise<void> {
 			}
 		}
 		if (kv) await applyKvLevels(kv, hydrated);
-		// Off the critical path: until it lands a 4/1 jacket just takes its `original_ill/SP/` copy
-		runInBackground(refreshFools());
+		await fools;
 		checkedAt = now;
 	}
 	await reloadCatalog();

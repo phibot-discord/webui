@@ -58,3 +58,49 @@ test("getill sends a listed 4/1 special to its own jackets, and only while it is
 		getInfo.setFools([]);
 	}
 });
+
+test("getill gives an id without .0 the same path as the catalog id, in every tree", async () => {
+	await getInfo.init(
+		assets({
+			"spinfo.json": JSON.stringify({
+				"Special.One": { song: "Special", chapter: "SP", chart: {} },
+			}),
+		}),
+	);
+	const root = getInfo.originalIll;
+	assert.equal(
+		getInfo.getill("Igallta.SeURa", "low"),
+		`${root}/illLow/Igallta.SeURa.png`,
+	);
+	assert.equal(
+		getInfo.getill("Special.One", "common"),
+		`${root}/SP/Special.One.png`,
+	);
+	// A special the manifest lists that spinfo.json no longer has
+	getInfo.setFools(["Special.One", "Retribution ~ Cycle of Redemption ~"]);
+	try {
+		assert.equal(
+			getInfo.getill("Special.One", "low"),
+			`${root}/4-1/illLow/Special.One.png`,
+		);
+		assert.equal(
+			getInfo.getill("Special.One", "low"),
+			getInfo.getill("Special.One.0", "low"),
+		);
+		// A save background with no catalog id falls back to its name
+		assert.equal(
+			getInfo.getBackground("Retribution ~ Cycle of Redemption ~"),
+			`${root}/4-1/ill/Retribution ~ Cycle of Redemption ~.png`,
+		);
+		assert.equal(
+			getInfo.getBackground("Special"),
+			`${root}/4-1/ill/Special.One.png`,
+		);
+	} finally {
+		getInfo.setFools([]);
+	}
+	assert.equal(
+		getInfo.getBackground("Not.A.Song"),
+		`${root}/ill/Not.A.Song.png`,
+	);
+});

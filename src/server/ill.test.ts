@@ -50,18 +50,65 @@ test("songIllPath points at the R2 tree without looking on disk", () => {
 		"/no/local/original_ill/illBlur/Credits.Frums.png",
 	);
 	assert.equal(
-		songIllPath(root, "Introduction.0", "blur", true),
+		songIllPath(root, "Credits.Frums.0", "low", "normal"),
+		"/no/local/original_ill/illLow/Credits.Frums.png",
+	);
+	assert.equal(
+		songIllPath(root, "Introduction.0", "blur", "sp"),
 		"/no/local/original_ill/SP/Introduction.png",
 	);
 	// A 4/1 special has all three sizes, where SP only ever had the full one
 	assert.equal(
-		songIllPath(root, "Oblivion.Daily.0", "low", true, true),
+		songIllPath(root, "Oblivion.Daily.0", "low", "fools"),
 		"/no/local/original_ill/4-1/illLow/Oblivion.Daily.png",
 	);
 	assert.equal(
-		songIllPath(root, "Oblivion.Daily.0", "common", false, true),
+		songIllPath(root, "Oblivion.Daily.0", "common", "fools"),
 		"/no/local/original_ill/4-1/ill/Oblivion.Daily.png",
 	);
+});
+
+function withIllPrefix(prefix: string, fn: () => void) {
+	const prev = process.env.CLOUDFLARE_R2_ILL_PREFIX;
+	process.env.CLOUDFLARE_R2_ILL_PREFIX = prefix;
+	try {
+		fn();
+	} finally {
+		if (prev === undefined) delete process.env.CLOUDFLARE_R2_ILL_PREFIX;
+		else process.env.CLOUDFLARE_R2_ILL_PREFIX = prev;
+	}
+}
+
+test("the 4/1 jackets stay in 4-1/original_ill/ whatever the main tree's prefix", () => {
+	const res = "/srv/app/phi-assets";
+	for (const prefix of ["jackets/v2", ""]) {
+		withIllPrefix(prefix, () => {
+			const main = prefix ? `${prefix}/` : "";
+			assert.equal(
+				assetKeyOf(`${res}/original_ill/illLow/Credits.Frums.png`),
+				`${main}illLow/Credits.Frums.png`,
+			);
+			assert.equal(
+				assetKeyOf(`${res}/original_ill/4-1/ill/Oblivion.Daily.png`),
+				"4-1/original_ill/ill/Oblivion.Daily.png",
+			);
+			assert.equal(
+				fallbackKeyOf(`${main}ill/Stasis.Maozon.png`),
+				`${main}illLow/Stasis.Maozon.png`,
+			);
+			assert.equal(
+				fallbackKeyOf("4-1/original_ill/ill/Oblivion.Daily.png"),
+				"4-1/original_ill/illLow/Oblivion.Daily.png",
+			);
+		});
+	}
+	withIllPrefix("jackets", () => {
+		assert.equal(
+			fallbackKeyOf("4-1/jackets/ill/Oblivion.Daily.png"),
+			undefined,
+		);
+		assert.equal(fallbackKeyOf("4-1/html/avatar/a.png"), undefined);
+	});
 });
 
 test("full jacket R2 miss falls back to illLow; unknown avatar to Introduction", () => {

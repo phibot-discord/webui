@@ -12,12 +12,15 @@ import test from "node:test";
 import { Catalog, knownBackground } from "../phi/lib/catalog";
 import { getInfo } from "../phi/lib/get-info";
 import { parseInfoFileCache } from "../phi/lib/info-file";
+import type { FoolsSong } from "./fools";
 import {
 	aliasesSha,
 	applyKvLevels,
 	applyLevelsCsv,
 	applyNotesInfo,
 	catalogRevision,
+	ensureSongInfo,
+	foolsPending,
 	hydrateSongInfo,
 	INFO_STATE_KEY,
 	infoFetchOpts,
@@ -25,6 +28,7 @@ import {
 	onCatalogReload,
 	reloadCatalog,
 	resetSongInfoForTest,
+	syncFools,
 	syncReady,
 } from "./song-info";
 import { readFile } from "./vfs";
@@ -684,4 +688,165 @@ test("a partial set the last complete set was remounted over is mounted again", 
 	assert.equal(again.commit, "new+partial");
 	assert.deepEqual(again.mounted, ["info.csv"]);
 	assert.equal(readFile(join(assets, "info", "info.csv"), "utf8"), "new-csv");
+});
+
+function special(id: string): FoolsSong {
+	return {
+		id,
+		song: id,
+		composer: "",
+		jacket: true,
+		charts: { SP: { label: "?", charter: "", notes: null } },
+	};
+}
+
+/** Info files whose only song is the SP `Special.One` */
+function spAssets(): string {
+	const assets = tmp();
+	mkdirSync(join(assets, "info"), { recursive: true });
+	writeFileSync(join(assets, "info", "info.csv"), CSV_HEAD);
+	writeFileSync(
+		join(assets, "info", "spinfo.json"),
+		JSON.stringify({ "Special.One": { song: "Special", chart: {} } }),
+	);
+	return assets;
+}
+
+/** A catalog whose only song is the SP `Special.One`; returns the jacket root */
+async function spCatalog(): Promise<string> {
+	await getInfo.init(spAssets());
+	return getInfo.originalIll;
+}
+
+test("a cold start waits for the 4/1 set, so its first cards already get the specials' jackets", async () => {
+	resetSongInfoForTest();
+	const root = await spCatalog();
+	try {
+		const started = performance.now();
+		await syncFools(async () => [special("Special.One.0")], 1_000);
+		assert.equal(foolsPending(started), false, "and are cached");
+		assert.equal(
+			getInfo.getill("Special.One.0", "low"),
+			`${root}/4-1/illLow/Special.One.png`,
+		);
+	} finally {
+		getInfo.setFools([]);
+	}
+});
+
+test("a slow first 4/1 read stops holding up the cold start and lands later; later reads never wait", async () => {
+	resetSongInfoForTest();
+	const root = await spCatalog();
+	let release: (songs: FoolsSong[]) => void = () => undefined;
+	try {
+		const before = performance.now();
+		await syncFools(
+			() =>
+				new Promise((resolve) => {
+					release = resolve;
+				}),
+			10,
+		);
+		assert.equal(
+			foolsPending(before),
+			true,
+			"cards painted now are not cached",
+		);
+		assert.equal(
+			getInfo.getill("Special.One.0", "low"),
+			`${root}/SP/Special.One.png`,
+		);
+		const again = syncFools(() => new Promise(() => undefined), 10);
+		assert.equal(
+			foolsPending(performance.now()),
+			true,
+			"a refresh waiting on it again does not clear that",
+		);
+		await again;
+		release([special("Special.One.0")]);
+		await new Promise((r) => setImmediate(r));
+		assert.equal(
+			foolsPending(before),
+			true,
+			"nor for a card whose Save got its jackets before the set landed",
+		);
+		const landed = performance.now();
+		assert.equal(foolsPending(landed), false);
+		assert.equal(
+			getInfo.getill("Special.One.0", "low"),
+			`${root}/4-1/illLow/Special.One.png`,
+		);
+		const started = performance.now();
+		await syncFools(() => new Promise(() => undefined), 5_000);
+		assert.ok(performance.now() - started < 1_000, "read in the background");
+		assert.equal(foolsPending(landed), false);
+	} finally {
+		getInfo.setFools([]);
+	}
+});
+
+test("a failed first 4/1 read keeps the last set and does not leave cards uncached", async () => {
+	resetSongInfoForTest();
+	const root = await spCatalog();
+	getInfo.setFools(["Special.One"]);
+	try {
+		const started = performance.now();
+		await syncFools(async () => {
+			throw new Error("r2 down");
+		}, 1_000);
+		assert.equal(foolsPending(started), false);
+		assert.equal(
+			getInfo.getill("Special.One", "low"),
+			`${root}/4-1/illLow/Special.One.png`,
+		);
+	} finally {
+		getInfo.setFools([]);
+	}
+});
+
+test("a cold ensureSongInfo holds every caller until the 4/1 set lands", async () => {
+	let release: (songs: FoolsSong[]) => void = () => undefined;
+	resetSongInfoForTest(
+		() =>
+			new Promise((resolve) => {
+				release = resolve;
+			}),
+	);
+	let kvRead: () => void = () => undefined;
+	const pastKv = new Promise<void>((resolve) => {
+		kvRead = resolve;
+	});
+	const g = globalThis as { __phiDataHost?: unknown };
+	const prevAssets = process.env.PHI_ASSETS;
+	process.env.PHI_ASSETS = spAssets();
+	g.__phiDataHost = Promise.resolve({
+		store: {
+			get: async () => {
+				kvRead();
+				return undefined;
+			},
+		},
+	});
+	try {
+		let ready = 0;
+		const first = ensureSongInfo().then(() => ready++);
+		await pastKv;
+		await new Promise((r) => setTimeout(r, 50));
+		const second = ensureSongInfo().then(() => ready++);
+		await new Promise((r) => setImmediate(r));
+		assert.equal(ready, 0, "the catalog is not ready while the 4/1 set is out");
+		release([special("Special.One.0")]);
+		await Promise.all([first, second]);
+		assert.equal(foolsPending(0), false);
+		assert.equal(
+			getInfo.getill("Special.One.0", "low"),
+			`${getInfo.originalIll}/4-1/illLow/Special.One.png`,
+		);
+	} finally {
+		delete g.__phiDataHost;
+		if (prevAssets === undefined) delete process.env.PHI_ASSETS;
+		else process.env.PHI_ASSETS = prevAssets;
+		getInfo.setFools([]);
+		resetSongInfoForTest();
+	}
 });

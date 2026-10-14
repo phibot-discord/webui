@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { songIllPath } from "@/server/ill";
+import { type IllTree, songIllPath } from "@/server/ill";
 import { logger } from "@/server/logger";
 import { illDir } from "@/server/paths";
 import { ALL_LEVEL, LEVEL } from "./const";
@@ -222,12 +222,17 @@ class GetInfo {
 		this.fools = new Set([...ids].map(withDotZero));
 	}
 
+	/** A song in info.csv keeps its normal jacket, even when it is also a 4/1 special or in spinfo.json */
+	private illTree(key: string): IllTree {
+		if (this.ori_info[key]) return "normal";
+		if (this.fools.has(key)) return "fools";
+		return this.sp_info[key] ? "sp" : "normal";
+	}
+
+	/** `id` with or without `.0`: the path is the same either way */
 	getill(id: string, kind: "common" | "blur" | "low" = "common"): string {
 		const key = withDotZero(id);
-		const listed = Boolean(this.ori_info[key]);
-		const fools = !listed && this.fools.has(key);
-		const sp = !listed && !fools && Boolean(this.sp_info[key]);
-		return songIllPath(this.originalIll, id, kind, sp, fools);
+		return songIllPath(this.originalIll, key, kind, this.illTree(key));
 	}
 
 	idgetavatar(id: string) {

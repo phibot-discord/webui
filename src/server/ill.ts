@@ -1,7 +1,7 @@
 import { existsSync as fsExists } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { FOOLS_PREFIX } from "@/lib/assets";
+import { FOOLS_ILL_DIR, FOOLS_PREFIX, splitFools } from "@/lib/assets";
 import { logger } from "./logger";
 import { illDir } from "./paths";
 import { poolAll } from "./pool";
@@ -14,18 +14,20 @@ function pngName(id: string): string {
 	return id.replace(/\.0$/, ".png");
 }
 
-/** `fools`: a 4/1 special, whose jackets sit in R2 under `4-1/original_ill/`; locally it is `<illDir>/4-1/<dir>/` */
+/** `sp` has only the full jacket, in `SP/`; `fools` is a 4/1 special, whose jackets sit in R2 under `4-1/original_ill/`, locally `<illDir>/4-1/<dir>/` */
+export type IllTree = "normal" | "sp" | "fools";
+
+/** `id` is the catalog id, `.0` included */
 export function songIllPath(
 	originalIll: string,
 	id: string,
 	kind: "common" | "blur" | "low" = "common",
-	sp = false,
-	fools = false,
+	tree: IllTree = "normal",
 ): string {
 	const png = pngName(id);
 	const dir = kind === "blur" ? "illBlur" : kind === "low" ? "illLow" : "ill";
-	if (fools) return join(originalIll, FOOLS_PREFIX, dir, png);
-	if (sp) return join(originalIll, "SP", png);
+	if (tree === "fools") return join(originalIll, FOOLS_PREFIX, dir, png);
+	if (tree === "sp") return join(originalIll, "SP", png);
 	return join(originalIll, dir, png);
 }
 
@@ -66,12 +68,9 @@ export function assetKeyOf(rawPath: string): string | undefined {
 	const absPath = decodeEntities(rawPath);
 	const ill = underIllTree(absPath);
 	if (ill) {
-		const prefix = r2Config().prefix;
-		const root = `${FOOLS_PREFIX}/`;
-		if (ill.startsWith(root)) {
-			return `${root}${prefix ? `${prefix}/` : ""}${ill.slice(root.length)}`;
-		}
-		return prefix ? `${prefix}/${ill}` : ill;
+		const [root, rest] = splitFools(ill);
+		const prefix = root ? FOOLS_ILL_DIR : r2Config().prefix;
+		return `${root}${prefix ? `${prefix}/` : ""}${rest}`;
 	}
 	const html = HTML_IMAGE_RE.exec(absPath.replace(/\\/g, "/"))?.[1];
 	if (html) return `${r2Config().htmlPrefix}/${html}`;
@@ -80,11 +79,13 @@ export function assetKeyOf(rawPath: string): string | undefined {
 
 export function fallbackKeyOf(key: string): string | undefined {
 	const { prefix, htmlPrefix } = r2Config();
-	// 4/1 specials mirror the tree under `4-1/`
-	const root = key.startsWith(`${FOOLS_PREFIX}/`) ? `${FOOLS_PREFIX}/` : "";
-	const illBase = `${root}${prefix ? `${prefix}/` : ""}ill/`;
-	if (key.startsWith(illBase)) {
-		return `${root}${prefix ? `${prefix}/` : ""}illLow/${key.slice(illBase.length)}`;
+	// 4/1 specials mirror the tree under `4-1/`, always in FOOLS_ILL_DIR
+	const [root, rest] = splitFools(key);
+	const dir = root ? FOOLS_ILL_DIR : prefix;
+	const base = dir ? `${dir}/` : "";
+	const illBase = `${base}ill/`;
+	if (rest.startsWith(illBase)) {
+		return `${root}${base}illLow/${rest.slice(illBase.length)}`;
 	}
 	if (root) return undefined;
 	const avatarBase = `${htmlPrefix}/avatar/`;

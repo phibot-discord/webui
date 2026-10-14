@@ -59,6 +59,7 @@ import { prefetchIlls } from "./ill";
 import { logger, withDiscordUid } from "./logger";
 import { type PaintQuality, parsePaintQuality } from "./render/paint-budget";
 import { withTimeout } from "./render-lock";
+import { foolsPending } from "./song-info";
 
 export type { BoundErr, ErrorCode } from "./bound";
 export {
@@ -439,8 +440,11 @@ async function paintFreshCard(
 				built.classicTemplateId,
 			);
 		}
-		// Fallback and partial renders are not cached here, by the browser or by the CDN: the next request retries
-		const transient = fellBack || built.data.renderPartial === true;
+		// Fallback and partial renders, and ones whose jackets (the Save's, from prepareCardCache, included) may predate the 4/1 set, are not cached here, by the browser or by the CDN: the next request retries
+		const transient =
+			fellBack ||
+			built.data.renderPartial === true ||
+			foolsPending(prep.started);
 		if (!transient) {
 			await writeCachedPng(host, prep.key, img.bytes);
 			if (!height && img.height > 64) {
