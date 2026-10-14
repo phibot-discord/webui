@@ -266,6 +266,7 @@ export async function putR2Object(
 		contentDisposition?: string;
 		cache?: CacheMode;
 		background?: boolean;
+		timeoutMs?: number;
 	} = {},
 ): Promise<void> {
 	const cfg = r2Config();
@@ -285,6 +286,7 @@ export async function putR2Object(
 		headers,
 		body,
 		background: extra.background,
+		timeoutMs: extra.timeoutMs,
 	});
 	if (!res.ok) await cfFail(res, `R2 PUT ${k}`);
 	missing.delete(k);

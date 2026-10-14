@@ -5,8 +5,10 @@
 // <out dir> receives the tree. Song details come from phi-assets/info/spinfo.json (or the special's own
 // `fallback`), and every chart's note count must match the combo there. Without --upload nothing leaves this
 // machine. Upload flags: --no-manifest sends everything but index.json, which is what the site follows;
-// --manifest-only sends just that; --only=<key> sends one special's files (plus index.json unless
-// --no-manifest). Every special in SPECIALS must be unpacked: the manifest is rebuilt from the whole list
+// --manifest-only sends just that; --only=<key>[,<key>…] sends those specials' files (exact keys), and
+// index.json only with --manifest, so the site never lists a pack that is not up yet; a run that stops partway
+// resumes with --only=<the keys not yet up>. Every special in SPECIALS must be unpacked: the manifest is
+// rebuilt from the whole list
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -109,10 +111,39 @@ const out = resolve(outArg);
 const upload = args.includes("--upload");
 const skipManifest = args.includes("--no-manifest");
 const manifestOnly = args.includes("--manifest-only");
-const only = args.find((a) => a.startsWith("--only="))?.slice("--only=".length);
+const withManifest = args.includes("--manifest");
+const onlyArg = args.find((a) => a.startsWith("--only="));
+const only = onlyArg
+	? new Set(
+			onlyArg
+				.slice("--only=".length)
+				.split(",")
+				.map((key) => key.trim())
+				.filter(Boolean),
+		)
+	: undefined;
+if (only) {
+	const unknown = [...only].filter(
+		(key) => !SPECIALS.some((s) => s.key === key),
+	);
+	if (!only.size || unknown.length) {
+		console.error(
+			`--only: ${unknown.length ? `no special ${unknown.map((k) => JSON.stringify(k)).join(", ")}` : "no key given"}; the keys are:\n${SPECIALS.map((s) => `  ${s.key}`).join("\n")}`,
+		);
+		process.exit(1);
+	}
+}
+if (only && manifestOnly) {
+	console.error("--manifest-only does not go with --only");
+	process.exit(1);
+}
+if (withManifest && skipManifest) {
+	console.error("--manifest does not go with --no-manifest");
+	process.exit(1);
+}
 
 const { packPhiraChart, phiraPackKey } = await import("../src/phi/lib/phira");
-const { FOOLS_PREFIX } = await import("../src/lib/assets");
+const { FOOLS_ILL_DIR, FOOLS_PREFIX } = await import("../src/lib/assets");
 
 const spinfo = JSON.parse(
 	await readFile(join("phi-assets", "info", "spinfo.json"), "utf8"),
@@ -129,7 +160,11 @@ function countNotes(chart: { judgeLineList?: Line[] }): number {
 	return n;
 }
 
-const files = new Map<string, { body: Uint8Array; type: string }>();
+/** `special` is the key of the special a file belongs to; index.json has none */
+const files = new Map<
+	string,
+	{ body: Uint8Array; type: string; special?: string }
+>();
 const manifest: unknown[] = [];
 
 for (const special of SPECIALS) {
@@ -142,7 +177,14 @@ for (const special of SPECIALS) {
 		track("original_ill", dir, `${stem}.png`),
 	);
 	const jacket = jackets.every((p) => existsSync(p));
-	const picture = await readFile(jackets[1] as string);
+	// The pack's in-game background: the full-size jacket, else the best one there is
+	const pictureFile = jackets.find((p) => existsSync(p));
+	if (!pictureFile) {
+		throw new Error(
+			`${special.key} has no jacket: tried ${jackets.join(", ")}`,
+		);
+	}
+	const picture = await readFile(pictureFile);
 	const song = await readFile(track("music", `${stem}.ogg`));
 	const charts: Record<string, unknown> = {};
 	for (const [level, source] of Object.entries(special.charts)) {
@@ -175,18 +217,24 @@ for (const special of SPECIALS) {
 		files.set(phiraPackKey(id, level as PhiraLevel), {
 			body: pack,
 			type: "application/octet-stream",
+			special: special.key,
 		});
 		charts[level] = { label, charter: meta.charter ?? "", notes };
 	}
 	if (jacket) {
 		for (const [i, dir] of ["ill", "illLow", "illBlur"].entries()) {
-			files.set(`original_ill/${dir}/${special.key}.png`, {
+			files.set(`${FOOLS_ILL_DIR}/${dir}/${special.key}.png`, {
 				body: await readFile(jackets[i] as string),
 				type: "image/png",
+				special: special.key,
 			});
 		}
 	}
-	files.set(`music/${special.key}.ogg`, { body: song, type: "audio/ogg" });
+	files.set(`music/${special.key}.ogg`, {
+		body: song,
+		type: "audio/ogg",
+		special: special.key,
+	});
 	manifest.push({
 		id,
 		song: sp.song,
@@ -210,49 +258,32 @@ for (const [name, { body }] of files) {
 }
 
 if (upload) {
-	const { objectUrl, r2Config, r2WriteReady } = await import(
-		"../src/server/r2"
-	);
-	const cfg = r2Config();
-	if (!r2WriteReady(cfg)) throw new Error("R2 write is not configured");
-	// Plain fetch, not putR2Object: cfFetch gives a request 12 s, which a 4 MB pack on a slow uplink misses
-	const put = async (key: string, body: Uint8Array, type: string) => {
-		const res = await fetch(objectUrl(cfg, key), {
-			method: "PUT",
-			headers: {
-				Authorization: `Bearer ${cfg.apiToken}`,
-				"Content-Type": type,
-			},
-			body: Buffer.from(body),
-			signal: AbortSignal.timeout(15 * 60 * 1000),
-		});
-		if (!res.ok) {
-			const text = await res.text().catch(() => "");
-			throw new Error(`R2 PUT ${key}: ${res.status} ${text}`.slice(0, 300));
-		}
-	};
+	const { putR2Object, r2WriteReady } = await import("../src/server/r2");
+	if (!r2WriteReady()) throw new Error("R2 write is not configured");
+	// index.json names every special, so with --only it waits for --manifest: a listed special without its pack 404s
+	const sendManifest = !skipManifest && (!only || withManifest);
 	// The manifest goes last: the site only lists what it names
-	const order = [...files.keys()]
-		.filter((name) => {
-			if (name === "index.json") return !skipManifest;
-			return !manifestOnly && (!only || name.includes(only));
+	const order = [...files]
+		.filter(([name, { special }]) => {
+			if (name === "index.json") return sendManifest;
+			return !manifestOnly && (!only || (!!special && only.has(special)));
 		})
-		.sort((a, b) => Number(a === "index.json") - Number(b === "index.json"));
-	for (const name of order) {
-		const file = files.get(name);
-		if (!file) continue;
+		.sort(
+			([a], [b]) => Number(a === "index.json") - Number(b === "index.json"),
+		);
+	for (const [name, file] of order) {
 		const key = `${FOOLS_PREFIX}/${name}`;
-		for (let attempt = 1; ; attempt++) {
-			try {
-				await put(key, file.body, file.type);
-				break;
-			} catch (err) {
-				if (attempt === 3) throw err;
-				console.warn(
-					`retrying ${key}: ${err instanceof Error ? err.message : err}`,
-				);
-			}
-		}
+		// 15 min, not cfFetch's 12 s: a 4 MB pack on a slow uplink takes longer. No retry loop here, as
+		// cfFetch already retries a dropped connection once and a 429/5xx twice, and a 4xx will not mend
+		await putR2Object(key, Buffer.from(file.body), file.type, {
+			cache: "no-store",
+			timeoutMs: 15 * 60 * 1000,
+		});
 		console.log(`uploaded ${key}`);
+	}
+	if (only && !sendManifest) {
+		console.log(
+			"index.json not sent: once every special's files are up, send it with --upload --manifest-only",
+		);
 	}
 }

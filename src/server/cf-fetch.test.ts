@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { channel } from "node:diagnostics_channel";
 import { createServer, type ServerResponse } from "node:http";
 import test from "node:test";
 import { CF_RETRY_CAP_MS, cfFetch, retryDelayMs } from "./cf-fetch";
@@ -98,6 +99,56 @@ test("stream mode hands back an unread body", async () => {
 			const res = await cfFetch(url, { stream: true });
 			assert.ok(res.body);
 			assert.equal(await new Response(res.body).text(), "streamed");
+		},
+	);
+});
+
+test("timeoutMs replaces the 12 s budget, response headers included", async () => {
+	const created = channel("undici:request:create");
+	const seen: Array<number | null | undefined> = [];
+	const onCreate = (msg: unknown) => {
+		const { request } = msg as {
+			request: { path: string; headersTimeout?: number | null };
+		};
+		if (request.path.startsWith("/timeout-")) seen.push(request.headersTimeout);
+	};
+	created.subscribe(onCreate);
+	try {
+		await withServer(
+			(_n, res) => {
+				res.end("ok");
+			},
+			async (url) => {
+				await (await cfFetch(`${url}timeout-default`)).text();
+				await (
+					await cfFetch(`${url}timeout-long`, {
+						method: "PUT",
+						body: "x",
+						timeoutMs: 15 * 60_000,
+					})
+				).text();
+			},
+		);
+	} finally {
+		created.unsubscribe(onCreate);
+	}
+	assert.deepEqual(
+		seen,
+		[undefined, 15 * 60_000],
+		"the agent's 12 s headersTimeout would cut a slow upload short",
+	);
+});
+
+test("a short timeoutMs gives up on a silent server sooner than 12 s", async () => {
+	await withServer(
+		() => undefined,
+		async (url, hits) => {
+			const started = Date.now();
+			await assert.rejects(cfFetch(url, { timeoutMs: 200 }), (err: Error) => {
+				return err.name === "TimeoutError";
+			});
+			assert.ok(Date.now() - started < 5_000);
+			assert.equal(hits(), 2, "a timeout is retried once, as before");
 		},
 	);
 });
