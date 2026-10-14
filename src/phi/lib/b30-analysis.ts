@@ -42,7 +42,7 @@ export function getB30AnalysisRecords(b30: {
 	});
 }
 
-/** Population SD: the P3 + B27 slots are the whole set that defines RKS */
+/** Population SD: by default the P3 + B27 slots are the whole set that defines RKS */
 export function equivRksStddev(
 	values: number[],
 	average = values.reduce((sum, value) => sum + value, 0) / values.length,
@@ -54,12 +54,33 @@ export function equivRksStddev(
 	);
 }
 
+/**
+ * The ± SD of a card, for the header and the histogram alike. `excludePhi` drops the P1–P3 slots only: a chart that
+ * sits in P3 and in B27 keeps its B27 value
+ */
+export function slotsStddev(
+	records: readonly Pick<B30Record, "kind" | "rks">[],
+	opts: { excludePhi?: boolean } = {},
+): number {
+	return equivRksStddev(
+		records
+			.filter((record) => !(opts.excludePhi && record.kind === "phi"))
+			.map((record) => record.rks)
+			.filter((rks) => Number.isFinite(rks)),
+	);
+}
+
 function niceAxisStep(value: number) {
 	const candidates = [0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1];
 	return candidates.find((candidate) => candidate >= value) || Math.ceil(value);
 }
 
-export function buildRksHistogram(records: B30Record[], targetTickCount = 4) {
+/** `excludePhi` drops the P slots from the SD only: the bars and the average still cover all of them */
+export function buildRksHistogram(
+	records: B30Record[],
+	targetTickCount = 4,
+	opts: { excludePhi?: boolean } = {},
+) {
 	const valid = records.filter((record) => Number.isFinite(record.rks));
 	if (!valid.length)
 		return {
@@ -102,7 +123,8 @@ export function buildRksHistogram(records: B30Record[], targetTickCount = 4) {
 	}));
 
 	const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-	const stddev = equivRksStddev(values, average);
+	// Without P3 the spread is about the mean of the remaining slots, not about `average`
+	const stddev = slotsStddev(valid, opts);
 	return {
 		slots,
 		ticks,

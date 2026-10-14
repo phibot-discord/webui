@@ -206,6 +206,48 @@ test("a cached pool analysis renders the upstream meta line and is cacheable", a
 	assert.equal(data.rksStddev, analysis.histogram.stddev);
 });
 
+test("leaving P3 out of the SD drops only the P slots, in the header and the histogram alike", async () => {
+	// The P charts also sit in B1–B3, as they do in a real save
+	const listed = [...phiRows, ...bestRows.slice(0, 24), ...bestRows.slice(27)];
+	const sd = (values: number[]) => {
+		const mean = values.reduce((a, b) => a + b, 0) / values.length;
+		return Math.sqrt(
+			values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length,
+		);
+	};
+	const run = async (stddevExcludeP3?: boolean) => {
+		const save = fakeSave("rev-sd");
+		save.getB19 = () => ({
+			phi: phiRows.map((row) => ({ ...row })),
+			b19_list: listed.map((row) => ({ ...row })),
+			com_rks: 16,
+		});
+		const { db } = memoryDb();
+		return b19Card(rt as never, save as never, db, "u1", catalog as never, {
+			nnum: 33,
+			mode: "b30",
+			locale: "en",
+			showTagAnalysis: false,
+			stddevExcludeP3,
+			notes,
+		});
+	};
+	const p3 = phiRows.map((row) => row.rks);
+	const b27 = listed.slice(0, 27).map((row) => row.rks);
+	const all = await run();
+	const without = await run(true);
+	const analysis = (data: typeof all) =>
+		data.b30Analysis as unknown as Analysis;
+	assert.ok(Math.abs(all.rksStddev - sd([...p3, ...b27])) < 1e-12);
+	// B1–B3 still count, though they are the P charts
+	assert.ok(Math.abs(without.rksStddev - sd(b27)) < 1e-12);
+	assert.equal(analysis(all).histogram.stddev, all.rksStddev);
+	assert.equal(analysis(without).histogram.stddev, without.rksStddev);
+	assert.notEqual(without.rksStddev, all.rksStddev);
+	// The histogram still draws every slot
+	assert.equal(analysis(without).histogram.count, 30);
+});
+
 test("a failed tag lookup renders 'No data' and marks the card partial", async () => {
 	resetChartTagVoteMemForTest();
 	posts.length = 0;

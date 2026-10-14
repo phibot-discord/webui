@@ -8,7 +8,7 @@ import { UnbindButton } from "@/components/UnbindButton";
 import { formatDateTime } from "@/i18n/datetime";
 import { useI18n } from "@/i18n/provider";
 
-function SyncTime({ iso }: { iso: string }) {
+export function SyncTime({ iso }: { iso: string }) {
 	const { locale, m } = useI18n();
 	const client = useHydrated();
 	const d = new Date(iso);

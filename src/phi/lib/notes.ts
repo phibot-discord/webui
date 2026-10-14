@@ -68,6 +68,8 @@ export type UserNotes = {
 	showB30Analysis: boolean;
 	showTagAnalysis: boolean;
 	showRecordStats: boolean;
+	/** Leave P1–P3 out of the ± SD on the B30 analysis; the bars and the average keep them */
+	stddevExcludeP3?: boolean;
 	cardQuality: "high" | "fast";
 	cardBackground?: string;
 	cardStyle?: Partial<Record<StyledKind, CardStyle>>;
@@ -141,6 +143,12 @@ export async function setShowTagAnalysis(db: Kv, userId: string, on: boolean) {
 export async function setShowRecordStats(db: Kv, userId: string, on: boolean) {
 	const notes = await getNotes(db, userId);
 	notes.showRecordStats = on;
+	await setNotes(db, userId, notes);
+}
+
+export async function setStddevExcludeP3(db: Kv, userId: string, on: boolean) {
+	const notes = await getNotes(db, userId);
+	notes.stddevExcludeP3 = on;
 	await setNotes(db, userId, notes);
 }
 

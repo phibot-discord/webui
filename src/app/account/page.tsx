@@ -5,6 +5,7 @@ import { type AccountLinkError, AccountView } from "@/components/AccountView";
 import { getMessages } from "@/i18n/server";
 import { tapSignInOpens } from "@/server/account-link";
 import { isTapUserId } from "@/server/auth-tickets";
+import { getDataHost } from "@/server/data-host";
 import { withDiscordUid } from "@/server/logger";
 
 export const dynamic = "force-dynamic";
@@ -32,11 +33,14 @@ export default async function AccountPage({
 	return withDiscordUid(userId, async () => {
 		const viaTap = isTapUserId(userId);
 		const tapLinked = !viaTap && (await tapSignInOpens(userId));
+		const host = await getDataHost();
+		const hasToken = Boolean(await host.lib.getToken(host.rt, userId));
 		return (
 			<main id="content" className="page page-bind">
 				<AccountView
 					viaTap={viaTap}
 					tapLinked={tapLinked}
+					hasToken={hasToken}
 					linkError={LINK_ERRORS.find((code) => code === params.link)}
 					linkedOk={params.linked === "discord" && !viaTap}
 				/>

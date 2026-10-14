@@ -20,6 +20,7 @@ import {
 	setRankScope,
 	setShowRecordStats,
 	setShowTagAnalysis,
+	setStddevExcludeP3,
 } from "@/phi/lib/notes";
 import { authed } from "@/server/authed";
 import { getDataHost } from "@/server/data-host";
@@ -37,6 +38,7 @@ export async function GET() {
 			showTagAnalysis: notes.showTagAnalysis !== false,
 			showB30Analysis: notes.showB30Analysis !== false,
 			showRecordStats: notes.showRecordStats !== false,
+			stddevExcludeP3: notes.stddevExcludeP3 === true,
 			allowApiUsage: notes.allowApiUsage !== false,
 			cardQuality: parsePaintQuality(notes.cardQuality),
 			cardBackground: notes.cardBackground || "",
@@ -54,6 +56,7 @@ export async function POST(request: Request) {
 		let body: {
 			showTagAnalysis?: unknown;
 			showRecordStats?: unknown;
+			stddevExcludeP3?: unknown;
 			cardQuality?: unknown;
 			cardBackground?: unknown;
 			cardStyle?: unknown;
@@ -79,6 +82,7 @@ export async function POST(request: Request) {
 			ok: true;
 			showTagAnalysis?: boolean;
 			showRecordStats?: boolean;
+			stddevExcludeP3?: boolean;
 			cardQuality?: "high" | "fast";
 			cardBackground?: string;
 			cardStyle?: { kind: string; style: string };
@@ -96,6 +100,11 @@ export async function POST(request: Request) {
 		if (typeof body.showRecordStats === "boolean") {
 			await setShowRecordStats(host.db, userId, body.showRecordStats);
 			out.showRecordStats = body.showRecordStats;
+			wrote = true;
+		}
+		if (typeof body.stddevExcludeP3 === "boolean") {
+			await setStddevExcludeP3(host.db, userId, body.stddevExcludeP3);
+			out.stddevExcludeP3 = body.stddevExcludeP3;
 			wrote = true;
 		}
 		if (body.cardQuality === "high" || body.cardQuality === "fast") {

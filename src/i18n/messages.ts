@@ -103,6 +103,7 @@ export type Messages = {
 		phira: string;
 		files: string;
 		score: string;
+		simulate: string;
 		account: string;
 		b30: string;
 		hisb30: string;
@@ -210,6 +211,59 @@ export type Messages = {
 			info: string;
 			other: string;
 		};
+	};
+	simulate: {
+		listLabel: string;
+		moreCharts: string;
+		title: string;
+		lede: string;
+		notice: string;
+		basedOn: string;
+		stale: string;
+		sync: string;
+		syncing: string;
+		syncConfirm: string;
+		syncHint: string;
+		synced: string;
+		alreadyLatest: string;
+		syncFailed: string;
+		reset: string;
+		resetConfirm: string;
+		resetDone: string;
+		addChart: string;
+		searchPlaceholder: string;
+		full: string;
+		alreadyListed: string;
+		noRecord: string;
+		newAcc: string;
+		currentAcc: string;
+		chartRks: string;
+		removeRow: string;
+		clearRow: string;
+		added: string;
+		removed: string;
+		cleared: string;
+		noGain: string;
+		unknown: string;
+		rksBefore: string;
+		rksAfter: string;
+		p3Title: string;
+		p3None: string;
+		listTitle: string;
+		listLede: string;
+		scoreHint: string;
+		slot: string;
+		chart: string;
+		acc: string;
+		score: string;
+		ap: string;
+		after: string;
+		out: string;
+		isNew: string;
+		movedUp: string;
+		movedDown: string;
+		storageOff: string;
+		loading: string;
 	};
 	manual: {
 		title: string;
@@ -375,6 +429,14 @@ export type Messages = {
 		discord_taken: string;
 		link_expired: string;
 		link_failed: string;
+		sessionToken: string;
+		sessionTokenLede: string;
+		sessionTokenNone: string;
+		tokenShow: string;
+		tokenHide: string;
+		tokenLoading: string;
+		tokenHidden: string;
+		tokenFailed: string;
 	};
 	public: {
 		hint: string;
@@ -444,6 +506,9 @@ export type Messages = {
 		size: string;
 		tagProfile: string;
 		recordStats: string;
+		stddev: string;
+		stddevExcludeP3: string;
+		stddevHint: string;
 		rendering: string;
 		waitingPhib19: string;
 		missingData: string;
@@ -748,6 +813,7 @@ export const en: Messages = {
 		phira: "Phira",
 		files: "Files",
 		score: "Score control",
+		simulate: "Simulation",
 		account: "Account",
 		b30: "B30",
 		hisb30: "History",
@@ -861,6 +927,65 @@ export const en: Messages = {
 			info: "Info",
 			other: "Other",
 		},
+	},
+	simulate: {
+		listLabel: "Charts to edit",
+		moreCharts: "Show {n} more played charts ({shown} of {total} shown)",
+		title: "Song simulation",
+		lede: "Type a better accuracy or score for some charts to see what your RKS and your P3 + B27 would become.",
+		notice:
+			"Nothing here changes your real save. The simulation is kept in this browser only.",
+		basedOn: "Based on the save from",
+		stale:
+			"Your save was updated after you started this simulation. Sync to load it; that resets your simulated changes.",
+		sync: "Sync to latest save",
+		syncing: "Syncing…",
+		syncHint:
+			"Loads the save PhiBot holds now and resets every simulated change. To pull a newer save from TapTap, use Refresh on Cards first.",
+		syncConfirm: "Reset your {n} simulated changes and load the latest save?",
+		synced: "Synced to the latest save. All simulated changes were reset.",
+		alreadyLatest: "Already on the latest save.",
+		syncFailed: "Could not load the latest save. Try again.",
+		reset: "Reset simulation",
+		resetConfirm: "Remove every simulated accuracy?",
+		resetDone: "Simulation reset.",
+		addChart: "Add a chart that is not listed below",
+		searchPlaceholder: "Search a song to simulate",
+		full: "A simulation holds up to {n} charts.",
+		alreadyListed: "{chart} is in the list below. Edit it there.",
+		noRecord: "No record yet",
+		newAcc: "New accuracy",
+		currentAcc: "Now",
+		chartRks: "Chart RKS",
+		removeRow: "Remove {chart}",
+		clearRow: "Clear the edit of {chart}",
+		added: "Added {chart}.",
+		removed: "Removed {chart}.",
+		cleared: "Cleared {chart}.",
+		noGain: "Not above your best, so nothing changes.",
+		unknown: "No difficulty known for this chart.",
+		rksBefore: "RKS now",
+		rksAfter: "RKS simulated",
+		p3Title: "P3 after the simulation",
+		p3None: "No AP chart.",
+		listTitle: "Your P3 + B27",
+		listLede:
+			"Every row starts from your current accuracy and score. Edit either one and the other follows, or tick AP. Rows keep their place while you edit; the After column shows where each chart lands. Enter and the arrow keys move down and up a column.",
+		scoreHint:
+			"A score is read as a full combo, the lowest accuracy it can mean, so your RKS is never overstated.",
+		slot: "Now",
+		chart: "Chart",
+		acc: "Accuracy",
+		score: "Score",
+		ap: "AP",
+		after: "After",
+		out: "Out",
+		isNew: "New",
+		movedUp: "Up from {from}",
+		movedDown: "Down from {from}",
+		storageOff:
+			"This browser would not store the simulation, so it is lost when you close the page.",
+		loading: "Loading your save…",
 	},
 	manual: {
 		title: "Manual scores",
@@ -1043,6 +1168,15 @@ export const en: Messages = {
 			"That Discord account has a different Phigros save bound. Unbind it there first, then link again.",
 		link_expired: "The link request expired. Try again.",
 		link_failed: "Could not link Discord. Try again.",
+		sessionToken: "Session token",
+		sessionTokenLede:
+			"The Phigros sessionToken your save is bound with. Anyone who has it can read and change your save, so keep it private.",
+		sessionTokenNone: "No Phigros save is bound, so there is no token yet.",
+		tokenShow: "Show",
+		tokenHide: "Hide",
+		tokenLoading: "Loading…",
+		tokenHidden: "Hidden",
+		tokenFailed: "Could not load the token. Try again.",
 	},
 	public: {
 		hint: "This is a public copy of their cards. Opening the page does not refresh their save.",
@@ -1141,6 +1275,10 @@ export const en: Messages = {
 		size: "{w} × {h} px",
 		tagProfile: "Tag profile",
 		recordStats: "Clear / FC / AP counts",
+		stddev: "Std dev",
+		stddevExcludeP3: "Leave out P1–P3",
+		stddevHint:
+			"The ± figure on the B30 analysis then spreads only B1–B27 around their own average. The bars and the average still include P1–P3.",
 		rendering: "Rendering card…",
 		waitingPhib19: "Waiting for phib19.top…",
 		missingData:
@@ -1452,6 +1590,7 @@ export const zh: Messages = {
 		phira: "Phira",
 		files: "资源",
 		score: "控分",
+		simulate: "模拟",
 		account: "账号",
 		b30: "B30",
 		hisb30: "历史",
@@ -1562,6 +1701,63 @@ export const zh: Messages = {
 			info: "资料",
 			other: "其他",
 		},
+	},
+	simulate: {
+		listLabel: "可编辑的谱面",
+		moreCharts: "再显示 {n} 张已游玩谱面（已显示 {shown} / {total}）",
+		title: "曲目模拟",
+		lede: "给一些谱面填写更高的准确率或分数，看看你的 RKS 和 P3 + B27 会变成什么样。",
+		notice: "这里的任何操作都不会改动你的真实存档。模拟只保存在当前浏览器里。",
+		basedOn: "基于以下时间的存档",
+		stale:
+			"你开始模拟之后存档已经更新。同步会载入新存档，并重置你的所有模拟修改。",
+		sync: "同步到最新存档",
+		syncing: "同步中…",
+		syncHint:
+			"载入 PhiBot 当前保存的存档，并重置所有模拟修改。要从 TapTap 拉取更新的存档，请先在成绩图页点击刷新。",
+		syncConfirm: "重置你的 {n} 项模拟修改并载入最新存档？",
+		synced: "已同步到最新存档，所有模拟修改已重置。",
+		alreadyLatest: "已经是最新存档。",
+		syncFailed: "无法加载最新存档，请重试。",
+		reset: "重置模拟",
+		resetConfirm: "清除所有模拟的准确率？",
+		resetDone: "已重置模拟。",
+		addChart: "添加下方列表里没有的谱面",
+		searchPlaceholder: "搜索要模拟的曲目",
+		full: "一次模拟最多 {n} 张谱面。",
+		alreadyListed: "{chart} 已在下方列表中，请在那里编辑。",
+		noRecord: "暂无记录",
+		newAcc: "新准确率",
+		currentAcc: "当前",
+		chartRks: "单曲 RKS",
+		removeRow: "移除 {chart}",
+		clearRow: "清除 {chart} 的修改",
+		added: "已添加 {chart}。",
+		removed: "已移除 {chart}。",
+		cleared: "已清除 {chart}。",
+		noGain: "没有超过你的最好成绩，所以不会有变化。",
+		unknown: "这张谱面没有已知的定数。",
+		rksBefore: "当前 RKS",
+		rksAfter: "模拟后 RKS",
+		p3Title: "模拟后的 P3",
+		p3None: "没有 AP 谱面。",
+		listTitle: "你的 P3 + B27",
+		listLede:
+			"每一行都以你当前的准确率和分数为起点。修改其中一项，另一项会随之变化；也可以勾选 AP。编辑时各行位置不变，「模拟后」一列显示每张谱面最终的位置。回车和上下方向键可在同一列中上下移动。",
+		scoreHint:
+			"分数按全连（FC）折算，得到的是该分数对应的最低准确率，因此 RKS 不会被高估。",
+		slot: "当前",
+		chart: "谱面",
+		acc: "准确率",
+		score: "分数",
+		ap: "AP",
+		after: "模拟后",
+		out: "移出",
+		isNew: "新进入",
+		movedUp: "自 {from} 上升",
+		movedDown: "自 {from} 下降",
+		storageOff: "当前浏览器无法保存模拟，关闭页面后将丢失。",
+		loading: "正在加载你的存档…",
 	},
 	manual: {
 		title: "手动录入成绩",
@@ -1739,6 +1935,15 @@ export const zh: Messages = {
 			"那个 Discord 账号绑定了另一个 Phigros 存档。请先在那边解绑，再来关联。",
 		link_expired: "关联请求已过期，请重试。",
 		link_failed: "无法关联 Discord，请重试。",
+		sessionToken: "会话令牌",
+		sessionTokenLede:
+			"你的存档绑定所用的 Phigros sessionToken。拿到它的人可以读取和修改你的存档，请妥善保管。",
+		sessionTokenNone: "还没有绑定 Phigros 存档，所以暂时没有令牌。",
+		tokenShow: "显示",
+		tokenHide: "隐藏",
+		tokenLoading: "加载中…",
+		tokenHidden: "已隐藏",
+		tokenFailed: "无法加载令牌，请重试。",
 	},
 	public: {
 		hint: "这是他们成绩图的公开副本。打开页面不会刷新存档。",
@@ -1836,6 +2041,10 @@ export const zh: Messages = {
 		size: "{w} × {h} 像素",
 		tagProfile: "谱面标签",
 		recordStats: "完成 / FC / AP 数量",
+		stddev: "标准差",
+		stddevExcludeP3: "不计入 P1–P3",
+		stddevHint:
+			"B30 分析里的 ± 数值只统计 B1–B27，并以它们自己的平均值计算。柱状图和平均值仍包含 P1–P3。",
 		rendering: "正在出图…",
 		waitingPhib19: "正在等待 phib19.top…",
 		missingData: "phib19.top 未及时响应，这张图缺少{list}。请稍后重试以补全。",

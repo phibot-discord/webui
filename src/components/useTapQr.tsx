@@ -1,6 +1,6 @@
 "use client";
 
-import { DeviceMobile } from "@phosphor-icons/react";
+import { CheckCircle, DeviceMobile } from "@phosphor-icons/react";
 import {
 	type RefObject,
 	useCallback,
@@ -276,6 +276,8 @@ export function TapQrColumn({
 	signingLabel?: string;
 }) {
 	const { m } = useI18n();
+	// The TapTap wait marker only streams once the scan was confirmed, which can skip the scanned poll
+	const scanned = qr.phase === "scanned" || qr.waitingTap;
 	const qrStatus = qr.waitingTap
 		? m.bind.waitingTap
 		: qr.phase === "scanned"
@@ -305,8 +307,15 @@ export function TapQrColumn({
 						<p className="field-hint">{m.bind.openPhoneHint}</p>
 					) : null}
 					{qr.qrSrc ? (
-						// biome-ignore lint/performance/noImgElement: per-session QR, never optimized or cached
-						<img src={qr.qrSrc} width={220} height={220} alt={m.bind.qrAlt} />
+						<div className={`bind-qr-frame${scanned ? " is-scanned" : ""}`}>
+							{/* biome-ignore lint/performance/noImgElement: per-session QR, never optimized or cached */}
+							<img src={qr.qrSrc} width={220} height={220} alt={m.bind.qrAlt} />
+							{scanned ? (
+								<div className="bind-qr-done" aria-hidden="true">
+									<CheckCircle size={72} weight="fill" />
+								</div>
+							) : null}
+						</div>
 					) : null}
 					<p className="bind-expires">
 						{m.bind.expires.replaceAll("{seconds}", String(qr.remain))}

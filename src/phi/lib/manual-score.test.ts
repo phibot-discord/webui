@@ -3,6 +3,7 @@ import test from "node:test";
 import {
 	effectiveScore,
 	estimateScore,
+	parseAcc,
 	rankingScoreOf,
 	roundAcc,
 	validAcc,
@@ -48,4 +49,14 @@ test("accuracy keeps the typed digits (up to six) and validates ranges", () => {
 	assert.equal(validScore(1_000_000), true);
 	assert.equal(validScore(1_000_001), false);
 	assert.equal(validScore(12.5), false);
+});
+
+test("a typed accuracy parses to a valid, rounded number or nothing", () => {
+	assert.equal(parseAcc("99.5"), 99.5);
+	assert.equal(parseAcc("100"), 100);
+	assert.equal(parseAcc("99."), 99);
+	assert.equal(parseAcc("99.1234567"), undefined);
+	assert.equal(parseAcc("100.5"), undefined);
+	assert.equal(parseAcc(""), undefined);
+	assert.equal(parseAcc("abc"), undefined);
 });

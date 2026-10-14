@@ -22,6 +22,7 @@ test("routes that load the song catalog ship phi-assets/info", () => {
 		"/api/songs/search",
 		"/api/charts",
 		"/api/manual",
+		"/api/sim",
 		"/api/refresh",
 		"/api/login/taptap/poll",
 	]) {

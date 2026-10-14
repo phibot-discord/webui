@@ -103,6 +103,7 @@ const notes = {
 	showTagAnalysis: false,
 	locale,
 	cardBackground: process.env.BG || undefined,
+	stddevExcludeP3: process.env.SD_NO_P3 === "1",
 };
 
 let id: string;
