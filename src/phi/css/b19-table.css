@@ -1353,7 +1353,7 @@ body {
 .tbl-tip-k {
 	flex: none;
 	margin-right: 14px;
-	padding: 3px 9px;
+	padding: 5px 7.5px 1px 9px;
 	font-family: var(--tbl-num);
 	font-size: 12px;
 	line-height: 14px;
