@@ -86,6 +86,8 @@ class GetInfo {
 	avatarid: string[] = [];
 	/** 4/1 specials with their own jackets in R2 (`4-1/`); set from the manifest, so `init` leaves it alone */
 	private fools = new Set<string>();
+	/** Songs with a jacket per difficulty (`original_ill/ill/<level>/<id>.png`), from `original_ill/levels.json`; the levels each has, by catalog id */
+	private illLevels = new Map<string, ReadonlySet<string>>();
 	private totals: [number, number, number, number] | undefined;
 	resources = "";
 	originalIll = "";
@@ -222,6 +224,12 @@ class GetInfo {
 		this.fools = new Set([...ids].map(withDotZero));
 	}
 
+	setIllLevels(levels: ReadonlyMap<string, readonly string[]>) {
+		this.illLevels = new Map(
+			[...levels].map(([id, list]) => [withDotZero(id), new Set(list)]),
+		);
+	}
+
 	/** A song in info.csv keeps its normal jacket, even when it is also a 4/1 special or in spinfo.json */
 	private illTree(key: string): IllTree {
 		if (this.ori_info[key]) return "normal";
@@ -229,10 +237,19 @@ class GetInfo {
 		return this.sp_info[key] ? "sp" : "normal";
 	}
 
-	/** `id` with or without `.0`: the path is the same either way */
-	getill(id: string, kind: "common" | "blur" | "low" = "common"): string {
+	/** `id` with or without `.0`: the path is the same either way. A `level` (EZ, HD, IN, AT) gets that chart's jacket when the song has one per difficulty, the song's jacket otherwise */
+	getill(
+		id: string,
+		kind: "common" | "blur" | "low" = "common",
+		level?: string,
+	): string {
 		const key = withDotZero(id);
-		return songIllPath(this.originalIll, key, kind, this.illTree(key));
+		const tree = this.illTree(key);
+		const own =
+			level && tree === "normal" && this.illLevels.get(key)?.has(level)
+				? level
+				: undefined;
+		return songIllPath(this.originalIll, key, kind, tree, own);
 	}
 
 	idgetavatar(id: string) {

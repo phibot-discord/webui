@@ -1,4 +1,4 @@
-export const STATUS_TARGETS = ["workers", "rust", "kv", "assets"] as const;
+export const STATUS_TARGETS = ["workers", "kv", "assets"] as const;
 export type StatusTargetId = (typeof STATUS_TARGETS)[number];
 export type StatusState = "up" | "degraded" | "down" | "unknown";
 

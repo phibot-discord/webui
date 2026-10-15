@@ -298,7 +298,7 @@ export async function buildSongCard(
 		constant: Number(chart.difficulty) || 0,
 		notes: chart.combo || undefined,
 		noteKinds: noteKinds(chart),
-		jacket: rt.getInfo.getill(id, "common") || catalog.fallbackIll,
+		jacket: rt.getInfo.getill(id, "common", level) || catalog.fallbackIll,
 		player: {
 			name: plainName(save.saveInfo?.PlayerId),
 			rks: playerRks,
@@ -330,7 +330,7 @@ export async function buildSongCard(
 		templateId: SONG_TEMPLATE,
 		data: {
 			songCard: data,
-			background: rt.getInfo.getill(id, "blur") || catalog.fallbackIll,
+			background: rt.getInfo.getill(id, "blur", level) || catalog.fallbackIll,
 			// A lookup timed out or failed: served no-store and never cached
 			renderPartial: partial,
 			missing,

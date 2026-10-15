@@ -40,7 +40,7 @@ export class LevelRecordInfo {
 			return;
 		}
 		this.song = info.song;
-		this.illustration = getInfo.getill(id, "low");
+		this.illustration = getInfo.getill(id, "low", this.rank);
 		const difficulty = info.chart?.[this.rank]?.difficulty;
 		this.difficulty = difficulty || 0;
 		this.rks = difficulty ? fCompute.rks(this.acc, difficulty) : 0;

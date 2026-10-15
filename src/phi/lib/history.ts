@@ -330,7 +330,7 @@ function extendScore(
 	return {
 		song: rt.getInfo.idgetsong(songId) || songId,
 		rank: level,
-		illustration: rt.getInfo.getill(songId, "low"),
+		illustration: rt.getInfo.getill(songId, "low", level),
 		Rating: rt.fCompute.rate(cur.score, cur.fc),
 		acc_new: cur.acc,
 		acc_old: prev?.acc,

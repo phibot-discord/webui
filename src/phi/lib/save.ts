@@ -219,7 +219,7 @@ export class Save {
 				const tem = { ...x } as LevelRecordInfo;
 				phi[i] = tem;
 				sum_rks += Number(tem.rks);
-				tem.illustration = getInfo.getill(tem.id, "low");
+				tem.illustration = getInfo.getill(tem.id, "low", tem.rank);
 				tem.suggest = "无法推分";
 			}
 		}
@@ -256,7 +256,7 @@ export class Save {
 			} else {
 				row.suggest = "无法推分";
 			}
-			row.illustration = getInfo.getill(row.id, "low");
+			row.illustration = getInfo.getill(row.id, "low", row.rank);
 			b19_list.push(row);
 		}
 		const com_rks = sum_rks / 30;
@@ -285,7 +285,7 @@ export class Save {
 					const tem = { ...x } as LevelRecordInfo;
 					phi[i] = tem;
 					sum_rks += Number(tem.rks);
-					tem.illustration = getInfo.getill(tem.id, "low");
+					tem.illustration = getInfo.getill(tem.id, "low", tem.rank);
 					tem.suggest = "无法推分";
 				}
 			}
@@ -324,7 +324,7 @@ export class Save {
 			} else {
 				x.suggest = "无法推分";
 			}
-			x.illustration = getInfo.getill(x.id, "low");
+			x.illustration = getInfo.getill(x.id, "low", x.rank);
 			b19_list.push(x);
 		}
 		return { phi, b19_list, com_rks: sum_rks / 30 };

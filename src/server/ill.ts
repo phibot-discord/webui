@@ -17,18 +17,21 @@ function pngName(id: string): string {
 /** `sp` has only the full jacket, in `SP/`; `fools` is a 4/1 special, whose jackets sit in R2 under `4-1/original_ill/`, locally `<illDir>/4-1/<dir>/` */
 export type IllTree = "normal" | "sp" | "fools";
 
-/** `id` is the catalog id, `.0` included */
+/** `id` is the catalog id, `.0` included. `level` picks the per-difficulty jacket (`ill/IN/<id>.png`) of a song that has one: only the normal tree has them, and the caller checks the song does */
 export function songIllPath(
 	originalIll: string,
 	id: string,
 	kind: "common" | "blur" | "low" = "common",
 	tree: IllTree = "normal",
+	level?: string,
 ): string {
 	const png = pngName(id);
 	const dir = kind === "blur" ? "illBlur" : kind === "low" ? "illLow" : "ill";
 	if (tree === "fools") return join(originalIll, FOOLS_PREFIX, dir, png);
 	if (tree === "sp") return join(originalIll, "SP", png);
-	return join(originalIll, dir, png);
+	return level
+		? join(originalIll, dir, level, png)
+		: join(originalIll, dir, png);
 }
 
 function underIllTree(absPath: string): string | undefined {

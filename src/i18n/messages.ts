@@ -64,7 +64,7 @@ export type Messages = {
 		range30d: string;
 		range24h: string;
 		targets: Record<
-			"workers" | "rust" | "kv" | "assets",
+			"workers" | "kv" | "assets",
 			{ name: string; blurb: string }
 		>;
 		states: Record<"up" | "degraded" | "down" | "unknown", string>;
@@ -753,10 +753,6 @@ export const en: Messages = {
 				name: "Workers",
 				blurb:
 					"The Cloudflare Worker that syncs song art and relays TapTap requests.",
-			},
-			rust: {
-				name: "Rust workers",
-				blurb: "Unpacks the game files when Phigros updates.",
 			},
 			kv: {
 				name: "KV storage",
@@ -1540,7 +1536,6 @@ export const zh: Messages = {
 				name: "Workers",
 				blurb: "同步曲绘、转发 TapTap 请求的 Cloudflare Worker",
 			},
-			rust: { name: "Rust Workers", blurb: "Phigros 更新时解包游戏文件" },
 			kv: { name: "KV 存储", blurb: "保存绑定、存档和设置的 Cloudflare KV" },
 			assets: { name: "资源 Worker", blurb: "运行资源处理流程的机器" },
 		},

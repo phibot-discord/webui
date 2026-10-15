@@ -785,6 +785,26 @@ test("a slow first 4/1 read stops holding up the cold start and lands later; lat
 	}
 });
 
+test("the cold start also waits for the songs with a jacket per difficulty, so the first cards show the chart's jacket", async () => {
+	const levels = () =>
+		Promise.resolve(new Map([["Igallta.SeURa", ["HD", "AT"]]]));
+	resetSongInfoForTest(undefined, levels);
+	const root = await spCatalog();
+	try {
+		const started = performance.now();
+		// The 4/1 read finishes at once; the cold start still holds for the other manifest
+		await syncFools(async () => [], 1_000);
+		assert.equal(foolsPending(started), false);
+		assert.equal(
+			getInfo.getill("Igallta.SeURa.0", "low", "AT"),
+			`${root}/illLow/AT/Igallta.SeURa.png`,
+		);
+	} finally {
+		getInfo.setIllLevels(new Map());
+		resetSongInfoForTest();
+	}
+});
+
 test("a failed first 4/1 read keeps the last set and does not leave cards uncached", async () => {
 	resetSongInfoForTest();
 	const root = await spCatalog();

@@ -152,7 +152,7 @@ export type Chip = { rank: string; cls: string; level: string };
 
 type SongLookup = {
 	idgetsong(id: string): string | undefined;
-	getill(id: string, kind: "low"): string;
+	getill(id: string, kind: "low", level?: string): string;
 	raw(
 		id: string,
 	):
@@ -705,7 +705,7 @@ export function b30Movement(snaps: unknown, info: SongLookup) {
 		const title = info.idgetsong(c.id) || raw?.song || c.id.replace(/\.0$/, "");
 		let ill = "";
 		try {
-			ill = info.getill(c.id, "low");
+			ill = info.getill(c.id, "low", c.rank);
 		} catch {}
 		return {
 			title: fitTitle(title, MOVE_TITLE_W, { max: 15, min: 12, wrap: 13 }),

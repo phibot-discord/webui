@@ -59,6 +59,57 @@ test("getill sends a listed 4/1 special to its own jackets, and only while it is
 	}
 });
 
+test("getill gives a chart its own jacket only for a song the manifest lists with that level", async () => {
+	await getInfo.init(
+		assets({
+			"spinfo.json": JSON.stringify({
+				"Special.One": { song: "Special", chapter: "SP", chart: {} },
+			}),
+		}),
+	);
+	const root = getInfo.originalIll;
+	const plain = `${root}/ill/Igallta.SeURa.png`;
+	try {
+		// No manifest: every level gets the song's jacket
+		assert.equal(getInfo.getill("Igallta.SeURa.0", "common", "IN"), plain);
+		getInfo.setIllLevels(new Map([["Igallta.SeURa", ["EZ", "IN"]]]));
+		assert.equal(
+			getInfo.getill("Igallta.SeURa.0", "common", "IN"),
+			`${root}/ill/IN/Igallta.SeURa.png`,
+		);
+		assert.equal(
+			getInfo.getill("Igallta.SeURa", "low", "EZ"),
+			`${root}/illLow/EZ/Igallta.SeURa.png`,
+		);
+		assert.equal(
+			getInfo.getill("Igallta.SeURa.0", "blur", "EZ"),
+			`${root}/illBlur/EZ/Igallta.SeURa.png`,
+		);
+		// A level the song lacks, no level, or a level that is not a chart falls back to the song's
+		assert.equal(getInfo.getill("Igallta.SeURa.0", "common", "AT"), plain);
+		assert.equal(getInfo.getill("Igallta.SeURa.0", "common"), plain);
+		assert.equal(getInfo.getill("Igallta.SeURa.0", "common", "SP"), plain);
+		// Another song, and a special in the SP or 4/1 tree, never get one
+		assert.equal(
+			getInfo.getill("Special.One.0", "low", "IN"),
+			`${root}/SP/Special.One.png`,
+		);
+		getInfo.setIllLevels(new Map([["Special.One", ["IN"]]]));
+		assert.equal(
+			getInfo.getill("Special.One.0", "low", "IN"),
+			`${root}/SP/Special.One.png`,
+		);
+		getInfo.setFools(["Special.One"]);
+		assert.equal(
+			getInfo.getill("Special.One.0", "low", "IN"),
+			`${root}/4-1/illLow/Special.One.png`,
+		);
+	} finally {
+		getInfo.setFools([]);
+		getInfo.setIllLevels(new Map());
+	}
+});
+
 test("getill gives an id without .0 the same path as the catalog id, in every tree", async () => {
 	await getInfo.init(
 		assets({

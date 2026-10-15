@@ -35,6 +35,18 @@ test("jackets, avatars and icons map to R2 keys; css and fonts do not", () => {
 	assert.equal(assetKeyOf("phi-css://takumi.css"), undefined);
 });
 
+test("a per-difficulty jacket maps to its R2 key and falls back to its own low-res copy", () => {
+	const res = "/srv/app/phi-assets";
+	assert.equal(
+		assetKeyOf(`${res}/original_ill/ill/IN/Happy.Apollo.png`),
+		"original_ill/ill/IN/Happy.Apollo.png",
+	);
+	assert.equal(
+		fallbackKeyOf("original_ill/ill/IN/Happy.Apollo.png"),
+		"original_ill/illLow/IN/Happy.Apollo.png",
+	);
+});
+
 test("songIllPath points at the R2 tree without looking on disk", () => {
 	const root = "/no/local/original_ill";
 	assert.equal(
@@ -56,6 +68,28 @@ test("songIllPath points at the R2 tree without looking on disk", () => {
 	assert.equal(
 		songIllPath(root, "Introduction.0", "blur", "sp"),
 		"/no/local/original_ill/SP/Introduction.png",
+	);
+	// A song with a jacket per difficulty keeps each chart's in a directory of the level
+	assert.equal(
+		songIllPath(root, "Happy.Apollo.0", "common", "normal", "IN"),
+		"/no/local/original_ill/ill/IN/Happy.Apollo.png",
+	);
+	assert.equal(
+		songIllPath(root, "Happy.Apollo.0", "low", "normal", "AT"),
+		"/no/local/original_ill/illLow/AT/Happy.Apollo.png",
+	);
+	assert.equal(
+		songIllPath(root, "Happy.Apollo.0", "blur", "normal", "EZ"),
+		"/no/local/original_ill/illBlur/EZ/Happy.Apollo.png",
+	);
+	// Only the normal tree has them
+	assert.equal(
+		songIllPath(root, "Introduction.0", "blur", "sp", "IN"),
+		"/no/local/original_ill/SP/Introduction.png",
+	);
+	assert.equal(
+		songIllPath(root, "Oblivion.Daily.0", "low", "fools", "IN"),
+		"/no/local/original_ill/4-1/illLow/Oblivion.Daily.png",
 	);
 	// A 4/1 special has all three sizes, where SP only ever had the full one
 	assert.equal(

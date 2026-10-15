@@ -14,6 +14,7 @@ import {
 import { applyPhiVersion } from "@/phi/lib/version";
 import { runInBackground } from "./background";
 import { type FoolsSong, loadFools } from "./fools";
+import { type IllLevels, loadIllLevels } from "./ill-levels";
 import { logger } from "./logger";
 import { assetsDir } from "./paths";
 import { fetchR2Object, r2Ready } from "./r2";
@@ -89,12 +90,14 @@ const PARTIAL_RETRY_EVERY = 10;
 const PARTIAL = "+partial";
 /** How long a cold start waits for the 4/1 set before the catalog counts as ready */
 const FOOLS_COLD_WAIT_MS = 3_000;
-/** Until the first 4/1 read settles, `getill` sends a special to its SP (or normal) jacket; `late`: a cold start stopped waiting for it */
+/** Until the first 4/1 read settles (it also reads which songs have a jacket per difficulty), `getill` sends a special to its SP (or normal) jacket and a chart to its song's jacket; `late`: a cold start stopped waiting for it */
 let foolsRead: "no" | "reading" | "late" | "yes" = "no";
 /** `performance.now()` when a first 4/1 read that outlasted the cold start's wait landed */
 let foolsLateAt = Number.NEGATIVE_INFINITY;
 /** `loadFools`, or a test's stand-in */
 let foolsLoader: () => Promise<FoolsSong[]> = loadFools;
+/** `loadIllLevels`, or a test's stand-in */
+let illLevelsLoader: () => Promise<IllLevels> = loadIllLevels;
 
 /** Revision of the mounted info files; moves before `getInfo` re-parses them */
 export function catalogRevision(): string {
@@ -120,6 +123,7 @@ export function onCatalogReload(fn: () => void): void {
 
 export function resetSongInfoForTest(
 	fools: () => Promise<FoolsSong[]> = loadFools,
+	illLevels: () => Promise<IllLevels> = loadIllLevels,
 ) {
 	gitRevision = BUNDLED;
 	syncLevelsSha = undefined;
@@ -134,6 +138,7 @@ export function resetSongInfoForTest(
 	foolsRead = "no";
 	foolsLateAt = Number.NEGATIVE_INFINITY;
 	foolsLoader = fools;
+	illLevelsLoader = illLevels;
 }
 
 function applyRevision(
@@ -431,8 +436,20 @@ export async function applyKvLevels(
 	}
 }
 
-/** Songs whose 4/1 jackets are in R2 get `getill` paths under `4-1/`; a failed read keeps the last set */
+/** Songs with a jacket per difficulty get `getill` paths for the chart's level; a failed read keeps the last set */
+async function refreshIllLevels(): Promise<void> {
+	try {
+		getInfo.setIllLevels(await illLevelsLoader());
+	} catch (err) {
+		logger.warn(
+			`jacket levels skipped: ${err instanceof Error ? err.message : err}`,
+		);
+	}
+}
+
+/** Songs whose 4/1 jackets are in R2 get `getill` paths under `4-1/`; a failed read keeps the last set. The per-difficulty jackets are read alongside, and settle together with it */
 async function refreshFools(load: () => Promise<FoolsSong[]>): Promise<void> {
+	const levels = refreshIllLevels();
 	try {
 		const songs = await load();
 		getInfo.setFools(songs.filter((s) => s.jacket).map((s) => s.id));
@@ -441,6 +458,7 @@ async function refreshFools(load: () => Promise<FoolsSong[]>): Promise<void> {
 			`4-1 jackets skipped: ${err instanceof Error ? err.message : err}`,
 		);
 	} finally {
+		await levels;
 		if (foolsRead === "late") foolsLateAt = performance.now();
 		foolsRead = "yes";
 	}
