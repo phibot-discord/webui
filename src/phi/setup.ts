@@ -317,7 +317,7 @@ function shrinkSongTitles(html: string) {
 	);
 }
 
-// b30.css widths less slack: first badge's start to the song panel's right edge, then the panel's top edge right of the jacket
+// b30.css widths less slack: badges to the song panel's right edge, and along its top edge right of the jacket
 const RANK_BADGES_W = 305;
 const RANK_BAND_W = 156;
 // Side padding (the ±0.05 one: 14 + 8 and its 3px edge), the gap between badges, then the tag / of / pct margins
@@ -359,7 +359,7 @@ function fitBadge(b: RankBadgeText, widthPx: number, maxPx = 12): RankFit {
 	);
 }
 
-/** The ±0.05 badge fits the panel's top edge first, then the all-records badge takes the rest, at the same size or smaller */
+/** The ±0.05 badge fits the panel's top edge first; the all-records badge takes the rest, no larger */
 function fitRankGroup(group: string) {
 	const [head = "", ...chunks] = group.split('<div class="accAvg ');
 	const text = (chunk: string, cls: string) =>
@@ -462,7 +462,7 @@ function fitPlayerName(html: string) {
 	);
 }
 
-/** Index past the `</div>` matching a `<div` whose open tag ends at `from`; `unterminated` when the `</div>`s run out first */
+/** Index past the `</div>` matching a `<div` whose open tag ends at `from` */
 function scanDivEnd(
 	html: string,
 	from: number,
@@ -641,7 +641,7 @@ const TEMPLATE_MAX_RATIO: Record<string, number> = {
 	update: 3,
 };
 
-/** Variant layouts (lib/variants) get only variant-base.css plus their own <tpl>.css, none of the classic markup rewrites */
+/** Variant layouts get only variant-base.css plus their own <tpl>.css, no classic markup rewrites */
 function polishVariantHtml(html: string, tpl: string) {
 	let out = html.replace(/<title>[^<]*<\/title>/gi, "<title>phi</title>");
 	out = out.replace(/<script\b[\s\S]*?<\/script>/gi, "");

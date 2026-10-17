@@ -65,7 +65,7 @@ a {
 	outline-offset: 2px;
 }
 
-:where(.card-nav, .frame, .plan-table-wrap) :focus-visible {
+:where(.card-nav, .coll-chips, .frame, .plan-table-wrap) :focus-visible {
 	outline-offset: -2px;
 }
 

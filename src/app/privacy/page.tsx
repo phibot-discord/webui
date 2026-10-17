@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalDoc";
 import { privacy } from "@/i18n/legal";
 import { getMessages } from "@/i18n/server";
+import { pageMetadata } from "@/server/og-meta";
 
-export async function generateMetadata(): Promise<Metadata> {
-	const { locale, m } = await getMessages();
-	return { title: m.legal.privacy, description: privacy[locale].lede };
+export function generateMetadata(): Promise<Metadata> {
+	return pageMetadata("privacy");
 }
 
 export default async function PrivacyPage() {

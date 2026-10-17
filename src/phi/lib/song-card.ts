@@ -254,7 +254,7 @@ export async function buildSongCard(
 		online
 			? external.track(settleBy(job(), deadline, label))
 			: Promise.resolve<Settled<T>>({ state: "off" });
-	// The user's ranks stay in memory (the image is cached for the day); the shared board and AP/FC counts go to KV
+	// The user's ranks stay in memory; the shared board and AP/FC counts go to KV
 	const [ranks, banded, counts, board] = await Promise.all([
 		queries.length ? ask(() => rankRows(queries, {}, deps), "rank") : null,
 		mine ? ask(() => rankRows([mine], { band }, deps), "band") : null,
@@ -331,7 +331,6 @@ export async function buildSongCard(
 		data: {
 			songCard: data,
 			background: rt.getInfo.getill(id, "blur", level) || catalog.fallbackIll,
-			// A lookup timed out or failed: served no-store and never cached
 			renderPartial: partial,
 			missing,
 			externalMs: external.ms(),

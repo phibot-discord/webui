@@ -1,4 +1,6 @@
 import { join } from "node:path";
+import { JACKET_TREES, type JacketTree } from "@/lib/assets";
+import { avatarFile, parseAvatarFiles } from "@/lib/texts";
 import { type IllTree, songIllPath } from "@/server/ill";
 import { logger } from "@/server/logger";
 import { illDir } from "@/server/paths";
@@ -66,13 +68,6 @@ export function withDotZero(id: string) {
 	return id.endsWith(".0") ? id : `${id}.0`;
 }
 
-const AVATAR_FILE: Record<string, string> = {
-	"Cipher : /2&//<|0": "Cipher1",
-	"Oblivion: PHIN": "OblivionPHIN",
-	"Drop It": "Drop it",
-	RIPPER: "ripper",
-};
-
 class GetInfo {
 	allLevel = ALL_LEVEL;
 	tips: string[] = [];
@@ -84,9 +79,14 @@ class GetInfo {
 	idList: string[] = [];
 	MAX_DIFFICULTY = 0;
 	avatarid: string[] = [];
-	/** 4/1 specials with their own jackets in R2 (`4-1/`); set from the manifest, so `init` leaves it alone */
-	private fools = new Set<string>();
-	/** Songs with a jacket per difficulty (`original_ill/ill/<level>/<id>.png`), from `original_ill/levels.json`; the levels each has, by catalog id */
+	/** Display name → file stem under `html/avatar/`, from the ripper's `avatars.json` */
+	avatarFiles: ReadonlyMap<string, string> = new Map();
+	/** Catalog id → the file stem its jackets have in the side tree; set from the manifests, not by `init` */
+	private side: Record<JacketTree, Map<string, string>> = {
+		fools: new Map(),
+		removed: new Map(),
+	};
+	/** Catalog id → the levels with their own jacket (`original_ill/ill/<level>/<id>.png`) */
 	private illLevels = new Map<string, ReadonlySet<string>>();
 	private totals: [number, number, number, number] | undefined;
 	resources = "";
@@ -111,6 +111,9 @@ class GetInfo {
 			.split("\n")
 			.map((s) => s.trim())
 			.filter(Boolean);
+		this.avatarFiles =
+			parseAvatarFiles(readJson<unknown>(join(infoPath, "avatars.json"), [])) ??
+			new Map();
 		this.tips = readText(join(infoPath, "tips.txt"))
 			.split("\n")
 			.map((s) => s.trim())
@@ -220,8 +223,11 @@ class GetInfo {
 		return tot;
 	}
 
-	setFools(ids: Iterable<string>) {
-		this.fools = new Set([...ids].map(withDotZero));
+	/** `[id, stem]`: a catalog id and its jacket stem in that tree; only jackets are routed, never song tables */
+	setSide(tree: JacketTree, songs: Iterable<readonly [string, string]>) {
+		this.side[tree] = new Map(
+			[...songs].map(([id, stem]) => [withDotZero(id), stem]),
+		);
 	}
 
 	setIllLevels(levels: ReadonlyMap<string, readonly string[]>) {
@@ -233,11 +239,12 @@ class GetInfo {
 	/** A song in info.csv keeps its normal jacket, even when it is also a 4/1 special or in spinfo.json */
 	private illTree(key: string): IllTree {
 		if (this.ori_info[key]) return "normal";
-		if (this.fools.has(key)) return "fools";
+		const side = JACKET_TREES.find((tree) => this.side[tree].has(key));
+		if (side) return side;
 		return this.sp_info[key] ? "sp" : "normal";
 	}
 
-	/** `id` with or without `.0`: the path is the same either way. A `level` (EZ, HD, IN, AT) gets that chart's jacket when the song has one per difficulty, the song's jacket otherwise */
+	/** `id` with or without `.0`; a `level` gets that chart's jacket when the song has one per difficulty */
 	getill(
 		id: string,
 		kind: "common" | "blur" | "low" = "common",
@@ -249,12 +256,16 @@ class GetInfo {
 			level && tree === "normal" && this.illLevels.get(key)?.has(level)
 				? level
 				: undefined;
-		return songIllPath(this.originalIll, key, kind, tree, own);
+		const stem =
+			tree === "normal" || tree === "sp"
+				? key.replace(/\.0$/, "")
+				: (this.side[tree].get(key) ?? key);
+		return songIllPath(this.originalIll, stem, kind, tree, own);
 	}
 
 	idgetavatar(id: string) {
 		if (!this.avatarid.includes(id)) return "Introduction";
-		return AVATAR_FILE[id] ?? id;
+		return avatarFile(id, this.avatarFiles);
 	}
 
 	idgetsong(id: string) {

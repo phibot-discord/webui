@@ -8,6 +8,7 @@ export async function GET(request: Request) {
 	const built = await buildPhira(
 		url.searchParams.get("id") || "",
 		url.searchParams.get("level") || "",
+		url.searchParams.get("ver") || undefined,
 	);
 	if ("error" in built) {
 		const status = built.error === "bad_level" ? 400 : 404;

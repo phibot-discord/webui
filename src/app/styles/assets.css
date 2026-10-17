@@ -256,6 +256,13 @@
 	white-space: nowrap;
 }
 
+.asset-credit {
+	margin-top: 2px;
+	color: var(--muted);
+	font-size: var(--text-xs);
+	overflow-wrap: anywhere;
+}
+
 .asset-actions {
 	display: flex;
 	gap: var(--space-2);
@@ -341,4 +348,23 @@
 		flex: 1;
 		min-height: var(--tap);
 	}
+}
+
+.asset-preview-video {
+	display: block;
+	width: 100%;
+	max-width: 40rem;
+	aspect-ratio: 16 / 9;
+	object-fit: contain;
+	border-radius: var(--radius-md);
+	background: #000;
+}
+
+.asset-level {
+	margin-inline-start: var(--space-2);
+	vertical-align: 1px;
+}
+
+.asset-name .asset-level span:first-child {
+	font-weight: 600;
 }

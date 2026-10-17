@@ -29,15 +29,10 @@
 	}
 }
 
-html {
-	scroll-padding-bottom: var(--toast-space, 0px);
-}
-
 .shell {
 	display: flex;
 	flex-direction: column;
 	min-height: 100dvh;
-	padding-bottom: var(--toast-space, 0px);
 }
 
 .site-foot {
@@ -88,83 +83,29 @@ html {
 
 .site-foot-rev {
 	font-family: ui-monospace, Menlo, Monaco, monospace;
-	opacity: 0.7;
 }
 
-.version-notice {
-	position: fixed;
-	right: var(--gutter);
-	bottom: calc(var(--gutter) + var(--safe-bottom));
-	z-index: var(--z-toast);
-	width: min(24rem, calc(100% - 2 * var(--gutter)));
-	padding: var(--space-4) var(--space-4) var(--space-4) var(--space-5);
-	border: 1px solid var(--line);
-	border-radius: var(--radius-md);
-	background: var(--surface);
-	color: var(--ink);
-	box-shadow: var(--shadow-lg);
-}
-
-.version-notice::before {
-	content: "";
-	position: absolute;
-	top: var(--space-4);
-	bottom: var(--space-4);
-	left: 0;
-	width: 3px;
-	border-radius: 0 2px 2px 0;
-	background: var(--primary);
-}
-
-.version-notice-head {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	gap: var(--space-3);
-}
-
-.version-notice-title {
-	margin: 0;
-	font-size: var(--text-sm);
-	font-weight: 600;
-	letter-spacing: 0;
-}
-
-.version-notice-body {
-	margin: var(--space-1) 0 var(--space-4);
+.site-foot .site-foot-links button {
+	appearance: none;
+	padding: 0;
+	border: 0;
+	background: none;
 	color: var(--muted);
-	font-size: var(--text-sm);
-	line-height: 1.5;
+	font: inherit;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+	cursor: pointer;
 }
 
-.version-notice-actions {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--space-2);
-}
-
-.version-notice-close {
-	flex: none;
-	margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0 0;
-}
-
-@media (max-width: 767px) {
-	.version-notice {
-		right: var(--space-3);
-		left: var(--space-3);
-		bottom: calc(var(--space-3) + var(--safe-bottom));
-		width: auto;
-	}
-
-	.version-notice-actions .btn {
-		flex: 1 1 auto;
+@media (hover: hover) {
+	.site-foot .site-foot-links button:hover {
+		color: var(--primary);
 	}
 }
 
-@media (prefers-reduced-motion: no-preference) {
-	.version-notice {
-		animation: toast-in 260ms var(--ease) both;
+@media (pointer: coarse) {
+	.site-foot .site-foot-links button {
+		min-height: var(--tap);
 	}
 }
 

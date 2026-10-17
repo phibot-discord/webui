@@ -366,20 +366,6 @@
 		mask-image: none;
 	}
 
-	.card-nav[data-fade="start"] {
-		mask-image: linear-gradient(to right, transparent, #000 2rem);
-	}
-
-	.card-nav[data-fade="both"] {
-		mask-image: linear-gradient(
-			to right,
-			transparent,
-			#000 2rem,
-			#000 calc(100% - 2rem),
-			transparent
-		);
-	}
-
 	.card-nav a,
 	.card-nav .sk-tab {
 		padding-inline: 10px;
@@ -1091,4 +1077,10 @@
 	.bg-list li.is-active {
 		outline-color: Highlight;
 	}
+}
+
+.desk-section-title {
+	margin: var(--space-2) 0 var(--space-2);
+	font-size: var(--text-xl);
+	font-weight: 700;
 }

@@ -923,7 +923,7 @@ export function summaryView(
 			: null;
 	const rksNum = num(data.Rks);
 
-	// The RKS change runs from the last RKS recorded before the period's first sync to the header's current RKS
+	// From the last RKS before the period's first sync to the header's current RKS
 	const snaps = Array.isArray(data.hisb30Snaps)
 		? (data.hisb30Snaps as Snap[])
 		: [];
@@ -1026,15 +1026,12 @@ export function summaryView(
 		},
 		gains: top.map((c, i) => gainTile(c, i, vt, wide)),
 		gainsLayout: wide ? "wide" : "grid",
-		// History caps tiles per sync: top gains only see the listed ones
 		gainsMeta: hidden > 0 ? vt.gainsMetaListed : vt.gainsMeta,
 		listTitle: top.length ? vt.updates : vt.updatesAll,
 		groups,
-		// Column headings only above actual rows (a day can be just "+N not shown")
 		listCols: groups.some((g) => g.rows.length > 0),
 		movement: movementView(move, vt),
 		showMovement: !empty || move.state === "changed",
-		// No records but the B30 moved (e.g. new chart constants): say so, and keep the panel compact
 		emptyMoved: empty && move.state === "changed",
 		emptyLines: (empty && move.state === "changed"
 			? vt.emptyMoved

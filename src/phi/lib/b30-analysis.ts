@@ -54,10 +54,7 @@ export function equivRksStddev(
 	);
 }
 
-/**
- * The ± SD of a card, for the header and the histogram alike. `excludePhi` drops the P1–P3 slots only: a chart that
- * sits in P3 and in B27 keeps its B27 value
- */
+/** The ± SD of a card; `excludePhi` drops P1–P3 only, so a chart in P3 and B27 keeps its B27 value */
 export function slotsStddev(
 	records: readonly Pick<B30Record, "kind" | "rks">[],
 	opts: { excludePhi?: boolean } = {},

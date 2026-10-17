@@ -5,6 +5,7 @@ import {
 	rankScopeOf,
 	type UserNotes,
 } from "@/phi/lib/notes";
+import type { CardSlot } from "./cache";
 
 export const RENDER_VERSION = "v48";
 
@@ -20,7 +21,6 @@ export type CardImageCacheInput = {
 	analysisFlag: string;
 	tagFlag: string;
 	statsFlag: string;
-	/** Set only while P3 is out of the SD, so cards cached before the option keep their key */
 	sdFlag?: string;
 	avgFlag: string;
 	background: string;
@@ -68,7 +68,6 @@ export function cardCacheInput(args: {
 		analysisFlag: notes.showB30Analysis === false ? "a0" : "a1",
 		tagFlag: args.tagOn ? "t1" : "t0",
 		statsFlag: args.statsOn ? "s1" : "s0",
-		// :2 because cards cached under the first version of this option carried a header SD that ignored it
 		sdFlag: args.sdExcludeP3 ? "sd:xp3:2" : undefined,
 		avgFlag: avgFlag(notes),
 		background: notes.cardBackground?.trim() || "random",
@@ -122,6 +121,18 @@ export function cardCacheParts(
 		input.renderVersion,
 		suffix,
 	];
+}
+
+/** Where R2 files the card: what makes it stale (save, epoch, renderer) apart from what a user picks */
+export function cardSlot(input: CardImageCacheInput): CardSlot {
+	return {
+		userId: input.userId,
+		kind: input.kind,
+		version: [input.saveRevision, input.epoch || "0", input.renderVersion].join(
+			"|",
+		),
+		variant: cardCacheParts(input, "jpeg").join("|"),
+	};
 }
 
 export function parseCachedHeight(raw: unknown): number | undefined {

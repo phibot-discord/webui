@@ -15,11 +15,9 @@ const nextAuth = NextAuth({
 	session: { strategy: "jwt" },
 	providers: [
 		Discord({
-			// Discord sends `iss` on the callback (RFC 9207); without it Auth.js fails with "unexpected iss"
 			issuer: "https://discord.com",
 			authorization: { params: { scope: "identify" } },
 		}),
-		// Only the browser that started the TapTap QR sign-in can redeem its ticket
 		Credentials({
 			id: "taptap",
 			name: "TapTap",

@@ -5,7 +5,7 @@ export type CardMissing = "peers" | "tags" | "song" | "stale" | "empty";
 /** Lookups answered from memory settle within this; only a slower one counts as waiting */
 const WAIT_SIGNAL_MS = 300;
 
-/** Times a card's parallel phib19.top lookups; `onWait(true)` once one runs past WAIT_SIGNAL_MS, `onWait(false)` when the last settles */
+/** Times a card's phib19.top lookups: `onWait(true)` past WAIT_SIGNAL_MS, `onWait(false)` when all settle */
 export function watchExternal(onWait?: (waiting: boolean) => void) {
 	let pending = 0;
 	let started: number | undefined;

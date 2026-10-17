@@ -140,8 +140,7 @@ test("a blur-cache hit moves the mtime at most once an hour", () => {
 });
 
 test("a blurred background keeps its luma sample when a hit touches it", async () => {
-	// Blur-cache files are named by content hash: the path alone is the version
-	// A scratch blur dir, so the dev server's pruning never races this test
+	// Blur-cache paths are content-hashed; a scratch dir keeps the dev server's pruning out of this test
 	const dir = mkdtempSync(join(tmpdir(), "phi-blur-"));
 	const cached = join(dir, "luma-test.png");
 	const plain = join(mkdtempSync(join(tmpdir(), "phi-ink-")), "bg.png");

@@ -228,7 +228,6 @@ test("RKS: a real 0 still counts, the dash only means an unknown constant", () =
 	const lookup: ConstLookup = (id) =>
 		id === "Unknown.Artist.0" ? undefined : 15.4;
 	const data = oneDay([
-		// The old record was below 70%: rks_old is 0, and that 0 is real
 		tile("Climb", {
 			Rating: "C",
 			score_new: 712000,

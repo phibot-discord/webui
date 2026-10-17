@@ -5,6 +5,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import type { JacketTree } from "@/lib/assets";
 import { getInfo } from "@/phi/lib/get-info";
 import {
 	INFO_FILE_KV_KEY,
@@ -18,12 +19,14 @@ import { type IllLevels, loadIllLevels } from "./ill-levels";
 import { logger } from "./logger";
 import { assetsDir } from "./paths";
 import { fetchR2Object, r2Ready } from "./r2";
+import { loadRemoved, type RemovedSong } from "./removed";
 import { withTimeout } from "./render-lock";
 import { mountBytes } from "./vfs";
 
 export const INFO_STATE_KEY = "_sync/info.json";
 const INFO_FILES = [
 	"avatar.txt",
+	"avatars.json",
 	"info.csv",
 	"infolist.json",
 	"nicklist.yaml",
@@ -90,7 +93,7 @@ const PARTIAL_RETRY_EVERY = 10;
 const PARTIAL = "+partial";
 /** How long a cold start waits for the 4/1 set before the catalog counts as ready */
 const FOOLS_COLD_WAIT_MS = 3_000;
-/** Until the first 4/1 read settles (it also reads which songs have a jacket per difficulty), `getill` sends a special to its SP (or normal) jacket and a chart to its song's jacket; `late`: a cold start stopped waiting for it */
+/** Until the first 4/1 read settles, `getill` falls back to SP or normal jackets; `late`: a cold start gave up */
 let foolsRead: "no" | "reading" | "late" | "yes" = "no";
 /** `performance.now()` when a first 4/1 read that outlasted the cold start's wait landed */
 let foolsLateAt = Number.NEGATIVE_INFINITY;
@@ -98,6 +101,8 @@ let foolsLateAt = Number.NEGATIVE_INFINITY;
 let foolsLoader: () => Promise<FoolsSong[]> = loadFools;
 /** `loadIllLevels`, or a test's stand-in */
 let illLevelsLoader: () => Promise<IllLevels> = loadIllLevels;
+/** `loadRemoved`, or a test's stand-in */
+let removedLoader: () => Promise<RemovedSong[]> = loadRemoved;
 
 /** Revision of the mounted info files; moves before `getInfo` re-parses them */
 export function catalogRevision(): string {
@@ -139,6 +144,8 @@ export function resetSongInfoForTest(
 	foolsLateAt = Number.NEGATIVE_INFINITY;
 	foolsLoader = fools;
 	illLevelsLoader = illLevels;
+	// tests never read the live removed/ manifest
+	removedLoader = async () => [];
 }
 
 function applyRevision(
@@ -447,24 +454,37 @@ async function refreshIllLevels(): Promise<void> {
 	}
 }
 
-/** Songs whose 4/1 jackets are in R2 get `getill` paths under `4-1/`; a failed read keeps the last set. The per-difficulty jackets are read alongside, and settle together with it */
-async function refreshFools(load: () => Promise<FoolsSong[]>): Promise<void> {
-	const levels = refreshIllLevels();
+/** A side tree's songs with jackets get `getill` paths under its prefix; a failed read keeps the last set */
+async function refreshJackets<T extends { id: string; stem: string }>(
+	tree: JacketTree,
+	load: () => Promise<readonly T[]>,
+	has: (song: T) => boolean,
+): Promise<void> {
 	try {
 		const songs = await load();
-		getInfo.setFools(songs.filter((s) => s.jacket).map((s) => s.id));
+		getInfo.setSide(
+			tree,
+			songs.filter(has).map((s) => [s.id, s.stem] as const),
+		);
 	} catch (err) {
 		logger.warn(
-			`4-1 jackets skipped: ${err instanceof Error ? err.message : err}`,
+			`${tree} jackets skipped: ${err instanceof Error ? err.message : err}`,
 		);
-	} finally {
-		await levels;
-		if (foolsRead === "late") foolsLateAt = performance.now();
-		foolsRead = "yes";
 	}
 }
 
-/** The first read (a cold start) is waited for, up to `waitMs`, so the first cards already get 4/1 jackets; later ones, or one past that, land in the background */
+/** The 4/1, removed and per-difficulty jacket sets, settled together */
+async function refreshFools(load: () => Promise<FoolsSong[]>): Promise<void> {
+	await Promise.all([
+		refreshIllLevels(),
+		refreshJackets("fools", load, (s) => s.jacket),
+		refreshJackets("removed", removedLoader, (s) => s.gone && s.jacket),
+	]);
+	if (foolsRead === "late") foolsLateAt = performance.now();
+	foolsRead = "yes";
+}
+
+/** A cold start waits up to `waitMs` so the first cards get 4/1 jackets; later reads land in the background */
 export async function syncFools(
 	load = foolsLoader,
 	waitMs = FOOLS_COLD_WAIT_MS,
@@ -483,7 +503,7 @@ export async function syncFools(
 	});
 }
 
-/** The first 4/1 read outlasted the cold start's wait and was still out at some point since `since` (a `performance.now()`): a card whose jackets were resolved in that time may show a special's SP jacket, so it is not cached */
+/** The first 4/1 read outlasted the cold start and was pending since `since`: a card resolved then is not cached */
 export function foolsPending(since: number): boolean {
 	return foolsRead === "late" || foolsLateAt > since;
 }

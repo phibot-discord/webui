@@ -680,7 +680,7 @@ test("summary view: fewer than 3 gains, first records and score-only gains", () 
 });
 
 test("summary view: sparse, negative and empty states", () => {
-	// No rks line: the last snapshot before the first sync (09/21 09:52 Shanghai time) is the start; the one after it is not
+	// No rks line: the last snapshot before the first sync is the start
 	const neg = summaryView(
 		cardData({
 			Rks: "16.5000",

@@ -14,9 +14,7 @@ import type { CardData, CardVariant, VariantContext } from "./types";
 // CSS px; keep in sync with b19-portrait.css
 export const GEOMETRY = {
 	cardW: 640,
-	// 600 px content minus the 132 px avatar and its 20 px gap
 	nameW: 448,
-	// 600 - 156 jacket - 16 - 18 padding
 	infoW: 410,
 	accPx: 22,
 	pushPx: 20,
@@ -27,11 +25,8 @@ export const GEOMETRY = {
 	plotW: 496,
 	plotH: 184,
 	xLabelW: 60,
-	// 600 - 2 x 20 padding
 	panelW: 560,
-	// The CSS box is 176 px
 	tagNameW: 172,
-	// The jacket's slant limits it
 	chipTextW: 114,
 	kickerW: 600,
 	kickerGap: 12,
@@ -42,7 +37,6 @@ export const GEOMETRY = {
 	rankTagGapW: 8,
 	rankGapW: 6,
 	rankPctGapW: 14,
-	// 600 - 36 padding - label - 14 gap
 	tipW: 480,
 } as const;
 
@@ -88,7 +82,6 @@ const HEIGHTS = {
 	tagRow: 36,
 	noteLine: 27,
 	foot: 158,
-	// `base`: padding plus the score and meta lines
 	rows: {
 		normal: { min: 112, base: 80, rank: 26, gap: 6, lh: 1.1 },
 		compact: { min: 104, base: 66, rank: 24, gap: 3, lh: 1.05 },
@@ -96,7 +89,7 @@ const HEIGHTS = {
 };
 const TIP_PX = [22, 20, 18];
 const RANK_PX = [20, 18];
-// Paint stays 2x while 640 x height x 4 <= 16 Mi px (6553 px); the rest is room for measure slack and estimate error
+// Paint stays 2x while 640 × height × 4 ≤ 16 Mi px (6553 px), less room for estimate error
 const SHARP_MAX_H = 6460;
 
 const COPY = {
@@ -849,12 +842,10 @@ export function buildAnalysis(
 		showTags: a.showTags === true,
 		tagsOk: tagsOk && (strong.length > 0 || weak.length > 0),
 		tagMeta: str(a.tagMeta),
-		// Heading (24 px bold) and meta (20 px) share a line when both fit in 560 px
 		tagMetaWraps:
 			Boolean(str(a.tagMeta)) &&
 			(textEm(tagTitle) * 24) / BOLD_SLACK + 16 + textEm(str(a.tagMeta)) * 20 >
 				GEOMETRY.panelW,
-		// The tag profile never comes from the x30 / fc30 list itself
 		tagNote: poolNote || (kind === "b30" ? "" : vt.tagsOtherList),
 		tagMessage: str(a.tagMessage),
 		tagPx: tagList.px,
@@ -1061,7 +1052,6 @@ export function buildView(data: CardData, ctx: VariantContext) {
 		namePx: name.px,
 		nameHtml: name.html,
 		date: str(data.Date),
-		// Manual-mode saves have no Data balance ("0KiB")
 		dataSize: dataSize === "0KiB" ? "" : dataSize,
 		stats: data.hideRecordStats === true ? null : buildStats(data.stats, vt),
 		rows,
@@ -1081,9 +1071,7 @@ export function buildView(data: CardData, ctx: VariantContext) {
 			avatar: str(user.avatar),
 			nameMulti: name.multi,
 			rks: fixed(user.rks ?? data.Rks, 4),
-			// On x30 / fc30 the spread is of the filtered list, not the B30 behind the RKS
 			sd: kind === "b30" && sd != null && sd > 0 ? `±${sd.toFixed(2)}` : "",
-			// Manual-mode saves carry rank 0: no challenge badge then
 			challenge:
 				level != null && level > 0 && mode != null && mode >= 0 && mode <= 5
 					? { mode: String(Math.floor(mode)), level: String(level) }

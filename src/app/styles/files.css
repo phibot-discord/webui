@@ -1,0 +1,83 @@
+.files-page {
+	--page-max: 76rem;
+	min-height: 100dvh;
+}
+
+.files-views {
+	margin-bottom: var(--space-5);
+}
+
+.files-views ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1) var(--space-2);
+	border-bottom: 1px solid var(--line);
+}
+
+.files-views a {
+	display: inline-flex;
+	align-items: center;
+	min-height: var(--tap);
+	margin-bottom: -1px;
+	padding: 0 var(--space-3);
+	border-bottom: 2px solid transparent;
+	color: var(--muted);
+	font-weight: 500;
+	text-decoration: none;
+	white-space: nowrap;
+	transition:
+		color var(--dur) var(--ease),
+		border-color var(--dur) var(--ease);
+}
+
+@media (hover: hover) {
+	.files-views a:hover {
+		color: var(--ink);
+	}
+}
+
+.files-views a[aria-current="page"] {
+	border-bottom-color: var(--primary);
+	color: var(--ink);
+	font-weight: 600;
+}
+
+@media (forced-colors: active) {
+	.files-views a[aria-current="page"] {
+		border-bottom-color: Highlight;
+	}
+}
+
+.files-shell {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.files-main {
+	min-width: 0;
+}
+
+.files-toc {
+	display: none;
+}
+
+@media (min-width: 80rem) {
+	.files-shell:has(> .files-toc) {
+		grid-template-columns: minmax(0, 1fr) 13.5rem;
+		column-gap: var(--space-12);
+		align-items: start;
+	}
+
+	.files-toc {
+		position: sticky;
+		top: calc(var(--nav-h) + var(--page-pad));
+		display: block;
+		max-height: calc(100dvh - var(--nav-h) - var(--page-pad) - var(--space-4));
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		scrollbar-width: thin;
+	}
+}

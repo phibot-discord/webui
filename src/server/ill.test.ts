@@ -50,54 +50,54 @@ test("a per-difficulty jacket maps to its R2 key and falls back to its own low-r
 test("songIllPath points at the R2 tree without looking on disk", () => {
 	const root = "/no/local/original_ill";
 	assert.equal(
-		songIllPath(root, "Credits.Frums.0", "low"),
+		songIllPath(root, "Credits.Frums", "low"),
 		"/no/local/original_ill/illLow/Credits.Frums.png",
 	);
 	assert.equal(
-		songIllPath(root, "Credits.Frums.0", "common"),
+		songIllPath(root, "Credits.Frums", "common"),
 		"/no/local/original_ill/ill/Credits.Frums.png",
 	);
 	assert.equal(
-		songIllPath(root, "Credits.Frums.0", "blur"),
+		songIllPath(root, "Credits.Frums", "blur"),
 		"/no/local/original_ill/illBlur/Credits.Frums.png",
 	);
 	assert.equal(
-		songIllPath(root, "Credits.Frums.0", "low", "normal"),
+		songIllPath(root, "Credits.Frums", "low", "normal"),
 		"/no/local/original_ill/illLow/Credits.Frums.png",
 	);
 	assert.equal(
-		songIllPath(root, "Introduction.0", "blur", "sp"),
+		songIllPath(root, "Introduction", "blur", "sp"),
 		"/no/local/original_ill/SP/Introduction.png",
 	);
 	// A song with a jacket per difficulty keeps each chart's in a directory of the level
 	assert.equal(
-		songIllPath(root, "Happy.Apollo.0", "common", "normal", "IN"),
+		songIllPath(root, "Happy.Apollo", "common", "normal", "IN"),
 		"/no/local/original_ill/ill/IN/Happy.Apollo.png",
 	);
 	assert.equal(
-		songIllPath(root, "Happy.Apollo.0", "low", "normal", "AT"),
+		songIllPath(root, "Happy.Apollo", "low", "normal", "AT"),
 		"/no/local/original_ill/illLow/AT/Happy.Apollo.png",
 	);
 	assert.equal(
-		songIllPath(root, "Happy.Apollo.0", "blur", "normal", "EZ"),
+		songIllPath(root, "Happy.Apollo", "blur", "normal", "EZ"),
 		"/no/local/original_ill/illBlur/EZ/Happy.Apollo.png",
 	);
 	// Only the normal tree has them
 	assert.equal(
-		songIllPath(root, "Introduction.0", "blur", "sp", "IN"),
+		songIllPath(root, "Introduction", "blur", "sp", "IN"),
 		"/no/local/original_ill/SP/Introduction.png",
 	);
 	assert.equal(
-		songIllPath(root, "Oblivion.Daily.0", "low", "fools", "IN"),
+		songIllPath(root, "Oblivion.Daily", "low", "fools", "IN"),
 		"/no/local/original_ill/4-1/illLow/Oblivion.Daily.png",
 	);
 	// A 4/1 special has all three sizes, where SP only ever had the full one
 	assert.equal(
-		songIllPath(root, "Oblivion.Daily.0", "low", "fools"),
+		songIllPath(root, "Oblivion.Daily", "low", "fools"),
 		"/no/local/original_ill/4-1/illLow/Oblivion.Daily.png",
 	);
 	assert.equal(
-		songIllPath(root, "Oblivion.Daily.0", "common", "fools"),
+		songIllPath(root, "Oblivion.Daily", "common", "fools"),
 		"/no/local/original_ill/4-1/ill/Oblivion.Daily.png",
 	);
 });

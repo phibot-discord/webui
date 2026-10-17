@@ -12,7 +12,7 @@ export function TagGlossary({ tree }: { tree: ChartTagTreeNode[] }) {
 	if (!tree.length) {
 		return (
 			<>
-				<h1>{m.tags.title}</h1>
+				<h2 className="desk-section-title">{m.tags.title}</h2>
 				<p className="lede">{m.tags.empty}</p>
 			</>
 		);
@@ -33,7 +33,7 @@ export function TagGlossary({ tree }: { tree: ChartTagTreeNode[] }) {
 	}));
 	return (
 		<>
-			<h1>{m.tags.title}</h1>
+			<h2 className="desk-section-title">{m.tags.title}</h2>
 			<p className="lede">{m.tags.lede}</p>
 			<div className="tag-layout">
 				<nav className="tag-index" aria-label={m.tags.index}>
@@ -59,7 +59,7 @@ export function TagGlossary({ tree }: { tree: ChartTagTreeNode[] }) {
 							aria-labelledby={`${cat.id}-h`}
 						>
 							<div className="tag-cat-head">
-								<h2 id={`${cat.id}-h`}>{cat.name}</h2>
+								<h3 id={`${cat.id}-h`}>{cat.name}</h3>
 								<span className="tag-cat-count">
 									{m.tags.count.replaceAll("{n}", String(cat.tags.length))}
 								</span>

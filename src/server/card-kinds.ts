@@ -8,6 +8,12 @@ export const CARD_KINDS = [
 	"song",
 ] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
+
+/** The Cards page's other tabs, after the card kinds: pages of their own that work from the same bound save */
+export const CARD_PAGES = [
+	{ id: "tags", href: "/tags" },
+	{ id: "simulate", href: "/simulate" },
+] as const;
 const PUBLIC_KINDS = ["b30", "hisb30", "info"] as const;
 export type PublicKind = (typeof PUBLIC_KINDS)[number];
 

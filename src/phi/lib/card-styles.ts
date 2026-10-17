@@ -57,7 +57,7 @@ export function cardStyleTemplate(
 		: `phi/b19/b19-${style}`;
 }
 
-/** The classic layout a kind falls back to when its chosen layout fails; anything not info / hisb30 is a B30 kind */
+/** The classic layout a kind falls back to when its chosen layout fails */
 export function classicCardTemplate(kind: string): string {
 	if (kind === "info") return "phi/userinfo/userinfo";
 	if (kind === "hisb30") return "phi/update/update";

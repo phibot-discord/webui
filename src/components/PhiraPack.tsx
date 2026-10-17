@@ -13,10 +13,14 @@ import { Announce, SteadyButton } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 import {
 	CHART_LEVELS,
-	type ChartLevel,
+	type ChartCell,
 	type ChartSummary,
 	cellLabel,
+	isExtraPackLevel,
+	type PackLevel,
+	packLevelName,
 } from "@/lib/chart-catalog";
+import type { Era } from "@/server/history";
 
 type Download =
 	| { status: "busy"; loaded: number; total: number }
@@ -45,21 +49,73 @@ function saveBlob(blob: Blob, file: string) {
 	window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
+type History = { current: string[]; eras: Era[] };
+type Row = { rank: PackLevel; cell: ChartCell | undefined; ver?: string };
+
+function levelOrder(level: string): number {
+	const at = CHART_LEVELS.indexOf(level as (typeof CHART_LEVELS)[number]);
+	return at < 0 ? CHART_LEVELS.length : at;
+}
+
+function versionSpan(versions: string[]): string {
+	const first = versions[0] ?? "";
+	const last = versions.at(-1) ?? first;
+	return first === last ? first : `${first} – ${last}`;
+}
+
+function goneFrom(song: ChartSummary): string {
+	const from = new Set(Object.values(song.removed ?? {}).map((r) => r.from));
+	return [...from].join(" / ");
+}
+
 export function PhiraPack() {
 	const { m } = useI18n();
 	const t = m.phira;
 	const catalog = useChartCatalog(true);
 	const ids = useId();
 	const labelId = `${ids}-label`;
+	const versionId = `${ids}-version`;
 	const searchBox = useRef<HTMLDivElement>(null);
 	const levelsRef = useRef<HTMLUListElement>(null);
-	const focusLevel = useRef<ChartLevel | "search" | undefined>(undefined);
-	const aborts = useRef(new Map<ChartLevel, AbortController>());
+	const focusLevel = useRef<PackLevel | "search" | undefined>(undefined);
+	const aborts = useRef(new Map<PackLevel, AbortController>());
 	const [song, setSong] = useState<ChartSummary | undefined>();
+	const [extras, setExtras] = useState<
+		{ id: string; levels: PackLevel[]; history?: History } | undefined
+	>();
+	const [eraAt, setEraAt] = useState(-1);
 	const [downloads, setDownloads] = useState<
-		Partial<Record<ChartLevel, Download>>
+		Partial<Record<PackLevel, Download>>
 	>({});
 	const [said, setSaid] = useState("");
+	const songId = song?.id;
+
+	useEffect(() => {
+		if (!songId) return;
+		const ac = new AbortController();
+		fetch(`/api/phira/extras?id=${encodeURIComponent(songId)}`, {
+			signal: ac.signal,
+		})
+			.then(async (res) => {
+				if (!res.ok) return;
+				const body = (await res.json()) as {
+					levels?: unknown;
+					history?: History;
+				};
+				const levels = Array.isArray(body.levels)
+					? body.levels.filter(
+							(v): v is PackLevel =>
+								typeof v === "string" && isExtraPackLevel(v),
+						)
+					: [];
+				const history = Array.isArray(body.history?.eras)
+					? body.history
+					: undefined;
+				setExtras({ id: songId, levels, history });
+			})
+			.catch(() => undefined);
+		return () => ac.abort();
+	}, [songId]);
 
 	useEffect(() => {
 		const next = focusLevel.current;
@@ -87,32 +143,36 @@ export function PhiraPack() {
 		setDownloads({});
 	}
 
-	function pick(next: ChartSummary, rank: ChartLevel) {
-		if (next.id !== song?.id) stopAll();
+	function pick(next: ChartSummary, rank: PackLevel) {
+		if (next.id !== song?.id) {
+			stopAll();
+			setEraAt(-1);
+		}
 		setSong(next);
 		focusLevel.current = rank;
 	}
 
 	function change() {
 		stopAll();
+		setEraAt(-1);
 		setSong(undefined);
 		focusLevel.current = "search";
 	}
 
-	function setDownload(rank: ChartLevel, next: Download | undefined) {
+	function setDownload(rank: PackLevel, next: Download | undefined) {
 		setDownloads((prev) => ({ ...prev, [rank]: next }));
 	}
 
-	async function download(picked: ChartSummary, rank: ChartLevel) {
+	async function download(picked: ChartSummary, rank: PackLevel, ver?: string) {
 		if (aborts.current.has(rank)) return;
 		const ac = new AbortController();
 		aborts.current.set(rank, ac);
-		const label = `${picked.song} ${rank}`;
+		const label = `${picked.song} ${packLevelName(rank)?.label ?? rank}`;
 		setDownload(rank, { status: "busy", loaded: 0, total: 0 });
 		setSaid(`${t.downloading} ${label}`);
 		try {
 			const res = await fetch(
-				`/api/phira?id=${encodeURIComponent(picked.id)}&level=${rank}`,
+				`/api/phira?id=${encodeURIComponent(picked.id)}&level=${rank}${ver ? `&ver=${encodeURIComponent(ver)}` : ""}`,
 				{ signal: ac.signal },
 			);
 			if (!res.ok) {
@@ -153,12 +213,34 @@ export function PhiraPack() {
 		}
 	}
 
-	const levels = song
-		? CHART_LEVELS.flatMap((rank) => {
-				const cell = song.charts[rank];
-				return cell ? [{ rank, cell }] : [];
-			})
-		: [];
+	const history = song && extras?.id === song.id ? extras.history : undefined;
+	const era = history?.eras[eraAt];
+	const scored: Row[] = era
+		? Object.entries(era.charts)
+				.sort(([a], [b]) => levelOrder(a) - levelOrder(b))
+				.map(([rank, chart]) => ({
+					rank,
+					cell: [0, chart.notes, chart.label],
+					ver: chart.rev,
+				}))
+		: song
+			? CHART_LEVELS.flatMap((rank) => {
+					const cell = song.charts[rank];
+					return cell ? [{ rank, cell }] : [];
+				})
+			: [];
+	const levels: Row[] = [
+		...scored,
+		...(song && extras?.id === song.id
+			? extras.levels
+					.filter((rank) => !scored.some((row) => row.rank === rank))
+					.map((rank) => ({ rank, cell: undefined }))
+			: []),
+	];
+	const pickEra = (next: number) => {
+		stopAll();
+		setEraAt(next);
+	};
 
 	return (
 		<>
@@ -184,6 +266,11 @@ export function PhiraPack() {
 							<div className="phira-song-name">
 								<h2>{song.song}</h2>
 								<p>{song.composer}</p>
+								{song.gone ? (
+									<p className="phira-gone">
+										{t.goneSong.replaceAll("{v}", goneFrom(song))}
+									</p>
+								) : null}
 							</div>
 							<button
 								type="button"
@@ -193,9 +280,45 @@ export function PhiraPack() {
 								{t.change}
 							</button>
 						</div>
+						{history ? (
+							<div className="field phira-version">
+								<label htmlFor={versionId}>{t.version}</label>
+								<select
+									id={versionId}
+									value={eraAt}
+									aria-describedby={`${versionId}-note`}
+									onChange={(event) =>
+										pickEra(Number(event.currentTarget.value))
+									}
+								>
+									<option value={-1}>
+										{t.versionCurrent.replaceAll(
+											"{v}",
+											versionSpan(history.current),
+										)}
+									</option>
+									{history.eras.map((each, i) => (
+										<option key={each.versions.join()} value={i}>
+											{versionSpan(each.versions)}
+										</option>
+									))}
+								</select>
+								<p className="opt-note" id={`${versionId}-note`}>
+									{t.versionNote}
+								</p>
+							</div>
+						) : null}
 						<h3 className="sr-only">{t.levels}</h3>
 						<ul className="phira-levels" ref={levelsRef}>
-							{levels.map(({ rank, cell }) => {
+							{levels.map(({ rank, cell, ver }) => {
+								const name = packLevelName(rank);
+								const removed = era?.charts[rank]
+									? undefined
+									: song.removed?.[rank];
+								const level = cell
+									? cellLabel(cell)
+									: (removed?.label ?? name?.tag ?? "");
+								const notes = cell?.[1] ?? removed?.notes;
 								const state = downloads[rank];
 								const busy = state?.status === "busy";
 								const pct =
@@ -209,14 +332,21 @@ export function PhiraPack() {
 								const missing = state?.status === "failed" && state.missing;
 								return (
 									<li key={rank} className="phira-level">
-										<span className={`chart-level chart-level-${rank}`}>
-											<span>{rank}</span>
-											<span>{cellLabel(cell)}</span>
+										<span
+											className={`chart-level chart-level-${name?.base ?? "other"}`}
+										>
+											<span>{name?.base ?? name?.label ?? rank}</span>
+											{level ? <span>{level}</span> : null}
 										</span>
 										<span className="phira-level-notes">
-											{cell[1] != null
-												? t.notes.replaceAll("{n}", String(cell[1]))
+											{notes != null
+												? t.notes.replaceAll("{n}", String(notes))
 												: null}
+											{removed && !song.gone ? (
+												<span className="phira-removed">
+													{t.removedLevel.replaceAll("{v}", removed.from)}
+												</span>
+											) : null}
 										</span>
 										<SteadyButton
 											type="button"
@@ -231,7 +361,7 @@ export function PhiraPack() {
 											aria-busy={busy || undefined}
 											aria-disabled={busy || missing || undefined}
 											onClick={() => {
-												if (!busy && !missing) void download(song, rank);
+												if (!busy && !missing) void download(song, rank, ver);
 											}}
 										>
 											{busy
@@ -240,7 +370,7 @@ export function PhiraPack() {
 													: t.downloading
 												: t.download}
 											<span className="sr-only">
-												{` · ${song.song} ${rank} ${cellLabel(cell)}`}
+												{` · ${song.song} ${name?.base ?? rank} ${level}`}
 											</span>
 										</SteadyButton>
 										{busy ? (
@@ -276,7 +406,7 @@ export function PhiraPack() {
 															<button
 																type="button"
 																className="btn btn-quiet btn-sm"
-																onClick={() => void download(song, rank)}
+																onClick={() => void download(song, rank, ver)}
 															>
 																<ArrowCounterClockwise size={16} aria-hidden />
 																{m.error.retry}

@@ -256,7 +256,7 @@ test("rank mode badges every row with its estimated place among phib19 records",
 	assert.equal(b19[1]?.accAvg, "#3,611 / 70,388 · Top 5.1%");
 	assert.equal(b19[1]?.accRank?.pos, "#3,611");
 	assert.equal(b19[1]?.accRank?.ap, false);
-	// An AP is #1, tied with every AP record, so its percent is the AP group's share ("Top 2.9%" next to #1 would contradict it)
+	// An AP is #1, tied with every AP record, so its percent is the AP group's share
 	assert.equal(phi[0]?.accRank?.pos, "#1");
 	assert.equal(phi[0]?.accRank?.tied, 2032);
 	assert.equal(phi[0]?.accRank?.ap, true);

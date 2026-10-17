@@ -56,7 +56,7 @@ export function fuzzyFold(s: string): string {
 	return looseFold(s).replace(JARO_PUNCT, "");
 }
 
-/** Keeps the loose form when stripping leaves under 2 characters or under half: `＞w＜` and `+E` must not turn into `w` and `e` */
+/** Keeps the loose form when stripping leaves under 2 characters or under half (`＞w＜`, `+E`) */
 function entryFuzzy(loose: string): string {
 	const stripped = loose.replace(JARO_PUNCT, "");
 	return stripped.length < 2 || stripped.length * 2 < loose.length

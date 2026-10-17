@@ -1,6 +1,5 @@
-// Offline card render from data/raw-save.json to JPEG; images from PHI_LOCAL_ASSETS, options from the env reads below
+// Offline card render from data/raw-save.json; rerun precompile-art and bundle-css after template edits
 //   node --import tsx scripts/render-card-local.ts <b30|x30|fc30|hisb30|info|song> [out.jpg]
-// After editing templates or CSS, rerun precompile-art.mjs and bundle-css.mjs: the renderer reads their generated output
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -99,7 +98,7 @@ const save = new Save(
 );
 const notes = {
 	...(await getNotes(db, "local")),
-	allowApiUsage: false, // no phib19 peer-average calls
+	allowApiUsage: false,
 	showTagAnalysis: false,
 	locale,
 	cardBackground: process.env.BG || undefined,

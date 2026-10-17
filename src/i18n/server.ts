@@ -6,9 +6,13 @@ import {
 	type Locale,
 	negotiateLocale,
 } from "./config";
+import { filesEn, filesZh } from "./files-messages";
 import { en, type Messages, zh } from "./messages";
 
-export const catalogs: Record<Locale, Messages> = { en, zh };
+export const catalogs: Record<Locale, Messages> = {
+	en: { ...en, ...filesEn },
+	zh: { ...zh, ...filesZh },
+};
 
 const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 

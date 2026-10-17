@@ -2,17 +2,16 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { type AccountLinkError, AccountView } from "@/components/AccountView";
-import { getMessages } from "@/i18n/server";
 import { tapSignInOpens } from "@/server/account-link";
 import { isTapUserId } from "@/server/auth-tickets";
 import { getDataHost } from "@/server/data-host";
 import { withDiscordUid } from "@/server/logger";
+import { pageMetadata } from "@/server/og-meta";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-	const { m } = await getMessages();
-	return { title: m.account.title, robots: { index: false } };
+export function generateMetadata(): Promise<Metadata> {
+	return pageMetadata("account", { noindex: true });
 }
 
 const LINK_ERRORS: readonly AccountLinkError[] = [

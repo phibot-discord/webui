@@ -25,7 +25,7 @@ const NAME_MIN_PX = 16;
 // 820 px in b19-table.css, less slack
 const TIP_W = 800;
 const TIP_PX = [15, 14, 13];
-// Hangs under the acc and may reach under the score: acc (106 px) + score (96 px) cells and their 14 px gap, less slack
+// Under the acc (106 px) and score (96 px) cells and their 14 px gap, less slack
 const RANK_W = 204;
 const RANK_PX = [12, 11, 10];
 // The ±0.05 line beside it: under the RKS (92 px) and push (100 px) cells and their gap, less slack
@@ -346,7 +346,6 @@ const MODE_LABELS = [
 			[t.apMode, "ap"],
 		] as const;
 	}),
-	// The older long labels
 	["1 Good Mode", "x30"],
 	["1 Good 模式", "x30"],
 	["Full Combo Mode", "fc30"],
@@ -767,7 +766,6 @@ export function prepareTable(
 		namePx: name.px,
 		nameClip: name.clip,
 		rks: num(user.rks).toFixed(4),
-		// x30 / fc30 show their spread in the analysis panel: beside the RKS it would read as the B30's
 		sd: kind === "b30" && sd > 0 ? `±${sd.toFixed(2)}` : "",
 		sdLabel: copy.sdB30,
 		challenge:

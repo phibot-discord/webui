@@ -16,7 +16,6 @@ type ServerKind = "cn" | "gb";
 type TapQrPhase<X extends string> = "idle" | "starting" | "qr" | "scanned" | X;
 type TapWaitData = Awaited<ReturnType<typeof readJsonWithTapWait>>["data"];
 
-/** onPoll returns true once the poll result is final: polling stops and the phase holds busyPhase */
 export function useTapQr<X extends string>({
 	base,
 	failedText,
@@ -138,7 +137,6 @@ export function useTapQr<X extends string>({
 		};
 	}, [phase, base, busyPhase, failedText, fail, m.errors.tapapi_unavailable]);
 
-	// A marker from a poll that was already torn down can land after cancel or expiry; idle never waits
 	const tapWait = waitingTap && phase !== "idle";
 	const busy = phase === "starting" || phase === busyPhase || tapWait;
 	const showQr = phase === "qr" || phase === "scanned";
@@ -276,7 +274,6 @@ export function TapQrColumn({
 	signingLabel?: string;
 }) {
 	const { m } = useI18n();
-	// The TapTap wait marker only streams once the scan was confirmed, which can skip the scanned poll
 	const scanned = qr.phase === "scanned" || qr.waitingTap;
 	const qrStatus = qr.waitingTap
 		? m.bind.waitingTap

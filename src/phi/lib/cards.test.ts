@@ -174,7 +174,6 @@ async function card(
 		locale: opts.locale ?? "en",
 		showTagAnalysis: opts.tags ?? true,
 		notes: opts.peerWait ? { ...notes, peerWait: true } : notes,
-		// Fractional like src/server/cards.ts, which subtracts performance.now()
 		...(opts.peerWait ? { peerDeadline: Date.now() + 50_000.5 } : {}),
 	});
 }

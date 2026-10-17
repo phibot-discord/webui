@@ -1,5 +1,9 @@
-export type Messages = {
+import type { FilesMessages } from "./files-messages";
+
+export type ClientMessages = {
 	meta: { title: string; description: string };
+	og: { cardAlt: string; pageAlt: string };
+	assetRefresh: { label: string; hint: string };
 	brand: string;
 	skip: string;
 	signIn: string;
@@ -19,10 +23,18 @@ export type Messages = {
 		lookupsSignedIn: string;
 		lookupsSignedOut: string;
 		lookups: Record<
-			"b30" | "hisb30" | "info" | "x30" | "fc30" | "song",
+			"b30" | "hisb30" | "info" | "x30" | "fc30" | "song" | "tags" | "simulate",
 			{ name: string; blurb: string }
 		>;
-		nicknames: { name: string; blurb: string; hint: string };
+		explore: {
+			title: string;
+			intro: string;
+			hint: string;
+			items: Record<
+				"songs" | "phira" | "score" | "files" | "pv" | "collection",
+				{ name: string; blurb: string }
+			>;
+		};
 		signInHint: string;
 		signingIn: string;
 		newLabel: string;
@@ -89,10 +101,10 @@ export type Messages = {
 	};
 	notice: {
 		title: string;
-		body: string;
 		coffee: string;
 		dismiss: string;
 		close: string;
+		open: string;
 	};
 	nav: {
 		cards: string;
@@ -178,39 +190,11 @@ export type Messages = {
 		failed: string;
 		chartsFailed: string;
 		reload: string;
-	};
-	files: {
-		title: string;
-		lede: string;
-		searchLabel: string;
-		searchPlaceholder: string;
-		kindLabel: string;
-		tabsLabel: string;
-		tabs: { files: string; fools: string };
-		empty: string;
-		loading: string;
-		failed: string;
-		none: string;
-		matches: string;
-		view: string;
-		download: string;
-		tooBig: string;
-		previewFailed: string;
-		showMore: string;
-		file: string;
-		newTab: string;
-		listen: string;
-		kinds: {
-			all: string;
-			jacket: string;
-			low: string;
-			blur: string;
-			chart: string;
-			music: string;
-			avatar: string;
-			info: string;
-			other: string;
-		};
+		goneSong: string;
+		removedLevel: string;
+		version: string;
+		versionCurrent: string;
+		versionNote: string;
 	};
 	simulate: {
 		listLabel: string;
@@ -632,11 +616,23 @@ export type Messages = {
 	};
 };
 
-export const en: Messages = {
+/** Everything the server renders with; pages pass the files sections to client parts as props */
+export type Messages = ClientMessages & FilesMessages;
+
+export const en: ClientMessages = {
 	meta: {
 		title: "PhiBot",
 		description:
 			"Look up your Phigros B30, history, and player info. The same cards as the Discord bot.",
+	},
+	og: {
+		cardAlt:
+			"A PhiBot B30 card: player header, then the best charts with score and accuracy",
+		pageAlt: "{title}, on PhiBot",
+	},
+	assetRefresh: {
+		label: "Refresh files",
+		hint: "Load illustrations, music, videos and packs again instead of using the copies this browser keeps",
 	},
 	brand: "PhiBot",
 	skip: "Skip to content",
@@ -682,11 +678,52 @@ export const en: Messages = {
 				blurb:
 					"Where your accuracy on one chart places among the records on phib19.top.",
 			},
+			tags: {
+				name: "Chart tags",
+				blurb: "What each label on your B30 tag profile means.",
+			},
+			simulate: {
+				name: "Simulation",
+				blurb:
+					"Try better scores on some charts and see what your RKS becomes.",
+			},
 		},
-		nicknames: {
-			name: "Nicknames",
-			blurb: "Search songs by the names players use, like 无限光 or ASA.",
+		explore: {
+			title: "Open to everyone.",
+			intro:
+				"No sign-in. Charts, videos and the game's story, from today's version and older ones.",
 			hint: "No sign-in",
+			items: {
+				songs: {
+					name: "Nicknames",
+					blurb: "Search songs by the names players use, like 无限光 or ASA.",
+				},
+				phira: {
+					name: "Phira packs",
+					blurb:
+						"Any chart as a .pez pack: older versions back to 1.2.0, April Fools, removed songs and Legacy.",
+				},
+				score: {
+					name: "Score control",
+					blurb:
+						"The Perfect, Good, Bad and Miss split that lands exactly on a target score.",
+				},
+				files: {
+					name: "Files",
+					blurb:
+						"Illustrations, music, chart packs and chart JSON, to view or download.",
+				},
+				pv: {
+					name: "PV",
+					blurb:
+						"The chapter and event videos, with the in-game overlay. Play Deduction tap by tap.",
+				},
+				collection: {
+					name: "Collection",
+					blurb:
+						"Every entry and its clues, by chapter, in any of the game's five languages. Searchable.",
+				},
+			},
 		},
 		signInHint: "Sign in",
 		signingIn: "Opening Discord…",
@@ -794,11 +831,11 @@ export const en: Messages = {
 		utcNote: "Times are in UTC. Checks run every minute.",
 	},
 	notice: {
-		title: "Cards load faster now",
-		body: "Image generation and loading is sped up by the Vercel Pro plan, as we can select multiple function regions. Consider buying me a cup of coffee.",
+		title: "What's new",
 		coffee: "Buy me a coffee",
 		dismiss: "Got it",
-		close: "Dismiss",
+		close: "Close",
+		open: "What's new",
 	},
 	nav: {
 		cards: "Cards",
@@ -890,39 +927,13 @@ export const en: Messages = {
 		failed: "Download failed. Check your connection and try again.",
 		chartsFailed: "The chart list didn't load, so songs can't be searched.",
 		reload: "Reload page",
-	},
-	files: {
-		title: "Files",
-		lede: "Search illustrations, chart packs, music and info files, then view, play or download them.",
-		searchLabel: "Search files",
-		searchPlaceholder: "Title, nickname or file name",
-		kindLabel: "Kind",
-		tabsLabel: "File group",
-		tabs: { files: "Assets", fools: "4/1 charts" },
-		empty: "No files yet.",
-		loading: "Loading files…",
-		failed: "File list unavailable.",
-		none: "No matches.",
-		matches: "Showing {shown} of {total}",
-		view: "View",
-		download: "Download",
-		tooBig: "This file is too large to preview.",
-		previewFailed: "Couldn't preview this file.",
-		showMore: "Show {n} more",
-		file: "File",
-		newTab: "(opens in a new tab)",
-		listen: "Listen",
-		kinds: {
-			all: "All",
-			jacket: "Jacket",
-			low: "Low",
-			blur: "Blur",
-			chart: "Chart",
-			music: "Music",
-			avatar: "Avatar",
-			info: "Info",
-			other: "Other",
-		},
+		goneSong:
+			"The game no longer has this song. These charts come from version {v}.",
+		removedLevel: "Removed · from {v}",
+		version: "Game version",
+		versionCurrent: "Current ({v})",
+		versionNote:
+			"Charts as they were in that version. Legacy charts show whichever version you pick.",
 	},
 	simulate: {
 		listLabel: "Charts to edit",
@@ -1426,11 +1437,19 @@ export const en: Messages = {
 	},
 };
 
-export const zh: Messages = {
+export const zh: ClientMessages = {
 	meta: {
 		title: "PhiBot",
 		description:
 			"查询你的 Phigros B30、历史成绩和玩家信息。和 Discord 机器人同一套成绩图",
+	},
+	og: {
+		cardAlt: "PhiBot B30 成绩图：玩家信息，下面是最好成绩的谱面、分数和准确率",
+		pageAlt: "PhiBot：{title}",
+	},
+	assetRefresh: {
+		label: "刷新文件缓存",
+		hint: "重新加载曲绘、音乐、视频和谱面包，不使用浏览器保存的副本",
 	},
 	brand: "PhiBot",
 	skip: "跳到正文",
@@ -1466,11 +1485,43 @@ export const zh: Messages = {
 				name: "单曲排名",
 				blurb: "你在一张谱面上的准确率，在 phib19.top 的记录里排第几",
 			},
+			tags: { name: "谱面标签", blurb: "B30 标签画像里每个标签的含义" },
+			simulate: {
+				name: "曲目模拟",
+				blurb: "给一些谱面填上更好的成绩，看看 RKS 会变成多少",
+			},
 		},
-		nicknames: {
-			name: "曲目别名",
-			blurb: "用玩家常用的叫法找歌，比如“无限光”“ASA”",
+		explore: {
+			title: "人人都能用",
+			intro: "无需登录。谱面、视频和游戏里的剧情，当前版本和旧版本都有",
 			hint: "无需登录",
+			items: {
+				songs: {
+					name: "曲目别名",
+					blurb: "用玩家常用的叫法找歌，比如“无限光”“ASA”",
+				},
+				phira: {
+					name: "Phira 谱面包",
+					blurb:
+						"任意谱面的 .pez 包：1.2.0 以来的旧版、愚人节谱面、已删除曲目和 Legacy",
+				},
+				score: {
+					name: "控分计算",
+					blurb: "算出恰好达到目标分数的 Perfect / Good / Bad / Miss 组合",
+				},
+				files: {
+					name: "资源",
+					blurb: "曲绘、音乐、谱面包和谱面 JSON，在线查看或下载",
+				},
+				pv: {
+					name: "PV",
+					blurb: "章节与活动视频，可开启游戏内界面；「推演」可以逐页点按游玩",
+				},
+				collection: {
+					name: "收藏品",
+					blurb: "按章节收录的全部条目与线索，五种语言可选，支持搜索",
+				},
+			},
 		},
 		signInHint: "登录",
 		signingIn: "正在前往 Discord…",
@@ -1570,11 +1621,11 @@ export const zh: Messages = {
 		utcNote: "时间均为 UTC，每分钟检查一次",
 	},
 	notice: {
-		title: "成绩图加载更快了",
-		body: "Image 生成和加载因 Vercel Pro 变得更快了。请考虑支持我一下😭",
+		title: "更新内容",
 		coffee: "请我喝杯咖啡",
 		dismiss: "知道了",
 		close: "关闭",
+		open: "更新内容",
 	},
 	nav: {
 		cards: "成绩图",
@@ -1663,39 +1714,11 @@ export const zh: Messages = {
 		failed: "下载失败，请检查网络后重试。",
 		chartsFailed: "曲目列表加载失败，暂时无法搜索曲目。",
 		reload: "重新加载页面",
-	},
-	files: {
-		title: "资源",
-		lede: "搜索曲绘、谱面包、音乐和资料文件，在线查看、试听或下载。",
-		searchLabel: "搜索文件",
-		searchPlaceholder: "曲名、别名或文件名",
-		kindLabel: "分类",
-		tabsLabel: "文件分组",
-		tabs: { files: "资源", fools: "4/1 特别谱面" },
-		empty: "暂时没有文件。",
-		loading: "正在加载文件…",
-		failed: "文件列表暂不可用。",
-		none: "没有匹配的文件。",
-		matches: "显示 {shown} / {total} 个",
-		view: "查看",
-		download: "下载",
-		tooBig: "文件太大，无法预览。",
-		previewFailed: "无法预览这个文件。",
-		showMore: "再显示 {n} 个",
-		file: "文件",
-		newTab: "（在新标签页打开）",
-		listen: "试听",
-		kinds: {
-			all: "全部",
-			jacket: "曲绘",
-			low: "低清",
-			blur: "模糊",
-			chart: "谱面",
-			music: "音乐",
-			avatar: "头像",
-			info: "资料",
-			other: "其他",
-		},
+		goneSong: "游戏里已经没有这首曲目，以下谱面来自 {v} 版本。",
+		removedLevel: "已移除 · 来自 {v}",
+		version: "游戏版本",
+		versionCurrent: "当前（{v}）",
+		versionNote: "显示该版本时的谱面。Legacy 谱面不随版本切换，始终显示。",
 	},
 	simulate: {
 		listLabel: "可编辑的谱面",
@@ -1930,15 +1953,15 @@ export const zh: Messages = {
 			"那个 Discord 账号绑定了另一个 Phigros 存档。请先在那边解绑，再来关联。",
 		link_expired: "关联请求已过期，请重试。",
 		link_failed: "无法关联 Discord，请重试。",
-		sessionToken: "会话令牌",
+		sessionToken: "会话 Token",
 		sessionTokenLede:
 			"你的存档绑定所用的 Phigros sessionToken。拿到它的人可以读取和修改你的存档，请妥善保管。",
-		sessionTokenNone: "还没有绑定 Phigros 存档，所以暂时没有令牌。",
+		sessionTokenNone: "还没有绑定 Phigros 存档，所以暂时没有 Token。",
 		tokenShow: "显示",
 		tokenHide: "隐藏",
 		tokenLoading: "加载中…",
 		tokenHidden: "已隐藏",
-		tokenFailed: "无法加载令牌，请重试。",
+		tokenFailed: "无法加载 Token，请重试。",
 	},
 	public: {
 		hint: "这是他们成绩图的公开副本。打开页面不会刷新存档。",

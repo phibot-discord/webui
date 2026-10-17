@@ -873,17 +873,6 @@ html:not([lang="zh-CN"]) .lookup-blurb {
 	box-shadow: 0 1px 0 var(--line);
 }
 
-.lookup-wide {
-	grid-column: 1 / -1;
-}
-
-.lookup-wide .lookup {
-	border-style: dashed;
-	border-color: var(--line-strong);
-	background: transparent;
-	box-shadow: none;
-}
-
 @media (hover: hover) {
 	.lookup:hover {
 		border-color: var(--tile);
@@ -906,40 +895,17 @@ html:not([lang="zh-CN"]) .lookup-blurb {
 	.lookup-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
-
-	.lookup-wide .lookup {
-		grid-template-columns: auto minmax(0, 1fr) auto;
-		grid-template-rows: auto auto;
-		grid-template-areas:
-			"icon name go"
-			"icon blurb go";
-		align-items: center;
-		column-gap: var(--space-4);
-	}
-
-	.lookup-wide .lookup-icon {
-		grid-area: icon;
-		margin: 0;
-	}
-
-	.lookup-wide .lookup-name {
-		grid-area: name;
-	}
-
-	.lookup-wide .lookup-blurb {
-		grid-area: blurb;
-	}
-
-	.lookup-wide .lookup-go {
-		grid-area: go;
-		align-self: center;
-		margin: 0 0 0 var(--space-4);
-	}
 }
 
 @media (min-width: 1024px) {
 	.lookup-grid {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+@media (min-width: 1200px) {
+	.lookup-grid-four {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 	}
 }
 

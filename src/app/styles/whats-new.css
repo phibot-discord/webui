@@ -1,0 +1,115 @@
+html:has(.whats-new[open]) {
+	overflow: hidden;
+}
+
+.whats-new {
+	width: min(36rem, calc(100% - 2 * var(--gutter)));
+	max-height: min(44rem, calc(100dvh - 2 * var(--gutter)));
+	margin: auto;
+	padding: 0;
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	color: var(--ink);
+	box-shadow: var(--shadow-lg);
+}
+
+.whats-new[open] {
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.whats-new::backdrop {
+	background: var(--scrim);
+}
+
+.whats-new-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: var(--space-5) var(--space-5) var(--space-3);
+	border-bottom: 1px solid var(--line);
+}
+
+.whats-new-title {
+	margin: 0;
+	font-size: var(--text-lg);
+	font-weight: 600;
+	letter-spacing: 0;
+}
+
+.whats-new-date {
+	margin: var(--space-1) 0 0;
+	color: var(--muted);
+	font-size: var(--text-sm);
+}
+
+.whats-new-body {
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: var(--space-2) var(--space-5) var(--space-4);
+}
+
+.whats-new-section h3 {
+	margin: var(--space-4) 0 var(--space-2);
+	font-size: var(--text-sm);
+	font-weight: 600;
+	letter-spacing: 0;
+}
+
+.whats-new-section ul {
+	display: grid;
+	gap: var(--space-2);
+	margin: 0;
+	padding-left: 1.25em;
+	color: var(--muted);
+	font-size: var(--text-sm);
+	line-height: 1.55;
+}
+
+.whats-new-section a {
+	color: var(--ink);
+	text-decoration-color: color-mix(in oklch, currentColor 25%, transparent);
+	text-underline-offset: 3px;
+}
+
+@media (hover: hover) {
+	.whats-new-section a:hover {
+		color: var(--primary);
+		text-decoration-color: currentColor;
+	}
+}
+
+.whats-new-foot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--space-2);
+	padding: var(--space-3) var(--space-5) var(--space-4);
+	border-top: 1px solid var(--line);
+}
+
+@media (max-width: 767px) {
+	.whats-new {
+		width: calc(100% - 2 * var(--space-3));
+		max-height: calc(100dvh - 2 * var(--space-3) - var(--safe-bottom));
+	}
+
+	.whats-new-head,
+	.whats-new-body,
+	.whats-new-foot {
+		padding-inline: var(--space-4);
+	}
+
+	.whats-new-foot .btn {
+		flex: 1 1 auto;
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.whats-new[open] {
+		animation: toast-in 220ms var(--ease) both;
+	}
+}

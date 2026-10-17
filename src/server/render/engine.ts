@@ -72,7 +72,7 @@ function measureRootCss(cssWidth: number) {
 .phi-pixel-root { width: ${cssWidth}px !important; transform: none !important; transform-origin: 0 0 !important; overflow: visible !important; }`;
 }
 
-/** Fill every device pixel: a filler behind the scaled root, and a root min-height so `.background` covers the card (Takumi ignores scale !important) */
+/** Fill every device pixel: a filler behind the scaled root, and a min-height so `.background` covers the card */
 function paintRootCss(cssWidth: number, paint: PaintSize) {
 	const cover = Math.ceil(paint.height / paint.ratio);
 	const scale = paint.ratio === 1 ? "none" : `scale(${paint.ratio})`;

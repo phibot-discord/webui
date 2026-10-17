@@ -39,7 +39,10 @@ test("getill sends a listed 4/1 special to its own jackets, and only while it is
 		getInfo.getill("Special.One.0", "low"),
 		`${root}/SP/Special.One.png`,
 	);
-	getInfo.setFools(["Special.One.0", "Igallta.SeURa"]);
+	getInfo.setSide("fools", [
+		["Special.One.0", "Special.One"],
+		["Igallta.SeURa", "Igallta.SeURa"],
+	]);
 	try {
 		assert.equal(
 			getInfo.getill("Special.One.0", "low"),
@@ -55,7 +58,7 @@ test("getill sends a listed 4/1 special to its own jackets, and only while it is
 			`${root}/illLow/Igallta.SeURa.png`,
 		);
 	} finally {
-		getInfo.setFools([]);
+		getInfo.setSide("fools", []);
 	}
 });
 
@@ -99,13 +102,13 @@ test("getill gives a chart its own jacket only for a song the manifest lists wit
 			getInfo.getill("Special.One.0", "low", "IN"),
 			`${root}/SP/Special.One.png`,
 		);
-		getInfo.setFools(["Special.One"]);
+		getInfo.setSide("fools", [["Special.One", "Special.One"]]);
 		assert.equal(
 			getInfo.getill("Special.One.0", "low", "IN"),
 			`${root}/4-1/illLow/Special.One.png`,
 		);
 	} finally {
-		getInfo.setFools([]);
+		getInfo.setSide("fools", []);
 		getInfo.setIllLevels(new Map());
 	}
 });
@@ -128,7 +131,13 @@ test("getill gives an id without .0 the same path as the catalog id, in every tr
 		`${root}/SP/Special.One.png`,
 	);
 	// A special the manifest lists that spinfo.json no longer has
-	getInfo.setFools(["Special.One", "Retribution ~ Cycle of Redemption ~"]);
+	getInfo.setSide("fools", [
+		["Special.One", "Special.One"],
+		[
+			"Retribution ~ Cycle of Redemption ~",
+			"Retribution ~ Cycle of Redemption ~",
+		],
+	]);
 	try {
 		assert.equal(
 			getInfo.getill("Special.One", "low"),
@@ -148,10 +157,48 @@ test("getill gives an id without .0 the same path as the catalog id, in every tr
 			`${root}/4-1/ill/Special.One.png`,
 		);
 	} finally {
-		getInfo.setFools([]);
+		getInfo.setSide("fools", []);
 	}
 	assert.equal(
 		getInfo.getBackground("Not.A.Song"),
 		`${root}/ill/Not.A.Song.png`,
 	);
+});
+
+test("a side tree's jackets go by the stem its manifest gives, not the catalog id", () => {
+	getInfo.setSide("fools", [["Burn(Haocore Mix).0", "BurnHaocoreMix"]]);
+	getInfo.setSide("removed", [
+		["Destination.0", "Destinaion.姜米條vsRocketLant"],
+	]);
+	try {
+		assert.match(
+			getInfo.getill("Burn(Haocore Mix)", "low").replace(/\\/g, "/"),
+			/\/4-1\/illLow\/BurnHaocoreMix\.png$/,
+		);
+		assert.match(
+			getInfo.getill("Destination.0", "common").replace(/\\/g, "/"),
+			/\/removed\/ill\/Destinaion\.姜米條vsRocketLant\.png$/,
+		);
+	} finally {
+		getInfo.setSide("fools", []);
+		getInfo.setSide("removed", []);
+	}
+});
+
+test("card avatars use the ripper's file for each name, then the built-in exceptions", async () => {
+	await getInfo.init(
+		assets({
+			"avatar.txt": "Glaciaxion\nFeast远东之宴1\nCipher : /2&//<|0\n",
+			"avatars.json": JSON.stringify([
+				{ addressable_key: "avatar.Glaciaxion", name: "Glaciaxion" },
+				{ addressable_key: "avatar.Feast1", name: "Feast远东之宴1" },
+			]),
+		}),
+	);
+	assert.equal(getInfo.idgetavatar("Feast远东之宴1"), "Feast1");
+	assert.equal(getInfo.idgetavatar("Glaciaxion"), "Glaciaxion");
+	assert.equal(getInfo.idgetavatar("Cipher : /2&//<|0"), "Cipher1");
+	assert.equal(getInfo.idgetavatar("Unknown"), "Introduction");
+	await getInfo.init(assets({ "avatar.txt": "Feast远东之宴1\n" }));
+	assert.equal(getInfo.idgetavatar("Feast远东之宴1"), "Feast远东之宴1");
 });

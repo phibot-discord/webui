@@ -12,7 +12,12 @@ const picomatch = require("next/dist/compiled/picomatch") as (
 ) => (route: string) => boolean;
 
 const APP = join(process.cwd(), "src/app");
-const CARD_ROUTES = ["/api/card/[kind]", "/api/public/[slug]/card/[kind]"];
+const CARD_ROUTES = [
+	"/api/card/[kind]",
+	"/api/public/[slug]/card/[kind]",
+	"/api/og/[id]",
+	"/api/og/share/[slug]/[kind]",
+];
 
 function appRoutes() {
 	const out: { route: string; turbopack: string }[] = [];

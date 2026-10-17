@@ -13,9 +13,15 @@
 @import "./styles/chart-search.css";
 @import "./styles/phira.css";
 @import "./styles/assets.css";
+@import "./styles/files.css";
+@import "./styles/pv.css";
+@import "./styles/collection.css";
+@import "./styles/c9s6.css";
+@import "./styles/deduction.css";
 @import "./styles/chart-level.css";
 @import "./styles/songs.css";
 @import "./styles/score.css";
 @import "./styles/manual.css";
 @import "./styles/simulate.css";
+@import "./styles/whats-new.css";
 @import "./styles/motion.css";

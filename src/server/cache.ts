@@ -1,13 +1,22 @@
 import { createHash } from "node:crypto";
 import { kvKey } from "@/phi/lib/const";
+import { listAssetPrefix } from "./assets";
 import { runInBackground } from "./background";
 import { parseCachedHeight } from "./card-image-cache";
 import type { KvStore } from "./kv";
 import { logger } from "./logger";
-import { fetchR2Object, putR2Object, r2WriteReady } from "./r2";
+import { poolAll } from "./pool";
+import {
+	deleteR2Object,
+	putR2Object,
+	r2CacheConfig,
+	r2WriteReady,
+	readPrivateR2Object,
+} from "./r2";
 
 const CARD_TTL_MS = 6 * 60 * 60 * 1000;
-const CARD_R2_PREFIX = "web-cards";
+/** In the private cache bucket (r2CacheConfig), which expires everything 7 days after it is written */
+const CARD_R2_PREFIX = "cards";
 
 const pngBufferCache = new Map<string, Buffer>();
 const PNG_BUFFER_CACHE_BYTES = 64 * 1024 * 1024;
@@ -102,8 +111,35 @@ export function cacheKey(kind: string, userId: string, etag: string): string {
 
 type PngStore = { store: KvStore };
 
-function r2CardKey(key: string) {
-	return `${CARD_R2_PREFIX}/${key}.jpg`;
+/** One card as R2 files it: `version` changes when it goes stale, `variant` covers what a user picks */
+export type CardSlot = {
+	userId: string;
+	kind: string;
+	version: string;
+	variant: string;
+};
+
+function digest(text: string, hex: number): string {
+	return createHash("sha256").update(text).digest("hex").slice(0, hex);
+}
+
+function userCardDir(userId: string): string {
+	return `${CARD_R2_PREFIX}/${userId.replace(/[^\w-]/g, "_")}/`;
+}
+
+/** `cards/<user>/<kind>/<version>-<variant>.jpg`: a user's cards share a folder, a kind's current files a prefix */
+export function cardR2Keys(slot: CardSlot) {
+	const dir = `${userCardDir(slot.userId)}${slot.kind}/`;
+	const version = digest(slot.version, 16);
+	return {
+		dir,
+		current: `${dir}${version}-`,
+		key: `${dir}${version}-${digest(slot.variant, 32)}.jpg`,
+	};
+}
+
+function cacheReady(): boolean {
+	return r2WriteReady(r2CacheConfig());
 }
 
 export function cardDownloadFilename(kind: string): string {
@@ -119,10 +155,11 @@ export type CachedCard = { bytes: Buffer; store: "mem" | "r2" | "kv" };
 export function durableCardStore(store: CachedCard["store"]): "r2" | "kv" {
 	if (store === "kv") return "kv";
 	if (store === "r2") return "r2";
-	return r2WriteReady() ? "r2" : "kv";
+	return cacheReady() ? "r2" : "kv";
 }
 
-export type CardCacheOpts = { durable?: boolean };
+/** `slot` places the card in R2; without one, only memory (or KV, when R2 is not set up) holds it */
+export type CardCacheOpts = { durable?: boolean; slot?: CardSlot };
 
 export async function readCachedPng(
 	host: PngStore,
@@ -135,11 +172,12 @@ export async function readCachedPng(
 		return { bytes: hot, store: "mem" };
 	}
 	if (opts.durable === false) return undefined;
-	if (r2WriteReady()) {
-		const buf = await fetchR2Object(r2CardKey(key), {
-			cache: "no-store",
-			negative: false,
-		});
+	if (cacheReady()) {
+		if (!opts.slot) return undefined;
+		const buf = await readPrivateR2Object(
+			cardR2Keys(opts.slot).key,
+			r2CacheConfig(),
+		);
 		if (buf?.byteLength) {
 			rememberPng(key, buf);
 			return { bytes: buf, store: "r2" };
@@ -153,14 +191,44 @@ export async function readCachedPng(
 	return { bytes, store: "kv" };
 }
 
-async function persistPng(host: PngStore, key: string, bytes: Buffer) {
+const cleanedDirs = new Map<string, string>();
+const CLEANED_MAX = 4_000;
+
+async function deleteCardKeys(prefix: string, keep?: string) {
+	const cfg = r2CacheConfig();
+	const keys = (await listAssetPrefix(prefix, cfg))
+		.map((f) => f.key)
+		.filter((k) => !keep || !k.startsWith(keep));
+	await poolAll(keys, 8, (k) => deleteR2Object(k, cfg));
+	return keys.length;
+}
+
+/** Every file in the kind's folder that is not of the current version: the new card replaces them */
+async function dropStaleCards(dir: string, current: string) {
+	if (cleanedDirs.get(dir) === current) return;
+	const removed = await deleteCardKeys(dir, current);
+	if (cleanedDirs.size >= CLEANED_MAX) cleanedDirs.clear();
+	cleanedDirs.set(dir, current);
+	if (removed) logger.info(`card cache: ${removed} stale removed`);
+}
+
+async function persistPng(
+	host: PngStore,
+	key: string,
+	bytes: Buffer,
+	slot: CardSlot | undefined,
+) {
 	try {
-		if (r2WriteReady()) {
-			await putR2Object(r2CardKey(key), bytes, "image/jpeg", {
+		if (cacheReady()) {
+			if (!slot) return;
+			const at = cardR2Keys(slot);
+			await putR2Object(at.key, bytes, "image/jpeg", {
 				contentDisposition: `attachment; filename="${cardFilenameFromCacheKey(key)}"`,
 				cache: "no-store",
 				background: true,
+				cfg: r2CacheConfig(),
 			});
+			await dropStaleCards(at.dir, at.current);
 			return;
 		}
 		await host.store.set(key, bytes.toString("base64"), {
@@ -182,5 +250,17 @@ export async function writeCachedPng(
 ): Promise<void> {
 	rememberPng(key, bytes);
 	if (opts.durable === false) return;
-	runInBackground(persistPng(host, key, bytes));
+	runInBackground(persistPng(host, key, bytes, opts.slot));
+}
+
+/** After a cache bypass the new epoch keys every card apart, in memory too; this frees the old ones in R2 early */
+export async function dropUserCards(userId: string): Promise<void> {
+	if (!cacheReady()) return;
+	try {
+		await deleteCardKeys(userCardDir(userId));
+	} catch (err) {
+		logger.warn(
+			`card cache drop skipped: ${err instanceof Error ? err.message : err}`,
+		);
+	}
 }

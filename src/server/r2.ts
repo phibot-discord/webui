@@ -1,16 +1,22 @@
+import { refreshedVersion } from "@/lib/asset-refresh";
+import { changesInPlace, publicAssetUrl } from "@/lib/assets";
+import { assetVersion, versionsSettled } from "./assets";
 import { cfFail, cfFetch } from "./cf-fetch";
 import { logger } from "./logger";
+import { objectUrl, type R2Config, r2Config, r2WriteReady } from "./r2-base";
+
+export {
+	bucketObjectsUrl,
+	objectUrl,
+	type R2Config,
+	r2BucketName,
+	r2CacheConfig,
+	r2Config,
+	r2Ready,
+	r2WriteReady,
+} from "./r2-base";
 
 type CacheMode = "default" | "no-store";
-
-export type R2Config = {
-	accountId: string;
-	apiToken: string;
-	bucket: string;
-	prefix: string;
-	htmlPrefix: string;
-	publicBase: string;
-};
 
 const mem = new Map<string, Buffer>();
 const inflight = new Map<string, Promise<Buffer | undefined>>();
@@ -38,65 +44,15 @@ function rememberMissing(key: string) {
 	}
 }
 
-function normalizePublicBase(raw: string | undefined): string {
-	const t = (raw || "").trim().replace(/\/+$/, "");
-	if (!t) return "";
-	if (/^https?:\/\//i.test(t)) return t;
-	return `https://${t}`;
-}
-
-export function r2BucketName(raw = process.env.CLOUDFLARE_R2_BUCKET) {
-	const t = raw?.trim() || "";
-	if (t === "off" || t === "none") return "";
-	if (!t || t === "[SENSITIVE]") return "phi-web-assets";
-	return t;
-}
-
-export function r2Config(): R2Config {
-	return {
-		accountId: process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || "",
-		apiToken: process.env.CLOUDFLARE_API_TOKEN?.trim() || "",
-		bucket: r2BucketName(),
-		prefix: (process.env.CLOUDFLARE_R2_ILL_PREFIX ?? "original_ill").replace(
-			/\/+$/,
-			"",
-		),
-		htmlPrefix: (process.env.CLOUDFLARE_R2_HTML_PREFIX ?? "html").replace(
-			/\/+$/,
-			"",
-		),
-		publicBase: normalizePublicBase(process.env.CLOUDFLARE_R2_PUBLIC_BASE),
-	};
-}
-
-export function r2Ready(cfg = r2Config()): boolean {
-	if (cfg.publicBase) return true;
-	return r2WriteReady(cfg);
-}
-
-export function r2WriteReady(cfg = r2Config()): boolean {
-	return Boolean(cfg.accountId && cfg.apiToken && cfg.bucket);
-}
-
+/** `token`: the visitor's Refresh files token, for links a page renders (asset-links.ts) */
 export function publicObjectUrl(
 	key: string,
 	cfg = r2Config(),
+	token?: string,
 ): string | undefined {
 	if (!cfg.publicBase) return;
-	const path = key
-		.replace(/^\//, "")
-		.split("/")
-		.map(encodeURIComponent)
-		.join("/");
-	return `${cfg.publicBase}/${path}`;
-}
-
-export function bucketObjectsUrl(cfg: R2Config): string {
-	return `https://api.cloudflare.com/client/v4/accounts/${cfg.accountId}/r2/buckets/${encodeURIComponent(cfg.bucket)}/objects`;
-}
-
-export function objectUrl(cfg: R2Config, key: string): string {
-	return `${bucketObjectsUrl(cfg)}/${key.split("/").map(encodeURIComponent).join("/")}`;
+	const version = assetVersion(key.replace(/^\//, ""));
+	return publicAssetUrl(cfg.publicBase, key, refreshedVersion(version, token));
 }
 
 function remember(key: string, buf: Buffer) {
@@ -144,9 +100,25 @@ async function readApi(
 let publicBrokenUntil = 0;
 const PUBLIC_RETRY_MS = 60_000;
 
-/** `false` = definitely absent (404), `undefined` = unknown/error */
-async function loadR2Object(key: string): Promise<Buffer | false | undefined> {
+/** The edge copy is trusted only under a versioned link; in-place data and unknown keys go through the API */
+export function readsViaEdge(key: string, api: boolean): boolean {
+	if (!api) return true;
+	return !changesInPlace(key) && Boolean(assetVersion(key));
+}
+
+async function viaEdge(key: string, api: boolean): Promise<boolean> {
+	if (api && !changesInPlace(key)) await versionsSettled();
+	return readsViaEdge(key, api);
+}
+
+/** `false`: absent (404); `undefined`: unknown or error */
+async function loadR2Object(
+	key: string,
+	fresh: boolean,
+): Promise<Buffer | false | undefined> {
 	const cfg = r2Config();
+	const api = r2WriteReady(cfg);
+	if (api && (fresh || !(await viaEdge(key, api)))) return readApi(cfg, key);
 	if (cfg.publicBase && Date.now() >= publicBrokenUntil) {
 		try {
 			const pub = await readPublic(cfg, key);
@@ -205,7 +177,8 @@ export async function streamR2Object(
 	if (knownMissing(k)) return undefined;
 	const cfg = r2Config();
 	const pub = publicObjectUrl(k, cfg);
-	if (pub && Date.now() >= publicBrokenUntil) {
+	const edge = await viaEdge(k, r2WriteReady(cfg));
+	if (pub && edge && Date.now() >= publicBrokenUntil) {
 		try {
 			const got = await openStream(pub);
 			if (got === false) {
@@ -229,7 +202,7 @@ export async function streamR2Object(
 
 export async function fetchR2Object(
 	key: string,
-	opts: { cache?: CacheMode; negative?: boolean } = {},
+	opts: { cache?: CacheMode; negative?: boolean; fresh?: boolean } = {},
 ): Promise<Buffer | undefined> {
 	const k = key.replace(/^\//, "");
 	const noStore = opts.cache === "no-store";
@@ -244,7 +217,7 @@ export async function fetchR2Object(
 	if (negative && knownMissing(k)) return undefined;
 	const pending = inflight.get(k);
 	if (pending) return pending;
-	const job = loadR2Object(k)
+	const job = loadR2Object(k, opts.fresh === true)
 		.then((buf) => {
 			if (buf === false) {
 				if (negative) rememberMissing(k);
@@ -267,9 +240,10 @@ export async function putR2Object(
 		cache?: CacheMode;
 		background?: boolean;
 		timeoutMs?: number;
+		cfg?: R2Config;
 	} = {},
 ): Promise<void> {
-	const cfg = r2Config();
+	const cfg = extra.cfg ?? r2Config();
 	if (!r2WriteReady(cfg)) {
 		throw new Error("R2 write is not configured");
 	}
@@ -291,4 +265,31 @@ export async function putR2Object(
 	if (!res.ok) await cfFail(res, `R2 PUT ${k}`);
 	missing.delete(k);
 	if (extra.cache !== "no-store") remember(k, body);
+}
+
+export async function deleteR2Object(
+	key: string,
+	cfg = r2Config(),
+): Promise<void> {
+	if (!r2WriteReady(cfg)) throw new Error("R2 write is not configured");
+	const res = await cfFetch(objectUrl(cfg, key), {
+		method: "DELETE",
+		headers: { Authorization: `Bearer ${cfg.apiToken}` },
+	});
+	if (!res.ok && res.status !== 404) await cfFail(res, `R2 DELETE ${key}`);
+	// a private bucket has no public reads to keep in step
+	if (!cfg.publicBase) return;
+	const prev = mem.get(key);
+	if (prev) memBytes -= prev.byteLength;
+	mem.delete(key);
+	rememberMissing(key);
+}
+
+/** One object through the API, uncached: for a private bucket. Undefined when it is absent or the read fails */
+export async function readPrivateR2Object(
+	key: string,
+	cfg: R2Config,
+): Promise<Buffer | undefined> {
+	const got = await readApi(cfg, key);
+	return Buffer.isBuffer(got) ? got : undefined;
 }

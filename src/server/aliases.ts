@@ -225,8 +225,10 @@ const defaultDeps: AliasDeps = {
 		readYaml<unknown>(join(assetsDir(), "info", "nicklist.yaml"), {}),
 	getApproved: async () =>
 		r2Ready()
-			? // A 404 cached for 15 min would hide the first upload; aliasesSha already gates this
-				fetchR2Object(aliasesR2Key(), { cache: "no-store", negative: false })
+			? fetchR2Object(aliasesR2Key(), {
+					cache: "no-store",
+					negative: false,
+				})
 			: undefined,
 	known,
 	fetchResolve,

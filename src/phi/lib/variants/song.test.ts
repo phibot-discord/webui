@@ -21,7 +21,6 @@ function board(over: Partial<Board> = {}): Board {
 		n: 10_000,
 		ap: 290,
 		fc: 480,
-		// q[k]: acc of the best k·0.5 %; 201 points from 100 down
 		q: Array.from({ length: 201 }, (_, k) =>
 			k < 6 ? 100 : Math.max(0, 100 - k * 0.05),
 		),

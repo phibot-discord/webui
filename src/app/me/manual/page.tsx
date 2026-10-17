@@ -2,16 +2,15 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { ManualScores } from "@/components/ManualScores";
-import { getMessages } from "@/i18n/server";
 import { getDataHost } from "@/server/data-host";
 import { withDiscordUid } from "@/server/logger";
 import { loadManual } from "@/server/manual";
+import { pageMetadata } from "@/server/og-meta";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-	const { m } = await getMessages();
-	return { title: m.manual.title, robots: { index: false } };
+export function generateMetadata(): Promise<Metadata> {
+	return pageMetadata("manual", { noindex: true });
 }
 
 export default async function ManualPage() {

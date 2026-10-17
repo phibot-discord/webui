@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SkipLink } from "@/components/SkipLink";
-import { VersionNotice } from "@/components/VersionNotice";
+import { WhatsNew } from "@/components/WhatsNew";
 import { localeTag } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/provider";
 import { getMessages, getRequestLocale } from "@/i18n/server";
@@ -15,6 +15,7 @@ import { THEME_COLORS } from "@/theme/config";
 import { fontClasses } from "@/theme/fonts";
 import { getRequestTheme } from "@/theme/server";
 import "./globals.css";
+import { pageOg } from "@/server/og-meta";
 
 function siteOrigin(): URL | undefined {
 	const raw = process.env.AUTH_URLS?.split(",")[0] || process.env.AUTH_URL;
@@ -27,18 +28,16 @@ function siteOrigin(): URL | undefined {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-	const { locale, m } = await getMessages();
+	const { m } = await getMessages();
 	return {
 		metadataBase: siteOrigin(),
 		title: { default: m.meta.title, template: `%s · ${m.brand}` },
 		description: m.meta.description,
 		applicationName: m.brand,
-		openGraph: {
-			type: "website",
-			siteName: m.brand,
-			locale: locale === "zh" ? "zh_CN" : "en_US",
-		},
-		twitter: { card: "summary_large_image" },
+		...(await pageOg("home", {
+			title: m.meta.title,
+			description: m.meta.description,
+		})),
 		formatDetection: { telephone: false },
 	};
 }
@@ -90,7 +89,7 @@ export default async function RootLayout({
 								theme={theme ?? "system"}
 							/>
 							{children}
-							<VersionNotice />
+							<WhatsNew />
 							<SiteFooter />
 						</div>
 					</I18nProvider>

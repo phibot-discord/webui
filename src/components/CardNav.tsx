@@ -3,23 +3,14 @@
 import Link, { useLinkStatus } from "next/link";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useI18n } from "@/i18n/provider";
-import { CARD_KINDS, isPublicKind } from "@/server/card-kinds";
+import { revealInRow, rowFade } from "@/lib/scroll";
+import { CARD_KINDS, CARD_PAGES, isPublicKind } from "@/server/card-kinds";
 
 function Pending() {
 	const { pending } = useLinkStatus();
 	return pending ? (
 		<span className="card-nav-pending" aria-hidden="true" />
 	) : null;
-}
-
-const FADE = 32;
-
-function reveal(ul: HTMLElement, tab: HTMLElement) {
-	if (ul.scrollWidth <= ul.clientWidth) return;
-	const box = ul.getBoundingClientRect();
-	const r = tab.getBoundingClientRect();
-	if (r.right > box.right - FADE) ul.scrollLeft += r.right - box.right + FADE;
-	else if (r.left < box.left + FADE) ul.scrollLeft -= box.left + FADE - r.left;
 }
 
 let followedAt = 0;
@@ -35,17 +26,28 @@ export function CardNav({
 }) {
 	const { m } = useI18n();
 	const list = useRef<HTMLUListElement>(null);
-	const items = CARD_KINDS.map((kind) => ({ kind, label: m.nav[kind] }));
+	const items = CARD_KINDS.map((kind) => ({
+		kind: kind as string,
+		href: `${base}/${kind}`,
+		label: m.nav[kind],
+	}));
 	const visible = publicOnly
 		? items.filter((i) => isPublicKind(i.kind))
-		: items;
+		: [
+				...items,
+				...CARD_PAGES.map((page) => ({
+					kind: page.id as string,
+					href: page.href as string,
+					label: m.nav[page.id],
+				})),
+			];
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: runs again when the current tab changes, read from the DOM
 	useLayoutEffect(() => {
 		const ul = list.current;
 		const tab = ul?.querySelector<HTMLElement>('[aria-current="page"]');
 		if (!ul || !tab) return;
-		reveal(ul, tab);
+		revealInRow(ul, tab);
 		if (followedAt && Date.now() - followedAt < 30_000) {
 			followedAt = 0;
 			tab.focus({ preventScroll: true });
@@ -56,14 +58,10 @@ export function CardNav({
 		const ul = list.current;
 		if (!ul) return;
 		const update = () => {
-			const max = ul.scrollWidth - ul.clientWidth;
-			const start = ul.scrollLeft > 1;
-			const end = ul.scrollLeft < max - 1;
-			ul.dataset.fade =
-				start && end ? "both" : start ? "start" : end ? "end" : "none";
+			ul.dataset.fade = rowFade(ul.scrollLeft, ul.scrollWidth - ul.clientWidth);
 		};
 		const onFocus = (e: FocusEvent) => {
-			if (e.target instanceof HTMLElement) reveal(ul, e.target);
+			if (e.target instanceof HTMLElement) revealInRow(ul, e.target);
 		};
 		update();
 		ul.addEventListener("scroll", update, { passive: true });
@@ -79,13 +77,13 @@ export function CardNav({
 
 	return (
 		<nav aria-label={m.nav.cards}>
-			<ul className="card-nav" ref={list}>
+			<ul className="card-nav row-fade" ref={list}>
 				{visible.map((item) => {
 					const active = current === item.kind;
 					return (
 						<li key={item.kind}>
 							<Link
-								href={`${base}/${item.kind}`}
+								href={item.href}
 								prefetch={false}
 								aria-current={active ? "page" : undefined}
 								onClick={(e) => {

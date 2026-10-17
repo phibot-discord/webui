@@ -63,10 +63,7 @@
         var _res_path = "{{_res_path}}";
     </script>
 
-    <!-- <div class="container" id="container"> -->
     {{block 'main'}}{{/block}}
-    <!-- <div class="copyright">{{@sys.copyright}}</div> -->
-    <!-- </div> -->
     <!-- 曲目名称自适应name-box的宽度 -->
 
     <script>
@@ -76,7 +73,6 @@
             return songName.scrollWidth > parentElement.offsetWidth || songName.scrollHeight > parentElement.offsetHeight
         }
         function adjustFontSize() {
-            //获取p元素
             let a = document.getElementsByName('pvis')
             for (let i = 0; i < a.length; ++i) {
 
@@ -85,7 +81,6 @@
                 if (!songName) continue
 
 
-                /*调整曲目名称字体大小*/
                 let parentElement = songName.parentElement
 
                 if (!isBiggerThanParent(songName, parentElement)) continue
@@ -116,34 +111,27 @@
           return `rgba(${r},${g},${b},${alpha})`
         }
 
-        // 绘制定数变化折线图的函数
         // lines: { data: [{x, xLabel, visX, y, yLabel, visY}], color: string }[]
         function drawDifficultyChart(svgId, lines) {
-          // 获取SVG元素
           const svg = document.getElementById(svgId)
           if (!svg) {
             console.error("SVG元素未找到:", svgId)
             return
           }
 
-          // 清空SVG内容
           svg.innerHTML = ""
 
-          // 设置SVG尺寸
           const width = parseInt(svg.getAttribute("width")) || 800
           const height = parseInt(svg.getAttribute("height")) || 400
 
-          // 定义边距
           const margin = { top: 30, right: 30, bottom: 50, left: 60 }
           const innerWidth = width - margin.left - margin.right
           const innerHeight = height - margin.top - margin.bottom
 
-          // 创建主绘图区域组
           const g = document.createElementNS("http://www.w3.org/2000/svg", "g")
           g.setAttribute("transform", `translate(${margin.left},${margin.top})`)
           svg.appendChild(g)
 
-          // 汇总所有折线的数据，计算全局范围
           const allData = lines.flatMap(l => l.data)
           const xValues = allData.map(d => d.x)
           const yValues = allData.map(d => d.y)
@@ -160,7 +148,6 @@
           const yScaleMin = yMin - yPadding
           const yScaleMax = yMax + yPadding
 
-          // 缩放函数
           const xScale = value => {
             return ((value - xScaleMin) / (xScaleMax - xScaleMin)) * innerWidth
           }
@@ -168,7 +155,6 @@
             return innerHeight - ((value - yScaleMin) / (yScaleMax - yScaleMin)) * innerHeight
           }
 
-          // 绘制X轴
           const xAxis = document.createElementNS("http://www.w3.org/2000/svg", "line")
           xAxis.setAttribute("x1", 0)
           xAxis.setAttribute("y1", innerHeight)
@@ -178,7 +164,6 @@
           xAxis.setAttribute("stroke-width", 1)
           g.appendChild(xAxis)
 
-          // 绘制Y轴
           const yAxis = document.createElementNS("http://www.w3.org/2000/svg", "line")
           yAxis.setAttribute("x1", 0)
           yAxis.setAttribute("y1", 0)
@@ -188,7 +173,6 @@
           yAxis.setAttribute("stroke-width", 1)
           g.appendChild(yAxis)
 
-          // 绘制X轴刻度
           const xTicks = 5
           for (let i = 0; i <= xTicks; i++) {
             const value = xScaleMin + (i / xTicks) * (xScaleMax - xScaleMin)
@@ -202,7 +186,6 @@
             g.appendChild(tick)
           }
 
-          // 绘制Y轴刻度
           const yTicks = 5
           for (let i = 0; i <= yTicks; i++) {
             const value = yScaleMin + (i / yTicks) * (yScaleMax - yScaleMin)
@@ -216,13 +199,11 @@
             g.appendChild(tick)
           }
 
-          // 遍历每条折线
           lines.forEach(line => {
             const data = line.data
             const color = line.color || "#64B5F6"
             const dashColor = lightenColor(color, 0.4)
 
-            // 绘制折线路径
             if (data.length > 1) {
               let pathData = ""
               data.forEach((d, i) => {
@@ -242,12 +223,10 @@
               g.appendChild(path)
             }
 
-            // 绘制数据点、虚线和标签
             data.forEach(d => {
               const x = xScale(d.x)
               const y = yScale(d.y)
 
-              // 绘制数据点
               const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle")
               circle.setAttribute("cx", x)
               circle.setAttribute("cy", y)
@@ -255,7 +234,6 @@
               circle.setAttribute("fill", color)
               g.appendChild(circle)
 
-              // 如果visX为true，绘制向X轴的虚线并标注xLabel
               if (d.visX) {
                 const dashLine = document.createElementNS("http://www.w3.org/2000/svg", "line")
                 dashLine.setAttribute("x1", x)
@@ -277,7 +255,6 @@
                 g.appendChild(label)
               }
 
-              // 如果visY为true，绘制向Y轴的虚线并标注yLabel
               if (d.visY) {
                 const dashLine = document.createElementNS("http://www.w3.org/2000/svg", "line")
                 dashLine.setAttribute("x1", x)

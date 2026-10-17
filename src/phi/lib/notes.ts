@@ -68,7 +68,6 @@ export type UserNotes = {
 	showB30Analysis: boolean;
 	showTagAnalysis: boolean;
 	showRecordStats: boolean;
-	/** Leave P1–P3 out of the ± SD on the B30 analysis; the bars and the average keep them */
 	stddevExcludeP3?: boolean;
 	cardQuality: "high" | "fast";
 	cardBackground?: string;

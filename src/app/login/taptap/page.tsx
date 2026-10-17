@@ -2,14 +2,13 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { TapLoginPanel } from "@/components/TapLoginPanel";
-import { getMessages } from "@/i18n/server";
 import { safeNext } from "@/lib/safe-next";
+import { pageMetadata } from "@/server/og-meta";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-	const { m } = await getMessages();
-	return { title: m.tapLogin.title, robots: { index: false } };
+export function generateMetadata(): Promise<Metadata> {
+	return pageMetadata("login", { noindex: true });
 }
 
 export default async function TapLoginPage({

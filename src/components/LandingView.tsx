@@ -6,7 +6,7 @@ import { DitherBall } from "@/components/landing/Dither";
 import { HeroStage } from "@/components/landing/HeroStage";
 import { InviteLink } from "@/components/landing/Invite";
 import { LevelChip } from "@/components/landing/LevelChip";
-import { LandingLookups } from "@/components/landing/Lookups";
+import { LandingExplore, LandingLookups } from "@/components/landing/Lookups";
 import { Rich } from "@/components/landing/Rich";
 import { LandingScoreboard } from "@/components/landing/Scoreboard";
 import { SignInButton, SignInStatus } from "@/components/landing/SignIn";
@@ -109,6 +109,8 @@ export function LandingView({
 			<LandingScoreboard />
 
 			<LandingLookups signedIn={signedIn} />
+
+			<LandingExplore signedIn={signedIn} />
 
 			<section className="closing" aria-labelledby="closing-title">
 				<LevelChip rank="AT" level="16.8" />

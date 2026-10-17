@@ -1,26 +1,45 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { CardNav } from "@/components/CardNav";
+import { Desk } from "@/components/Desk";
 import { TagGlossary } from "@/components/TagGlossary";
-import { getMessages } from "@/i18n/server";
 import type { ChartTagTreeNode } from "@/phi/lib/b30-analysis";
 import { loadChartTagTree } from "@/phi/lib/chart-tags-api";
+import { loadCardDesk } from "@/server/card-desk";
+import { getDataHost } from "@/server/data-host";
+import { withDiscordUid } from "@/server/logger";
+import { pageMetadata } from "@/server/og-meta";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-	const { m } = await getMessages();
-	return { title: m.tags.title, description: m.tags.lede };
+export function generateMetadata(): Promise<Metadata> {
+	return pageMetadata("tags", { noindex: true });
+}
+
+async function tagTree(): Promise<ChartTagTreeNode[]> {
+	try {
+		return await loadChartTagTree();
+	} catch {
+		return [];
+	}
 }
 
 export default async function TagsPage() {
-	let tree: ChartTagTreeNode[] = [];
-	try {
-		tree = await loadChartTagTree();
-	} catch {
-		tree = [];
-	}
-	return (
-		<main id="content" className="page tags-page">
-			<TagGlossary tree={tree} />
-		</main>
-	);
+	const session = await auth();
+	if (!session?.user?.id) redirect("/?next=/tags");
+	const userId = session.user.id;
+	return withDiscordUid(userId, async () => {
+		const host = await getDataHost();
+		const [loaded, tree] = await Promise.all([
+			loadCardDesk(host, userId),
+			tagTree(),
+		]);
+		if ("gate" in loaded) return loaded.gate;
+		return (
+			<Desk {...loaded.desk} nav={<CardNav current="tags" />}>
+				<TagGlossary tree={tree} />
+			</Desk>
+		);
+	});
 }

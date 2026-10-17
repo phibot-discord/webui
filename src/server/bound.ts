@@ -3,6 +3,8 @@ import type { Save } from "@/phi/lib/save";
 import { saveIdentity } from "@/phi/lib/saves";
 import { isTapApiFailure } from "@/phi/lib/tapapi";
 import { noteTokenUser } from "./account-link";
+import { runInBackground } from "./background";
+import { dropUserCards } from "./cache";
 import { cardEpochKey, getCardEpoch } from "./card-image-cache";
 import {
 	BYPASS_CACHE_COOLDOWN_MS,
@@ -223,6 +225,8 @@ async function bypassCardCacheFor(
 		};
 	}
 	const epoch = await bumpCardEpoch(host.store, userId);
+	// Every cached card is stale now; the new ones take their place as they render
+	runInBackground(dropUserCards(userId));
 	return { ok: true, epoch, cooldownMs: claimed.remainMs };
 }
 

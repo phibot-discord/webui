@@ -64,7 +64,7 @@ export type OutgoingInit = {
 	dispatcher?: Dispatcher;
 };
 
-/** undici's fetch: Next's drops `dispatcher`, `request()` gets RST by TapTap; a Node `FormData` body is sent as "[object FormData]" */
+/** undici's fetch: Next's drops `dispatcher`, `request()` is RST by TapTap, Node `FormData` is stringified */
 export async function outgoingFetch(
 	url: string | URL,
 	init: OutgoingInit = {},

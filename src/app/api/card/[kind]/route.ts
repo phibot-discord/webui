@@ -51,7 +51,6 @@ export async function GET(
 		const uiCookie = cookieLocale(request.headers);
 		const opts: Parameters<typeof renderCard>[2] = {
 			count,
-			// renderCard then tries the saved notes locale, then fallbackLocale
 			locale:
 				parsePhiLocale(url.searchParams.get("locale")) ??
 				parsePhiLocale(acceptLanguage) ??
@@ -62,14 +61,12 @@ export async function GET(
 				qualityParam == null ? undefined : parsePaintQuality(qualityParam),
 			showTagAnalysis: tags === "1" ? true : tags === "0" ? false : undefined,
 			showRecordStats: stats === "1" ? true : stats === "0" ? false : undefined,
-			// "1" leaves P3 out of the SD
 			stddevExcludeP3: sdP3 === "1" ? true : sdP3 === "0" ? false : undefined,
 			download,
 			epoch: url.searchParams.get("epoch") ?? undefined,
 			style: url.searchParams.get("style") ?? undefined,
 			chart: url.searchParams.get("chart") ?? undefined,
 			level: url.searchParams.get("level") ?? undefined,
-			// After a refresh or manual save, another instance may still remember the old save for a few seconds
 			fresh: wantsReload(request.headers),
 		};
 		const respond = async (result: Awaited<ReturnType<typeof renderCard>>) => {

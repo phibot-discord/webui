@@ -10,10 +10,11 @@ import { focusMain } from "@/components/SkipLink";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { useToolDismiss } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
+import { CARD_PAGES } from "@/server/card-kinds";
 import type { ThemeChoice } from "@/theme/config";
 
-function here(path: string, href: string) {
-	return path === href || path.startsWith(`${href}/`);
+function here(path: string, match: readonly string[]) {
+	return match.some((href) => path === href || path.startsWith(`${href}/`));
 }
 
 export function SiteHeader({
@@ -52,16 +53,19 @@ export function SiteHeader({
 	useToolDismiss(open, close, root);
 
 	const links = [
-		{ href: "/tags", match: "/tags", label: m.nav.tags },
-		{ href: "/songs", match: "/songs", label: m.nav.songs },
-		{ href: "/score", match: "/score", label: m.nav.score },
-		{ href: "/phira", match: "/phira", label: m.nav.phira },
-		{ href: "/files", match: "/files", label: m.nav.files },
+		{ href: "/songs", match: ["/songs"], label: m.nav.songs },
+		{ href: "/score", match: ["/score"], label: m.nav.score },
+		{ href: "/phira", match: ["/phira"], label: m.nav.phira },
+		{ href: "/files", match: ["/files"], label: m.nav.files },
 		...(signedIn
 			? [
-					{ href: "/me/b30", match: "/me", label: m.nav.cards, heavy: true },
-					{ href: "/simulate", match: "/simulate", label: m.nav.simulate },
-					{ href: "/account", match: "/account", label: m.nav.account },
+					{
+						href: "/me/b30",
+						match: ["/me", ...CARD_PAGES.map((page) => page.href)],
+						label: m.nav.cards,
+						heavy: true,
+					},
+					{ href: "/account", match: ["/account"], label: m.nav.account },
 				]
 			: []),
 	];

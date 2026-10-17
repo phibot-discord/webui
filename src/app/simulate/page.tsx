@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { MeGate } from "@/components/Desk";
+import { CardNav } from "@/components/CardNav";
+import { Desk } from "@/components/Desk";
 import { SongSimulation } from "@/components/SongSimulation";
-import { getMessages } from "@/i18n/server";
-import { refreshCooldownRemaining } from "@/server/bound";
+import { loadCardDesk } from "@/server/card-desk";
 import { getDataHost } from "@/server/data-host";
 import { withDiscordUid } from "@/server/logger";
-import { loadSimBase } from "@/server/simulation";
+import { pageMetadata } from "@/server/og-meta";
+import { simBaseOf } from "@/server/simulation";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-	const { m } = await getMessages();
-	return { title: m.simulate.title, robots: { index: false } };
+export function generateMetadata(): Promise<Metadata> {
+	return pageMetadata("simulate", { noindex: true });
 }
 
 export default async function SimulatePage() {
@@ -22,24 +22,17 @@ export default async function SimulatePage() {
 	const userId = session.user.id;
 	return withDiscordUid(userId, async () => {
 		const host = await getDataHost();
-		const got = await loadSimBase(host, userId);
-		if ("error" in got) {
-			if (got.error === "not_bound") redirect("/me");
-			return (
-				<MeGate
-					reason={got.error === "banned" ? "banned" : "no_save"}
-					cooldown={await refreshCooldownRemaining(userId)}
-				/>
-			);
-		}
+		const loaded = await loadCardDesk(host, userId);
+		if ("gate" in loaded) return loaded.gate;
+		const got = simBaseOf(loaded.bound);
 		return (
-			<main id="content" className="page manual-page">
+			<Desk {...loaded.desk} nav={<CardNav current="simulate" />}>
 				<SongSimulation
 					userId={userId}
 					playerId={got.playerId}
 					initial={got.base}
 				/>
-			</main>
+			</Desk>
 		);
 	});
 }

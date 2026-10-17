@@ -8,7 +8,7 @@ import {
 	useChartCatalog,
 } from "@/components/ChartSearch";
 import { Announce, useSettled } from "@/components/Tool";
-import type { Messages } from "@/i18n/messages";
+import type { ClientMessages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
 import {
 	type ChartLevel,
@@ -53,7 +53,7 @@ function asMode(raw: string | undefined): ScoreMode {
 	return raw === "challenge" ? "challenge" : "normal";
 }
 
-export function chartSearchText(m: Messages): ChartSearchText {
+export function chartSearchText(m: ClientMessages): ChartSearchText {
 	const t = m.chartSearch;
 	return {
 		label: t.label,

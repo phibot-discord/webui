@@ -733,7 +733,7 @@ function mergeBlobRows(
 	return Object.fromEntries(kept);
 }
 
-/** Never rejects (`partial` marks gaps); with `db` the answers go to KV, so later cards on any instance can draw them */
+/** Never rejects (`partial` marks gaps); with `db` the answers go to KV for later cards on any instance */
 export async function rankRows(
 	queries: readonly RankQuery[],
 	opts: { band?: RksBand; db?: KvLike; owner?: string } = {},

@@ -62,7 +62,7 @@
 	margin: 0 0 var(--space-6);
 }
 
-.sim-p3 h2,
+.sim-p3 h3,
 .sim-list-title {
 	margin: 0 0 var(--space-2);
 	font-size: var(--text-md);
@@ -183,7 +183,6 @@
 	font-variant-numeric: tabular-nums;
 }
 
-/* An italic glyph overhangs the end of a right-aligned value, and the input clips it */
 .sim-row input::placeholder {
 	font-style: normal;
 	opacity: 0.6;

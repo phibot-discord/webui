@@ -5,19 +5,18 @@ import {
 	type SongLookupExample,
 	type SongLookupInitial,
 } from "@/components/SongLookup";
-import { getMessages } from "@/i18n/server";
 import { rankSongs } from "@/lib/song-search";
 import { ALIAS_MAX_LEN } from "@/server/aliases";
 import { chartCatalog } from "@/server/charts";
+import { pageMetadata } from "@/server/og-meta";
 
 export const dynamic = "force-dynamic";
 
 const SHOWN = 20;
 const EXAMPLES = ["无限光", "ASA", "Ad"];
 
-export async function generateMetadata(): Promise<Metadata> {
-	const { m } = await getMessages();
-	return { title: m.songs.title, description: m.songs.lede };
+export function generateMetadata(): Promise<Metadata> {
+	return pageMetadata("songs");
 }
 
 export default async function SongsPage({

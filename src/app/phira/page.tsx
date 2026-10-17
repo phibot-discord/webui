@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { PhiraPack } from "@/components/PhiraPack";
-import { getMessages } from "@/i18n/server";
+import { pageMetadata } from "@/server/og-meta";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-	const { m } = await getMessages();
-	return { title: m.phira.title, description: m.phira.lede };
+export function generateMetadata(): Promise<Metadata> {
+	return pageMetadata("phira");
 }
 
 export default function PhiraPage() {

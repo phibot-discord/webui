@@ -1,11 +1,22 @@
 import { join } from "node:path";
+import { OG_SIZE } from "@/lib/og";
 import type { Catalog } from "@/phi/lib/catalog";
 import { loadWebConfig } from "./config";
 import { type DataHost, getDataHost } from "./data-host";
 import { logger } from "./logger";
 import { assetsDir } from "./paths";
+import {
+	OG_PAGE_TEMPLATE,
+	type OgPageData,
+	ogPageHtml,
+} from "./render/og-page";
 import type { PaintQuality } from "./render/paint-budget";
-import type { App, RenderedImage, TemplateDefinition } from "./sdk";
+import {
+	type App,
+	defineTemplate,
+	type RenderedImage,
+	type TemplateDefinition,
+} from "./sdk";
 
 export type { DataHost };
 
@@ -113,6 +124,15 @@ async function bootRender(): Promise<WebHost> {
 	};
 
 	const { catalog } = await setupPhi(app, data.rt);
+	app.template(
+		defineTemplate({
+			id: OG_PAGE_TEMPLATE,
+			...OG_SIZE,
+			format: "jpeg",
+			quality: 90,
+			html: (raw) => ogPageHtml(raw as OgPageData),
+		}),
+	);
 
 	return { ...data, catalog, render };
 }

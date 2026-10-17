@@ -40,6 +40,17 @@
 	flex: none;
 }
 
+.phira-version {
+	display: grid;
+	gap: var(--space-1);
+	max-width: 22rem;
+	margin: var(--space-3) 0 var(--space-1);
+}
+
+.phira-version .opt-note {
+	margin: 0;
+}
+
 .phira-levels {
 	list-style: none;
 	margin: 0;
@@ -77,6 +88,16 @@
 	color: var(--muted);
 	font-size: var(--text-sm);
 	font-variant-numeric: tabular-nums;
+}
+
+.phira-removed {
+	display: block;
+	font-size: var(--text-xs);
+}
+
+.phira-song-name .phira-gone {
+	margin-top: var(--space-2);
+	color: var(--ink);
 }
 
 .phira-download {

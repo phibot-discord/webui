@@ -1,5 +1,5 @@
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
-import type { Metadata, ResolvingMetadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
@@ -9,6 +9,7 @@ import { CardStage } from "@/components/CardStage";
 import { Desk } from "@/components/Desk";
 import { SignInButton, SignInStatus } from "@/components/landing/SignIn";
 import { getMessages } from "@/i18n/server";
+import { ogShareUrl } from "@/lib/og";
 import {
 	cardStyles,
 	isStyledKind,
@@ -16,52 +17,37 @@ import {
 } from "@/phi/lib/card-styles";
 import { lastSyncedIso } from "@/server/bound";
 import { isPublicKind } from "@/server/card-kinds";
+import { ogMetadata, pageOg } from "@/server/og-meta";
 import { parsePaintQuality } from "@/server/render/paint-budget";
 import { loadShared } from "./load-shared";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(
-	{
-		params,
-	}: {
-		params: Promise<{ slug: string; kind: string }>;
-	},
-	parent: ResolvingMetadata,
-): Promise<Metadata> {
+export async function generateMetadata({
+	params,
+}: {
+	params: Promise<{ slug: string; kind: string }>;
+}): Promise<Metadata> {
 	const { slug, kind } = await params;
 	if (!isPublicKind(kind)) return {};
-	const [shared, { m }, prev] = await Promise.all([
+	const [shared, { locale, m }] = await Promise.all([
 		loadShared(slug),
 		getMessages(),
-		parent,
 	]);
-	if (!shared) return {};
+	if (!shared) return pageOg("cards", { title: m.me.title });
 	const card = m.card.titles[kind];
 	const title = `${card} · ${shared.player}`;
 	const description = m.public.metaDescription
 		.replaceAll("{player}", shared.player)
 		.replaceAll("{card}", card)
 		.replaceAll("{rks}", shared.rks);
-	const images = prev.openGraph?.images ?? [];
 	return {
 		title,
 		description,
-		openGraph: {
-			type: "profile",
-			siteName: m.brand,
-			locale: prev.openGraph?.locale,
-			title,
-			description,
-			url: `/p/${slug}/${kind}`,
-			images,
-		},
-		twitter: {
-			card: images.length ? "summary_large_image" : "summary",
-			title,
-			description,
-			images,
-		},
+		...(await ogMetadata(
+			{ url: ogShareUrl(slug, kind, locale), alt: title },
+			{ title, description, url: `/p/${slug}/${kind}`, type: "profile" },
+		)),
 	};
 }
 

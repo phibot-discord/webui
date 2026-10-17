@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { StatusBoard } from "@/components/status/StatusBoard";
-import { getMessages } from "@/i18n/server";
+import { pageMetadata } from "@/server/og-meta";
 import { loadStatus } from "@/server/status";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-	const { m } = await getMessages();
-	return { title: m.status.title, description: m.status.lede };
+export function generateMetadata(): Promise<Metadata> {
+	return pageMetadata("status");
 }
 
 export default async function StatusPage() {

@@ -32,6 +32,7 @@ import {
 } from "./bound";
 import {
 	type CachedCard,
+	type CardSlot,
 	cacheKey,
 	cardEtag,
 	durableCardStore,
@@ -43,6 +44,7 @@ import {
 import {
 	cardCacheInput,
 	cardCacheParts,
+	cardSlot,
 	RENDER_VERSION,
 } from "./card-image-cache";
 import {
@@ -132,6 +134,7 @@ type CardPrep = {
 	etag: string;
 	key: string;
 	heightId: string;
+	slot: CardSlot;
 	prepMs: number;
 };
 
@@ -199,13 +202,13 @@ async function prepareCardCache(
 		statsOn,
 		sdExcludeP3,
 		style,
-		// Leaderboard numbers drift without a save change: re-render a song card daily
 		extra: song
 			? `song:${song.chart}:${song.level}:${new Date().toISOString().slice(0, 10)}`
 			: undefined,
 	});
 	const etag = cardEtag(cardCacheParts(cacheInput, "jpeg"));
 	return {
+		slot: cardSlot(cacheInput),
 		started,
 		data,
 		userId,
@@ -247,7 +250,7 @@ async function readCachedCard(prep: CardPrep): Promise<RenderOk | undefined> {
 	const tCache = performance.now();
 	let hit: CachedCard | undefined;
 	try {
-		hit = await readCachedPng(prep.data, prep.key);
+		hit = await readCachedPng(prep.data, prep.key, { slot: prep.slot });
 	} catch (err) {
 		// KV / R2 down: paint the card instead of failing every request waiting on it
 		logger.warn(
@@ -343,7 +346,7 @@ async function lookupOrPaint(
 	hooks: PaintEvents,
 ): Promise<RenderOk | BoundErr> {
 	const tCache = performance.now();
-	// Boot the render host only after a memory miss, once the durable lookup is in flight, so an R2 hit skips the wait
+	// Boot the render host only after a memory miss, while the durable lookup runs, so an R2 hit skips the wait
 	const warmHost = new Promise<void>((resolve) => {
 		setImmediate(() => {
 			getHost().then(
@@ -447,13 +450,13 @@ async function paintFreshCard(
 				built.classicTemplateId,
 			);
 		}
-		// Fallback and partial renders, and ones whose jackets (the Save's, from prepareCardCache, included) may predate the 4/1 set, are not cached here, by the browser or by the CDN: the next request retries
+		// Fallback and partial renders, and ones whose jackets may predate the 4/1 set, are cached nowhere
 		const transient =
 			fellBack ||
 			built.data.renderPartial === true ||
 			foolsPending(prep.started);
 		if (!transient) {
-			await writeCachedPng(host, prep.key, img.bytes);
+			await writeCachedPng(host, prep.key, img.bytes, { slot: prep.slot });
 			if (!height && img.height > 64) {
 				await writeCachedHeight(host.store, prep.heightId, img.height);
 			}

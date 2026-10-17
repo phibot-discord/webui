@@ -16,17 +16,21 @@ type Anchor = { fx: number; fy: number; x: number; y: number };
 
 export function CardLightbox({
 	url,
+	fullUrl = url,
 	alt,
 	title,
 	width,
 	height,
+	areaLabel,
 	onClose,
 }: {
 	url: string;
+	fullUrl?: string;
 	alt: string;
 	title: string;
 	width?: number;
 	height?: number;
+	areaLabel?: string;
 	onClose: () => void;
 }) {
 	const { m } = useI18n();
@@ -145,7 +149,7 @@ export function CardLightbox({
 					</div>
 					<a
 						className="btn btn-ghost btn-sm lightbox-open"
-						href={url}
+						href={fullUrl}
 						target="_blank"
 						rel="noopener"
 					>
@@ -167,7 +171,7 @@ export function CardLightbox({
 				className="lightbox-scroll"
 				// biome-ignore lint/a11y/noNoninteractiveTabindex: a scroll area must be focusable to pan with the keyboard
 				tabIndex={0}
-				aria-label={m.card.zoomArea}
+				aria-label={areaLabel ?? m.card.zoomArea}
 				aria-describedby={hintId}
 				onDoubleClick={zoomAt}
 			>

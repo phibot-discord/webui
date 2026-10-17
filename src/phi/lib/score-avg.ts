@@ -299,7 +299,7 @@ type ScoreAvgFetchers = {
 	peekRankRows?: (queries: RankQuery[], band?: RksBand) => RankRowsResult;
 };
 
-// The same B30 is re-rendered per count / quality / language: cache answers, and failures briefly, so a dead phib19 isn't asked every render
+// The same B30 is re-rendered per count, quality and language: cache answers, and failures briefly
 const AVG_TTL_MS = 10 * 60 * 1000;
 const AVG_FAIL_TTL_MS = 90 * 1000;
 const AVG_MAX = 128;

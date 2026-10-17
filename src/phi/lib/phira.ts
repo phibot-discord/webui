@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 
-/** SP only exists for the 4/1 specials (see src/server/fools.ts) */
+/** SP: the 4/1 specials and the unlock-only packs */
 export const PHIRA_LEVELS = ["EZ", "HD", "IN", "AT", "SP"] as const;
 export type PhiraLevel = (typeof PHIRA_LEVELS)[number];
 
@@ -28,12 +28,12 @@ export function isPhiraLevel(v: string): v is PhiraLevel {
 }
 
 /** `<id without .0>-<level>.pez` */
-export function phiraPackFile(id: string, level: PhiraLevel): string {
+export function phiraPackFile(id: string, level: string): string {
 	return `${id.replace(/\.0$/, "")}-${level}.pez`;
 }
 
 /** R2 key of a Phira pack; `root` is a key prefix such as FOOLS_PREFIX for the 4/1 specials */
-export function phiraPackKey(id: string, level: PhiraLevel, root = ""): string {
+export function phiraPackKey(id: string, level: string, root = ""): string {
 	return `${root ? `${root}/` : ""}phira/${level}/${phiraPackFile(id, level)}`;
 }
 

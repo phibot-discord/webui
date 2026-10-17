@@ -133,7 +133,6 @@ export async function requestQr(
 	return {
 		stored: {
 			deviceId: request.deviceId,
-			// Raw TapTap JSON, so keep only these fields and drop "" / null
 			data: {
 				device_code: data?.device_code || undefined,
 				expires_in: data?.expires_in ?? undefined,

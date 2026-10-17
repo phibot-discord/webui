@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { r2BucketName } from "./r2";
+import { setAssetVersionsForTest } from "./assets";
+import { publicObjectUrl, r2BucketName, readsViaEdge } from "./r2";
 
 test("R2 bucket falls back when vercel env pull leaves a placeholder", () => {
 	assert.equal(r2BucketName("phi-web-assets"), "phi-web-assets");
@@ -88,5 +89,57 @@ test("streamR2Object asks for unencoded bytes and drops the length of an encoded
 		process.env = env;
 		server.closeAllConnections();
 		server.close();
+	}
+});
+
+test("public links carry the file's version, so the edge can keep each one for long", () => {
+	const env = { ...process.env };
+	process.env.CLOUDFLARE_R2_PUBLIC_BASE = "https://r2.example.test";
+	process.env.CLOUDFLARE_R2_BUCKET = "off";
+	setAssetVersionsForTest(new Map([["music/Song A.ogg", "0123abcd"]]));
+	try {
+		assert.equal(
+			publicObjectUrl("/music/Song A.ogg"),
+			"https://r2.example.test/music/Song%20A.ogg?v=0123abcd",
+		);
+		assert.equal(
+			publicObjectUrl("music/b.ogg"),
+			"https://r2.example.test/music/b.ogg",
+		);
+	} finally {
+		setAssetVersionsForTest(new Map());
+		process.env = env;
+	}
+});
+
+test("data that changes in place is read through the API even when versioned", () => {
+	setAssetVersionsForTest(
+		new Map([
+			["info/info.csv", "0123abcd"],
+			["pv/index.json", "0123abcd"],
+			["info/oldInfo/a.csv", "0123abcd"],
+		]),
+	);
+	try {
+		assert.equal(readsViaEdge("info/info.csv", true), false);
+		assert.equal(readsViaEdge("pv/index.json", true), false);
+		assert.equal(readsViaEdge("info/oldInfo/a.csv", true), true);
+	} finally {
+		setAssetVersionsForTest(new Map());
+	}
+});
+
+test("the server reads the edge copy only under a versioned link", () => {
+	setAssetVersionsForTest(new Map([["music/a.ogg", "0123abcd"]]));
+	try {
+		assert.equal(readsViaEdge("music/a.ogg", true), true);
+		assert.equal(readsViaEdge("music/new.ogg", true), false);
+		assert.equal(
+			readsViaEdge("music/new.ogg", false),
+			true,
+			"without API access the public domain is all there is",
+		);
+	} finally {
+		setAssetVersionsForTest(new Map());
 	}
 });

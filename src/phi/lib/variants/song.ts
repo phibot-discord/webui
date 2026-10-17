@@ -15,6 +15,7 @@ const COPY = {
 		eyebrow: "SONG LEADERBOARD",
 		composer: "Composer",
 		charter: "Charter",
+		illustrator: "Illustration",
 		notes: "{n} notes",
 		record: "YOUR RECORD",
 		score: "SCORE",
@@ -68,6 +69,7 @@ const COPY = {
 		eyebrow: "单曲排行",
 		composer: "曲师",
 		charter: "谱师",
+		illustrator: "曲绘",
 		notes: "物量 {n}",
 		record: "你的成绩",
 		score: "分数",
@@ -257,7 +259,6 @@ function standingTile(
 		posPx: Math.max(26, fitFontPx(pos, room, 44)),
 		of,
 		pct: placePct(place, vt),
-		// "/ 70,519" counts the user too; say so, next to "RECORDS 70,518" below
 		sub: fill(sub.counted, { n: fmtCount(place.total) }),
 		note:
 			place.ap && place.tied > 0
@@ -534,6 +535,9 @@ export function songView(card: SongCardData, locale: PhiLocale) {
 			composer: ellipsize(card.composer || "—", HERO_TEXT_W - 90, 15),
 			charter: card.charter
 				? ellipsize(card.charter.replace(/\s+/g, " "), HERO_TEXT_W - 90, 15)
+				: "",
+			illustrator: card.illustrator
+				? ellipsize(card.illustrator.replace(/\s+/g, " "), HERO_TEXT_W - 90, 15)
 				: "",
 			chip: {
 				cls: card.level,

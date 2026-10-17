@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { localeTag } from "@/i18n/config";
+import { formatDay } from "@/i18n/datetime";
 import { LEGAL_UPDATED, type LegalDoc } from "@/i18n/legal";
 import { getMessages } from "@/i18n/server";
 
@@ -41,10 +41,7 @@ export async function LegalPage({
 	other: { href: string; label: string };
 }) {
 	const { locale, m } = await getMessages();
-	const date = new Intl.DateTimeFormat(localeTag(locale), {
-		dateStyle: "long",
-		timeZone: "UTC",
-	}).format(new Date(LEGAL_UPDATED));
+	const date = formatDay(LEGAL_UPDATED, locale);
 	return (
 		<main id="content" className="page legal-page">
 			<header className="legal-head">

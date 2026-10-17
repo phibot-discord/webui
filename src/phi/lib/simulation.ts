@@ -1,4 +1,4 @@
-/** "Song simulation": what the RKS and the P3 + B27 list become if some charts had a better accuracy; pure, shared by the page and its tests */
+/** "Song simulation": the RKS and P3 + B27 list if some charts had a better accuracy; pure */
 
 import type { LevelKind } from "./const";
 import {
@@ -34,9 +34,7 @@ export type SimEdit = {
 	id: string;
 	rank: LevelKind;
 	acc: string;
-	/** Moves with `acc`: derived from it, or `acc` derived from this when the score was typed (see `accFromScore`) */
 	score?: string;
-	/** Seen when the chart was added: used only while neither the save nor the catalog knows the chart */
 	difficulty?: number;
 	song?: string;
 };
@@ -51,20 +49,11 @@ type Entry = {
 };
 
 export type SimSlot = Entry & {
-	/** P1–P3, B1–B27 */
 	slot: string;
-	/** Where the chart sat in the same list before the edits, if it did */
 	was?: string;
 };
 
-export type SimChartStatus =
-	/** Empty or malformed accuracy */
-	| "invalid"
-	/** No difficulty known (yet) */
-	| "unknown"
-	/** At or below the real best: the game keeps the best, so nothing changes */
-	| "no_gain"
-	| "better";
+export type SimChartStatus = "invalid" | "unknown" | "no_gain" | "better";
 
 export type SimChart = {
 	key: string;
@@ -81,11 +70,9 @@ export type SimResult = {
 	before: number;
 	after: number;
 	delta: number;
-	/** P1–P3 and B1–B27 as the save has them now: the order never changes while the user edits */
 	current: { phi: SimSlot[]; best: SimSlot[] };
 	phi: SimSlot[];
 	best: SimSlot[];
-	/** Slots of the old list whose chart is no longer in that list */
 	left: SimSlot[];
 	charts: SimChart[];
 };
@@ -210,10 +197,7 @@ export function simulate(
 	};
 }
 
-/**
- * A score is not enough to know the accuracy: the combo part is worth up to 100 000 of it. A full combo is assumed,
- * which gives the lowest accuracy that score can mean, so a simulated RKS is never overstated
- */
+/** The accuracy a score means, assuming a full combo: the lowest it can be, so RKS is never overstated */
 export function accFromScore(score: number): number {
 	if (score >= 1_000_000) return 100;
 	return Math.min(100, Math.max(0, (score - 100_000) / 9000));

@@ -77,17 +77,13 @@ function fieldOf(
 	);
 }
 
-/** Played charts below B27 appear this many at a time: every row is a pair of inputs */
 const REST_STEP = 50;
 
 type Row = {
 	rowKey: string;
 	chartKey: string;
-	/** Edited chart that is not among the rows of the save: added by search, removable */
 	extra: boolean;
-	/** Where the save has it now: P1–P3, B1–B27. Played charts below B27 and extras have none */
 	slot?: string;
-	/** Rank among all played charts, for those below B27 */
 	place?: number;
 	id: string;
 	rank: LevelKind;
@@ -128,11 +124,9 @@ export function SongSimulation({
 	const focusNext = useRef<
 		{ row: string; field: string } | "search" | undefined
 	>(undefined);
-	// Read from storage after mount: the server cannot know what this browser holds
 	const [ready, setReady] = useState(false);
 	const [base, setBase] = useState<SimBase>(initial);
 	const [edits, setEdits] = useState<SimEdit[]>([]);
-	// The newest save the server has shown us; `base` is behind it until Sync
 	const [latestRev, setLatestRev] = useState(initial.rev);
 	const [stored, setStored] = useState(true);
 	const [syncing, setSyncing] = useState(false);
@@ -198,7 +192,6 @@ export function SongSimulation({
 		() => simulate(base.records, edits, difficultyOf),
 		[base, edits, difficultyOf],
 	);
-	// The save's own P/B slots: they depend on the save alone, so typing never recomputes what hangs off them
 	const current = useMemo(
 		() => simulate(base.records, []).current,
 		[base.records],
@@ -218,7 +211,6 @@ export function SongSimulation({
 		[base],
 	);
 
-	/** The rest of the played charts, best first: the order behind B28 and below */
 	const rest = useMemo(() => {
 		const held = new Set([...current.phi, ...current.best].map((s) => s.key));
 		return base.records
@@ -235,7 +227,6 @@ export function SongSimulation({
 			.sort((a, b) => b.rks - a.rks || (a.key < b.key ? -1 : 1));
 	}, [base, current]);
 
-	// Rows keep the order the save has them in while the user types: a chart that would re-rank must not jump away
 	const rows = useMemo<Row[]>(() => {
 		const inSave = [...current.phi, ...current.best];
 		const shownRest = rest.slice(0, restShown);
@@ -314,7 +305,6 @@ export function SongSimulation({
 			}
 			const inP = row.slot.startsWith("P");
 			const own = (inP ? phi : best).get(k);
-			// A chart that enters the other list has no row there to say so
 			const other = (inP ? nowBest : nowPhi).has(k)
 				? undefined
 				: (inP ? best : phi).get(k);
@@ -328,7 +318,6 @@ export function SongSimulation({
 	const stale = ready && base.rev !== latestRev;
 	const full = edits.length >= SIM_MAX_EDITS;
 
-	/** What a chart is worth in the save: the inputs start from it, and an edit that returns to it is no edit */
 	function seedOf(
 		real?: number,
 		score?: number,
@@ -354,7 +343,6 @@ export function SongSimulation({
 		if (!cell || !isLevelKind(rank) || full) return;
 		const key = manualRecordKey(song.id, rank);
 		const chart = `${song.song} ${rank} ${cell[0].toFixed(1)}`;
-		// A chart that already has a row is edited there
 		const held = rows.find((r) => r.chartKey === key);
 		if (held) {
 			focusNext.current = { row: held.rowKey, field: "acc" };
@@ -375,7 +363,6 @@ export function SongSimulation({
 		setSaid(t.added.replaceAll("{chart}", chart));
 	}
 
-	/** Edits the chart of a row. A row of the save gets its edit on the first keystroke and loses it when it is back to what the save has */
 	function change(row: Row, next: (e: SimEdit) => SimEdit) {
 		setEdits((prev) => {
 			const i = prev.findIndex(
@@ -400,7 +387,6 @@ export function SongSimulation({
 		});
 	}
 
-	/** Back to what the save has: a row of the save loses its edit, an added chart keeps its row with the save's values */
 	function revert(row: Row) {
 		setEdits((prev) =>
 			row.extra
@@ -428,7 +414,6 @@ export function SongSimulation({
 		);
 	}
 
-	/** Enter and the arrow keys walk down or up a column, for editing many rows quickly */
 	function walk(e: KeyboardEvent<HTMLInputElement>, field: string) {
 		const dir =
 			e.key === "Enter" || e.key === "ArrowDown"
@@ -450,13 +435,11 @@ export function SongSimulation({
 
 	function reset() {
 		setEdits([]);
-		// Behind the newest save, that is the one this page was opened with
 		if (baseRef.current.rev !== latestRev) setBase(initial);
 		setConfirmReset("back");
 		setSaid(t.resetDone);
 	}
 
-	/** Loads the save the site holds now and drops every simulated change: the page is the save again */
 	async function sync(confirmed = false) {
 		if (syncing) return;
 		if (editsRef.current.length && !confirmed) {
@@ -492,7 +475,7 @@ export function SongSimulation({
 
 	return (
 		<>
-			<h1>{t.title}</h1>
+			<h2 className="desk-section-title">{t.title}</h2>
 			<p className="lede">{t.lede}</p>
 			<p className="manual-notice">{t.notice}</p>
 
@@ -602,7 +585,7 @@ export function SongSimulation({
 
 					<Announce>{said}</Announce>
 
-					<h2 className="sim-list-title">{t.listTitle}</h2>
+					<h3 className="sim-list-title">{t.listTitle}</h3>
 					<p className="field-hint sim-list-lede">
 						{t.listLede} {t.scoreHint}
 					</p>
@@ -635,7 +618,6 @@ export function SongSimulation({
 							const seed = seedOf(row.realAcc, row.realScore);
 							const accValue = edit ? edit.acc : seed.acc;
 							const scoreValue = edit ? (edit.score ?? "") : (seed.score ?? "");
-							// An added chart starts from the save's values, which are not "below your best" news
 							const unchanged =
 								row.realAcc != null && typed === roundAcc(row.realAcc);
 							const note =
@@ -646,7 +628,6 @@ export function SongSimulation({
 										: chart?.status === "invalid" && edit?.acc !== ""
 											? m.manual.accInvalid
 											: undefined;
-							// Emptied and left: the save's value comes back
 							const settle = () => {
 								if (edit && edit.acc === "" && row.realAcc != null) revert(row);
 							};
@@ -874,7 +855,6 @@ export function SongSimulation({
 	);
 }
 
-/** P1–P3 after the edits: a chart marked AP shows up here as soon as it beats one of them */
 function P3Panel({
 	phi,
 	nameOf,
@@ -887,7 +867,7 @@ function P3Panel({
 	const titleId = useId();
 	return (
 		<section className="sim-p3" aria-labelledby={titleId}>
-			<h2 id={titleId}>{t.p3Title}</h2>
+			<h3 id={titleId}>{t.p3Title}</h3>
 			{phi.length ? (
 				<ol>
 					{phi.map((s) => {

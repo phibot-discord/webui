@@ -91,7 +91,7 @@ async function carry(
 	if (value && !(await db.get(key(to)))) await db.set(key(to), value);
 }
 
-/** The bot reads these keys too. Everything is copied before the TapTap user is deleted, so a failed link can run again */
+/** The bot reads these keys too; all is copied before the TapTap user goes, so a failed link can rerun */
 export async function linkTapToDiscord(
 	tapUser: string,
 	discordId: string,
@@ -137,7 +137,7 @@ export async function linkTapToDiscord(
 	return { ok: true };
 }
 
-/** Auth.js `signIn` callback: `true` lets the Discord session start; a path keeps the TapTap session and shows the error */
+/** Auth.js `signIn` callback: `true` starts the Discord session; a path keeps TapTap's and shows the error */
 export async function finishDiscordLink(
 	discordId: string,
 ): Promise<true | string> {

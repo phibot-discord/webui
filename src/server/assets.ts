@@ -1,20 +1,33 @@
 import {
 	type AssetFile,
+	LINKED_PREFIXES,
 	PUBLIC_ASSET_PREFIXES,
 	readAssetPage,
 } from "@/lib/assets";
+import { runInBackground } from "./background";
 import { cfFetch } from "./cf-fetch";
 import { logger } from "./logger";
-import { bucketObjectsUrl, type R2Config, r2Config, r2WriteReady } from "./r2";
+import {
+	bucketObjectsUrl,
+	type R2Config,
+	r2Config,
+	r2WriteReady,
+} from "./r2-base";
+import { withTimeout } from "./render-lock";
 
 const LIST_TTL_MS = 5 * 60 * 1000;
 const LIST_PAGE_CAP = 20;
 const LIST_MAX = 8_000;
 
-let cached: { at: number; files: AssetFile[] } | undefined;
-let listing: Promise<AssetFile[]> | undefined;
+type Listing = { files: AssetFile[]; byKey: ReadonlyMap<string, AssetFile> };
 
-async function listPrefix(prefix: string, cfg: R2Config): Promise<AssetFile[]> {
+let cached: (Listing & { at: number }) | undefined;
+let listing: Promise<Listing> | undefined;
+
+export async function listAssetPrefix(
+	prefix: string,
+	cfg: R2Config,
+): Promise<AssetFile[]> {
 	const files: AssetFile[] = [];
 	let cursor: string | undefined;
 	for (let page = 0; page < LIST_PAGE_CAP && files.length < LIST_MAX; page++) {
@@ -29,7 +42,10 @@ async function listPrefix(prefix: string, cfg: R2Config): Promise<AssetFile[]> {
 			logger.warn(`r2 list ${res.status} ${prefix}`);
 			throw new Error(`r2 list ${res.status}`);
 		}
-		const parsed = readAssetPage(await res.json());
+		const parsed = readAssetPage(
+			await res.json(),
+			(key) => key.startsWith(prefix) && key !== prefix,
+		);
 		files.push(...parsed.files);
 		if (!parsed.cursor) return files;
 		cursor = parsed.cursor;
@@ -37,26 +53,112 @@ async function listPrefix(prefix: string, cfg: R2Config): Promise<AssetFile[]> {
 	return files;
 }
 
-export function listPublicAssets(): Promise<AssetFile[]> {
+function listed(): Promise<Listing> {
 	if (cached && Date.now() - cached.at < LIST_TTL_MS) {
-		return Promise.resolve(cached.files);
+		return Promise.resolve(cached);
 	}
 	if (listing) return listing;
 	const cfg = r2Config();
 	if (!r2WriteReady(cfg)) return Promise.reject(new Error("r2 unavailable"));
 	listing = Promise.all(
-		PUBLIC_ASSET_PREFIXES.map((prefix) => listPrefix(prefix, cfg)),
+		PUBLIC_ASSET_PREFIXES.map((prefix) => listAssetPrefix(prefix, cfg)),
 	)
 		.then((groups) => {
-			const files = groups
-				.flat()
-				.sort((a, b) => a.key.localeCompare(b.key))
-				.slice(0, LIST_MAX);
-			cached = { at: Date.now(), files };
-			return files;
+			const all = groups.flat().sort((a, b) => a.key.localeCompare(b.key));
+			cached = {
+				at: Date.now(),
+				files: all.slice(0, LIST_MAX),
+				byKey: new Map(all.map((file) => [file.key, file])),
+			};
+			return cached;
 		})
 		.finally(() => {
 			listing = undefined;
 		});
 	return listing;
+}
+
+/** The public trees for the files page, cut at LIST_MAX; memoised for 5 min */
+export function listPublicAssets(): Promise<AssetFile[]> {
+	return listed().then((l) => l.files);
+}
+
+/** Every listed public file by key, uncut, from the same 5-min listing */
+export function publicFiles(): Promise<ReadonlyMap<string, AssetFile>> {
+	return listed().then((l) => l.byKey);
+}
+
+const VERSIONS_TTL_MS = 30 * 60 * 1000;
+/** Key → a short form of its R2 etag, so a link changes exactly when the file does */
+let versions = new Map<string, string>();
+let versionsAt = 0;
+let versionsLoaded = false;
+let versionsJob: Promise<void> | undefined;
+
+async function loadVersions(): Promise<void> {
+	const cfg = r2Config();
+	if (!r2WriteReady(cfg)) return;
+	const [listedFiles, ...linked] = await Promise.all([
+		publicFiles(),
+		...LINKED_PREFIXES.map((prefix) => listAssetPrefix(prefix, cfg)),
+	]);
+	const next = new Map<string, string>();
+	for (const file of [...listedFiles.values(), ...linked.flat()]) {
+		if (file.v) next.set(file.key, file.v);
+	}
+	versions = next;
+	versionsAt = Date.now();
+	versionsLoaded = true;
+}
+
+/** The etag index, refreshed every 30 min in the background; only the first load is awaited */
+export function ensureAssetVersions(): Promise<void> {
+	if (versionsAt && Date.now() - versionsAt < VERSIONS_TTL_MS) {
+		return Promise.resolve();
+	}
+	if (versionsJob) return versionsLoaded ? Promise.resolve() : versionsJob;
+	const job = refreshVersions();
+	if (!versionsLoaded) return job;
+	runInBackground(job);
+	return Promise.resolve();
+}
+
+function refreshVersions(): Promise<void> {
+	const job = loadVersions()
+		.catch((err) => {
+			logger.warn(
+				`asset versions skipped: ${err instanceof Error ? err.message : err}`,
+			);
+			versionsAt = Date.now() - VERSIONS_TTL_MS + 60_000;
+		})
+		.finally(() => {
+			if (versionsJob === job) versionsJob = undefined;
+		});
+	versionsJob = job;
+	return job;
+}
+
+export function assetVersion(key: string): string | undefined {
+	void ensureAssetVersions();
+	return versions.get(key);
+}
+
+export function setAssetVersionsForTest(map: Map<string, string>) {
+	versions = map;
+	versionsAt = Date.now();
+	versionsLoaded = true;
+}
+
+const COLD_WAIT_MS = 2000;
+let coldUntil = 0;
+
+/** A cold instance's reads wait for the index together, at most COLD_WAIT_MS in all, so they can use the edge */
+export async function versionsSettled(): Promise<void> {
+	if (versionsLoaded) return;
+	coldUntil ||= Date.now() + COLD_WAIT_MS;
+	const left = coldUntil - Date.now();
+	if (left <= 0) return;
+	await withTimeout(ensureAssetVersions(), left, "asset versions").catch(
+		() => undefined,
+	);
 }

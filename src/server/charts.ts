@@ -3,7 +3,8 @@ import { LEVEL, type LevelKind } from "@/phi/lib/const";
 import { getInfo } from "@/phi/lib/get-info";
 import { PHIRA_LEVELS } from "@/phi/lib/phira";
 import { type AliasIndex, ensureAliases } from "./aliases";
-import { type FoolsSong, foolsSummaries, loadFools } from "./fools";
+import { foolsRows, loadFools } from "./fools";
+import { loadRemoved, removedRows } from "./removed";
 
 /** [constant, notes, label?]: a label stands in for the constant on charts that have none (4/1 specials) */
 export type ChartCell = [number, number | null, label?: string];
@@ -11,9 +12,15 @@ export type ChartSummary = {
 	id: string;
 	song: string;
 	composer: string;
+	illustrator?: string;
 	aliases?: string[];
 	charts: Partial<Record<LevelKind | "SP", ChartCell>>;
+	removed?: Record<string, RemovedCell>;
+	gone?: true;
+	stem?: string;
 };
+
+export type RemovedCell = { from: string; label: string; notes: number | null };
 
 export type ChartSnapshot = {
 	rev: string;
@@ -95,31 +102,44 @@ export async function chartCatalog(): Promise<
 	return { ...snapshot, aliases };
 }
 
-let withFools:
+/** A side tree's catalog rows, built from its manifest's `songs` */
+export type SideRows = {
+	songs: readonly object[];
+	rows: (aliases: AliasIndex["byId"]) => ChartSummary[];
+};
+
+let withSides:
 	| {
 			list: readonly ChartSummary[];
 			aliases: AliasIndex["byId"];
-			songs: readonly FoolsSong[];
+			sides: readonly SideRows[];
 			snapshot: Pick<ChartSnapshot, "json" | "etag">;
 	  }
 	| undefined;
 
-/** `list` plus the 4/1 rows; a special already in `list` only adds the levels its row lacks. Reused while the three inputs are the same objects */
-export function withFoolsSnapshot(
+/** `list` plus the side trees' rows; reused while `list`, `aliases` and every tree's songs are the same objects */
+export function withSideTrees(
 	list: readonly ChartSummary[],
 	aliases: AliasIndex["byId"],
-	songs: readonly FoolsSong[],
+	sides: readonly SideRows[],
 ): Pick<ChartSnapshot, "json" | "etag"> {
 	if (
-		withFools?.list === list &&
-		withFools.aliases === aliases &&
-		withFools.songs === songs
+		withSides?.list === list &&
+		withSides.aliases === aliases &&
+		withSides.sides.length === sides.length &&
+		withSides.sides.every((side, i) => side.songs === sides[i]?.songs)
 	) {
-		return withFools.snapshot;
+		return withSides.snapshot;
 	}
-	const out = [...list];
+	// Copies: `list` is the scoring catalog, which leaves out the illustrator only the files page shows
+	const out = list.map((song) => {
+		const by =
+			getInfo.ori_info[song.id]?.illustrator ||
+			getInfo.sp_info[song.id]?.illustrator;
+		return by ? { ...song, illustrator: by } : song;
+	});
 	const at = new Map(out.map((song, i) => [song.id, i]));
-	for (const extra of foolsSummaries(songs, aliases)) {
+	for (const extra of sides.flatMap((side) => side.rows(aliases))) {
 		const i = at.get(extra.id) ?? out.length;
 		const seen = out[i];
 		if (!seen) {
@@ -130,30 +150,43 @@ export function withFoolsSnapshot(
 		const add = PHIRA_LEVELS.filter(
 			(level) => extra.charts[level] && !seen.charts[level],
 		);
-		if (!add.length) continue;
-		// A copy: `list` is the scoring catalog
+		if (!add.length && !extra.removed) continue;
 		const charts = { ...seen.charts };
 		for (const level of add) charts[level] = extra.charts[level];
-		out[i] = { ...seen, composer: seen.composer || extra.composer, charts };
+		out[i] = {
+			...seen,
+			composer: seen.composer || extra.composer,
+			charts,
+			...(extra.removed
+				? { removed: { ...seen.removed, ...extra.removed } }
+				: {}),
+			...(extra.gone ? { gone: true as const } : {}),
+		};
 	}
 	const json = JSON.stringify(out);
-	withFools = {
+	withSides = {
 		list,
 		aliases,
-		songs,
+		sides,
 		snapshot: { json, etag: chartsEtag(json) },
 	};
-	return withFools.snapshot;
+	return withSides.snapshot;
 }
 
-/** The catalog plus the 4/1 specials, for the pages that download or browse (never for scoring) */
+/** The catalog plus the 4/1 specials and removed songs, for pages that download or browse, never scoring */
 export async function chartCatalogWithFools(): Promise<
 	Pick<ChartSnapshot, "json" | "etag"> & { aliases: AliasIndex }
 > {
-	const [base, songs] = await Promise.all([chartCatalog(), loadFools()]);
-	if (!songs.length) return base;
+	const [base, songs, removed] = await Promise.all([
+		chartCatalog(),
+		loadFools(),
+		loadRemoved(),
+	]);
 	return {
-		...withFoolsSnapshot(base.list, base.aliases.byId, songs),
+		...withSideTrees(base.list, base.aliases.byId, [
+			foolsRows(songs),
+			removedRows(removed),
+		]),
 		aliases: base.aliases,
 	};
 }

@@ -1,7 +1,7 @@
 import type { CardPhase } from "@/phi/lib/external";
 import type { CardStats } from "./card-stats";
 
-// Streamed paint: `phase …` lines, then `done {json}` and the image bytes, or `error {json}`; cache hits and 304s stay plain images
+// Streamed paint: `phase …` lines, then `done {json}` and the image, or `error {json}`
 
 /** Request header ("1"): the client reads a progress stream */
 export const CARD_PROGRESS_HEADER = "x-phi-progress";

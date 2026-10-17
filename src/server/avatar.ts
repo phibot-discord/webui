@@ -4,11 +4,7 @@ import { isTapUserId } from "./auth-tickets";
 import { getDataHost } from "./data-host";
 import { logger } from "./logger";
 
-/**
- * Header avatars. A Discord user shows its Discord avatar however it signed
- * in, else the TapTap one. The header loads this site's copy: TapTap's CDN
- * refuses a request that names another site as the referrer
- */
+/** Header avatars, served from this site: TapTap's CDN refuses another site as the referrer */
 
 /** Discord user → the Discord avatar its Discord sign-in carried */
 const DISCORD_AVATAR = (discordId: string) =>
@@ -54,11 +50,7 @@ export function avatarPath(src: string | null | undefined): string | undefined {
 	return `/api/me/avatar?v=${sourceHash(src).slice(0, 12)}`;
 }
 
-/**
- * Keeps the Discord avatar a Discord session shows, for TapTap sign-ins to
- * the same user. `replace: false` only fills a gap: a session older than the
- * last Discord sign-in must not put an old avatar back. Never throws
- */
+/** Keeps a Discord session's avatar for TapTap sign-ins; `replace: false` only fills a gap. Never throws */
 export async function rememberDiscordAvatar(
 	discordId: string,
 	src: string | null | undefined,

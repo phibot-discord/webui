@@ -15,7 +15,7 @@ export async function proxy(req: NextRequest) {
 	});
 }
 
-// Not /api/*: every route checks the session itself, and running here added an invocation and a JWT decrypt ahead of the CDN
+// Not /api/*: every route checks the session itself, and running here cost an invocation ahead of the CDN
 export const config = {
 	matcher: ["/me", "/me/:path*", "/account"],
 };

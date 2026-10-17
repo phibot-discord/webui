@@ -1,7 +1,13 @@
 import { displayPlayerId } from "@/lib/player-display";
 import { isLevelKind } from "@/phi/lib/manual-score";
 import type { SimBase, SimBaseRecord } from "@/phi/lib/simulation";
-import { type BoundErr, lastSyncedIso, loadBound, saveRevision } from "./bound";
+import {
+	type Bound,
+	type BoundErr,
+	lastSyncedIso,
+	loadBound,
+	saveRevision,
+} from "./bound";
 import type { DataHost } from "./data-host";
 
 /** Every played chart of the save the site holds now, plus an id that changes whenever that save does */
@@ -12,7 +18,14 @@ export async function loadSimBase(
 	// Not memoised: Sync must see a save that was updated a moment ago
 	const got = await loadBound(host, userId);
 	if ("error" in got) return got;
-	const { save } = got;
+	return simBaseOf(got);
+}
+
+/** The simulation's base from a save already loaded */
+export function simBaseOf({ save }: Bound): {
+	base: SimBase;
+	playerId: string;
+} {
 	const records: SimBaseRecord[] = [];
 	for (const r of save.getRecord()) {
 		if (

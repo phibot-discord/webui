@@ -1,0 +1,183 @@
+{
+	"v": 1,
+	"about": "Who writes what in the phi-web-assets bucket. Each prefix has one writer; a writer never touches another's keys. Uploaded as index.json at the bucket root by webui scripts/r2-upload.mjs. Rendered cards live in the private bucket phi-web-cache, not here.",
+	"writers": {
+		"phi-unpackd": "Rust ripper (ill-sync-worker repo) on the assets machine. Runs by itself when TapTap ships a new version: lists R2, uploads only files whose size and MD5 differ, and removes keys it no longer produces under the prefixes it alone owns.",
+		"ill-sync": "Cloudflare Worker (ill-sync repo), cron. Mirrors phi-plugin's GitHub resources and community aliases; prunes only its own directories and refuses protected prefixes.",
+		"phi-specials": "Rust tool (phi-specials repo), run by hand on the assets machine for anything that needs song, key or text knowledge.",
+		"pv-overlay": "Render pipeline (pv-overlay folder), run by hand; upload.sh sends its output.",
+		"webui-scripts": "webui scripts/publish-*.ts, run by hand; built on any machine and sent with scripts/r2-upload.mjs, every index.json last.",
+		"webui": "The site itself."
+	},
+	"caching": {
+		"about": "Cache Rules on the zone (Caching > Cache Rules), for r2.phiapi.miyuki-yue.dev; later rules win. The site adds ?v=<first 12 hex of the R2 etag> to every R2 link it makes (server/r2.ts publicObjectUrl), so a link changes exactly when its file does. The footer's Refresh files button adds a 30-day personal token to v.",
+		"rules": [
+			{
+				"match": "original_ill/, music/, phira/, chart/, html/",
+				"edge": "30d",
+				"browser": "1d",
+				"why": "change only when the game updates"
+			},
+			{
+				"match": "4-1/, removed/, history/, info/oldInfo/, c9s6/, deduction/, collection-art/, texts/images/, pv/video/, pv/overlay/, pv/special/",
+				"edge": "1y",
+				"browser": "30d",
+				"why": "archives and story art that never change"
+			},
+			{
+				"match": "info/ (but oldInfo/), tips/, _sync/, collection/, texts/*.json, web-cards/, every index.json and specials.json, original_ill/levels.json; only without ?v",
+				"edge": "never",
+				"browser": "never",
+				"why": "data that changes in place; the site reads these through the API"
+			},
+			{
+				"match": "any ?v= link",
+				"edge": "1y",
+				"browser": "30d",
+				"why": "content-addressed"
+			}
+		],
+		"errors": "4xx stay at the edge 60s, 5xx are never kept. A Response Header Transform Rule (\"R2 errors: no browser cache\", http.response.code ge 400) sends Cache-Control: no-store to browsers",
+		"purge": "Nothing purges after a game update: unversioned game files can be up to 30 days old at the edge. The zone token has no Cache Purge permission"
+	},
+	"trees": [
+		{
+			"prefix": "original_ill/",
+			"writer": "phi-unpackd",
+			"contents": "ill/, illLow/, illBlur/<id>.png jackets, ill/<LV>/ per-difficulty jackets, levels.json",
+			"manifest": "original_ill/levels.json",
+			"except": {
+				"original_ill/SP/": "ill-sync",
+				"original_ill/chap/": "ill-sync"
+			}
+		},
+		{
+			"prefix": "music/",
+			"writer": "phi-unpackd",
+			"contents": "<id>.ogg"
+		},
+		{
+			"prefix": "phira/",
+			"writer": "phi-unpackd",
+			"contents": "<LV>/<id>-<LV>.pez Phira packs (EZ/HD/IN/AT, Legacy, SP, *_Error)"
+		},
+		{
+			"prefix": "chart/",
+			"writer": "phi-unpackd",
+			"contents": "<id>/<LV>.json, the game's chart files as shipped"
+		},
+		{
+			"prefix": "info/",
+			"writer": "phi-unpackd",
+			"contents": "info.csv, notesInfo.json, tips.txt, avatar.txt and avatars.json (each avatar's display name and addressable key; its file under html/avatar/ is named after the key) from the APK",
+			"except": {
+				"info/": "ill-sync mirrors the rest of phi-plugin's info/ (spinfo.json, aliases, oldInfo/, DLC/, help/ …)"
+			}
+		},
+		{
+			"prefix": "html/avatar/",
+			"writer": "phi-unpackd",
+			"contents": "avatar images"
+		},
+		{
+			"prefix": "html/otherimg/",
+			"writer": "ill-sync",
+			"contents": "phi-plugin's card images"
+		},
+		{
+			"prefix": "tips/",
+			"writer": "phi-unpackd",
+			"contents": "loading tips in five languages",
+			"manifest": "tips/index.json"
+		},
+		{
+			"prefix": "pv/video/",
+			"writer": "phi-unpackd",
+			"contents": "the game's videos",
+			"manifest": "pv/index.json"
+		},
+		{
+			"prefix": "pv/overlay/",
+			"writer": "pv-overlay",
+			"contents": "PVs with the in-game overlay drawn in",
+			"manifest": "pv/overlay/index.json"
+		},
+		{
+			"prefix": "pv/special/",
+			"writer": "pv-overlay",
+			"contents": "rendered scenes that are not videos in the game (Deduction)",
+			"manifest": "pv/specials.json"
+		},
+		{
+			"prefix": "collection/",
+			"writer": "phi-unpackd",
+			"contents": "index.json and text/<lang>.json",
+			"manifest": "collection/index.json"
+		},
+		{
+			"prefix": "collection-art/",
+			"writer": "phi-unpackd",
+			"contents": "Chapter IX OS-mode art",
+			"manifest": "collection-art/index.json",
+			"except": {
+				"collection-art/blackhole0*": "phi-specials",
+				"collection-art/specials.json": "phi-specials"
+			}
+		},
+		{
+			"prefix": "c9s6/",
+			"writer": "phi-specials",
+			"contents": "the Chapter IX hidden song: chart, music, pack, cutscene",
+			"manifest": "c9s6/index.json"
+		},
+		{
+			"prefix": "deduction/",
+			"writer": "phi-specials",
+			"contents": "the Deduction scene's layers and sounds",
+			"manifest": "deduction/index.json"
+		},
+		{
+			"prefix": "texts/",
+			"writer": "phi-specials",
+			"contents": "story.json (shown in the Collection and Other resources); ui, data, images, sdk and chapter9 are research data the site no longer shows",
+			"manifest": "texts/index.json"
+		},
+		{
+			"prefix": "4-1/",
+			"writer": "webui-scripts",
+			"script": "scripts/publish-fools.ts",
+			"contents": "April Fools charts in the main layout, keyed by the game's track ids",
+			"manifest": "4-1/index.json"
+		},
+		{
+			"prefix": "removed/",
+			"writer": "webui-scripts",
+			"script": "scripts/publish-removed.ts",
+			"contents": "songs and charts the current game no longer ships, from older APKs",
+			"manifest": "removed/index.json"
+		},
+		{
+			"prefix": "history/",
+			"writer": "webui-scripts",
+			"script": "scripts/publish-history.ts",
+			"contents": "<apk>/ older revisions of charts, one copy of the main layout per APK",
+			"manifest": "history/index.json"
+		},
+		{
+			"prefix": "_sync/",
+			"writer": "ill-sync",
+			"contents": "the Worker's own state"
+		},
+		{
+			"prefix": "web-cards/",
+			"writer": "webui",
+			"contents": "retired card cache, now in phi-web-cache; a lifecycle rule deletes what is left after 7 days"
+		},
+		{
+			"prefix": "index.json",
+			"writer": "webui-scripts",
+			"script": "scripts/r2-registry.json",
+			"contents": "this registry"
+		}
+	]
+}

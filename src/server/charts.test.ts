@@ -15,10 +15,11 @@ import {
 	type ChartSummary,
 	chartCatalog,
 	chartCatalogWithFools,
-	withFoolsSnapshot,
+	withSideTrees,
 } from "./charts";
 import {
 	FOOLS_MANIFEST_KEY,
+	foolsRows,
 	parseFoolsManifest,
 	resetFoolsForTest,
 } from "./fools";
@@ -150,12 +151,15 @@ test("4/1 rows join the catalog with their aliases; a listed song only gains the
 	]);
 	const base = buildChartSnapshot("r1", aliases);
 	const before = structuredClone(base.list);
-	const snap = withFoolsSnapshot(base.list, aliases, parseFoolsManifest(FOOLS));
+	const snap = withSideTrees(base.list, aliases, [
+		foolsRows(parseFoolsManifest(FOOLS)),
+	]);
 	assert.deepEqual(JSON.parse(snap.json), [
 		{
 			id: "A.x.0",
 			song: "Song A",
 			composer: "X",
+			illustrator: "x",
 			aliases: ["aa"],
 			charts: {
 				EZ: [1, null],
@@ -164,7 +168,7 @@ test("4/1 rows join the catalog with their aliases; a listed song only gains the
 				SP: [0, 99, "?"],
 			},
 		},
-		before[1],
+		{ ...before[1], illustrator: "y" },
 		{
 			id: "Z.z.0",
 			song: "Song Z",
@@ -183,21 +187,21 @@ test("a listed song without a composer takes the 4/1 one when it gains a level",
 		{ id: "Q.q.0", song: "Q", composer: "", charts: { IN: [12, null] } },
 	];
 	const before = structuredClone(list);
-	const snap = withFoolsSnapshot(
-		list,
-		new Map(),
-		parseFoolsManifest({
-			v: 1,
-			songs: [
-				{
-					id: "Q.q",
-					song: "Q",
-					composer: "QQ",
-					charts: { IN: { label: "!" }, SP: { label: "?" } },
-				},
-			],
-		}),
-	);
+	const snap = withSideTrees(list, new Map(), [
+		foolsRows(
+			parseFoolsManifest({
+				v: 1,
+				songs: [
+					{
+						id: "Q.q",
+						song: "Q",
+						composer: "QQ",
+						charts: { IN: { label: "!" }, SP: { label: "?" } },
+					},
+				],
+			}),
+		),
+	]);
 	assert.deepEqual(JSON.parse(snap.json), [
 		{
 			id: "Q.q.0",
@@ -214,18 +218,21 @@ test("the 4/1 catalog is rebuilt only when the catalog or the manifest list chan
 	const aliases = new Map<string, AliasEntry[]>();
 	const base = buildChartSnapshot("r1", aliases);
 	const songs = parseFoolsManifest(FOOLS);
-	const one = withFoolsSnapshot(base.list, aliases, songs);
-	assert.equal(withFoolsSnapshot(base.list, aliases, songs), one);
-	const again = withFoolsSnapshot(base.list, aliases, [...songs]);
+	const one = withSideTrees(base.list, aliases, [foolsRows(songs)]);
+	assert.equal(withSideTrees(base.list, aliases, [foolsRows(songs)]), one);
+	const again = withSideTrees(base.list, aliases, [foolsRows([...songs])]);
 	assert.notEqual(again, one);
 	assert.equal(again.etag, one.etag);
 	const nicks = new Map<string, AliasEntry[]>([
 		["Z.z.0", [{ text: "ZSP", layer: "base" }]],
 	]);
-	assert.notEqual(withFoolsSnapshot(base.list, nicks, songs).etag, one.etag);
+	assert.notEqual(
+		withSideTrees(base.list, nicks, [foolsRows(songs)]).etag,
+		one.etag,
+	);
 });
 
-test("the catalog with fools adds the manifest's songs, and is the plain one without them", async () => {
+test("the catalog with fools adds the manifest's songs, and is the plain one plus illustrators without them", async () => {
 	await catalog();
 	let published = false;
 	const server = createServer((req, res) => {
@@ -253,8 +260,13 @@ test("the catalog with fools adds the manifest's songs, and is the plain one wit
 	try {
 		const base = await chartCatalog();
 		const plain = await chartCatalogWithFools();
-		assert.equal(plain.json, base.json);
-		assert.equal(plain.etag, base.etag);
+		assert.deepEqual(
+			JSON.parse(plain.json),
+			base.list.map((s) => ({
+				...s,
+				illustrator: getInfo.ori_info[s.id]?.illustrator,
+			})),
+		);
 		published = true;
 		resetFoolsForTest();
 		const fools = await chartCatalogWithFools();

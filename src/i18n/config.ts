@@ -1,5 +1,6 @@
 export const LOCALES = ["en", "zh"] as const;
 export type Locale = (typeof LOCALES)[number];
+export type Bilingual = Record<Locale, string>;
 
 const DEFAULT_LOCALE: Locale = "en";
 export const LOCALE_COOKIE = "phi-locale";
@@ -8,7 +9,7 @@ export function isLocale(v: string | undefined | null): v is Locale {
 	return v === "en" || v === "zh";
 }
 
-export function localeTag(locale: Locale): string {
+export function localeTag(locale: Locale): "zh-CN" | "en" {
 	return locale === "zh" ? "zh-CN" : "en";
 }
 

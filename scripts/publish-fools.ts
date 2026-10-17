@@ -1,33 +1,29 @@
-// Builds the April Fools (4/1) specials' R2 tree (`4-1/…`, read by src/server/fools.ts) from unpacked APKs
-//   node --env-file=.env.local --import tsx scripts/publish-fools.ts <unpack root> <out dir> [--upload [flags]]
-// <unpack root>/<apk>/ is a phi-unpackd-style export of the APK a special shipped in (chart/<folder>/<FILE>.json,
-// original_ill/{ill,illLow,illBlur}/<id>.png, music/<id>.ogg, where <id> is <folder> without a trailing `.0`);
-// <out dir> receives the tree. Song details come from phi-assets/info/spinfo.json (or the special's own
-// `fallback`), and every chart's note count must match the combo there. Without --upload nothing leaves this
-// machine. Upload flags: --no-manifest sends everything but index.json, which is what the site follows;
-// --manifest-only sends just that; --only=<key>[,<key>…] sends those specials' files (exact keys), and
-// index.json only with --manifest, so the site never lists a pack that is not up yet; a run that stops partway
-// resumes with --only=<the keys not yet up>. Every special in SPECIALS must be unpacked: the manifest is
-// rebuilt from the whole list
+// Builds the 4/1 specials' R2 tree (`4-1/…`) from unpacked APKs; nothing is uploaded without --upload
+//   node --env-file=.env.local --import tsx scripts/publish-fools.ts <unpack root> <out dir> [--upload [--no-manifest|--manifest-only|--only=<keys> [--manifest]]]
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import type { PhiraLevel } from "../src/phi/lib/phira";
+import { countNotes, oneLine, uploadTree } from "./publish-common";
 
 type Special = {
-	/** spinfo.json key; with `.0` it is the catalog id, and R2 files are named after it */
 	key: string;
-	/** Which APK's export holds it, and the track folder in there */
 	apk: string;
 	folder: string;
-	/** Published level → the chart's file in `chart/<folder>/` and its key in spinfo.json (the joke name) */
 	charts: Record<string, { file: string; spinfo: string }>;
-	/** The entry phi-plugin dropped from spinfo.json once the song joined the game for good */
 	fallback?: SpSong;
+	override?: Pick<SpSong, "composer" | "illustrator">;
 };
 
 // Every special is published as SP, whichever level the game files it under
 const SPECIALS: Special[] = [
+	{
+		key: "Christmas",
+		apk: "1.2.4",
+		folder: "Christmas.0",
+		charts: { SP: { file: "SP", spinfo: "圣诞快乐" } },
+		override: { illustrator: "鲸弑" },
+	},
 	{
 		key: "Burn(Haocore Mix)",
 		apk: "1.4.1",
@@ -71,11 +67,22 @@ const SPECIALS: Special[] = [
 		charts: { SP: { file: "IN", spinfo: "测测你的" } },
 	},
 	{
+		key: "HAZARD (April Fools)",
+		apk: "2.1.4",
+		folder: "HAZARD.AprilFools.0",
+		charts: { SP: { file: "Chart", spinfo: "SP" } },
+		fallback: {
+			song: "HAZARD (April Fools)",
+			composer: "Limpid",
+			illustrator: "ZG",
+			chart: { SP: { combo: "541", charter: "Gausbon" } },
+		},
+	},
+	{
 		key: "Retribution ~ Cycle of Redemption ~",
 		apk: "3.5.2",
 		folder: "Retribution.nmyKryexe.1",
 		charts: { SP: { file: "IN", spinfo: "?!" } },
-		// phi-plugin 69086a2d^:resources/info/spinfo.json (before "报应SP合并")
 		fallback: {
 			song: "Retribution ~ Cycle of Redemption ~",
 			composer: "Ardolf vs. 天利",
@@ -97,8 +104,6 @@ type SpSong = {
 	illustrator?: string;
 	chart?: Record<string, SpChart>;
 };
-type Note = { type: number };
-type Line = { notesAbove?: Note[]; notesBelow?: Note[] };
 
 const args = process.argv.slice(2);
 const [srcArg, outArg] = args.filter((a) => !a.startsWith("--"));
@@ -143,22 +148,11 @@ if (withManifest && skipManifest) {
 }
 
 const { packPhiraChart, phiraPackKey } = await import("../src/phi/lib/phira");
-const { FOOLS_ILL_DIR, FOOLS_PREFIX } = await import("../src/lib/assets");
+const { SIDE_ILL_DIR, FOOLS_PREFIX } = await import("../src/lib/assets");
 
 const spinfo = JSON.parse(
 	await readFile(join("phi-assets", "info", "spinfo.json"), "utf8"),
 ) as Record<string, SpSong>;
-
-/** info.txt is one field per line */
-const oneLine = (s: string | undefined) => (s ?? "").replace(/\s*\n\s*/g, " ");
-
-function countNotes(chart: { judgeLineList?: Line[] }): number {
-	let n = 0;
-	for (const line of chart.judgeLineList ?? []) {
-		n += (line.notesAbove?.length ?? 0) + (line.notesBelow?.length ?? 0);
-	}
-	return n;
-}
 
 /** `special` is the key of the special a file belongs to; index.json has none */
 const files = new Map<
@@ -168,7 +162,8 @@ const files = new Map<
 const manifest: unknown[] = [];
 
 for (const special of SPECIALS) {
-	const sp = spinfo[special.key] ?? special.fallback;
+	const found = spinfo[special.key] ?? special.fallback;
+	const sp = found && { ...found, ...special.override };
 	if (!sp?.song) throw new Error(`${special.key} is not in spinfo.json`);
 	const id = `${special.key}.0`;
 	const track = (...parts: string[]) => join(src, special.apk, ...parts);
@@ -177,8 +172,10 @@ for (const special of SPECIALS) {
 		track("original_ill", dir, `${stem}.png`),
 	);
 	const jacket = jackets.every((p) => existsSync(p));
-	// The pack's in-game background: the full-size jacket, else the best one there is
-	const pictureFile = jackets.find((p) => existsSync(p));
+	// The pack's in-game background: the low-res jacket like the ripper's packs, else whichever one there is
+	const pictureFile = [jackets[1], jackets[0], jackets[2]].find(
+		(p): p is string => !!p && existsSync(p),
+	);
 	if (!pictureFile) {
 		throw new Error(
 			`${special.key} has no jacket: tried ${jackets.join(", ")}`,
@@ -203,7 +200,7 @@ for (const special of SPECIALS) {
 		}
 		const label = meta.level?.trim() || "?";
 		const pack = await packPhiraChart({
-			id: special.key,
+			id: stem,
 			name: oneLine(sp.song),
 			level,
 			difficulty: label,
@@ -214,7 +211,7 @@ for (const special of SPECIALS) {
 			picture,
 			song,
 		});
-		files.set(phiraPackKey(id, level as PhiraLevel), {
+		files.set(phiraPackKey(stem, level as PhiraLevel), {
 			body: pack,
 			type: "application/octet-stream",
 			special: special.key,
@@ -223,20 +220,21 @@ for (const special of SPECIALS) {
 	}
 	if (jacket) {
 		for (const [i, dir] of ["ill", "illLow", "illBlur"].entries()) {
-			files.set(`${FOOLS_ILL_DIR}/${dir}/${special.key}.png`, {
+			files.set(`${SIDE_ILL_DIR}/${dir}/${stem}.png`, {
 				body: await readFile(jackets[i] as string),
 				type: "image/png",
 				special: special.key,
 			});
 		}
 	}
-	files.set(`music/${special.key}.ogg`, {
+	files.set(`music/${stem}.ogg`, {
 		body: song,
 		type: "audio/ogg",
 		special: special.key,
 	});
 	manifest.push({
 		id,
+		stem,
 		song: sp.song,
 		composer: sp.composer ?? "",
 		jacket,
@@ -258,29 +256,15 @@ for (const [name, { body }] of files) {
 }
 
 if (upload) {
-	const { putR2Object, r2WriteReady } = await import("../src/server/r2");
-	if (!r2WriteReady()) throw new Error("R2 write is not configured");
 	// index.json names every special, so with --only it waits for --manifest: a listed special without its pack 404s
 	const sendManifest = !skipManifest && (!only || withManifest);
-	// The manifest goes last: the site only lists what it names
-	const order = [...files]
-		.filter(([name, { special }]) => {
+	await uploadTree(
+		FOOLS_PREFIX,
+		[...files].filter(([name, { special }]) => {
 			if (name === "index.json") return sendManifest;
 			return !manifestOnly && (!only || (!!special && only.has(special)));
-		})
-		.sort(
-			([a], [b]) => Number(a === "index.json") - Number(b === "index.json"),
-		);
-	for (const [name, file] of order) {
-		const key = `${FOOLS_PREFIX}/${name}`;
-		// 15 min, not cfFetch's 12 s: a 4 MB pack on a slow uplink takes longer. No retry loop here, as
-		// cfFetch already retries a dropped connection once and a 429/5xx twice, and a 4xx will not mend
-		await putR2Object(key, Buffer.from(file.body), file.type, {
-			cache: "no-store",
-			timeoutMs: 15 * 60 * 1000,
-		});
-		console.log(`uploaded ${key}`);
-	}
+		}),
+	);
 	if (only && !sendManifest) {
 		console.log(
 			"index.json not sent: once every special's files are up, send it with --upload --manifest-only",

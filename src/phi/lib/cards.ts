@@ -119,7 +119,6 @@ async function b30AnalysisFor(
 	}
 	return {
 		histogram,
-		// x30/fc30 lists have no P slots (getBestWithLimit(…, false))
 		histogramPhiSlots: withPhi,
 		tagAnalysis,
 		tagMeta: tagAnalysisMeta(tagAnalysis, t),
@@ -298,12 +297,10 @@ export async function b19Card(
 		stats,
 		spInfo,
 		locale,
-		// The same figure as the histogram's, with or without P1–P3
 		rksStddev: slotsStddev(slots, {
 			excludePhi: notes.stddevExcludeP3 === true,
 		}),
 		b30Analysis,
-		// A lookup timed out or failed: the server serves this no-store and never caches it
 		renderPartial: missing.length > 0,
 		missing,
 		externalMs: external.ms(),

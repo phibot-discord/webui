@@ -1,4 +1,4 @@
-// Takumi runs no scripts, so this replaces phi-plugin's `name="pvis"` shrinker; ASCII widths are the wider of PHI and NotoSansSC
+// Replaces phi-plugin's `pvis` shrinker (Takumi runs no scripts); ASCII widths: the wider of PHI and NotoSansSC
 const ASCII_EM: Record<string, number> = {
 	" ": 0.23,
 	"!": 0.33,
@@ -97,7 +97,7 @@ const ASCII_EM: Record<string, number> = {
 	"~": 0.56,
 };
 
-function charEm(ch: string): number {
+export function charEm(ch: string): number {
 	const ascii = ASCII_EM[ch];
 	if (ascii != null) return ascii;
 	const cp = ch.codePointAt(0) ?? 0;
@@ -113,6 +113,18 @@ export function textEm(text: string): number {
 	let em = 0;
 	for (const ch of text) em += charEm(ch);
 	return em;
+}
+
+/** The longest start of `text` within `maxEm`, and whether anything was cut */
+export function clipEm(text: string, maxEm: number) {
+	let em = 0;
+	let out = "";
+	for (const ch of text) {
+		em += charEm(ch);
+		if (em > maxEm) return { text: out, cut: true };
+		out += ch;
+	}
+	return { text: out, cut: false };
 }
 
 export function fitEm(em: number, widthPx: number, maxPx: number) {

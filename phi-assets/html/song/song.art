@@ -26,6 +26,7 @@
 			</div>
 			<div class="sc-credit"><p class="sc-credit-k">{{sc.vt.composer}}</p><p class="sc-credit-v">{{sc.head.composer}}</p></div>
 			{{if sc.head.charter}}<div class="sc-credit"><p class="sc-credit-k">{{sc.vt.charter}}</p><p class="sc-credit-v">{{sc.head.charter}}</p></div>{{/if}}
+			{{if sc.head.illustrator}}<div class="sc-credit"><p class="sc-credit-k">{{sc.vt.illustrator}}</p><p class="sc-credit-v">{{sc.head.illustrator}}</p></div>{{/if}}
 			{{if sc.head.notes}}
 			<div class="sc-notes">
 				<p class="sc-notes-n">{{sc.head.notes}}</p>

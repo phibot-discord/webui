@@ -693,6 +693,7 @@ test("a partial set the last complete set was remounted over is mounted again", 
 function special(id: string): FoolsSong {
 	return {
 		id,
+		stem: id.replace(/\.0$/, ""),
 		song: id,
 		composer: "",
 		jacket: true,
@@ -730,7 +731,7 @@ test("a cold start waits for the 4/1 set, so its first cards already get the spe
 			`${root}/4-1/illLow/Special.One.png`,
 		);
 	} finally {
-		getInfo.setFools([]);
+		getInfo.setSide("fools", []);
 	}
 });
 
@@ -781,7 +782,7 @@ test("a slow first 4/1 read stops holding up the cold start and lands later; lat
 		assert.ok(performance.now() - started < 1_000, "read in the background");
 		assert.equal(foolsPending(landed), false);
 	} finally {
-		getInfo.setFools([]);
+		getInfo.setSide("fools", []);
 	}
 });
 
@@ -808,7 +809,7 @@ test("the cold start also waits for the songs with a jacket per difficulty, so t
 test("a failed first 4/1 read keeps the last set and does not leave cards uncached", async () => {
 	resetSongInfoForTest();
 	const root = await spCatalog();
-	getInfo.setFools(["Special.One"]);
+	getInfo.setSide("fools", [["Special.One", "Special.One"]]);
 	try {
 		const started = performance.now();
 		await syncFools(async () => {
@@ -820,7 +821,7 @@ test("a failed first 4/1 read keeps the last set and does not leave cards uncach
 			`${root}/4-1/illLow/Special.One.png`,
 		);
 	} finally {
-		getInfo.setFools([]);
+		getInfo.setSide("fools", []);
 	}
 });
 
@@ -866,7 +867,7 @@ test("a cold ensureSongInfo holds every caller until the 4/1 set lands", async (
 		delete g.__phiDataHost;
 		if (prevAssets === undefined) delete process.env.PHI_ASSETS;
 		else process.env.PHI_ASSETS = prevAssets;
-		getInfo.setFools([]);
+		getInfo.setSide("fools", []);
 		resetSongInfoForTest();
 	}
 });

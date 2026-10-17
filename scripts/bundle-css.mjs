@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Inlines src/phi/css/*.css into the generated (git-ignored) bundle.ts so the Takumi renderer needs no CSS files on disk
+// Inlines src/phi/css/*.css into the git-ignored bundle.ts for the Takumi renderer
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";

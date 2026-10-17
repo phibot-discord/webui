@@ -50,7 +50,6 @@ export async function GET(
 		return cardResultResponse(result, {
 			cacheControl: result.transient ? "no-store" : PUBLIC_CACHE,
 			filename: download ? cardDownloadFilename(kind) : undefined,
-			// Shared for 5 min by the CDN: without ?locale the language comes from the viewer
 			vary: localeParam ? undefined : "Accept-Language",
 		});
 	});

@@ -29,7 +29,7 @@ export const CHART_TAG_BACKGROUND_MS = 30_000;
 /** After a timeout, network error or 5xx, renders that don't wait skip the b30Analysis POST this long */
 export const CHART_TAG_BREAKER_MS = 90_000;
 
-/** A waiting render's POST lives as long as its budget, within the agent's 60 s; whole ms, as AbortSignal.timeout requires */
+/** A waiting render's POST lives as long as its budget, within the agent's 60 s, in whole ms */
 export function chartTagLifetimeMs(budgetMs = 0) {
 	return Math.min(
 		CHART_TAG_TIMEOUT_MS,
@@ -182,7 +182,7 @@ export function chartTagAnalysisKvKey(id: string) {
 const ANALYSIS_MEM_MAX = 64;
 /** One entry per save revision; keep the hot set small (KV holds the rest) */
 const analysisMem = new TtlLru<TagAnalysis>(ANALYSIS_MEM_MAX);
-/** Concurrent cold renders of one save (b30/x30/fc30, several styles) share a POST; a waiting render only joins a waiting one */
+/** Concurrent cold renders of one save share a POST; a waiting render only joins a waiting one */
 const analysisInflight = new Map<
 	string,
 	{ job: Promise<TagAnalysis>; wait: boolean }
@@ -207,7 +207,7 @@ function trip(why: string) {
 	);
 }
 
-/** Timeouts, network errors and 5xx (and 429, which the agent's retry interceptor throws for); another 4xx is phib19 answering */
+/** Timeouts, network errors, 5xx and 429; any other 4xx is phib19 answering */
 function upstreamDown(err: unknown): boolean {
 	const status = /^chart-tag (\d{3})\b/.exec(
 		err instanceof Error ? err.message : "",
@@ -489,7 +489,6 @@ type TagAnalysisOpts = {
 	saveRevision?: string;
 	db?: Pick<Kv, "get" | "set">;
 	budgetMs?: number;
-	/** "Wait for every badge": ask phib19 even while the breaker is open */
 	wait?: boolean;
 };
 

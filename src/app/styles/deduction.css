@@ -1,0 +1,137 @@
+.ded-stage {
+	background: #000;
+}
+
+.ded-canvas {
+	position: relative;
+	aspect-ratio: 16 / 9;
+	overflow: hidden;
+	container-type: size;
+	background: #000;
+}
+
+.ded-scene {
+	position: absolute;
+	inset: 0;
+}
+
+.ded-layer {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.ded-gradient {
+	position: absolute;
+	inset-inline: 0;
+	bottom: 0;
+	height: 50%;
+	background-repeat: no-repeat;
+	background-size: 100% 100%;
+	rotate: 180deg;
+}
+
+.ded-text {
+	position: absolute;
+	inset-inline: 10%;
+	bottom: calc(-23.6 * 100cqh / 1080);
+	height: calc(220 * 100cqh / 1080);
+}
+
+.ded-box {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: calc(52 * 100cqh / 1080);
+	height: 100%;
+	color: #eef3ff;
+	font-family:
+		var(--ded-font), "Noto Sans SC", var(--font-cjk), "PingFang SC", sans-serif;
+	font-size: calc(28 * 100cqh / 1080);
+	font-weight: 400;
+	line-height: 1.5;
+	text-align: center;
+	text-shadow:
+		0 0 calc(6 * 100cqh / 1080) #000,
+		0 0 calc(13 * 100cqh / 1080) #000,
+		0 0 calc(26 * 100cqh / 1080) rgb(0 0 0 / 0.6);
+	overflow-wrap: anywhere;
+}
+
+.ded-line {
+	display: grid;
+	min-height: calc(28 * 100cqh / 1080);
+}
+
+.ded-ghost,
+.ded-shown {
+	grid-area: 1 / 1;
+}
+
+.ded-ghost {
+	visibility: hidden;
+}
+
+.ded-shown {
+	align-self: center;
+}
+
+.ded-next {
+	height: calc(22 * 100cqh / 1080);
+	font-size: calc(20 * 100cqh / 1080);
+	line-height: calc(22 * 100cqh / 1080);
+}
+
+.ded-white {
+	position: absolute;
+	inset: 0;
+	background: #fff;
+	pointer-events: none;
+}
+
+.ded-player:focus {
+	outline: none;
+}
+
+.ded-player:focus-visible .ded-stage {
+	outline: 2px solid var(--primary);
+	outline-offset: 2px;
+}
+
+.pv-replay {
+	margin-top: var(--space-4);
+}
+
+.ded-player .ded-canvas {
+	container-name: ded;
+}
+
+.ded-player .ded-box {
+	gap: max(calc(52 * 100cqh / 1080), 0.5rem);
+	font-size: max(calc(28 * 100cqh / 1080), 0.8125rem);
+}
+
+.ded-player .ded-next {
+	height: auto;
+	font-size: max(calc(20 * 100cqh / 1080), 0.625rem);
+	line-height: 1.1;
+}
+
+@container ded (max-height: 24rem) {
+	.ded-player .ded-text {
+		bottom: 3cqh;
+		height: auto;
+		max-height: 70cqh;
+	}
+
+	.ded-player .ded-box {
+		justify-content: flex-end;
+		line-height: 1.4;
+	}
+}
+
+.ded-player:fullscreen .ded-stage {
+	width: min(100%, calc((100dvh - 4.5rem) * 16 / 9));
+}

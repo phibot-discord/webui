@@ -31,7 +31,6 @@ const COPY = {
 		taskAcc: "ACC",
 		taskScore: "Score",
 		emptyTitle: "No score updates yet",
-		/** One sentence per line: a deliberate break instead of a one-word orphan */
 		emptyBody: [
 			"Play a few charts and sync your save.",
 			"New records will show up here as a timeline.",

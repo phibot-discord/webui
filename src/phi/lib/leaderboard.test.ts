@@ -487,7 +487,6 @@ test("a row past its 6 h is asked again, but still drawn while the new answer is
 			v: 2,
 			rows: {
 				[rankKey(q)]: [5, 500, Date.now() - day],
-				// Past the 7-day fallback: dropped
 				[rankKey({ ...q, songId: "gone" })]: [1, 9, Date.now() - 8 * day],
 			},
 		}),
@@ -561,7 +560,6 @@ test("an unusable row is missing (partial) and not stored; totalCount 0 is an an
 			status: 200,
 			body: {
 				data: [
-					// Shifted: names another song
 					{ songId: "zzz.0", rank: "IN", betterCount: 1, totalCount: 9 },
 					{ ...q[1], betterCount: 0, totalCount: 0 },
 				],
@@ -698,7 +696,6 @@ test("summarizeBoard counts AP by score, FC including AP, and bins the non-AP re
 	const rows = [
 		{ acc: 100, score: 1000000, fc: true },
 		{ acc: 100, score: 1000000, fc: false },
-		// 4 dp rounding: a non-AP that reads 100
 		{ acc: 100, score: 999990, fc: true },
 		...Array.from({ length: 97 }, (_, i) => ({
 			acc: 99.9 - i * 0.1,
@@ -853,7 +850,6 @@ test("leaderboardJson answers rank, population and AP/FC; upstream trouble is a 
 		chart: "Song.X.0",
 		level: "AT",
 		acc: 97.5,
-		// The fake counts 100 − ⌊97.5⌋ = 3 records better: rank 4 of 1,001
 		rank: 4,
 		of: 1001,
 		percent: Math.round((4 / 1001) * 100 * 1e4) / 1e4,

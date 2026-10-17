@@ -18,62 +18,79 @@ import {
 } from "react";
 import { useChartCatalog } from "@/components/ChartSearch";
 import { Announce, useSettled } from "@/components/Tool";
+import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
+import { readRefreshToken, refreshedVersion } from "@/lib/asset-refresh";
 import {
 	ASSET_KINDS,
 	ASSET_TABS,
 	type AssetFile,
 	type AssetFilter,
+	type AssetKind,
 	type AssetTab,
 	assetCanPreview,
 	assetExt,
 	assetKind,
 	assetTab,
 	assetThumbKey,
+	chartJsonOf,
+	formatSize,
+	packOf,
 	publicAssetUrl,
 } from "@/lib/assets";
-import { CHART_LEVELS, type ChartSummary } from "@/lib/chart-catalog";
+import {
+	bareId,
+	type ChartSummary,
+	type PackLevelName,
+} from "@/lib/chart-catalog";
 import { looseFold, rankSongs } from "@/lib/song-search";
 
 const PAGE = 48;
+const ART_KINDS = new Set(["jacket", "low", "blur", "music"]);
 const TEXT_PREVIEW_MAX = 200_000;
 
-function formatSize(size: number) {
-	if (size < 1024) return `${size} B`;
-	if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
-	return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-}
+type Row = {
+	file: AssetFile;
+	folded: string;
+	tab: AssetTab;
+	kind: AssetKind;
+	song: ChartSummary | undefined;
+	level: PackLevelName | undefined;
+};
 
-// Pack files end in -<level>. CHART_LEVELS lists the Phira levels without pulling JSZip into the page
-const LEVEL_SUFFIX = new RegExp(`-(${CHART_LEVELS.join("|")})$`);
-
-function songStem(key: string) {
-	const file = key.split("/").pop() ?? key;
-	return file.replace(/\.[^.]+$/, "").replace(LEVEL_SUFFIX, "");
-}
-
-function songOf(key: string, songs: Map<string, ChartSummary>) {
-	const stem = songStem(key);
-	return songs.get(stem) ?? songs.get(`${stem}.0`);
+function rowOf(file: AssetFile, songs: Map<string, ChartSummary>): Row {
+	const chart = packOf(file.key) ?? chartJsonOf(file.key);
+	const stem =
+		chart?.stem ??
+		(file.key.split("/").pop() ?? file.key).replace(/\.[^.]+$/, "");
+	return {
+		file,
+		folded: looseFold(file.key),
+		tab: assetTab(file.key),
+		kind: assetKind(file.key),
+		song: songs.get(stem) ?? songs.get(`${stem}.0`),
+		level: chart?.level,
+	};
 }
 
 function Preview({
 	src,
 	label,
 	file,
+	t,
 }: {
 	src: string;
 	label: string;
 	file: AssetFile;
+	t: Messages["files"];
 }) {
-	const { m } = useI18n();
 	const [broken, setBroken] = useState(false);
 	const kind = assetCanPreview(file.key);
 	if (broken)
 		return (
 			<p className="asset-error" role="alert">
 				<WarningCircle size={16} weight="fill" aria-hidden />
-				{m.files.previewFailed}
+				{t.previewFailed}
 			</p>
 		);
 	if (kind === "image")
@@ -100,8 +117,22 @@ function Preview({
 				onError={() => setBroken(true)}
 			/>
 		);
+	if (kind === "video")
+		return (
+			// biome-ignore lint/a11y/useMediaCaption: game video, there are no captions to offer
+			<video
+				className="asset-preview-video"
+				src={src}
+				aria-label={label}
+				controls
+				autoPlay
+				playsInline
+				preload="metadata"
+				onError={() => setBroken(true)}
+			/>
+		);
 	if (kind === "text" && file.size > TEXT_PREVIEW_MAX)
-		return <p className="asset-note">{m.files.tooBig}</p>;
+		return <p className="asset-note">{t.tooBig}</p>;
 	if (kind === "text")
 		return (
 			<iframe
@@ -148,9 +179,14 @@ function Thumb({ src, ext }: { src: string | undefined; ext: string }) {
 	);
 }
 
-export function AssetBrowser() {
+export function AssetBrowser({
+	sides = [],
+	t,
+}: {
+	sides?: readonly AssetTab[];
+	t: Messages["files"];
+}) {
 	const { m } = useI18n();
-	const t = m.files;
 	const catalog = useChartCatalog(true);
 	const ids = useId();
 	const searchId = `${ids}-search`;
@@ -195,29 +231,46 @@ export function AssetBrowser() {
 		return () => ac.abort();
 	}, [attempt]);
 
+	const [refreshToken, setRefreshToken] = useState<string | undefined>();
+	useEffect(() => setRefreshToken(readRefreshToken()), []);
+	const refreshed = (version: string | undefined) =>
+		refreshedVersion(version, refreshToken);
+	const versionOf = useMemo(() => {
+		const map = new Map<string, string>();
+		for (const file of files ?? []) if (file.v) map.set(file.key, file.v);
+		return map;
+	}, [files]);
+
 	const songs = useMemo(() => {
 		const map = new Map<string, ChartSummary>();
 		if (catalog.status !== "ready") return map;
 		for (const song of catalog.list) {
 			map.set(song.id, song);
-			map.set(song.id.replace(/\.0$/, ""), song);
+			map.set(bareId(song.id), song);
+			if (song.stem) map.set(song.stem, song);
 		}
 		return map;
 	}, [catalog]);
 
-	const hasFools = useMemo(
-		() => (files ?? []).some((file) => assetTab(file.key) === "fools"),
-		[files],
+	const rows = useMemo(
+		() => (files ?? []).map((file) => rowOf(file, songs)),
+		[files, songs],
 	);
-	// The tab bar only exists while there are 4/1 files; without them everything is "files"
-	const tab: AssetTab = hasFools ? pickedTab : "files";
-	const inTab = useMemo(
-		() => (files ?? []).filter((file) => assetTab(file.key) === tab),
-		[files, tab],
+
+	const tabs = useMemo(
+		() =>
+			ASSET_TABS.filter(
+				(id) =>
+					id === "files" ||
+					(files ? rows.some((row) => row.tab === id) : sides.includes(id)),
+			),
+		[files, rows, sides],
 	);
+	const hasTabs = tabs.length > 1;
+	const tab: AssetTab = tabs.includes(pickedTab) ? pickedTab : "files";
 	const present = useMemo(
-		() => new Set(inTab.map((file) => assetKind(file.key))),
-		[inTab],
+		() => new Set(rows.flatMap((row) => (row.tab === tab ? [row.kind] : []))),
+		[rows, tab],
 	);
 
 	const trimmed = query.trim();
@@ -235,36 +288,32 @@ export function AssetBrowser() {
 	);
 	const queried = useMemo(
 		() =>
-			(files ?? []).filter((file) => {
-				if (!q) return true;
-				if (looseFold(file.key).includes(q)) return true;
-				const song = songOf(file.key, songs);
-				return song ? (named?.has(song.id) ?? false) : false;
+			rows.filter((row) => {
+				if (!q || row.folded.includes(q)) return true;
+				return row.song ? (named?.has(row.song.id) ?? false) : false;
 			}),
-		[files, q, songs, named],
+		[rows, q, named],
 	);
 	const tabCounts = useMemo(() => {
-		const out: Record<AssetTab, number> = { files: 0, fools: 0 };
-		for (const file of queried) out[assetTab(file.key)] += 1;
+		const out = Object.fromEntries(ASSET_TABS.map((id) => [id, 0])) as Record<
+			AssetTab,
+			number
+		>;
+		for (const row of queried) out[row.tab] += 1;
 		return out;
 	}, [queried]);
 	const matched = useMemo(
-		() => queried.filter((file) => assetTab(file.key) === tab),
+		() => queried.filter((row) => row.tab === tab),
 		[queried, tab],
 	);
 	const counts = useMemo(() => {
 		const out: Partial<Record<AssetFilter, number>> = { all: matched.length };
-		for (const file of matched) {
-			const k = assetKind(file.key);
-			out[k] = (out[k] ?? 0) + 1;
-		}
+		for (const row of matched) out[row.kind] = (out[row.kind] ?? 0) + 1;
 		return out;
 	}, [matched]);
 	const hits = useMemo(
 		() =>
-			kind === "all"
-				? matched
-				: matched.filter((file) => assetKind(file.key) === kind),
+			kind === "all" ? matched : matched.filter((row) => row.kind === kind),
 		[matched, kind],
 	);
 	const shown = hits.slice(0, limit);
@@ -276,7 +325,6 @@ export function AssetBrowser() {
 	}, []);
 
 	const pickTab = (next: AssetTab) => {
-		// Re-picking the open tab (click, Home/End) keeps its filter and paging
 		if (next === tab) return;
 		setPickedTab(next);
 		setKind("all");
@@ -284,16 +332,16 @@ export function AssetBrowser() {
 	};
 
 	const onTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-		const at = ASSET_TABS.indexOf(tab);
+		const at = tabs.indexOf(tab);
 		const next =
 			event.key === "ArrowRight"
-				? ASSET_TABS[(at + 1) % ASSET_TABS.length]
+				? tabs[(at + 1) % tabs.length]
 				: event.key === "ArrowLeft"
-					? ASSET_TABS[(at + ASSET_TABS.length - 1) % ASSET_TABS.length]
+					? tabs[(at + tabs.length - 1) % tabs.length]
 					: event.key === "Home"
-						? ASSET_TABS[0]
+						? tabs[0]
 						: event.key === "End"
-							? ASSET_TABS[ASSET_TABS.length - 1]
+							? tabs[tabs.length - 1]
 							: undefined;
 		if (!next) return;
 		event.preventDefault();
@@ -331,14 +379,14 @@ export function AssetBrowser() {
 			<h1>{t.title}</h1>
 			<p className="lede">{t.lede}</p>
 			<section className="callout asset-browser">
-				{hasFools ? (
+				{hasTabs ? (
 					<div
 						className="asset-tabs"
 						role="tablist"
 						aria-label={t.tabsLabel}
 						onKeyDown={onTabKeyDown}
 					>
-						{ASSET_TABS.map((id) => (
+						{tabs.map((id) => (
 							<button
 								key={id}
 								id={tabId(id)}
@@ -350,13 +398,15 @@ export function AssetBrowser() {
 								onClick={() => pickTab(id)}
 							>
 								{t.tabs[id]}
-								<span className="asset-kind-count"> {tabCounts[id]}</span>
+								{files ? (
+									<span className="asset-kind-count"> {tabCounts[id]}</span>
+								) : null}
 							</button>
 						))}
 					</div>
 				) : null}
 				<div
-					{...(hasFools
+					{...(hasTabs
 						? {
 								id: panelId,
 								role: "tabpanel",
@@ -452,16 +502,26 @@ export function AssetBrowser() {
 
 					{shown.length ? (
 						<ul className="asset-list" ref={listRef}>
-							{shown.map((file) => {
-								const song = songOf(file.key, songs);
+							{shown.map(({ file, song, level, kind: fileKind }) => {
 								const name = file.key.split("/").pop() ?? file.key;
-								const label = song ? `${song.song} · ${name}` : name;
+								const label = song
+									? `${song.song}${level ? ` ${level.label}` : ""} · ${name}`
+									: name;
 								const preview = assetCanPreview(file.key);
-								const music = assetKind(file.key) === "music";
+								const music = fileKind === "music";
+								const watch = preview === "video";
+								const action = music ? t.listen : watch ? t.watch : t.view;
 								const expanded = open === file.key;
-								const src = base ? publicAssetUrl(base, file.key) : undefined;
+								const src = base
+									? publicAssetUrl(base, file.key, refreshed(file.v))
+									: undefined;
+								const thumbKey = assetThumbKey(file.key);
 								const thumb = base
-									? publicAssetUrl(base, assetThumbKey(file.key))
+									? publicAssetUrl(
+											base,
+											thumbKey,
+											refreshed(versionOf.get(thumbKey)),
+										)
 									: undefined;
 								const previewId = `${ids}-p-${file.key}`;
 								return (
@@ -471,13 +531,28 @@ export function AssetBrowser() {
 											ext={assetExt(file.key) || t.file}
 										/>
 										<div className="asset-copy">
-											<div className="asset-name">{song?.song ?? name}</div>
+											<div className="asset-name">
+												{song?.song ?? name}
+												{level ? (
+													<span
+														className={`chart-level chart-level-${level.base ?? "other"} asset-level`}
+													>
+														<span>{level.base ?? level.label}</span>
+														{level.tag ? <span>{level.tag}</span> : null}
+													</span>
+												) : null}
+											</div>
 											<div className="asset-path">
 												<KeyPath value={file.key} /> ·{" "}
 												<span className="asset-size">
 													{formatSize(file.size)}
 												</span>
 											</div>
+											{song?.illustrator && ART_KINDS.has(fileKind) ? (
+												<div className="asset-credit">
+													{t.illustrator.replaceAll("{name}", song.illustrator)}
+												</div>
+											) : null}
 										</div>
 										<div className="asset-actions">
 											{preview ? (
@@ -486,16 +561,16 @@ export function AssetBrowser() {
 													type="button"
 													aria-expanded={expanded}
 													aria-controls={expanded ? previewId : undefined}
-													aria-label={`${music ? t.listen : t.view} · ${label}`}
+													aria-label={`${action} · ${label}`}
 													onClick={() =>
 														setOpen(expanded ? undefined : file.key)
 													}
 												>
-													{music ? t.listen : t.view}
+													{action}
 													<CaretDown size={14} weight="bold" aria-hidden />
 												</button>
 											) : null}
-											{music && src ? (
+											{(music || watch) && src ? (
 												<a
 													className="btn btn-ghost btn-sm"
 													href={src}
@@ -520,7 +595,7 @@ export function AssetBrowser() {
 										</div>
 										{expanded && src ? (
 											<div className="asset-preview" id={previewId}>
-												<Preview src={src} label={label} file={file} />
+												<Preview src={src} label={label} file={file} t={t} />
 											</div>
 										) : null}
 									</li>

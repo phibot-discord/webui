@@ -869,7 +869,7 @@ function b30Save(count: number, song: (i: number) => string, tags = false) {
 test("estimateHeight matches the measured layout; compact only rescues 2x paint", () => {
 	const wrapped = "Retribution ~ Cycle of Redemption ~";
 	assert.equal(fitTitle(wrapped).px, 30);
-	// Default render of data/raw-save.json (3 P + 33 B, 4 on two lines, histogram, no tags): 5656 px measured, 24 px of it engine slack
+	// Default render of data/raw-save.json: 5656 px measured, 24 px of it engine slack
 	const real = buildView(
 		b30Save(33, (i) => ([5, 18, 20, 23].includes(i) ? wrapped : `Song ${i}`)),
 		ctx("b30"),

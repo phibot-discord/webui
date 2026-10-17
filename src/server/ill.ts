@@ -1,7 +1,12 @@
 import { existsSync as fsExists } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { FOOLS_ILL_DIR, FOOLS_PREFIX, splitFools } from "@/lib/assets";
+import {
+	type JacketTree,
+	SIDE_ILL_DIR,
+	sidePrefix,
+	splitTree,
+} from "@/lib/assets";
 import { logger } from "./logger";
 import { illDir } from "./paths";
 import { poolAll } from "./pool";
@@ -10,25 +15,21 @@ import { fetchR2Object, r2Config } from "./r2";
 const CACHE_ROOT = process.env.PHI_ILL_CACHE?.trim() || "/tmp/phi-web-ill";
 const ILL_FETCH_CONCURRENCY = 48;
 
-function pngName(id: string): string {
-	return id.replace(/\.0$/, ".png");
-}
+/** `sp`: full jacket only, in `SP/`; a jacket tree mirrors the normal layout under its prefix */
+export type IllTree = "normal" | "sp" | JacketTree;
 
-/** `sp` has only the full jacket, in `SP/`; `fools` is a 4/1 special, whose jackets sit in R2 under `4-1/original_ill/`, locally `<illDir>/4-1/<dir>/` */
-export type IllTree = "normal" | "sp" | "fools";
-
-/** `id` is the catalog id, `.0` included. `level` picks the per-difficulty jacket (`ill/IN/<id>.png`) of a song that has one: only the normal tree has them, and the caller checks the song does */
+/** `stem` is the file name without `.png`; `level` picks a per-difficulty jacket, normal tree only */
 export function songIllPath(
 	originalIll: string,
-	id: string,
+	stem: string,
 	kind: "common" | "blur" | "low" = "common",
 	tree: IllTree = "normal",
 	level?: string,
 ): string {
-	const png = pngName(id);
+	const png = `${stem}.png`;
 	const dir = kind === "blur" ? "illBlur" : kind === "low" ? "illLow" : "ill";
-	if (tree === "fools") return join(originalIll, FOOLS_PREFIX, dir, png);
 	if (tree === "sp") return join(originalIll, "SP", png);
+	if (tree !== "normal") return join(originalIll, sidePrefix(tree), dir, png);
 	return level
 		? join(originalIll, dir, level, png)
 		: join(originalIll, dir, png);
@@ -71,8 +72,8 @@ export function assetKeyOf(rawPath: string): string | undefined {
 	const absPath = decodeEntities(rawPath);
 	const ill = underIllTree(absPath);
 	if (ill) {
-		const [root, rest] = splitFools(ill);
-		const prefix = root ? FOOLS_ILL_DIR : r2Config().prefix;
+		const [root, rest] = splitTree(ill);
+		const prefix = root ? SIDE_ILL_DIR : r2Config().prefix;
 		return `${root}${prefix ? `${prefix}/` : ""}${rest}`;
 	}
 	const html = HTML_IMAGE_RE.exec(absPath.replace(/\\/g, "/"))?.[1];
@@ -82,9 +83,9 @@ export function assetKeyOf(rawPath: string): string | undefined {
 
 export function fallbackKeyOf(key: string): string | undefined {
 	const { prefix, htmlPrefix } = r2Config();
-	// 4/1 specials mirror the tree under `4-1/`, always in FOOLS_ILL_DIR
-	const [root, rest] = splitFools(key);
-	const dir = root ? FOOLS_ILL_DIR : prefix;
+	// The side trees mirror the normal tree under `4-1/` and `removed/`, always in SIDE_ILL_DIR
+	const [root, rest] = splitTree(key);
+	const dir = root ? SIDE_ILL_DIR : prefix;
 	const base = dir ? `${dir}/` : "";
 	const illBase = `${base}ill/`;
 	if (rest.startsWith(illBase)) {

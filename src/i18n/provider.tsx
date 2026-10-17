@@ -11,13 +11,13 @@ import {
 } from "react";
 import { bumpCardReload } from "@/lib/save-refresh";
 import { LOCALE_COOKIE, type Locale, localeTag } from "./config";
-import { en, type Messages, zh } from "./messages";
+import { type ClientMessages, en, zh } from "./messages";
 
-const catalogs: Record<Locale, Messages> = { en, zh };
+const catalogs: Record<Locale, ClientMessages> = { en, zh };
 
 const I18nContext = createContext<{
 	locale: Locale;
-	m: Messages;
+	m: ClientMessages;
 	setLocale: (locale: Locale) => void;
 } | null>(null);
 

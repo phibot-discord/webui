@@ -3,13 +3,12 @@ import {
 	ScoreControl,
 	type ScoreControlInitial,
 } from "@/components/ScoreControl";
-import { getMessages } from "@/i18n/server";
+import { pageMetadata } from "@/server/og-meta";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-	const { m } = await getMessages();
-	return { title: m.score.title, description: m.score.lede };
+export function generateMetadata(): Promise<Metadata> {
+	return pageMetadata("score");
 }
 
 export default async function ScorePage({

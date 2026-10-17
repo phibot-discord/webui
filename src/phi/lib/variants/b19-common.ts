@@ -106,7 +106,7 @@ export function wrapLines(
 			lines.push(gs.slice(i).join("").trimEnd());
 			break;
 		}
-		// Break at the overflow when allowed, else at the last break unless the line would be under 1/3 full, else mid-word
+		// Break at the overflow when allowed, else at the last break unless under 1/3 full, else mid-word
 		const end = j === brk ? j : brk > i && brkEm >= widthEm / 3 ? brk : j;
 		lines.push(
 			gs

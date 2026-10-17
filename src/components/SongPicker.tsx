@@ -34,7 +34,6 @@ export function SongPicker({
 					catalog={catalog}
 					placeholder={m.card.songSearch}
 					labelledBy={labelId}
-					// SP charts (4/1 specials) are not in this catalog; song cards have no SP level
 					onPick={(picked, rank) => {
 						if (rank !== "SP") onChange(picked.id, rank);
 					}}

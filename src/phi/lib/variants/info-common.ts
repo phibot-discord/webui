@@ -1,6 +1,6 @@
 import type { PhiLocale } from "../card-i18n";
 import { escapeHtml } from "../html";
-import { fitFontPx, textEm } from "../text-fit";
+import { clipEm, fitFontPx, textEm } from "../text-fit";
 import type { CardData } from "./types";
 
 const LEVELS = ["EZ", "HD", "IN", "AT"] as const;
@@ -185,14 +185,7 @@ export function fitIntro(
 	}
 	const px = opts.min;
 	const budget = Math.floor((width / px) * opts.maxLines) - 2;
-	let out = "";
-	let used = 0;
-	for (const ch of plain.replace(/\n/g, " ")) {
-		const w = textEm(ch);
-		if (used + w > budget) break;
-		out += ch;
-		used += w;
-	}
+	const out = clipEm(plain.replace(/\n/g, " "), budget).text;
 	return {
 		html: `${escapeHtml(out.trimEnd())}…`,
 		px,

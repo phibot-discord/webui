@@ -11,8 +11,7 @@ phi-assets/original_ill
 .claude
 .codegraph
 .impeccable
-# Scratch card renders and HTML dumps left at the project root; the kv.ts
-# whole-project trace would ship them inside every function
+# Scratch renders and HTML dumps at the root, which the kv.ts trace would ship
 /*.jpg
 /*.jpeg
 /*.png

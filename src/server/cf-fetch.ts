@@ -39,7 +39,6 @@ export type CfFetchInit = {
 	body?: string | Buffer | Uint8Array;
 	background?: boolean;
 	stream?: boolean;
-	/** Replaces the 12 s budget, for a large upload on a slow uplink */
 	timeoutMs?: number;
 };
 
