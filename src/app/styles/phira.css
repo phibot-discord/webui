@@ -104,6 +104,12 @@
 	grid-area: action;
 }
 
+.phira-same {
+	grid-area: action;
+	color: var(--muted);
+	font-size: var(--text-sm);
+}
+
 .phira-progress {
 	grid-area: progress;
 	width: 100%;

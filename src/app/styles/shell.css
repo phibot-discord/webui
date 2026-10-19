@@ -35,6 +35,44 @@
 	min-height: 100dvh;
 }
 
+.domain-move {
+	background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+	border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+	color: var(--ink);
+	font-size: var(--text-sm);
+}
+
+.domain-move p {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1) var(--space-4);
+	width: var(--wrap);
+	max-width: none;
+	margin: 0 auto;
+	padding: var(--space-2) 0;
+}
+
+.domain-move a {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-height: 32px;
+	color: inherit;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.domain-move-body p {
+	margin: var(--space-3) 0 0;
+	line-height: 1.6;
+}
+
+.domain-move-body p + p {
+	color: var(--muted);
+	font-size: var(--text-sm);
+}
+
 .site-foot {
 	margin-top: auto;
 	border-top: 1px solid var(--line);

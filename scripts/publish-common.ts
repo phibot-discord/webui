@@ -17,7 +17,7 @@ export const oneLine = (s: string | null | undefined) =>
 	(s ?? "").replace(/\s*\n\s*/g, " ").trim();
 
 export const publicBase = (
-	process.env.CLOUDFLARE_R2_PUBLIC_BASE || "https://r2.phiapi.miyuki-yue.dev"
+	process.env.CLOUDFLARE_R2_PUBLIC_BASE || "https://r2.phibot.dev"
 ).replace(/\/$/, "");
 
 export async function fetchPublic(key: string, agent: string): Promise<Buffer> {

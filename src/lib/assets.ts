@@ -115,7 +115,9 @@ export const ASSET_TABS: readonly AssetTab[] = [
 
 const SIDE_ROOTS = SIDE_TREES.map((tree) => ({
 	tab: tree.tab,
-	root: new RegExp(`^${tree.prefix}/${tree.perApk ? "(?:[\\d.]+/)?" : ""}`),
+	root: new RegExp(
+		`^${tree.prefix}/${tree.perApk ? "(?:[\\d.]+(?:-\\d+)?/)?" : ""}`,
+	),
 }));
 
 function sideRoot(key: string): { tab: SideTab; root: string } | undefined {

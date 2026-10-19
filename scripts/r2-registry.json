@@ -2,15 +2,15 @@
 	"v": 1,
 	"about": "Who writes what in the phi-web-assets bucket. Each prefix has one writer; a writer never touches another's keys. Uploaded as index.json at the bucket root by webui scripts/r2-upload.mjs. Rendered cards live in the private bucket phi-web-cache, not here.",
 	"writers": {
-		"phi-unpackd": "Rust ripper (ill-sync-worker repo) on the assets machine. Runs by itself when TapTap ships a new version: lists R2, uploads only files whose size and MD5 differ, and removes keys it no longer produces under the prefixes it alone owns.",
-		"ill-sync": "Cloudflare Worker (ill-sync repo), cron. Mirrors phi-plugin's GitHub resources and community aliases; prunes only its own directories and refuses protected prefixes.",
-		"phi-specials": "Rust tool (phi-specials repo), run by hand on the assets machine for anything that needs song, key or text knowledge.",
+		"phi-unpackd": "Rust ripper (ill-sync-worker) on the assets machine. Runs by itself when TapTap ships a new version: lists R2, uploads only files whose size and MD5 differ, and removes keys it no longer produces under the prefixes it alone owns.",
+		"ill-sync": "Cloudflare Worker (ill-sync), cron. Mirrors phi-plugin's GitHub resources and community aliases; prunes only its own directories and refuses protected prefixes.",
+		"phi-specials": "Rust tool (ill-sync-worker-special), run by hand on the assets machine for anything that needs song, key or text knowledge.",
 		"pv-overlay": "Render pipeline (pv-overlay folder), run by hand; upload.sh sends its output.",
 		"webui-scripts": "webui scripts/publish-*.ts, run by hand; built on any machine and sent with scripts/r2-upload.mjs, every index.json last.",
 		"webui": "The site itself."
 	},
 	"caching": {
-		"about": "Cache Rules on the zone (Caching > Cache Rules), for r2.phiapi.miyuki-yue.dev; later rules win. The site adds ?v=<first 12 hex of the R2 etag> to every R2 link it makes (server/r2.ts publicObjectUrl), so a link changes exactly when its file does. The footer's Refresh files button adds a 30-day personal token to v.",
+		"about": "Cache Rules on the phibot.dev zone.",
 		"rules": [
 			{
 				"match": "original_ill/, music/, phira/, chart/, html/",
@@ -37,7 +37,7 @@
 				"why": "content-addressed"
 			}
 		],
-		"errors": "4xx stay at the edge 60s, 5xx are never kept. A Response Header Transform Rule (\"R2 errors: no browser cache\", http.response.code ge 400) sends Cache-Control: no-store to browsers",
+		"errors": "4xx stay at the edge 60s, 5xx are never kept. A Response Header Transform Rule on each zone (\"R2 errors: no browser cache\", http.response.code ge 400) sends Cache-Control: no-store to browsers",
 		"purge": "Nothing purges after a game update: unversioned game files can be up to 30 days old at the edge. The zone token has no Cache Purge permission"
 	},
 	"trees": [
@@ -158,9 +158,9 @@
 		},
 		{
 			"prefix": "history/",
-			"writer": "webui-scripts",
-			"script": "scripts/publish-history.ts",
-			"contents": "<apk>/ older revisions of charts, one copy of the main layout per APK",
+			"writer": "phi-unpackd",
+			"script": "scripts/publish-history.ts (the first 13 APKs)",
+			"contents": "<apk>/ older revisions of charts, one copy of the main layout per APK. Each new build, the ripper keeps the charts it changes or drops (by content, not bytes) under the previous version and adds their eras; a build published out of order is added with --insert-build; it never deletes here",
 			"manifest": "history/index.json"
 		},
 		{

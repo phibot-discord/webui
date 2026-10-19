@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	configuredAuthOrigins,
+	requestHost,
 	resetAuthOriginsForTest,
 	resolveAuthOrigin,
 } from "./auth-url";
@@ -9,6 +10,20 @@ import {
 function headers(init: Record<string, string>) {
 	return new Headers(init);
 }
+
+test("requestHost takes the first forwarded host, then host", () => {
+	assert.equal(
+		requestHost(
+			headers({
+				"x-forwarded-host": "phi.yuemiyuki.dev, proxy.internal",
+				host: "phi-webui.vercel.app",
+			}),
+		),
+		"phi.yuemiyuki.dev",
+	);
+	assert.equal(requestHost(headers({ host: "phibot.dev" })), "phibot.dev");
+	assert.equal(requestHost(headers({})), "");
+});
 
 test("resolveAuthOrigin keeps the request host when it is in AUTH_URLS", () => {
 	resetAuthOriginsForTest({

@@ -18,7 +18,7 @@ import {
 const COFFEE_URL = "https://buymeacoffee.com/yuemiyuki";
 const SHOW_DELAY_MS = 900;
 
-export function WhatsNew() {
+export function WhatsNew({ auto = true }: { auto?: boolean }) {
 	const { m, locale } = useI18n();
 	const t = m.notice;
 	const path = usePathname();
@@ -30,10 +30,10 @@ export function WhatsNew() {
 	const shared = path.startsWith("/p/") || path.startsWith("/render/");
 
 	useEffect(() => {
-		if (shared || !shouldOpen(readSeen())) return;
+		if (!auto || shared || !shouldOpen(readSeen())) return;
 		const timer = window.setTimeout(() => setOpen(true), SHOW_DELAY_MS);
 		return () => window.clearTimeout(timer);
-	}, [shared]);
+	}, [auto, shared]);
 
 	useEffect(() => {
 		const show = () => setOpen(true);

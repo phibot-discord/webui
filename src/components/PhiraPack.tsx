@@ -50,17 +50,35 @@ function saveBlob(blob: Blob, file: string) {
 }
 
 type History = { current: string[]; eras: Era[] };
-type Row = { rank: PackLevel; cell: ChartCell | undefined; ver?: string };
+type Row = {
+	rank: PackLevel;
+	cell: ChartCell | undefined;
+	ver?: string;
+	same?: boolean;
+};
 
 function levelOrder(level: string): number {
 	const at = CHART_LEVELS.indexOf(level as (typeof CHART_LEVELS)[number]);
 	return at < 0 ? CHART_LEVELS.length : at;
 }
 
+function shownVersion(version: string): string {
+	return version.replace(/-(\d+)$/, " ($1)");
+}
+
 function versionSpan(versions: string[]): string {
-	const first = versions[0] ?? "";
-	const last = versions.at(-1) ?? first;
+	const first = shownVersion(versions[0] ?? "");
+	const last = shownVersion(versions.at(-1) ?? "") || first;
 	return first === last ? first : `${first} – ${last}`;
+}
+
+function eraLabel(era: Era): string {
+	const changed = Object.entries(era.charts)
+		.filter(([, chart]) => chart.rev)
+		.sort(([a], [b]) => levelOrder(a) - levelOrder(b))
+		.map(([rank]) => packLevelName(rank)?.base ?? rank);
+	const span = versionSpan(era.versions);
+	return changed.length ? `${span} · ${changed.join(" / ")}` : span;
 }
 
 function goneFrom(song: ChartSummary): string {
@@ -222,6 +240,7 @@ export function PhiraPack() {
 					rank,
 					cell: [0, chart.notes, chart.label],
 					ver: chart.rev,
+					same: !chart.rev,
 				}))
 		: song
 			? CHART_LEVELS.flatMap((rank) => {
@@ -299,7 +318,7 @@ export function PhiraPack() {
 									</option>
 									{history.eras.map((each, i) => (
 										<option key={each.versions.join()} value={i}>
-											{versionSpan(each.versions)}
+											{eraLabel(each)}
 										</option>
 									))}
 								</select>
@@ -310,7 +329,7 @@ export function PhiraPack() {
 						) : null}
 						<h3 className="sr-only">{t.levels}</h3>
 						<ul className="phira-levels" ref={levelsRef}>
-							{levels.map(({ rank, cell, ver }) => {
+							{levels.map(({ rank, cell, ver, same }) => {
 								const name = packLevelName(rank);
 								const removed = era?.charts[rank]
 									? undefined
@@ -348,31 +367,35 @@ export function PhiraPack() {
 												</span>
 											) : null}
 										</span>
-										<SteadyButton
-											type="button"
-											className="btn-ghost phira-download"
-											data-level={rank}
-											labels={[
-												t.download,
-												t.downloading,
-												t.downloadingPct.replaceAll("{pct}", "100"),
-											]}
-											aria-describedby={state && !busy ? statusId : undefined}
-											aria-busy={busy || undefined}
-											aria-disabled={busy || missing || undefined}
-											onClick={() => {
-												if (!busy && !missing) void download(song, rank, ver);
-											}}
-										>
-											{busy
-												? pct != null
-													? t.downloadingPct.replaceAll("{pct}", String(pct))
-													: t.downloading
-												: t.download}
-											<span className="sr-only">
-												{` · ${song.song} ${name?.base ?? rank} ${level}`}
-											</span>
-										</SteadyButton>
+										{same ? (
+											<span className="phira-same">{t.sameAsCurrent}</span>
+										) : (
+											<SteadyButton
+												type="button"
+												className="btn-ghost phira-download"
+												data-level={rank}
+												labels={[
+													t.download,
+													t.downloading,
+													t.downloadingPct.replaceAll("{pct}", "100"),
+												]}
+												aria-describedby={state && !busy ? statusId : undefined}
+												aria-busy={busy || undefined}
+												aria-disabled={busy || missing || undefined}
+												onClick={() => {
+													if (!busy && !missing) void download(song, rank, ver);
+												}}
+											>
+												{busy
+													? pct != null
+														? t.downloadingPct.replaceAll("{pct}", String(pct))
+														: t.downloading
+													: t.download}
+												<span className="sr-only">
+													{` · ${song.song} ${name?.base ?? rank} ${level}`}
+												</span>
+											</SteadyButton>
+										)}
 										{busy ? (
 											<progress
 												className="phira-progress"

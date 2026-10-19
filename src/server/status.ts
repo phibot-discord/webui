@@ -2,7 +2,7 @@ import { STATUS_TARGETS, type StatusData } from "@/lib/status";
 import { logger } from "@/server/logger";
 
 const STATUS_URL =
-	process.env.STATUS_API_URL?.trim() || "https://api.mdesk.tech/uptime";
+	process.env.STATUS_API_URL?.trim() || "https://api.phibot.dev/uptime";
 
 function isStatusData(v: unknown): v is StatusData {
 	const d = v as StatusData | null;

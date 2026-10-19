@@ -79,9 +79,14 @@ function firstHeader(headers: Headers, name: string): string {
 	return (headers.get(name) || "").split(",")[0]?.trim() || "";
 }
 
+export function requestHost(headers: Headers): string {
+	return (
+		firstHeader(headers, "x-forwarded-host") || firstHeader(headers, "host")
+	);
+}
+
 export function resolveAuthOrigin(headers: Headers): string | undefined {
-	const host =
-		firstHeader(headers, "x-forwarded-host") || firstHeader(headers, "host");
+	const host = requestHost(headers);
 	const proto =
 		firstHeader(headers, "x-forwarded-proto") ||
 		(host.startsWith("localhost") || host.startsWith("127.")

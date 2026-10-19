@@ -7,6 +7,8 @@ import { chartBase, chartRows, findSong, songIds, songRows } from "./side-tree";
 
 // Older chart revisions under `history/<apk>/`; `history/index.json` lists each song's eras (scripts/publish-history.ts)
 const HISTORY_MANIFEST_KEY = `${HISTORY_PREFIX}/index.json`;
+/** A version name, or `<name>-<code>` for a later build that shipped under a name already listed */
+const VERSION = /^[\d.]+(?:-\d+)?$/;
 
 export type EraChart = {
 	label: string;
@@ -35,7 +37,7 @@ const manifest = jsonLoader(
 
 function versionList(v: unknown): string[] {
 	return Array.isArray(v)
-		? v.filter((x): x is string => typeof x === "string" && /^[\d.]+$/.test(x))
+		? v.filter((x): x is string => typeof x === "string" && VERSION.test(x))
 		: [];
 }
 
@@ -49,7 +51,7 @@ function parseEra(raw: unknown): Era | undefined {
 		const at = text(c.rev);
 		charts[level] = {
 			...chartBase(c),
-			...(/^[\d.]+$/.test(at) ? { rev: at } : {}),
+			...(VERSION.test(at) ? { rev: at } : {}),
 		};
 	}
 	if (!versions.length || !Object.keys(charts).length) return undefined;

@@ -4,6 +4,14 @@ export type ClientMessages = {
 	meta: { title: string; description: string };
 	og: { cardAlt: string; pageAlt: string };
 	assetRefresh: { label: string; hint: string };
+	domainMove: {
+		label: string;
+		title: string;
+		text: string;
+		signIn: string;
+		go: string;
+		stay: string;
+	};
 	brand: string;
 	skip: string;
 	signIn: string;
@@ -195,6 +203,7 @@ export type ClientMessages = {
 		version: string;
 		versionCurrent: string;
 		versionNote: string;
+		sameAsCurrent: string;
 	};
 	simulate: {
 		listLabel: string;
@@ -634,6 +643,15 @@ export const en: ClientMessages = {
 		label: "Refresh files",
 		hint: "Load illustrations, music, videos and packs again instead of using the copies this browser keeps",
 	},
+	domainMove: {
+		label: "Site move",
+		title: "PhiBot has a new address",
+		text: "PhiBot is moving to phibot.dev. This address may stop working later, so update your bookmarks.",
+		signIn:
+			"You'll need to sign in again there; your account and saves stay as they are.",
+		go: "Go to phibot.dev",
+		stay: "Stay here for now",
+	},
 	brand: "PhiBot",
 	skip: "Skip to content",
 	signIn: "Continue with Discord",
@@ -934,6 +952,7 @@ export const en: ClientMessages = {
 		versionCurrent: "Current ({v})",
 		versionNote:
 			"Charts as they were in that version. Legacy charts show whichever version you pick.",
+		sameAsCurrent: "Same as current",
 	},
 	simulate: {
 		listLabel: "Charts to edit",
@@ -1451,6 +1470,14 @@ export const zh: ClientMessages = {
 		label: "刷新文件缓存",
 		hint: "重新加载曲绘、音乐、视频和谱面包，不使用浏览器保存的副本",
 	},
+	domainMove: {
+		label: "网站迁移",
+		title: "PhiBot 有新地址了",
+		text: "PhiBot 正在迁移到 phibot.dev，此地址以后可能停止服务，请更新书签。",
+		signIn: "在新地址需要重新登录，账号和存档不受影响。",
+		go: "前往 phibot.dev",
+		stay: "暂时留在这里",
+	},
 	brand: "PhiBot",
 	skip: "跳到正文",
 	signIn: "使用 Discord 继续",
@@ -1719,6 +1746,7 @@ export const zh: ClientMessages = {
 		version: "游戏版本",
 		versionCurrent: "当前（{v}）",
 		versionNote: "显示该版本时的谱面。Legacy 谱面不随版本切换，始终显示。",
+		sameAsCurrent: "与最新相同",
 	},
 	simulate: {
 		listLabel: "可编辑的谱面",
