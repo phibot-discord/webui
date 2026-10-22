@@ -12,12 +12,7 @@ import {
 } from "@/phi/lib/cloud-save";
 import { kvKey } from "@/phi/lib/const";
 import { Summary } from "@/phi/lib/phigros";
-import {
-	asSessionToken,
-	blobRegion,
-	getToken,
-	readSaveRaw,
-} from "@/phi/lib/saves";
+import { blobRegion, getToken, readSaveRaw } from "@/phi/lib/saves";
 import { isTapApiFailure } from "@/phi/lib/tapapi";
 import {
 	parseQrStored,
@@ -205,7 +200,10 @@ type Pair = {
 	toRow?: CloudRow;
 };
 
-async function readPair(from: Account, to: Account): Promise<Pair | MigrateErr> {
+async function readPair(
+	from: Account,
+	to: Account,
+): Promise<Pair | MigrateErr> {
 	const [a, b] = await Promise.all([readAccount(from), readAccount(to)]);
 	if ("error" in a) return a;
 	if ("error" in b) return b;
@@ -485,6 +483,7 @@ async function runMigrateFor(
 	const upload: SaveUpload = {
 		userId: pair.toSave.userId,
 		rowId: pair.toRow?.objectId,
+		name: pair.fromRow.name,
 		zip,
 		summary: pair.fromRow.summary,
 	};

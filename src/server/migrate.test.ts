@@ -37,6 +37,7 @@ const CN_SUMMARY = summary(312, 12.5, 118);
 
 type Row = {
 	objectId: string;
+	name?: string;
 	summary: string;
 	modifiedAt: { iso: string };
 	gameFile: { objectId: string; url: string };
@@ -84,9 +85,16 @@ let writeStatus = 200;
 let ignoreWrites = false;
 let seq = 0;
 
-function row(id: string, sum: string, file: string, iso: string): Row {
+function row(
+	id: string,
+	sum: string,
+	file: string,
+	iso: string,
+	name = "save",
+): Row {
 	return {
 		objectId: id,
+		name,
 		summary: sum,
 		modifiedAt: { iso },
 		gameFile: { objectId: file, url: `${FILES}/${file}` },
@@ -153,7 +161,15 @@ beforeEach(async () => {
 	const cnA: Account = {
 		userId: "cnUserA",
 		nickname: "CN Source",
-		rows: [row("cnRowA", CN_SUMMARY, "cnAFile", "2026-09-01T00:00:00.000Z")],
+		rows: [
+			row(
+				"cnRowA",
+				CN_SUMMARY,
+				"cnAFile",
+				"2026-09-01T00:00:00.000Z",
+				"cnSlot",
+			),
+		],
 	};
 	cloud = {
 		gb: new Map([
@@ -212,21 +228,34 @@ beforeEach(async () => {
 			if (path.startsWith("/classes/_GameSave")) {
 				if (writeStatus !== 200) return json({ error: "down" }, writeStatus);
 				const sent = JSON.parse(String(init.body)) as {
+					name?: string;
 					summary: string;
 					modifiedAt: { iso: string };
 					gameFile: { objectId: string };
 				};
-				const next = (id: string) =>
-					row(id, sent.summary, sent.gameFile.objectId, sent.modifiedAt.iso);
+				const next = (id: string, name?: string) =>
+					row(
+						id,
+						sent.summary,
+						sent.gameFile.objectId,
+						sent.modifiedAt.iso,
+						name,
+					);
 				if (method === "POST" && path === "/classes/_GameSave") {
+					if (!sent.name)
+						return json(
+							{ code: 142, error: "Field 'name' is required for _GameSave" },
+							400,
+						);
 					const id = `newRow${++seq}`;
-					if (!ignoreWrites) account.rows.push(next(id));
+					if (!ignoreWrites) account.rows.push(next(id, sent.name));
 					return json({ objectId: id }, 201);
 				}
 				const id = path.slice("/classes/_GameSave/".length);
 				const at = account.rows.findIndex((r) => r.objectId === id);
 				if (method === "PUT" && at >= 0) {
-					if (!ignoreWrites) account.rows[at] = next(id);
+					if (!ignoreWrites)
+						account.rows[at] = next(id, sent.name ?? account.rows[at]?.name);
 					return json({ updatedAt: sent.modifiedAt.iso });
 				}
 			}
@@ -344,6 +373,7 @@ test("another account as From, and a To with no save gets a new row", async () =
 	const made = cloud.gb.get(GB_B)?.rows ?? [];
 	assert.equal(made.length, 1);
 	assert.equal(made[0]?.summary, CN_SUMMARY);
+	assert.equal(made[0]?.name, "cnSlot", "the From row's name");
 	assert.deepEqual(files.get(made[0]?.gameFile.objectId ?? ""), cnZip);
 	const undo = undoOf("u2", "gb", "gbUserB");
 	assert.equal(undo.row, null);

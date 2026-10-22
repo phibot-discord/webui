@@ -91,7 +91,15 @@ function fakeCloud(
 				method === "PUT") ||
 			(!row && u.pathname === "/1.1/classes/_GameSave" && method === "POST")
 		) {
-			const sent = JSON.parse(String(body)) as { summary: string };
+			const sent = JSON.parse(String(body)) as {
+				name?: string;
+				summary: string;
+			};
+			if (method === "POST" && !sent.name)
+				return json(
+					{ code: 142, error: "Field 'name' is required for _GameSave" },
+					400,
+				);
 			row = {
 				objectId: row?.objectId ?? "row2",
 				summary: sent.summary,
@@ -221,7 +229,7 @@ test("uploadCloudSave sends the ZIP and summary verbatim, then points the row at
 	}
 });
 
-test("an account without a save row gets one POSTed with the same body", async () => {
+test("an account without a save row gets one POSTed with the same body and a name", async () => {
 	const zip = await saveZip();
 	const now = new Date("2026-10-22T08:00:00.000Z");
 	const upload = { userId: "cnUser", zip, summary: "Z2Itc3VtbWFyeQ==" };
@@ -246,10 +254,11 @@ test("an account without a save row gets one POSTed with the same body", async (
 			saves.map((c) => `${c.method} ${c.url}`),
 			[`POST ${CN}/classes/_GameSave`],
 		);
-		assert.deepEqual(
-			JSON.parse(String(saves[0]!.body)),
-			JSON.parse(String(putBody)),
-		);
+		assert.deepEqual(JSON.parse(String(saves[0]!.body)), {
+			name: "save",
+			...JSON.parse(String(putBody)),
+		});
+		assert.equal(JSON.parse(String(putBody)).name, undefined);
 		const row = await verifyCloudSave("cnSession", false, written, upload);
 		assert.equal(row.objectId, "row2");
 		assert.equal(row.gameFile?.objectId, "newFile");

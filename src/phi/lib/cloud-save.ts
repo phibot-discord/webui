@@ -43,6 +43,7 @@ export class CloudWriteError extends CloudSaveError {
 
 export type CloudRow = {
 	objectId: string;
+	name?: string;
 	summary: string;
 	modifiedAt?: { iso?: string };
 	updatedAt?: string;
@@ -284,6 +285,8 @@ export type SaveUpload = {
 	userId: string;
 	/** Absent: the account has no `_GameSave` row yet, so one is created */
 	rowId?: string;
+	/** Required by `_GameSave` when a row is created; the game's own rows say "save" */
+	name?: string;
 	zip: Buffer;
 	summary: string;
 };
@@ -350,7 +353,7 @@ export async function uploadCloudSave(
 			global,
 			session,
 			"/classes/_GameSave",
-			{ method: "POST", body: row },
+			{ method: "POST", body: { name: save.name || "save", ...row } },
 		);
 		if (!created.objectId)
 			throw new CloudWriteError("the new cloud save has no objectId");
