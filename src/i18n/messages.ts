@@ -113,6 +113,7 @@ export type ClientMessages = {
 		dismiss: string;
 		close: string;
 		open: string;
+		earlier: string;
 	};
 	nav: {
 		cards: string;
@@ -449,9 +450,6 @@ export type ClientMessages = {
 		useBound: string;
 		boundNote: string;
 		otherFrom: string;
-		qrTitle: string;
-		tokenTitle: string;
-		tokenLabel: string;
 		tokenHint: string;
 		tokenSubmit: string;
 		connecting: string;
@@ -464,7 +462,6 @@ export type ClientMessages = {
 		field: string;
 		source: string;
 		target: string;
-		server: string;
 		player: string;
 		rks: string;
 		challenge: string;
@@ -918,6 +915,7 @@ export const en: ClientMessages = {
 		dismiss: "Got it",
 		close: "Close",
 		open: "What's new",
+		earlier: "Earlier updates",
 	},
 	nav: {
 		cards: "Cards",
@@ -1288,9 +1286,6 @@ export const en: ClientMessages = {
 		useBound: "Use bound account",
 		boundNote: "The account bound on PhiBot",
 		otherFrom: "Or sign in to another account",
-		qrTitle: "TapTap QR code or link",
-		tokenTitle: "Paste a sessionToken",
-		tokenLabel: "sessionToken",
 		tokenHint:
 			"The 25-character token of that account on the server picked above. It is only used for this copy.",
 		tokenSubmit: "Use token",
@@ -1298,7 +1293,7 @@ export const en: ClientMessages = {
 		failed: "Could not read that account. Try again.",
 		change: "Change",
 		realName:
-			"實名認證: a CN TapTap account has to finish real-name verification in the TapTap app before Phigros CN lets it sign in and download the save.",
+			"A CN TapTap account has to finish real-name verification in the TapTap app before Phigros CN lets it sign in and download the save.",
 		previewTitle: "3. Check both saves",
 		previewLede:
 			"The To account's cloud save is replaced with the From save. The From save stays as it is.",
@@ -1306,7 +1301,6 @@ export const en: ClientMessages = {
 		field: "Save",
 		source: "From",
 		target: "To (replaced)",
-		server: "Server",
 		player: "Player",
 		rks: "RKS",
 		challenge: "Challenge Mode",
@@ -1799,6 +1793,7 @@ export const zh: ClientMessages = {
 		dismiss: "知道了",
 		close: "关闭",
 		open: "更新内容",
+		earlier: "更早的更新",
 	},
 	nav: {
 		cards: "成绩图",
@@ -2141,7 +2136,8 @@ export const zh: ClientMessages = {
 		tokenHidden: "已隐藏",
 		tokenFailed: "无法加载 Token，请重试。",
 		migrateTitle: "迁移存档",
-		migrateLede: "把 Phigros 云存档复制到另一个 TapTap 账号，国服或国际服都可以。",
+		migrateLede:
+			"把 Phigros 云存档复制到另一个 TapTap 账号，国服或国际服都可以。",
 		migrateOpen: "迁移存档",
 	},
 	migrate: {
@@ -2155,23 +2151,19 @@ export const zh: ClientMessages = {
 		useBound: "使用已绑定的账号",
 		boundNote: "在 PhiBot 绑定的账号",
 		otherFrom: "或登录另一个账号",
-		qrTitle: "TapTap 二维码或链接",
-		tokenTitle: "粘贴 sessionToken",
-		tokenLabel: "sessionToken",
 		tokenHint: "上面所选区服中该账号的 25 位 Token，只用于这次迁移。",
 		tokenSubmit: "使用 Token",
 		connecting: "正在读取存档…",
 		failed: "无法读取这个账号，请重试。",
 		change: "更换",
 		realName:
-			"實名認證：国服 TapTap 账号需要先在 TapTap App 里完成实名认证，国服 Phigros 才能登录并下载存档。",
+			"国服 TapTap 账号需要先在 TapTap App 里完成实名认证，国服 Phigros 才能登录并下载存档。",
 		previewTitle: "3. 核对两边的存档",
 		previewLede: "目标账号的云存档会被来源存档替换。来源存档不会改动。",
 		compare: "来源存档与目标存档",
 		field: "存档",
 		source: "来源",
 		target: "目标（将被替换）",
-		server: "区服",
 		player: "玩家",
 		rks: "RKS",
 		challenge: "课题模式",
@@ -2195,7 +2187,8 @@ export const zh: ClientMessages = {
 			"同步云存档，并选择下载到设备。",
 			"下载之前不要在那台设备上上传，否则它本地的旧存档会覆盖这份副本。",
 		],
-		doneBound: "目标账号就是在 PhiBot 绑定的账号。请在成绩图页面刷新以载入新存档。",
+		doneBound:
+			"目标账号就是在 PhiBot 绑定的账号。请在成绩图页面刷新以载入新存档。",
 		doneBind:
 			"PhiBot 仍然跟踪你已绑定的账号。想在这里跟踪目标账号，请解绑后重新绑定它。",
 	},

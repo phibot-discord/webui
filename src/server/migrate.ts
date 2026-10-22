@@ -12,28 +12,30 @@ import {
 } from "@/phi/lib/cloud-save";
 import { kvKey } from "@/phi/lib/const";
 import { Summary } from "@/phi/lib/phigros";
-import { blobRegion, getToken, readSaveRaw } from "@/phi/lib/saves";
+import {
+	asSessionToken,
+	blobRegion,
+	getToken,
+	readSaveRaw,
+} from "@/phi/lib/saves";
 import { isTapApiFailure } from "@/phi/lib/tapapi";
 import {
-	parseQrStored,
-	QR_PENDING,
+	asServer,
+	type BindServer,
+	clearQrAt,
+	peekQrAt,
 	type QrResume,
 	qrPngAt,
-	qrSucceeded,
 	requestQr,
 } from "./bind";
 import { type DataHost, getDataHost } from "./data-host";
 import { logger, withDiscordUid } from "./logger";
 
 export type Slot = "from" | "to";
-export type Server = "cn" | "gb";
+export type Server = BindServer;
 
 export function asSlot(raw: unknown): Slot | undefined {
 	return raw === "from" || raw === "to" ? raw : undefined;
-}
-
-function asServer(raw: unknown): Server {
-	return raw === "gb" || raw === "global" ? "gb" : "cn";
 }
 
 const QR_KEY = (userId: string, slot: Slot) =>
@@ -129,17 +131,21 @@ export async function boundAccount(
 	return out;
 }
 
-function failMigrate(err: unknown): MigrateErr {
-	logger.error("migrate failed", err instanceof Error ? err : String(err));
-	if (isTapApiFailure(err)) return { error: "tapapi_unavailable", status: 502 };
+function logDetail(what: string, err: unknown): string | undefined {
 	const msg = err instanceof Error ? err.message : String(err);
-	return { error: "migrate_failed", status: 502, detail: msg || undefined };
+	logger.error(what, err instanceof Error ? err : msg);
+	return msg || undefined;
+}
+
+function failMigrate(err: unknown): MigrateErr {
+	const detail = logDetail("migrate failed", err);
+	if (isTapApiFailure(err)) return { error: "tapapi_unavailable", status: 502 };
+	return { error: "migrate_failed", status: 502, detail };
 }
 
 function unverified(err: unknown): MigrateErr {
-	logger.error("migrate unverified", err instanceof Error ? err : String(err));
-	const msg = err instanceof Error ? err.message : String(err);
-	return { error: "migrate_unverified", status: 502, detail: msg || undefined };
+	const detail = logDetail("migrate unverified", err);
+	return { error: "migrate_unverified", status: 502, detail };
 }
 
 function rowRev(row: CloudRow | undefined): string {
@@ -151,23 +157,30 @@ function serverOf(account: Account): Server {
 	return account.global ? "gb" : "cn";
 }
 
-function side(
-	account: Account,
-	save: CloudSave,
-	row: CloudRow | undefined,
-): SaveSide {
+function summaryOf(raw: string): Summary | undefined {
+	try {
+		return new Summary(raw);
+	} catch {
+		return undefined;
+	}
+}
+
+type Read = { account: Account; save: CloudSave; row?: CloudRow };
+type SourceRead = Read & { row: CloudRow };
+type Pair = { from: SourceRead; to: Read };
+
+function hasSource(read: Read): read is SourceRead {
+	return Boolean(read.row?.gameFile?.url);
+}
+
+function side({ account, save, row }: Read): SaveSide {
 	const base: SaveSide = {
 		server: serverOf(account),
 		player: save.nickname || "",
 		hasSave: Boolean(row),
 	};
 	if (!row) return base;
-	let summary: Summary | undefined;
-	try {
-		summary = new Summary(row.summary);
-	} catch {
-		summary = undefined;
-	}
+	const summary = summaryOf(row.summary);
 	const rks = summary?.rankingScore;
 	return {
 		...base,
@@ -178,27 +191,16 @@ function side(
 	};
 }
 
-async function readAccount(
-	account: Account,
-): Promise<{ save: CloudSave; row?: CloudRow } | MigrateErr> {
+async function readAccount(account: Account): Promise<Read | MigrateErr> {
 	try {
 		const save = await readCloudSave(account.token, account.global);
-		return { save, row: latestRow(save.rows) };
+		return { account, save, row: latestRow(save.rows) };
 	} catch (err) {
 		if (err instanceof CloudSessionError)
 			return { error: "migrate_rejected", status: 400 };
 		return failMigrate(err);
 	}
 }
-
-type Pair = {
-	from: Account;
-	to: Account;
-	fromSave: CloudSave;
-	fromRow: CloudRow;
-	toSave: CloudSave;
-	toRow?: CloudRow;
-};
 
 async function readPair(
 	from: Account,
@@ -207,32 +209,24 @@ async function readPair(
 	const [a, b] = await Promise.all([readAccount(from), readAccount(to)]);
 	if ("error" in a) return a;
 	if ("error" in b) return b;
-	if (!a.row?.gameFile?.url)
-		return { error: "migrate_no_source_save", status: 409 };
+	if (!hasSource(a)) return { error: "migrate_no_source_save", status: 409 };
 	if (from.global === to.global && a.save.userId === b.save.userId)
 		return { error: "migrate_same_account", status: 409 };
-	return {
-		from,
-		to,
-		fromSave: a.save,
-		fromRow: a.row,
-		toSave: b.save,
-		toRow: b.row,
-	};
+	return { from: a, to: b };
 }
 
-async function preview(
-	host: DataHost,
-	userId: string,
-	pair: Pair,
-): Promise<MigratePreview> {
-	const from = side(pair.from, pair.fromSave, pair.fromRow);
-	const to = side(pair.to, pair.toSave, pair.toRow);
+function revsOf(pair: Pair) {
+	return { from: rowRev(pair.from.row), to: rowRev(pair.to.row) };
+}
+
+function preview(pair: Pair, bound: string | undefined): MigratePreview {
+	const from = side(pair.from);
+	const to = side(pair.to);
 	return {
 		from,
 		to,
 		newer: to.hasSave && (from.gameVersion ?? 0) > (to.gameVersion ?? 0),
-		toIsBound: (await getToken(host.rt, userId)) === pair.to.token,
+		toIsBound: bound === pair.to.account.token,
 	};
 }
 
@@ -251,7 +245,11 @@ function writeState(host: DataHost, userId: string, state: State) {
 	return host.db.set(STATE_KEY(userId), JSON.stringify(state), STATE_TTL_MS);
 }
 
-export type SlotReady = { side: SaveSide; preview?: MigratePreview };
+export type SlotReady = {
+	status: "ready";
+	side: SaveSide;
+	preview?: MigratePreview;
+};
 
 /** From: its save must exist, and To starts over. To: needs From, then both are read for the preview */
 async function connectSlot(
@@ -263,22 +261,25 @@ async function connectSlot(
 	if (slot === "from") {
 		const read = await readAccount(account);
 		if ("error" in read) return read;
-		if (!read.row?.gameFile?.url)
+		if (!hasSource(read))
 			return { error: "migrate_no_source_save", status: 409 };
 		await writeState(host, userId, { from: account });
-		return { side: side(account, read.save, read.row) };
+		return { status: "ready", side: side(read) };
 	}
 	const state = await readState(host, userId);
 	if (!state.from) return { error: "migrate_expired", status: 410 };
 	const pair = await readPair(state.from, account);
 	if ("error" in pair) return pair;
-	await writeState(host, userId, {
-		from: state.from,
-		to: account,
-		revs: { from: rowRev(pair.fromRow), to: rowRev(pair.toRow) },
-	});
-	const view = await preview(host, userId, pair);
-	return { side: view.to, preview: view };
+	const [bound] = await Promise.all([
+		getToken(host.rt, userId),
+		writeState(host, userId, {
+			from: state.from,
+			to: account,
+			revs: revsOf(pair),
+		}),
+	]);
+	const view = preview(pair, bound);
+	return { status: "ready", side: view.to, preview: view };
 }
 
 /** The bound account as From; its server comes off the blob, else CN is tried before Global */
@@ -290,18 +291,14 @@ export async function boundAsFrom(
 		const token = await getToken(host.rt, userId);
 		if (!token) return { error: "not_bound", status: 409 };
 		const region = blobRegion(await readSaveRaw(host.db, token));
+		const connect = (global: boolean) =>
+			connectSlot(host, userId, "from", { token, global });
 		try {
-			if (region != null)
-				return await connectSlot(host, userId, "from", {
-					token,
-					global: region,
-				});
-			const cn = await connectSlot(host, userId, "from", {
-				token,
-				global: false,
-			});
-			if (!("error" in cn) || cn.error !== "migrate_rejected") return cn;
-			return await connectSlot(host, userId, "from", { token, global: true });
+			if (region != null) return await connect(region);
+			const cn = await connect(false);
+			return "error" in cn && cn.error === "migrate_rejected"
+				? await connect(true)
+				: cn;
 		} catch (err) {
 			return failMigrate(err);
 		}
@@ -317,12 +314,11 @@ export async function startMigrateQr(
 > {
 	return withDiscordUid(userId, async () => {
 		const host = await getDataHost();
-		await clearMigrateQr(userId, slot);
 		try {
-			const { stored, ...shown } = await requestQr(
-				host.rt,
-				asServer(server) === "gb",
-			);
+			const [{ stored, ...shown }] = await Promise.all([
+				requestQr(host.rt, asServer(server) === "gb"),
+				clearMigrateQr(userId, slot),
+			]);
 			await host.db.set(
 				QR_KEY(userId, slot),
 				JSON.stringify(stored),
@@ -339,25 +335,11 @@ export function migrateQrPng(userId: string, slot: Slot) {
 	return qrPngAt(QR_KEY(userId, slot));
 }
 
-export async function peekMigrateQr(
+export function peekMigrateQr(
 	userId: string,
 	slot: Slot,
 ): Promise<{ status: "waiting" | "scanned" } | MigrateErr | QrResume> {
-	const host = await getDataHost();
-	const stored = parseQrStored(await host.db.get(QR_KEY(userId, slot)));
-	if (!stored) return { error: "qr_expired", status: 410 };
-	const useGlobal = stored.global === true;
-	const result = await host.rt.getQRcode.checkQRCodeResult(stored, useGlobal);
-	if (qrSucceeded(result) && result) return { resume: { result, useGlobal } };
-	const err = result?.data?.error;
-	if (err === "authorization_waiting") return { status: "scanned" };
-	if (err != null && !QR_PENDING.has(err)) {
-		if (await host.store.get(QR_LOCK(userId, slot)))
-			return { status: "scanned" };
-		await host.db.del(QR_KEY(userId, slot)).catch(() => undefined);
-		return { error: "qr_expired", status: 410 };
-	}
-	return { status: "waiting" };
+	return peekQrAt(QR_KEY(userId, slot), QR_LOCK(userId, slot));
 }
 
 export async function finishMigrateQr(
@@ -373,26 +355,26 @@ export async function finishMigrateQr(
 		});
 		if (locked !== "OK") return { error: "qr_busy", status: 409 };
 		try {
-			let token: string;
+			let token: string | undefined;
 			try {
-				token = String(
-					(await host.rt.getQRcode.getSessionToken(
-						resume.result,
-						resume.useGlobal,
-					)) || "",
-				).replace(/\s/g, "");
+				token = asSessionToken(
+					String(
+						(await host.rt.getQRcode.getSessionToken(
+							resume.result,
+							resume.useGlobal,
+						)) || "",
+					),
+				);
 			} catch (err) {
 				return failMigrate(err);
 			}
-			if (!/^[a-z0-9A-Z]{25}$/.test(token))
-				return { error: "invalid_token", status: 400 };
+			if (!token) return { error: "invalid_token", status: 400 };
 			return await connectSlot(host, userId, slot, {
 				token,
 				global: resume.useGlobal,
 			}).catch(failMigrate);
 		} finally {
-			await host.db.del(QR_KEY(userId, slot)).catch(() => undefined);
-			await host.store.del(QR_LOCK(userId, slot)).catch(() => 0);
+			await clearMigrateQr(userId, slot);
 		}
 	});
 }
@@ -404,16 +386,18 @@ export async function connectMigrateToken(
 	server: unknown,
 ): Promise<SlotReady | MigrateErr> {
 	return withDiscordUid(userId, async () => {
-		const token = String(rawToken || "").replace(/\s/g, "");
-		if (!/^[a-z0-9A-Z]{25}$/.test(token))
-			return { error: "invalid_token", status: 400 };
+		const token = asSessionToken(rawToken);
+		if (!token) return { error: "invalid_token", status: 400 };
 		const host = await getDataHost();
-		await host.db.del(QR_KEY(userId, slot)).catch(() => undefined);
 		try {
-			return await connectSlot(host, userId, slot, {
-				token,
-				global: asServer(server) === "gb",
-			});
+			const [, ready] = await Promise.all([
+				host.db.del(QR_KEY(userId, slot)).catch(() => undefined),
+				connectSlot(host, userId, slot, {
+					token,
+					global: asServer(server) === "gb",
+				}),
+			]);
+			return ready;
 		} catch (err) {
 			return failMigrate(err);
 		}
@@ -455,71 +439,79 @@ async function runMigrateFor(
 		return { error: "migrate_expired", status: 410 };
 	const pair = await readPair(state.from, state.to);
 	if ("error" in pair) return pair;
-	const revs = { from: rowRev(pair.fromRow), to: rowRev(pair.toRow) };
+	const { from, to } = pair;
+	const revs = revsOf(pair);
 	if (revs.from !== state.revs.from || revs.to !== state.revs.to) {
-		await writeState(host, userId, { ...state, revs });
+		const [bound] = await Promise.all([
+			getToken(host.rt, userId),
+			writeState(host, userId, { ...state, revs }),
+		]);
 		return {
 			error: "migrate_changed",
 			status: 409,
-			preview: await preview(host, userId, pair),
+			preview: preview(pair, bound),
 		};
 	}
-	const zip = await downloadSaveZip(pair.fromRow.gameFile?.url ?? "");
-	const toServer = serverOf(pair.to);
+	const zip = await downloadSaveZip(from.row.gameFile?.url ?? "");
+	const toServer = serverOf(to.account);
 	await host.store.set(
-		UNDO_KEY(userId, toServer, pair.toSave.userId),
+		UNDO_KEY(userId, toServer, to.save.userId),
 		JSON.stringify({
 			at: new Date().toISOString(),
 			server: toServer,
-			user: pair.toSave.userId,
-			row: pair.toRow?.objectId ?? null,
-			gameFile: pair.toRow?.gameFile?.objectId,
-			url: pair.toRow?.gameFile?.url,
-			summary: pair.toRow?.summary,
-			modifiedAt: pair.toRow?.modifiedAt?.iso,
+			user: to.save.userId,
+			row: to.row?.objectId ?? null,
+			gameFile: to.row?.gameFile?.objectId,
+			url: to.row?.gameFile?.url,
+			summary: to.row?.summary,
+			modifiedAt: to.row?.modifiedAt?.iso,
 		}),
 		{ nx: true, ttlMs: UNDO_TTL_MS },
 	);
 	const upload: SaveUpload = {
-		userId: pair.toSave.userId,
-		rowId: pair.toRow?.objectId,
-		name: pair.fromRow.name,
+		userId: to.save.userId,
+		rowId: to.row?.objectId,
+		name: from.row.name,
 		zip,
-		summary: pair.fromRow.summary,
+		summary: from.row.summary,
 	};
+	const { token, global } = to.account;
 	let written: { fileId: string; rowId: string };
 	try {
-		written = await uploadCloudSave(pair.to.token, pair.to.global, upload);
+		written = await uploadCloudSave(token, global, upload);
 	} catch (err) {
 		if (err instanceof CloudWriteError) return unverified(err);
 		throw err;
 	}
 	logger.info(
-		`migrate ${serverOf(pair.from)}→${toServer} ${upload.rowId ? "updated" : "created"} ${written.rowId} file ${written.fileId} (${zip.length} bytes)`,
+		`migrate ${serverOf(from.account)}→${toServer} ${upload.rowId ? "updated" : "created"} ${written.rowId} file ${written.fileId} (${zip.length} bytes)`,
 	);
 	let row: CloudRow;
 	try {
-		row = await verifyCloudSave(pair.to.token, pair.to.global, written, upload);
+		row = await verifyCloudSave(token, global, written, upload);
 	} catch (err) {
 		return unverified(err);
 	}
-	await host.db.del(STATE_KEY(userId)).catch(() => undefined);
+	const [bound] = await Promise.all([
+		getToken(host.rt, userId),
+		host.db.del(STATE_KEY(userId)).catch(() => undefined),
+	]);
 	return {
 		status: "done",
-		to: side(pair.to, pair.toSave, row),
-		toIsBound: (await getToken(host.rt, userId)) === pair.to.token,
+		to: side({ ...to, row }),
+		toIsBound: bound === token,
 	};
 }
 
-export async function clearMigrateQr(userId: string, slot: Slot) {
-	const host = await getDataHost();
-	await host.db.del(QR_KEY(userId, slot)).catch(() => undefined);
-	await host.store.del(QR_LOCK(userId, slot)).catch(() => 0);
+export function clearMigrateQr(userId: string, slot: Slot) {
+	return clearQrAt(QR_KEY(userId, slot), QR_LOCK(userId, slot));
 }
 
 export async function resetMigrate(userId: string) {
 	const host = await getDataHost();
-	await clearMigrateQr(userId, "from");
-	await clearMigrateQr(userId, "to");
-	await host.db.del(STATE_KEY(userId)).catch(() => undefined);
+	await Promise.all([
+		clearMigrateQr(userId, "from"),
+		clearMigrateQr(userId, "to"),
+		host.db.del(STATE_KEY(userId)).catch(() => undefined),
+	]);
 }

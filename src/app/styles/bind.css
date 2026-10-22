@@ -139,7 +139,8 @@
 	font-variant-numeric: tabular-nums;
 }
 
-.bind-qr-actions {
+.bind-qr-actions,
+.migrate-actions {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--space-2);
@@ -460,20 +461,18 @@
 	overflow-wrap: anywhere;
 }
 
-.migrate-warn {
-	margin: 0;
-	padding: var(--space-3) var(--space-4);
-	border: 1px solid var(--accent);
-	border-radius: var(--radius-md);
-	background: color-mix(in oklch, var(--accent) 12%, transparent);
-}
-
+.migrate-warn,
 .migrate-note {
 	margin: 0;
 	padding: var(--space-3) var(--space-4);
 	border: 1px solid var(--line-strong);
 	border-radius: var(--radius-md);
 	background: var(--surface);
+}
+
+.migrate-warn {
+	border-color: var(--accent);
+	background: color-mix(in oklch, var(--accent) 12%, transparent);
 }
 
 .migrate-account {
@@ -540,12 +539,6 @@
 	color: var(--muted);
 	font-size: var(--text-sm);
 	font-weight: 500;
-}
-
-.migrate-actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--space-2);
 }
 
 .migrate-steps {

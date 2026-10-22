@@ -1,17 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import {
-	type FormEvent,
-	type ReactNode,
-	useEffect,
-	useId,
-	useRef,
-	useState,
-} from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { SyncTime } from "@/components/Desk";
 import { Announce, SteadyButton } from "@/components/Tool";
-import { TapQrColumn, TapServerSeg, useTapQr } from "@/components/useTapQr";
+import {
+	TapQrColumn,
+	TapServerSeg,
+	TapTokenColumn,
+	useTapQr,
+} from "@/components/useTapQr";
 import { useI18n } from "@/i18n/provider";
 import { apiErrorText } from "@/lib/api-error";
 import { displayPlayerId, displayRks } from "@/lib/player-display";
@@ -29,7 +27,6 @@ type Done = { to: SaveSide; toIsBound: boolean };
 type TapQr = ReturnType<typeof useTapQr<"connecting">>;
 type TapData = Awaited<ReturnType<typeof readJsonWithTapWait>>["data"];
 
-const TOKEN_LEN = 25;
 const WAIT_S = 5;
 
 function asSide(raw: unknown): SaveSide | undefined {
@@ -51,15 +48,41 @@ function settle(qr: TapQr) {
 	qr.setError(undefined);
 }
 
+function serverLabel(bind: { cn: string; gb: string }, server: Server) {
+	return server === "gb" ? bind.gb : bind.cn;
+}
+
+async function connectVia(
+	qr: TapQr,
+	send: () => Promise<Response>,
+	onReady: (data: TapData) => boolean,
+	failed: string,
+	unavailable: string,
+): Promise<boolean> {
+	qr.setError(undefined);
+	qr.setWaitingTap(false);
+	if (qr.showQr) void qr.cancelQr();
+	qr.setPhase("connecting");
+	try {
+		const { httpStatus, data } = await readJsonWithTapWait(await send(), () =>
+			qr.setWaitingTap(true),
+		);
+		if (onReady(data)) return true;
+		qr.fail(apiErrorText({ status: httpStatus }, data, unavailable, failed));
+	} catch {
+		qr.fail(failed);
+	}
+	return false;
+}
+
 export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 	const { m } = useI18n();
 	const t = m.migrate;
 	const ids = useId();
-	const [step, setStep] = useState<Step>("from");
 	const [from, setFrom] = useState<SaveSide>();
 	const [view, setView] = useState<MigratePreview>();
 	const [done, setDone] = useState<Done>();
-	const [notice, setNotice] = useState<string>();
+	const [changed, setChanged] = useState(false);
 	const [runError, setRunError] = useState<string>();
 	const [running, setRunning] = useState(false);
 	const [resetting, setResetting] = useState(false);
@@ -70,6 +93,7 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 	const toHead = useRef<HTMLHeadingElement>(null);
 	const reviewHead = useRef<HTMLHeadingElement>(null);
 	const doneHead = useRef<HTMLHeadingElement>(null);
+	const step: Step = done ? "done" : view ? "review" : from ? "to" : "from";
 	const lastStep = useRef(step);
 
 	const fromQr = useTapQr({
@@ -88,15 +112,13 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 	useEffect(() => {
 		if (lastStep.current === step) return;
 		lastStep.current = step;
-		const head =
-			step === "from"
-				? fromHead
-				: step === "to"
-					? toHead
-					: step === "review"
-						? reviewHead
-						: doneHead;
-		head.current?.focus();
+		const heads = {
+			from: fromHead,
+			to: toHead,
+			review: reviewHead,
+			done: doneHead,
+		};
+		heads[step].current?.focus();
 	}, [step]);
 
 	useEffect(() => {
@@ -114,17 +136,15 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 		setView(undefined);
 		settle(fromQr);
 		settle(toQr);
-		setStep("to");
 	}
 
 	function showPreview(next: MigratePreview) {
 		setView(next);
-		setNotice(undefined);
+		setChanged(false);
 		setRunError(undefined);
 		setUntil(Date.now() + WAIT_S * 1000);
 		setLeft(WAIT_S);
 		settle(toQr);
-		setStep("review");
 	}
 
 	function ready(slot: Slot, data: TapData): boolean {
@@ -155,11 +175,10 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 		setFrom(undefined);
 		setView(undefined);
 		setDone(undefined);
-		setNotice(undefined);
+		setChanged(false);
 		setRunError(undefined);
 		setUntil(0);
 		if (error) fromQr.setError(error);
-		setStep("from");
 		setResetting(false);
 	}
 
@@ -170,36 +189,21 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 
 	async function connectBound() {
 		if (fromQr.busy || resetting) return;
-		fromQr.setError(undefined);
-		fromQr.setWaitingTap(false);
-		if (fromQr.showQr) void fromQr.cancelQr();
-		fromQr.setPhase("connecting");
 		setBoundBusy(true);
-		try {
-			const res = await fetch("/api/migrate/bound", { method: "POST" });
-			const { httpStatus, data } = await readJsonWithTapWait(res, () =>
-				fromQr.setWaitingTap(true),
-			);
-			if (ready("from", data)) return;
-			fromQr.fail(
-				apiErrorText(
-					{ status: httpStatus },
-					data,
-					m.errors.tapapi_unavailable,
-					t.failed,
-				),
-			);
-		} catch {
-			fromQr.fail(t.failed);
-		} finally {
-			setBoundBusy(false);
-		}
+		await connectVia(
+			fromQr,
+			() => fetch("/api/migrate/bound", { method: "POST" }),
+			(data) => ready("from", data),
+			t.failed,
+			m.errors.tapapi_unavailable,
+		);
+		setBoundBusy(false);
 	}
 
 	async function run() {
 		if (!view || left > 0 || running || resetting) return;
 		setRunError(undefined);
-		setNotice(undefined);
+		setChanged(false);
 		setRunning(true);
 		try {
 			const res = await fetch("/api/migrate/run", {
@@ -214,13 +218,12 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 			const to = asSide(data.to);
 			if (!tapWaitFailed(res, data) && data.status === "done" && to) {
 				setDone({ to, toIsBound: data.toIsBound === true });
-				setStep("done");
 				return;
 			}
 			const next = asPreview(data.preview);
 			if (data.code === "migrate_changed" && next) {
 				showPreview(next);
-				setNotice(t.changed);
+				setChanged(true);
 				reviewHead.current?.focus();
 				return;
 			}
@@ -242,7 +245,6 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 		}
 	}
 
-	const serverName = (s: Server) => (s === "gb" ? m.bind.gb : m.bind.cn);
 	const waitLabel = (n: number) => t.wait.replaceAll("{seconds}", String(n));
 	const active = step === "to" ? toQr : fromQr;
 	const said = running
@@ -364,9 +366,9 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 						{t.previewTitle}
 					</h2>
 					<p className="lede">{t.previewLede}</p>
-					{notice ? (
+					{changed ? (
 						<p className="account-notice" role="status">
-							{notice}
+							{t.changed}
 						</p>
 					) : null}
 					<div className="migrate-table-wrap">
@@ -381,9 +383,9 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 							</thead>
 							<tbody>
 								<SideRow
-									label={t.server}
+									label={m.bind.server}
 									view={view}
-									cell={(s) => serverName(s.server)}
+									cell={(s) => serverLabel(m.bind, s.server)}
 								/>
 								<SideRow
 									label={t.player}
@@ -461,7 +463,10 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 					<ol className="migrate-steps">
 						{t.doneSteps.map((line) => (
 							<li key={line}>
-								{line.replaceAll("{server}", serverName(done.to.server))}
+								{line.replaceAll(
+									"{server}",
+									serverLabel(m.bind, done.to.server),
+								)}
 							</li>
 						))}
 					</ol>
@@ -495,47 +500,25 @@ function SignIn({
 	const { m } = useI18n();
 	const t = m.migrate;
 	const ids = useId();
-	const [token, setToken] = useState("");
 	const [tokenBusy, setTokenBusy] = useState(false);
 	const busy = qr.busy || otherBusy;
 
-	const typed = token.trim();
-	const tokenOk = new RegExp(`^[a-zA-Z0-9]{${TOKEN_LEN}}$`).test(typed);
-
-	async function submitToken(e: FormEvent) {
-		e.preventDefault();
-		if (!tokenOk || busy) return;
-		qr.setError(undefined);
-		qr.setWaitingTap(false);
-		if (qr.showQr) void qr.cancelQr();
-		qr.setPhase("connecting");
+	async function submitToken(token: string) {
 		setTokenBusy(true);
-		try {
-			const res = await fetch(`/api/migrate/${slot}/token`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ token: typed, server: qr.server }),
-			});
-			const { httpStatus, data } = await readJsonWithTapWait(res, () =>
-				qr.setWaitingTap(true),
-			);
-			if (onReady(data)) {
-				setToken("");
-				return;
-			}
-			qr.fail(
-				apiErrorText(
-					{ status: httpStatus },
-					data,
-					m.errors.tapapi_unavailable,
-					t.failed,
-				),
-			);
-		} catch {
-			qr.fail(t.failed);
-		} finally {
-			setTokenBusy(false);
-		}
+		const ok = await connectVia(
+			qr,
+			() =>
+				fetch(`/api/migrate/${slot}/token`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ token, server: qr.server }),
+				}),
+			onReady,
+			t.failed,
+			m.errors.tapapi_unavailable,
+		);
+		setTokenBusy(false);
+		return ok;
 	}
 
 	const column = {
@@ -545,19 +528,6 @@ function SignIn({
 			if (!busy) await qr.startQr();
 		},
 	};
-	const tokenCount = (
-		tokenOk
-			? m.bind.tokenReady
-			: /[^a-zA-Z0-9]/.test(typed)
-				? m.bind.tokenInvalid
-				: typed.length > TOKEN_LEN
-					? m.bind.tokenTooLong
-					: m.bind.tokenNeeds
-	).replaceAll("{n}", String(typed.length));
-	const qrTitleId = `${ids}-qr`;
-	const tokenTitleId = `${ids}-token`;
-	const tokenHintId = `${ids}-token-hint`;
-	const tokenCountId = `${ids}-token-count`;
 
 	return (
 		<>
@@ -571,59 +541,24 @@ function SignIn({
 			<div className="bind-methods">
 				<TapQrColumn
 					qr={column}
-					titleId={qrTitleId}
-					title={t.qrTitle}
+					titleId={`${ids}-qr`}
+					title={m.tapLogin.qrTitle}
 					signingLabel={
 						qr.phase === "connecting" && !tokenBusy && !otherBusy
 							? t.connecting
 							: undefined
 					}
 				/>
-				<section className="bind-token-col" aria-labelledby={tokenTitleId}>
-					<p className="bind-or" aria-hidden="true">
-						{m.bind.or}
-					</p>
-					<h2 id={tokenTitleId}>{t.tokenTitle}</h2>
-					<form className="bind-token" onSubmit={(e) => void submitToken(e)}>
-						<label className="field field-col">
-							<span className="field-label">{t.tokenLabel}</span>
-							<input
-								type="password"
-								name="sessionToken"
-								autoComplete="off"
-								autoCapitalize="off"
-								spellCheck={false}
-								maxLength={40}
-								value={token}
-								onChange={(e) => setToken(e.target.value)}
-								placeholder={m.bind.tokenPlaceholder}
-								aria-describedby={`${tokenHintId} ${tokenCountId}`}
-							/>
-						</label>
-						<p className="field-hint" id={tokenHintId}>
-							{t.tokenHint}
-						</p>
-						<p
-							className={`bind-token-count${tokenOk ? " is-ready" : ""}`}
-							id={tokenCountId}
-						>
-							{tokenCount}
-						</p>
-						<button
-							className="btn btn-ghost"
-							type="submit"
-							aria-disabled={busy || !tokenOk || undefined}
-							aria-busy={tokenBusy || undefined}
-							aria-describedby={tokenCountId}
-						>
-							{tokenBusy
-								? qr.waitingTap
-									? m.bind.waitingTap
-									: t.connecting
-								: t.tokenSubmit}
-						</button>
-					</form>
-				</section>
+				<TapTokenColumn
+					title={m.bind.tokenTitle}
+					hint={t.tokenHint}
+					submitLabel={t.tokenSubmit}
+					submittingLabel={t.connecting}
+					submitting={tokenBusy}
+					waitingTap={qr.waitingTap}
+					busy={busy}
+					onSubmit={submitToken}
+				/>
 			</div>
 		</>
 	);
@@ -654,8 +589,8 @@ function AccountCard({
 					<dl className="migrate-account-meta">
 						{server ? (
 							<div>
-								<dt>{t.server}</dt>
-								<dd>{server === "gb" ? m.bind.gb : m.bind.cn}</dd>
+								<dt>{m.bind.server}</dt>
+								<dd>{serverLabel(m.bind, server)}</dd>
 							</div>
 						) : null}
 						{rks != null ? (

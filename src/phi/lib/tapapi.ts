@@ -16,8 +16,9 @@ export const TAPAPI_SAVE_TIMEOUT_MS = 45_000;
 export const TAPAPI_QR_POLL_TIMEOUT_MS = 15_000;
 const TAPAPI_MAX_ATTEMPTS = 4;
 const TAP_RETRY_METHODS = new Set(["GET", "HEAD", "OPTIONS", "PUT", "DELETE"]);
-const TAP_CN_HOST =
-	/(?:^|\.)tapapis\.cn$|(?:^|\.)tapfiles\.cn$|(?:^|\.)qiniup\.com$/i;
+const TAP_CN_HOST = /(?:^|\.)tapapis\.cn$|(?:^|\.)tapfiles\.cn$/i;
+/** The game's save uploads; also proxied, as the CN tap-proxy reaches it */
+export const QINIU_HOST = /(?:^|\.)qiniup\.com$/i;
 const DEFAULT_TAP_PROXY = `${PHI_SYNC_ORIGIN}/tap-proxy`;
 
 export type TapLoginRegion = {
@@ -61,7 +62,7 @@ export function tapCnProxyUrl(url: string | URL): string | undefined {
 	if (!base) return;
 	try {
 		const host = (typeof url === "string" ? new URL(url) : url).hostname;
-		if (!TAP_CN_HOST.test(host)) return;
+		if (!TAP_CN_HOST.test(host) && !QINIU_HOST.test(host)) return;
 		return base;
 	} catch {
 		return;

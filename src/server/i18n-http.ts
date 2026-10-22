@@ -18,14 +18,7 @@ export async function localizedErrorBody(err: {
 	const locale = await getRequestLocale();
 	const key = asErrorKey(err.error);
 	const message = key ? catalogs[locale].errors[key] : err.error;
-	const body =
-		err.detail &&
-		(key === "refresh_failed" ||
-			key === "bind_failed" ||
-			key === "migrate_failed" ||
-			key === "migrate_unverified")
-			? `${message} ${err.detail}`
-			: message;
+	const body = err.detail ? `${message} ${err.detail}` : message;
 	return {
 		error: body,
 		code: err.error,

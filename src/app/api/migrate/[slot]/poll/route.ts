@@ -21,7 +21,7 @@ export async function POST(
 				async () => {
 					const result = await finishMigrateQr(userId, slot, peeked.resume);
 					if ("error" in result) return localizedErrorBody(result);
-					return { status: "ready", ...result };
+					return result;
 				},
 				{ error: "migrate_failed", code: "migrate_failed", status: 502 },
 			);

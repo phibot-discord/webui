@@ -32,7 +32,7 @@ export async function POST(
 					body.server,
 				);
 				if ("error" in result) return localizedErrorBody(result);
-				return { status: "ready", ...result };
+				return result;
 			},
 			{ error: "migrate_failed", code: "migrate_failed", status: 502 },
 		);

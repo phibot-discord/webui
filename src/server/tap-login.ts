@@ -2,7 +2,6 @@ import { randomBytes } from "node:crypto";
 import { kvKey } from "@/phi/lib/const";
 import { clearUser, getToken, updateSave } from "@/phi/lib/saves";
 import type { TapLogin } from "@/phi/lib/taptap";
-import { isGlobalTapLogin } from "@/phi/lib/taptap";
 import { tapSignInUser } from "./account-link";
 import { sealTapTicket } from "./auth-tickets";
 import { signInAvatar } from "./avatar";
@@ -10,12 +9,11 @@ import {
 	asServer,
 	type BindErr,
 	type BindOk,
+	clearQrAt,
 	failBind,
-	parseQrStored,
-	QR_PENDING,
+	peekQrAt,
 	type QrResume,
 	qrPngAt,
-	qrSucceeded,
 	requestQr,
 } from "./bind";
 import { playerFromSave } from "./bound";
@@ -60,24 +58,10 @@ export function tapLoginQrPng(loginId: string): Promise<Buffer | BindErr> {
 	return qrPngAt(LOGIN_KEY(loginId));
 }
 
-export async function peekTapLogin(
+export function peekTapLogin(
 	loginId: string,
 ): Promise<{ status: "waiting" | "scanned" } | BindErr | QrResume> {
-	const host = await getDataHost();
-	const stored = parseQrStored(await host.db.get(LOGIN_KEY(loginId)));
-	if (!stored) return { error: "qr_expired", status: 410 };
-	const useGlobal = isGlobalTapLogin(stored, stored.global);
-	const result = await host.rt.getQRcode.checkQRCodeResult(stored, useGlobal);
-	if (qrSucceeded(result) && result) return { resume: { result, useGlobal } };
-	const err = result?.data?.error;
-	if (err === "authorization_waiting") return { status: "scanned" };
-	// Denied or expired. While a finish holds the lock the code was just used: keep waiting
-	if (err != null && !QR_PENDING.has(err)) {
-		if (await host.store.get(LOGIN_LOCK(loginId))) return { status: "scanned" };
-		await clearTapLogin(loginId);
-		return { error: "qr_expired", status: 410 };
-	}
-	return { status: "waiting" };
+	return peekQrAt(LOGIN_KEY(loginId), LOGIN_LOCK(loginId));
 }
 
 async function bindSignIn(
@@ -144,8 +128,6 @@ export async function finishTapLogin(
 	}
 }
 
-export async function clearTapLogin(loginId: string) {
-	const host = await getDataHost();
-	await host.db.del(LOGIN_KEY(loginId)).catch(() => undefined);
-	await host.store.del(LOGIN_LOCK(loginId)).catch(() => 0);
+export function clearTapLogin(loginId: string) {
+	return clearQrAt(LOGIN_KEY(loginId), LOGIN_LOCK(loginId));
 }

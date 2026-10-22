@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { CHANGELOG, markSeen, readSeen, shouldOpen } from "./changelog";
-import { CHANGELOG_SECTIONS } from "./changelog-sections";
+import { CHANGELOG_RELEASES } from "./changelog-sections";
 
 test("the dialog opens once per version, and never by itself without storage", () => {
 	assert.equal(shouldOpen(null, "v2"), true);
@@ -48,13 +48,24 @@ test("storage that throws reads as unavailable and a dismissal is dropped", () =
 test("every item reads in both languages and links only inside the site", () => {
 	assert.ok(CHANGELOG.version.trim());
 	assert.match(CHANGELOG.date, /^\d{4}-\d{2}-\d{2}$/);
-	const items = CHANGELOG_SECTIONS.flatMap((s) => s.items);
+	const sections = CHANGELOG_RELEASES.flatMap((r) => r.sections);
+	const items = sections.flatMap((s) => s.items);
 	assert.ok(items.length >= 10);
-	for (const section of CHANGELOG_SECTIONS) {
+	for (const section of sections) {
 		assert.ok(section.heading.en && section.heading.zh);
 	}
 	for (const item of items) {
 		assert.ok(item.en.trim() && item.zh.trim(), item.en);
 		if (item.href) assert.match(item.href, /^\/[^/]/, item.href);
+	}
+});
+
+test("releases run newest first and the newest is this release", () => {
+	assert.equal(CHANGELOG_RELEASES[0]?.date, CHANGELOG.date);
+	for (const [i, release] of CHANGELOG_RELEASES.entries()) {
+		assert.match(release.date, /^\d{4}-\d{2}-\d{2}$/);
+		assert.ok(release.sections.length, release.date);
+		const next = CHANGELOG_RELEASES[i + 1];
+		if (next) assert.ok(next.date < release.date, next.date);
 	}
 });

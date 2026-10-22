@@ -81,6 +81,66 @@ html:has(.whats-new[open]) {
 	}
 }
 
+.whats-new-earlier {
+	margin: var(--space-6) 0 var(--space-2);
+	padding-top: var(--space-4);
+	border-top: 1px solid var(--line);
+	color: var(--muted);
+	font-size: var(--text-xs);
+	font-weight: 600;
+}
+
+.whats-new-older {
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+}
+
+.whats-new-older + .whats-new-older {
+	margin-top: var(--space-2);
+}
+
+.whats-new-older > summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	min-height: var(--tap);
+	padding: var(--space-2) var(--space-4);
+	cursor: pointer;
+	font-size: var(--text-sm);
+	font-weight: 500;
+	list-style: none;
+}
+
+.whats-new-older > summary::-webkit-details-marker {
+	display: none;
+}
+
+.whats-new-older > summary::after {
+	content: "›";
+	flex: none;
+	color: var(--muted);
+	font-size: var(--text-lg);
+	line-height: 1;
+	transition: transform var(--dur) var(--ease);
+}
+
+.whats-new-older[open] > summary::after {
+	transform: rotate(90deg);
+}
+
+.whats-new-older > .whats-new-section {
+	margin-inline: var(--space-4);
+}
+
+.whats-new-older > .whats-new-section:last-child {
+	padding-bottom: var(--space-4);
+}
+
+.whats-new-older > summary + .whats-new-section h3 {
+	margin-top: var(--space-1);
+}
+
 .whats-new-foot {
 	display: flex;
 	flex-wrap: wrap;

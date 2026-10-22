@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import JSZip from "jszip";
 import { logger } from "@/server/logger";
 import { cloudRegion } from "./phigros";
-import { TAPAPI_SAVE_TIMEOUT_MS, tapFetch } from "./tapapi";
+import { QINIU_HOST, TAPAPI_SAVE_TIMEOUT_MS, tapFetch } from "./tapapi";
 
 /** The five members every `.save` ZIP from the game holds */
 export const SAVE_ENTRIES = [
@@ -13,7 +13,6 @@ export const SAVE_ENTRIES = [
 	"user",
 ] as const;
 const SAVE_MAX_BYTES = 8 * 1024 * 1024;
-const QINIU_HOST = /(?:^|\.)qiniup\.com$/i;
 
 export class CloudSaveError extends Error {
 	readonly status?: number;
@@ -74,6 +73,17 @@ export function md5Hex(data: Buffer): string {
 	return createHash("md5").update(data).digest("hex");
 }
 
+async function jsonOrThrow<T>(res: Response, label: string): Promise<T> {
+	const body = (await res.json().catch(() => undefined)) as
+		| (T & { error?: string })
+		| undefined;
+	if (!res.ok) {
+		const why = typeof body?.error === "string" ? ` ${body.error}` : "";
+		throw new CloudSaveError(`${label} ${res.status}${why}`, res.status);
+	}
+	return (body ?? {}) as T;
+}
+
 async function lcCall<T>(
 	global: boolean,
 	session: string,
@@ -91,14 +101,7 @@ async function lcCall<T>(
 		},
 		body: json ? JSON.stringify(init.body) : undefined,
 	});
-	const body = (await res.json().catch(() => undefined)) as
-		| (T & { error?: string })
-		| undefined;
-	if (!res.ok) {
-		const why = typeof body?.error === "string" ? ` ${body.error}` : "";
-		throw new CloudSaveError(`Phigros cloud ${res.status}${why}`, res.status);
-	}
-	return (body ?? {}) as T;
+	return jsonOrThrow<T>(res, "Phigros cloud");
 }
 
 function rowTime(row: CloudRow): number {
@@ -131,19 +134,27 @@ export async function readCloudSave(
 		throw err;
 	});
 	if (!me.objectId) throw new CloudSaveError("Phigros cloud returned no user");
+	const rows = await readRows(session, global, me.objectId);
+	return { userId: me.objectId, nickname: me.nickname, rows };
+}
+
+async function readRows(
+	session: string,
+	global: boolean,
+	userId: string,
+): Promise<CloudRow[]> {
 	const where = encodeURIComponent(
-		JSON.stringify({ user: pointer("_User", me.objectId) }),
+		JSON.stringify({ user: pointer("_User", userId) }),
 	);
 	const data = await lcCall<{ results?: CloudRow[] }>(
 		global,
 		session,
 		`/gamesaves/?skip=0&limit=100&where=${where}&include=gameFile`,
 	);
-	const rows = (data.results ?? []).filter(
+	return (data.results ?? []).filter(
 		(row): row is CloudRow =>
 			typeof row?.objectId === "string" && typeof row.summary === "string",
 	);
-	return { userId: me.objectId, nickname: me.nickname, rows };
 }
 
 export async function checkSaveZip(zip: Buffer): Promise<void> {
@@ -194,15 +205,7 @@ async function qiniuCall<T>(
 	init: RequestInit,
 	timeoutMs?: number,
 ): Promise<T> {
-	const res = await tapFetch(url, init, timeoutMs);
-	const body = (await res.json().catch(() => undefined)) as
-		| (T & { error?: string })
-		| undefined;
-	if (!res.ok) {
-		const why = typeof body?.error === "string" ? ` ${body.error}` : "";
-		throw new CloudSaveError(`Qiniu ${res.status}${why}`, res.status);
-	}
-	return (body ?? {}) as T;
+	return jsonOrThrow<T>(await tapFetch(url, init, timeoutMs), "Qiniu");
 }
 
 /** Resumable upload v2 in one part, as the game sends it */
@@ -281,11 +284,10 @@ function hostOf(raw: string | undefined): string {
 	}
 }
 
+/** Without `rowId` a `_GameSave` row is created, which needs a `name`; the game's own rows say "save" */
 export type SaveUpload = {
 	userId: string;
-	/** Absent: the account has no `_GameSave` row yet, so one is created */
 	rowId?: string;
-	/** Required by `_GameSave` when a row is created; the game's own rows say "save" */
 	name?: string;
 	zip: Buffer;
 	summary: string;
@@ -373,8 +375,8 @@ export async function verifyCloudSave(
 	written: { fileId: string; rowId: string },
 	save: SaveUpload,
 ): Promise<CloudRow> {
-	const after = await readCloudSave(session, global);
-	const row = after.rows.find((r) => r.objectId === written.rowId);
+	const rows = await readRows(session, global, save.userId);
+	const row = rows.find((r) => r.objectId === written.rowId);
 	if (!row || row.gameFile?.objectId !== written.fileId)
 		throw new CloudSaveError("the cloud save does not point at the upload");
 	if (row.summary !== save.summary)
@@ -387,7 +389,7 @@ export async function verifyCloudSave(
 		logger.warn(`uploaded save not re-read: ${res?.status ?? "no response"}`);
 		return row;
 	}
-	if (md5Hex(Buffer.from(await res.arrayBuffer())) !== md5Hex(save.zip))
+	if (!Buffer.from(await res.arrayBuffer()).equals(save.zip))
 		throw new CloudSaveError("the uploaded save differs");
 	return row;
 }

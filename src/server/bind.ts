@@ -166,6 +166,14 @@ export async function qrPngAt(key: string): Promise<Buffer | BindErr> {
 	return host.rt.getQRcode.getQRcode(url, stored.global);
 }
 
+export async function clearQrAt(qrKey: string, lockKey: string) {
+	const host = await getDataHost();
+	await Promise.all([
+		host.db.del(qrKey).catch(() => undefined),
+		host.store.del(lockKey).catch(() => 0),
+	]);
+}
+
 export function qrPng(userId: string): Promise<Buffer | BindErr> {
 	return qrPngAt(QR_KEY(userId));
 }
@@ -218,6 +226,31 @@ export const QR_PENDING = new Set([
 	"authorization_waiting",
 	"slow_down",
 ]);
+
+/** A dead code while a finish holds `lockKey` was just used by it, so that reads as scanned */
+export async function peekQrAt(
+	qrKey: string,
+	lockKey: string,
+): Promise<
+	| { status: "waiting" | "scanned" }
+	| { error: "qr_expired"; status: 410 }
+	| QrResume
+> {
+	const host = await getDataHost();
+	const stored = parseQrStored(await host.db.get(qrKey));
+	if (!stored) return { error: "qr_expired", status: 410 };
+	const useGlobal = isGlobalTapLogin(stored, stored.global);
+	const result = await host.rt.getQRcode.checkQRCodeResult(stored, useGlobal);
+	if (qrSucceeded(result) && result) return { resume: { result, useGlobal } };
+	const err = result?.data?.error;
+	if (err === "authorization_waiting") return { status: "scanned" };
+	if (err != null && !QR_PENDING.has(err)) {
+		if (await host.store.get(lockKey)) return { status: "scanned" };
+		await host.db.del(qrKey).catch(() => undefined);
+		return { error: "qr_expired", status: 410 };
+	}
+	return { status: "waiting" };
+}
 
 /** A bind done elsewhere leaves our QR session pending, so check the token now and then */
 const QR_TOKEN_CHECK_MS = 10_000;
@@ -378,8 +411,6 @@ async function unbindAccountFor(
 	}
 }
 
-async function clearQr(userId: string) {
-	const host = await getDataHost();
-	await host.db.del(QR_KEY(userId)).catch(() => undefined);
-	await host.store.del(QR_LOCK(userId)).catch(() => 0);
+function clearQr(userId: string) {
+	return clearQrAt(QR_KEY(userId), QR_LOCK(userId));
 }

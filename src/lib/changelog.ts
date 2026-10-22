@@ -3,12 +3,12 @@ import { readLocal, writeLocal } from "./local-store";
 
 export type ChangeItem = Bilingual & { href?: string };
 export type ChangeSection = { heading: Bilingual; items: ChangeItem[] };
+export type ChangeRelease = { date: string; sections: ChangeSection[] };
 export type Changelog = { version: string; date: string };
 
-/** This release: a new `version` opens the dialog once more; its sections are in changelog-sections.ts */
 export const CHANGELOG: Changelog = {
-	version: "2026-10-17.8",
-	date: "2026-10-17",
+	version: "2026-10-22.1",
+	date: "2026-10-22",
 };
 
 const STORAGE_KEY = "phi-notice:whats-new";

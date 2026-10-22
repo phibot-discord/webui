@@ -4,11 +4,13 @@ import { Coffee, X } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import type { Locale } from "@/i18n/config";
 import { formatDay } from "@/i18n/datetime";
 import { useI18n } from "@/i18n/provider";
 import {
 	CHANGELOG,
 	CHANGELOG_EVENT,
+	type ChangeRelease,
 	type ChangeSection,
 	markSeen,
 	readSeen,
@@ -26,7 +28,7 @@ export function WhatsNew({ auto = true }: { auto?: boolean }) {
 	const ref = useRef<HTMLDialogElement>(null);
 	const ok = useRef<HTMLButtonElement>(null);
 	const [open, setOpen] = useState(false);
-	const [sections, setSections] = useState<ChangeSection[] | null>(null);
+	const [releases, setReleases] = useState<ChangeRelease[] | null>(null);
 	const shared = path.startsWith("/p/") || path.startsWith("/render/");
 
 	useEffect(() => {
@@ -42,15 +44,15 @@ export function WhatsNew({ auto = true }: { auto?: boolean }) {
 	}, []);
 
 	useEffect(() => {
-		if (!open || sections) return;
+		if (!open || releases) return;
 		void import("@/lib/changelog-sections").then((mod) =>
-			setSections(mod.CHANGELOG_SECTIONS),
+			setReleases(mod.CHANGELOG_RELEASES),
 		);
-	}, [open, sections]);
+	}, [open, releases]);
 
 	useEffect(() => {
 		const node = ref.current;
-		if (!open || !sections || !node) return;
+		if (!open || !releases || !node) return;
 		if (!node.open) node.showModal();
 		ok.current?.focus({ preventScroll: true });
 		const closed = () => {
@@ -62,12 +64,13 @@ export function WhatsNew({ auto = true }: { auto?: boolean }) {
 			node.removeEventListener("close", closed);
 			if (node.open) node.close();
 		};
-	}, [open, sections]);
+	}, [open, releases]);
 
-	if (!open || !sections) return null;
+	if (!open || !releases) return null;
 
 	const close = () => ref.current?.close();
 	const date = formatDay(CHANGELOG.date, locale);
+	const [latest, ...older] = releases;
 
 	return (
 		<dialog ref={ref} className="whats-new" aria-labelledby={titleId}>
@@ -91,24 +94,28 @@ export function WhatsNew({ auto = true }: { auto?: boolean }) {
 				</button>
 			</header>
 			<div className="whats-new-body">
-				{sections.map((section) => (
-					<section key={section.heading.en} className="whats-new-section">
-						<h3>{section.heading[locale]}</h3>
-						<ul>
-							{section.items.map((item) => (
-								<li key={item.en}>
-									{item.href ? (
-										<Link href={item.href} prefetch={false} onClick={close}>
-											{item[locale]}
-										</Link>
-									) : (
-										item[locale]
-									)}
-								</li>
-							))}
-						</ul>
-					</section>
-				))}
+				{latest ? (
+					<Sections sections={latest.sections} locale={locale} onPick={close} />
+				) : null}
+				{older.length ? (
+					<>
+						<p className="whats-new-earlier">{t.earlier}</p>
+						{older.map((release) => (
+							<details key={release.date} className="whats-new-older">
+								<summary>
+									<time dateTime={release.date}>
+										{formatDay(release.date, locale)}
+									</time>
+								</summary>
+								<Sections
+									sections={release.sections}
+									locale={locale}
+									onPick={close}
+								/>
+							</details>
+						))}
+					</>
+				) : null}
 			</div>
 			<footer className="whats-new-foot">
 				<a
@@ -131,4 +138,33 @@ export function WhatsNew({ auto = true }: { auto?: boolean }) {
 			</footer>
 		</dialog>
 	);
+}
+
+function Sections({
+	sections,
+	locale,
+	onPick,
+}: {
+	sections: ChangeSection[];
+	locale: Locale;
+	onPick: () => void;
+}) {
+	return sections.map((section) => (
+		<section key={section.heading.en} className="whats-new-section">
+			<h3>{section.heading[locale]}</h3>
+			<ul>
+				{section.items.map((item) => (
+					<li key={item.en}>
+						{item.href ? (
+							<Link href={item.href} prefetch={false} onClick={onPick}>
+								{item[locale]}
+							</Link>
+						) : (
+							item[locale]
+						)}
+					</li>
+				))}
+			</ul>
+		</section>
+	));
 }

@@ -2,9 +2,11 @@
 
 import { ArrowSquareOut, CheckCircle } from "@phosphor-icons/react";
 import {
+	type FormEvent,
 	type RefObject,
 	useCallback,
 	useEffect,
+	useId,
 	useRef,
 	useState,
 } from "react";
@@ -14,6 +16,7 @@ import { apiErrorText } from "@/lib/api-error";
 import { readJsonWithTapWait, tapWaitFailed } from "@/lib/tap-wait";
 
 type ServerKind = "cn" | "gb";
+const TOKEN_LEN = 25;
 type TapQrPhase<X extends string> = "idle" | "starting" | "qr" | "scanned" | X;
 type TapWaitData = Awaited<ReturnType<typeof readJsonWithTapWait>>["data"];
 
@@ -277,12 +280,11 @@ export function TapQrColumn({
 	const { m } = useI18n();
 	const urlField = useRef<HTMLInputElement>(null);
 	const copiedTimer = useRef<number | undefined>(undefined);
-	const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
-	const [copyUrl, setCopyUrl] = useState(qr.openUrl);
-	if (qr.openUrl !== copyUrl) {
-		setCopyUrl(qr.openUrl);
-		setCopy("idle");
-	}
+	const [copied, setCopied] = useState<{
+		url: string;
+		state: "copied" | "failed";
+	}>();
+	const copy = copied && copied.url === qr.openUrl ? copied.state : "idle";
 
 	useEffect(() => {
 		return () => window.clearTimeout(copiedTimer.current);
@@ -295,14 +297,15 @@ export function TapQrColumn({
 	}, [copy]);
 
 	async function copyLink() {
-		if (!qr.openUrl) return;
+		const url = qr.openUrl;
+		if (!url) return;
 		window.clearTimeout(copiedTimer.current);
 		try {
-			await navigator.clipboard.writeText(qr.openUrl);
-			setCopy("copied");
-			copiedTimer.current = window.setTimeout(() => setCopy("idle"), 2000);
+			await navigator.clipboard.writeText(url);
+			setCopied({ url, state: "copied" });
+			copiedTimer.current = window.setTimeout(() => setCopied(undefined), 2000);
 		} catch {
-			setCopy("failed");
+			setCopied({ url, state: "failed" });
 		}
 	}
 
@@ -371,7 +374,7 @@ export function TapQrColumn({
 							{m.bind.cancel}
 						</button>
 					</div>
-					{copy === "failed" && qr.openUrl ? (
+					{copy === "failed" ? (
 						<>
 							<p className="field-error" role="alert">
 								{m.bind.copyFailed}
@@ -408,6 +411,99 @@ export function TapQrColumn({
 							: m.bind.qr)}
 				</button>
 			)}
+		</section>
+	);
+}
+
+export function TapTokenColumn({
+	title,
+	hint,
+	submitLabel,
+	submittingLabel,
+	submitting,
+	waitingTap,
+	busy,
+	onSubmit,
+}: {
+	title: string;
+	hint: string;
+	submitLabel: string;
+	submittingLabel: string;
+	submitting: boolean;
+	waitingTap: boolean;
+	busy: boolean;
+	onSubmit: (token: string) => Promise<boolean>;
+}) {
+	const { m } = useI18n();
+	const ids = useId();
+	const [token, setToken] = useState("");
+	const typed = token.trim();
+	const tokenOk = new RegExp(`^[a-zA-Z0-9]{${TOKEN_LEN}}$`).test(typed);
+
+	async function submit(e: FormEvent) {
+		e.preventDefault();
+		if (!tokenOk || busy) return;
+		if (await onSubmit(typed)) setToken("");
+	}
+
+	const tokenCount = (
+		tokenOk
+			? m.bind.tokenReady
+			: /[^a-zA-Z0-9]/.test(typed)
+				? m.bind.tokenInvalid
+				: typed.length > TOKEN_LEN
+					? m.bind.tokenTooLong
+					: m.bind.tokenNeeds
+	).replaceAll("{n}", String(typed.length));
+	const titleId = `${ids}-title`;
+	const hintId = `${ids}-hint`;
+	const countId = `${ids}-count`;
+
+	return (
+		<section className="bind-token-col" aria-labelledby={titleId}>
+			<p className="bind-or" aria-hidden="true">
+				{m.bind.or}
+			</p>
+			<h2 id={titleId}>{title}</h2>
+			<form className="bind-token" onSubmit={(e) => void submit(e)}>
+				<label className="field field-col">
+					<span className="field-label">{m.bind.tokenLabel}</span>
+					<input
+						type="password"
+						name="sessionToken"
+						autoComplete="off"
+						autoCapitalize="off"
+						spellCheck={false}
+						maxLength={40}
+						value={token}
+						onChange={(e) => setToken(e.target.value)}
+						placeholder={m.bind.tokenPlaceholder}
+						aria-describedby={`${hintId} ${countId}`}
+					/>
+				</label>
+				<p className="field-hint" id={hintId}>
+					{hint}
+				</p>
+				<p
+					className={`bind-token-count${tokenOk ? " is-ready" : ""}`}
+					id={countId}
+				>
+					{tokenCount}
+				</p>
+				<button
+					className="btn btn-ghost"
+					type="submit"
+					aria-disabled={busy || !tokenOk || undefined}
+					aria-busy={submitting || undefined}
+					aria-describedby={countId}
+				>
+					{submitting
+						? waitingTap
+							? m.bind.waitingTap
+							: submittingLabel
+						: submitLabel}
+				</button>
+			</form>
 		</section>
 	);
 }
