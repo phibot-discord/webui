@@ -53,14 +53,8 @@ export async function listAssetPrefix(
 	return files;
 }
 
-function listed(): Promise<Listing> {
-	if (cached && Date.now() - cached.at < LIST_TTL_MS) {
-		return Promise.resolve(cached);
-	}
-	if (listing) return listing;
-	const cfg = r2Config();
-	if (!r2WriteReady(cfg)) return Promise.reject(new Error("r2 unavailable"));
-	listing = Promise.all(
+function relist(cfg: R2Config): Promise<Listing> {
+	listing ??= Promise.all(
 		PUBLIC_ASSET_PREFIXES.map((prefix) => listAssetPrefix(prefix, cfg)),
 	)
 		.then((groups) => {
@@ -76,6 +70,23 @@ function listed(): Promise<Listing> {
 			listing = undefined;
 		});
 	return listing;
+}
+
+/** After 5 min the old listing is served while one read refreshes it; `fresh` waits for that read */
+function listed(fresh = false): Promise<Listing> {
+	if (cached && Date.now() - cached.at < LIST_TTL_MS) {
+		return Promise.resolve(cached);
+	}
+	const cfg = r2Config();
+	if (!r2WriteReady(cfg)) return Promise.reject(new Error("r2 unavailable"));
+	const job = relist(cfg);
+	if (!cached || fresh) return job;
+	runInBackground(job, (err) =>
+		logger.warn(
+			`asset listing kept: ${err instanceof Error ? err.message : err}`,
+		),
+	);
+	return Promise.resolve(cached);
 }
 
 /** The public trees for the files page, cut at LIST_MAX; memoised for 5 min */
@@ -98,12 +109,12 @@ let versionsJob: Promise<void> | undefined;
 async function loadVersions(): Promise<void> {
 	const cfg = r2Config();
 	if (!r2WriteReady(cfg)) return;
-	const [listedFiles, ...linked] = await Promise.all([
-		publicFiles(),
+	const [current, ...linked] = await Promise.all([
+		listed(true),
 		...LINKED_PREFIXES.map((prefix) => listAssetPrefix(prefix, cfg)),
 	]);
 	const next = new Map<string, string>();
-	for (const file of [...listedFiles.values(), ...linked.flat()]) {
+	for (const file of [...current.byKey.values(), ...linked.flat()]) {
 		if (file.v) next.set(file.key, file.v);
 	}
 	versions = next;

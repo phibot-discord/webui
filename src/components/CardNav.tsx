@@ -1,17 +1,11 @@
 "use client";
 
-import Link, { useLinkStatus } from "next/link";
+import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { LinkPending } from "@/components/LinkPending";
 import { useI18n } from "@/i18n/provider";
 import { revealInRow, rowFade } from "@/lib/scroll";
 import { CARD_KINDS, CARD_PAGES, isPublicKind } from "@/server/card-kinds";
-
-function Pending() {
-	const { pending } = useLinkStatus();
-	return pending ? (
-		<span className="card-nav-pending" aria-hidden="true" />
-	) : null;
-}
 
 let followedAt = 0;
 
@@ -97,7 +91,7 @@ export function CardNav({
 								}}
 							>
 								{item.label}
-								<Pending />
+								<LinkPending className="card-nav-pending" />
 							</Link>
 						</li>
 					);

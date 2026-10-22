@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LinkPending } from "@/components/LinkPending";
 import type { Messages } from "@/i18n/messages";
 import { NAV_VIEWS, type NavView, viewHref } from "@/lib/files-view";
 
@@ -7,7 +8,7 @@ export function FilesViews({
 	t,
 }: {
 	view: NavView;
-	t: Messages["files"];
+	t: Pick<Messages["files"], "viewsLabel" | "views">;
 }) {
 	return (
 		<nav className="files-views" aria-label={t.viewsLabel}>
@@ -20,6 +21,7 @@ export function FilesViews({
 							aria-current={id === view ? "page" : undefined}
 						>
 							{t.views[id]}
+							<LinkPending className="files-views-pending" />
 						</Link>
 					</li>
 				))}
