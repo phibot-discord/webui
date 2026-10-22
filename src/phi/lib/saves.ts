@@ -75,7 +75,7 @@ function rememberRegion(userId: string, global: boolean) {
 }
 
 // The region a blob was saved under, read off its head: updateSave writes `session` then `global`
-function blobRegion(raw: string | undefined): boolean | undefined {
+export function blobRegion(raw: string | undefined): boolean | undefined {
 	const m = /^\{"session":"[^"]*","global":(true|false)/.exec(raw ?? "");
 	return m ? m[1] === "true" : undefined;
 }

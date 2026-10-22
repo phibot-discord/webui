@@ -55,6 +55,7 @@ const foreignBinaries = [
 // "/api/public/?slug?/route" is /api/public/[slug] alone (Turbopack route names end in /route)
 export const nonCardRoutes = [
 	"/account",
+	"/account/**",
 	"/api/assets",
 	"/api/auth/**",
 	"/api/bind/**",
@@ -65,6 +66,7 @@ export const nonCardRoutes = [
 	"/api/login/**",
 	"/api/manual",
 	"/api/me",
+	"/api/migrate/**",
 	"/api/notes",
 	"/api/phira",
 	"/api/phira/extras",

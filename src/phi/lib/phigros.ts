@@ -85,7 +85,7 @@ function getBit(data: number, index: number) {
 	return Boolean(data & (1 << index));
 }
 
-class Summary {
+export class Summary {
 	updatedAt: string;
 	saveVersion = 0;
 	challengeModeRank = 0;
@@ -254,7 +254,7 @@ type TapRegion = {
 	headers: Record<string, string>;
 };
 
-function region(isGlobal: boolean): TapRegion {
+export function cloudRegion(isGlobal: boolean): TapRegion {
 	const r = tapRegion(isGlobal);
 	return {
 		baseUrl: r.lcBase,
@@ -306,7 +306,7 @@ class SaveManager {
 	save: string;
 
 	constructor(isGlobal: boolean) {
-		const r = region(isGlobal);
+		const r = cloudRegion(isGlobal);
 		this.baseUrl = r.baseUrl;
 		this.headers = r.headers;
 		this.userInfo = `${this.baseUrl}/users/me`;

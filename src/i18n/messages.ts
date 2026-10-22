@@ -368,7 +368,11 @@ export type ClientMessages = {
 		waitingTap: string;
 		scan: string;
 		scanned: string;
-		openPhone: string;
+		openLink: string;
+		copyLink: string;
+		copied: string;
+		copyFailed: string;
+		link: string;
 		expires: string;
 		qrAlt: string;
 		tokenLabel: string;
@@ -430,6 +434,57 @@ export type ClientMessages = {
 		tokenLoading: string;
 		tokenHidden: string;
 		tokenFailed: string;
+		migrateTitle: string;
+		migrateLede: string;
+		migrateOpen: string;
+	};
+	migrate: {
+		title: string;
+		lede: string;
+		back: string;
+		fromTitle: string;
+		fromLede: string;
+		toTitle: string;
+		toLede: string;
+		useBound: string;
+		boundNote: string;
+		otherFrom: string;
+		qrTitle: string;
+		tokenTitle: string;
+		tokenLabel: string;
+		tokenHint: string;
+		tokenSubmit: string;
+		connecting: string;
+		failed: string;
+		change: string;
+		realName: string;
+		previewTitle: string;
+		previewLede: string;
+		compare: string;
+		field: string;
+		source: string;
+		target: string;
+		server: string;
+		player: string;
+		rks: string;
+		challenge: string;
+		modified: string;
+		none: string;
+		noSave: string;
+		challengeColors: string[];
+		overwrite: string;
+		fresh: string;
+		newer: string;
+		changed: string;
+		wait: string;
+		run: string;
+		running: string;
+		restart: string;
+		doneTitle: string;
+		doneLede: string;
+		doneSteps: string[];
+		doneBound: string;
+		doneBind: string;
 	};
 	public: {
 		hint: string;
@@ -622,6 +677,15 @@ export type ClientMessages = {
 		bind_failed: string;
 		unbind_failed: string;
 		tapapi_unavailable: string;
+		migrate_rejected: string;
+		migrate_no_source_save: string;
+		migrate_same_account: string;
+		migrate_expired: string;
+		migrate_busy: string;
+		migrate_changed: string;
+		migrate_unconfirmed: string;
+		migrate_failed: string;
+		migrate_unverified: string;
 	};
 };
 
@@ -1124,17 +1188,21 @@ export const en: ClientMessages = {
 	},
 	bind: {
 		title: "Bind Phigros",
-		lede: "Scan TapTap with the account Phigros uses, or paste your sessionToken. Do not share it.",
+		lede: "Sign in to TapTap with the account Phigros uses, by QR code or login link, or paste your sessionToken. Do not share it.",
 		server: "Server",
 		cn: "CN",
 		gb: "Global",
-		qr: "Scan TapTap",
+		qr: "Get QR code & link",
 		cancel: "Cancel",
 		starting: "Getting QR…",
 		waitingTap: "Waiting for TapTap…",
-		scan: "Scan with TapTap.",
-		scanned: "QR scanned. Confirm on your phone.",
-		openPhone: "Open on this phone",
+		scan: "Scan with the TapTap app. Can't scan? Open the login link in any browser and sign in to TapTap there.",
+		scanned: "Opened in TapTap. Confirm the sign-in there.",
+		openLink: "Open login link",
+		copyLink: "Copy link",
+		copied: "Copied",
+		copyFailed: "Couldn't copy. Select the link and copy it.",
+		link: "TapTap login link",
 		expires: "Expires in {seconds}s",
 		qrAlt: "TapTap login QR code",
 		tokenLabel: "sessionToken",
@@ -1164,10 +1232,10 @@ export const en: ClientMessages = {
 	},
 	tapLogin: {
 		title: "Sign in with TapTap",
-		lede: "Scan with the TapTap account Phigros uses. That signs you in and binds your save in one step, no Discord needed.",
-		qrTitle: "TapTap QR code",
+		lede: "Use the TapTap account Phigros uses: scan the QR code with the TapTap app, or open the login link in a browser. That signs you in and binds your save in one step, no Discord needed.",
+		qrTitle: "TapTap QR code or link",
 		signingIn: "Signing in…",
-		failed: "Sign-in failed. Scan again.",
+		failed: "Sign-in failed. Try again.",
 		discordTitle: "Use Discord instead",
 		discordLede:
 			"Already use the Discord bot? Sign in with Discord. A TapTap login can link Discord later from Account.",
@@ -1203,6 +1271,71 @@ export const en: ClientMessages = {
 		tokenLoading: "Loading…",
 		tokenHidden: "Hidden",
 		tokenFailed: "Could not load the token. Try again.",
+		migrateTitle: "Move save",
+		migrateLede:
+			"Copy a Phigros cloud save to another TapTap account, on the CN or Global server.",
+		migrateOpen: "Move save",
+	},
+	migrate: {
+		title: "Move save",
+		lede: "Copy a Phigros cloud save from one TapTap account to another, on the CN or Global server. The From save is only read. The To account's cloud save is replaced.",
+		back: "Back to account",
+		fromTitle: "1. From",
+		fromLede: "The account whose save is copied.",
+		toTitle: "2. To",
+		toLede:
+			"Sign in to the account that gets the save. If it already has a cloud save, that save is replaced.",
+		useBound: "Use bound account",
+		boundNote: "The account bound on PhiBot",
+		otherFrom: "Or sign in to another account",
+		qrTitle: "TapTap QR code or link",
+		tokenTitle: "Paste a sessionToken",
+		tokenLabel: "sessionToken",
+		tokenHint:
+			"The 25-character token of that account on the server picked above. It is only used for this copy.",
+		tokenSubmit: "Use token",
+		connecting: "Reading the save…",
+		failed: "Could not read that account. Try again.",
+		change: "Change",
+		realName:
+			"實名認證: a CN TapTap account has to finish real-name verification in the TapTap app before Phigros CN lets it sign in and download the save.",
+		previewTitle: "3. Check both saves",
+		previewLede:
+			"The To account's cloud save is replaced with the From save. The From save stays as it is.",
+		compare: "From save and To save",
+		field: "Save",
+		source: "From",
+		target: "To (replaced)",
+		server: "Server",
+		player: "Player",
+		rks: "RKS",
+		challenge: "Challenge Mode",
+		modified: "Last upload",
+		none: "None",
+		noSave: "No cloud save",
+		challengeColors: ["", "Green", "Blue", "Red", "Gold", "Rainbow"],
+		overwrite:
+			"The To account already has a cloud save. Continuing replaces it, and the game cannot bring it back.",
+		fresh: "The To account has no cloud save yet. Continuing creates one.",
+		newer:
+			"The From save comes from a newer game version than the To save. Update Phigros on the To side before you download it.",
+		changed:
+			"A save changed since you checked. Look at both again before you continue.",
+		wait: "Continue ({seconds})",
+		run: "Continue",
+		running: "Copying save…",
+		restart: "Start over",
+		doneTitle: "Save copied",
+		doneLede: "The To account's cloud save now holds the From save.",
+		doneSteps: [
+			"Open the {server} version of Phigros and sign in with the To TapTap account.",
+			"Sync the cloud save and choose to download it to the device.",
+			"Do not upload from that device before downloading, or its old local save replaces the copy.",
+		],
+		doneBound:
+			"The To account is the one bound on PhiBot. Refresh on the cards page to load the new save.",
+		doneBind:
+			"PhiBot keeps following the account you have bound. To track the To account here, unbind and bind it.",
 	},
 	public: {
 		hint: "This is a public copy of their cards. Opening the page does not refresh their save.",
@@ -1453,6 +1586,19 @@ export const en: ClientMessages = {
 		unbind_failed: "Could not unbind.",
 		tapapi_unavailable:
 			"TapTap's cloud (TapAPI) timed out. This is TapTap's problem, not PhiBot. Try again in a few minutes.",
+		migrate_rejected:
+			"The server you picked did not accept this account. Check that CN or Global matches it.",
+		migrate_no_source_save:
+			"The From account has no cloud save. Upload one from Phigros first.",
+		migrate_same_account:
+			"From and To are the same account. Sign in to a different To account.",
+		migrate_expired: "The sign-in expired. Start again.",
+		migrate_busy: "A save copy is already running.",
+		migrate_changed: "A save changed since you checked. Look again.",
+		migrate_unconfirmed: "Confirm the copy first.",
+		migrate_failed: "Could not copy the save.",
+		migrate_unverified:
+			"The To save was written, but PhiBot could not confirm the copy. Check it in Phigros before trying again.",
 	},
 };
 
@@ -1912,17 +2058,21 @@ export const zh: ClientMessages = {
 	},
 	bind: {
 		title: "绑定 Phigros",
-		lede: "用 Phigros 登录的那个 TapTap 扫码，或粘贴你的 sessionToken。不要发给别人。",
+		lede: "用 Phigros 登录的那个 TapTap 账号扫码或打开登录链接，或粘贴你的 sessionToken。不要发给别人。",
 		server: "区服",
 		cn: "国服",
 		gb: "国际服",
-		qr: "扫 TapTap",
+		qr: "获取二维码和链接",
 		cancel: "取消",
 		starting: "正在取码…",
 		waitingTap: "正在等待 TapTap…",
-		scan: "请用 TapTap 扫码。",
-		scanned: "已扫码。请在手机上确认。",
-		openPhone: "在这台手机上打开",
+		scan: "用 TapTap App 扫码。不方便扫码？在任意浏览器打开登录链接并登录 TapTap 也可以。",
+		scanned: "已在 TapTap 打开，请在那里确认登录。",
+		openLink: "打开登录链接",
+		copyLink: "复制链接",
+		copied: "已复制",
+		copyFailed: "复制失败。请选中链接手动复制。",
+		link: "TapTap 登录链接",
 		expires: "{seconds} 秒后失效",
 		qrAlt: "TapTap 登录二维码",
 		tokenLabel: "sessionToken",
@@ -1952,10 +2102,10 @@ export const zh: ClientMessages = {
 	},
 	tapLogin: {
 		title: "用 TapTap 登录",
-		lede: "用 Phigros 登录的那个 TapTap 扫码。登录和绑定存档一步完成，不需要 Discord。",
-		qrTitle: "TapTap 二维码",
+		lede: "用 Phigros 登录的那个 TapTap 账号：用 TapTap App 扫码，或在浏览器打开登录链接。登录和绑定存档一步完成，不需要 Discord。",
+		qrTitle: "TapTap 二维码或链接",
 		signingIn: "正在登录…",
-		failed: "登录失败，请重新扫码。",
+		failed: "登录失败，请重试。",
 		discordTitle: "改用 Discord",
 		discordLede:
 			"已经在用 Discord 机器人？用 Discord 登录即可。TapTap 登录之后也可以在「账号」里关联 Discord。",
@@ -1990,6 +2140,64 @@ export const zh: ClientMessages = {
 		tokenLoading: "加载中…",
 		tokenHidden: "已隐藏",
 		tokenFailed: "无法加载 Token，请重试。",
+		migrateTitle: "迁移存档",
+		migrateLede: "把 Phigros 云存档复制到另一个 TapTap 账号，国服或国际服都可以。",
+		migrateOpen: "迁移存档",
+	},
+	migrate: {
+		title: "迁移存档",
+		lede: "把一个 TapTap 账号的 Phigros 云存档复制到另一个账号，国服或国际服都可以。来源存档只会被读取，目标账号的云存档会被替换。",
+		back: "返回账号",
+		fromTitle: "1. 来源",
+		fromLede: "要复制哪个账号的存档。",
+		toTitle: "2. 目标",
+		toLede: "登录接收存档的账号。如果它已有云存档，那份存档会被替换。",
+		useBound: "使用已绑定的账号",
+		boundNote: "在 PhiBot 绑定的账号",
+		otherFrom: "或登录另一个账号",
+		qrTitle: "TapTap 二维码或链接",
+		tokenTitle: "粘贴 sessionToken",
+		tokenLabel: "sessionToken",
+		tokenHint: "上面所选区服中该账号的 25 位 Token，只用于这次迁移。",
+		tokenSubmit: "使用 Token",
+		connecting: "正在读取存档…",
+		failed: "无法读取这个账号，请重试。",
+		change: "更换",
+		realName:
+			"實名認證：国服 TapTap 账号需要先在 TapTap App 里完成实名认证，国服 Phigros 才能登录并下载存档。",
+		previewTitle: "3. 核对两边的存档",
+		previewLede: "目标账号的云存档会被来源存档替换。来源存档不会改动。",
+		compare: "来源存档与目标存档",
+		field: "存档",
+		source: "来源",
+		target: "目标（将被替换）",
+		server: "区服",
+		player: "玩家",
+		rks: "RKS",
+		challenge: "课题模式",
+		modified: "上次上传",
+		none: "无",
+		noSave: "没有云存档",
+		challengeColors: ["", "绿", "蓝", "红", "金", "彩"],
+		overwrite: "目标账号已有云存档。继续会替换它，游戏里无法找回。",
+		fresh: "目标账号还没有云存档。继续会新建一份。",
+		newer:
+			"来源存档来自比目标存档更新的游戏版本。在目标那边下载前，请先更新 Phigros。",
+		changed: "核对之后有存档发生了变动。请重新核对两边再继续。",
+		wait: "继续（{seconds}）",
+		run: "继续",
+		running: "正在复制存档…",
+		restart: "重新开始",
+		doneTitle: "存档已复制",
+		doneLede: "目标账号的云存档现在是来源存档。",
+		doneSteps: [
+			"打开{server} Phigros，用目标 TapTap 账号登录。",
+			"同步云存档，并选择下载到设备。",
+			"下载之前不要在那台设备上上传，否则它本地的旧存档会覆盖这份副本。",
+		],
+		doneBound: "目标账号就是在 PhiBot 绑定的账号。请在成绩图页面刷新以载入新存档。",
+		doneBind:
+			"PhiBot 仍然跟踪你已绑定的账号。想在这里跟踪目标账号，请解绑后重新绑定它。",
 	},
 	public: {
 		hint: "这是他们成绩图的公开副本。打开页面不会刷新存档。",
@@ -2232,5 +2440,15 @@ export const zh: ClientMessages = {
 		unbind_failed: "无法解绑",
 		tapapi_unavailable:
 			"TapTap 云端（TapAPI）超时了。这是 TapTap 的问题，不是本站故障。请稍后再试",
+		migrate_rejected: "所选区服不接受这个账号，请确认国服或国际服选对了",
+		migrate_no_source_save: "来源账号没有云存档，请先在 Phigros 上传一次",
+		migrate_same_account: "来源和目标是同一个账号，请登录另一个目标账号",
+		migrate_expired: "登录已过期，请重新开始",
+		migrate_busy: "已有一次存档迁移正在进行",
+		migrate_changed: "存档在你核对后有变动，请重新核对",
+		migrate_unconfirmed: "请先确认迁移",
+		migrate_failed: "存档迁移失败",
+		migrate_unverified:
+			"目标存档已写入，但 PhiBot 无法确认复制结果。请先在 Phigros 里检查，再决定是否重试",
 	},
 };

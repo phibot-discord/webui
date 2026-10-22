@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle, DeviceMobile } from "@phosphor-icons/react";
+import { ArrowSquareOut, CheckCircle } from "@phosphor-icons/react";
 import {
 	type RefObject,
 	useCallback,
@@ -8,6 +8,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { Announce, SteadyButton } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 import { apiErrorText } from "@/lib/api-error";
 import { readJsonWithTapWait, tapWaitFailed } from "@/lib/tap-wait";
@@ -274,6 +275,37 @@ export function TapQrColumn({
 	signingLabel?: string;
 }) {
 	const { m } = useI18n();
+	const urlField = useRef<HTMLInputElement>(null);
+	const copiedTimer = useRef<number | undefined>(undefined);
+	const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
+	const [copyUrl, setCopyUrl] = useState(qr.openUrl);
+	if (qr.openUrl !== copyUrl) {
+		setCopyUrl(qr.openUrl);
+		setCopy("idle");
+	}
+
+	useEffect(() => {
+		return () => window.clearTimeout(copiedTimer.current);
+	}, []);
+
+	useEffect(() => {
+		if (copy !== "failed") return;
+		urlField.current?.focus();
+		urlField.current?.select();
+	}, [copy]);
+
+	async function copyLink() {
+		if (!qr.openUrl) return;
+		window.clearTimeout(copiedTimer.current);
+		try {
+			await navigator.clipboard.writeText(qr.openUrl);
+			setCopy("copied");
+			copiedTimer.current = window.setTimeout(() => setCopy("idle"), 2000);
+		} catch {
+			setCopy("failed");
+		}
+	}
+
 	const scanned = qr.phase === "scanned" || qr.waitingTap;
 	const qrStatus = qr.waitingTap
 		? m.bind.waitingTap
@@ -285,9 +317,11 @@ export function TapQrColumn({
 			<a
 				className={`btn ${qr.touch ? "btn-primary" : "btn-ghost"} bind-open`}
 				href={qr.openUrl}
+				target="_blank"
+				rel="noopener noreferrer"
 			>
-				<DeviceMobile size={18} aria-hidden />
-				{m.bind.openPhone}
+				<ArrowSquareOut size={18} aria-hidden />
+				{m.bind.openLink}
 			</a>
 		) : null;
 
@@ -319,6 +353,16 @@ export function TapQrColumn({
 					</p>
 					<div className="bind-qr-actions">
 						{qr.touch ? null : openLink}
+						{qr.openUrl ? (
+							<SteadyButton
+								className="btn-ghost"
+								type="button"
+								labels={[m.bind.copyLink, m.bind.copied]}
+								onClick={() => void copyLink()}
+							>
+								{copy === "copied" ? m.bind.copied : m.bind.copyLink}
+							</SteadyButton>
+						) : null}
 						<button
 							className="btn btn-ghost"
 							type="button"
@@ -327,6 +371,23 @@ export function TapQrColumn({
 							{m.bind.cancel}
 						</button>
 					</div>
+					{copy === "failed" && qr.openUrl ? (
+						<>
+							<p className="field-error" role="alert">
+								{m.bind.copyFailed}
+							</p>
+							<input
+								ref={urlField}
+								className="input bind-url"
+								type="text"
+								readOnly
+								value={qr.openUrl}
+								aria-label={m.bind.link}
+								onFocus={(e) => e.currentTarget.select()}
+							/>
+						</>
+					) : null}
+					<Announce>{copy === "copied" ? m.bind.copied : ""}</Announce>
 				</div>
 			) : (
 				<button

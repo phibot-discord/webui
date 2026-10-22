@@ -101,6 +101,10 @@ test("CN TapTap is proxied; global TapTap is not", () => {
 		"https://sync.phibot.dev/tap-proxy",
 	);
 	assert.equal(
+		tapCnProxyUrl("https://upload.qiniup.com/buckets/b/objects/a2V5/uploads"),
+		"https://sync.phibot.dev/tap-proxy",
+	);
+	assert.equal(
 		tapCnProxyUrl("https://kviehlel.cloud.ap-sg.tapapis.com/1.1/users/me"),
 		undefined,
 	);

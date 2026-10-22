@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { linkDiscord } from "@/auth-actions";
 import { LinkDiscordButton } from "@/components/LinkDiscordButton";
 import { SignInStatus } from "@/components/landing/SignIn";
@@ -64,6 +65,19 @@ export function AccountView({
 					) : null}
 				</li>
 				<SessionTokenRow hasToken={hasToken} />
+				<li className="account-method">
+					<div className="account-method-head">
+						<h2>{t.migrateTitle}</h2>
+					</div>
+					<p>{t.migrateLede}</p>
+					<Link
+						className="btn btn-ghost btn-sm"
+						href="/account/migrate"
+						prefetch={false}
+					>
+						{t.migrateOpen}
+					</Link>
+				</li>
 			</ul>
 		</section>
 	);

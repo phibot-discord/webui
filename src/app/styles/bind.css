@@ -34,7 +34,8 @@
 	margin: 0 0 var(--space-3);
 }
 
-.bind-panel > .bind-error {
+.bind-panel > .bind-error,
+.migrate-step > .bind-error {
 	padding: var(--space-3) var(--space-4);
 	border: 1px solid var(--danger);
 	border-radius: var(--radius-md);
@@ -150,6 +151,12 @@
 
 .bind-qr-actions .bind-open {
 	align-self: auto;
+}
+
+.bind-url {
+	align-self: stretch;
+	font-family: ui-monospace, Menlo, Monaco, monospace;
+	font-size: var(--text-sm);
 }
 
 .seg {
@@ -367,6 +374,193 @@
 @media (max-width: 767px) {
 	.account-method form,
 	.account-method .btn {
+		align-self: stretch;
+		width: 100%;
+	}
+}
+
+.migrate-step {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--space-4);
+}
+
+.migrate-step + .migrate-step {
+	margin-top: var(--space-8);
+	padding-top: var(--space-8);
+	border-top: 1px solid var(--line);
+}
+
+.migrate-step > h2 {
+	margin: 0;
+	font-size: var(--text-md);
+}
+
+.migrate-step > h2:focus {
+	outline: none;
+}
+
+.migrate-step .bind-server {
+	margin: 0;
+}
+
+.migrate-step .bind-methods {
+	align-self: stretch;
+}
+
+.migrate-step .lede,
+.migrate-step .account-notice,
+.migrate-step .field-hint,
+.migrate-step > .bind-error {
+	margin: 0;
+}
+
+.migrate-table-wrap {
+	align-self: stretch;
+	overflow-x: auto;
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+}
+
+.migrate-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-variant-numeric: tabular-nums;
+	font-size: var(--text-sm);
+}
+
+.migrate-table th,
+.migrate-table td {
+	padding: var(--space-2) var(--space-3);
+	border-bottom: 1px solid var(--line);
+	text-align: left;
+	vertical-align: top;
+}
+
+.migrate-table tbody tr:last-child th,
+.migrate-table tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+.migrate-table thead th {
+	color: var(--muted);
+	font-size: var(--text-xs);
+	font-weight: 500;
+	background: var(--surface);
+}
+
+.migrate-table tbody th {
+	color: var(--muted);
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+.migrate-table td {
+	overflow-wrap: anywhere;
+}
+
+.migrate-warn {
+	margin: 0;
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--accent);
+	border-radius: var(--radius-md);
+	background: color-mix(in oklch, var(--accent) 12%, transparent);
+}
+
+.migrate-note {
+	margin: 0;
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+
+.migrate-account {
+	display: flex;
+	flex-wrap: wrap;
+	align-self: stretch;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: var(--space-4);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+}
+
+.migrate-account-info {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	min-width: 0;
+}
+
+.migrate-account-info p {
+	margin: 0;
+}
+
+.migrate-account-label {
+	color: var(--muted);
+	font-size: var(--text-xs);
+	font-weight: 500;
+}
+
+.migrate-account-name {
+	font-weight: 500;
+	overflow-wrap: anywhere;
+}
+
+.migrate-account-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1) var(--space-4);
+	margin: 0;
+	font-size: var(--text-sm);
+	font-variant-numeric: tabular-nums;
+}
+
+.migrate-account-meta div {
+	display: flex;
+	gap: var(--space-2);
+}
+
+.migrate-account-meta dt {
+	color: var(--muted);
+}
+
+.migrate-account-meta dd {
+	margin: 0;
+}
+
+.migrate-or {
+	align-self: stretch;
+	margin: var(--space-2) 0 0;
+	padding-top: var(--space-5);
+	border-top: 1px solid var(--line);
+	color: var(--muted);
+	font-size: var(--text-sm);
+	font-weight: 500;
+}
+
+.migrate-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.migrate-steps {
+	margin: 0;
+	padding-left: var(--space-5);
+}
+
+.migrate-steps li + li {
+	margin-top: var(--space-2);
+}
+
+@media (max-width: 767px) {
+	.migrate-step > .btn,
+	.migrate-account .btn,
+	.migrate-actions .btn {
 		align-self: stretch;
 		width: 100%;
 	}
