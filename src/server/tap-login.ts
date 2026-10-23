@@ -13,6 +13,7 @@ import {
 	failBind,
 	peekQrAt,
 	type QrResume,
+	type QrWait,
 	qrPngAt,
 	requestQr,
 } from "./bind";
@@ -60,7 +61,7 @@ export function tapLoginQrPng(loginId: string): Promise<Buffer | BindErr> {
 
 export function peekTapLogin(
 	loginId: string,
-): Promise<{ status: "waiting" | "scanned" } | BindErr | QrResume> {
+): Promise<QrWait | BindErr | QrResume> {
 	return peekQrAt(LOGIN_KEY(loginId), LOGIN_LOCK(loginId));
 }
 

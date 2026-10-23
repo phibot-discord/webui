@@ -125,11 +125,13 @@ export function setTapHttpForTest(fn?: TapHttp) {
 
 export class TapApiError extends Error {
 	readonly timeout: boolean;
+	readonly status?: number;
 
-	constructor(message: string, timeout = false) {
+	constructor(message: string, timeout = false, status?: number) {
 		super(message);
 		this.name = "TapApiError";
 		this.timeout = timeout;
+		this.status = status;
 	}
 }
 
@@ -142,6 +144,15 @@ function toTapApiError(err: unknown): TapApiError {
 
 export function isTapApiFailure(err: unknown): boolean {
 	return err instanceof TapApiError || isTimeoutError(err);
+}
+
+/** TapTap answered 429 Too Many Requests, after undici's own retries */
+export function isTapRateLimited(err: unknown): boolean {
+	for (let cur = err, i = 0; cur && i < 4; i++) {
+		if (cur instanceof TapApiError) return cur.status === 429;
+		cur = (cur as { cause?: unknown }).cause;
+	}
+	return false;
 }
 
 type TapWaitStore = { notify: () => void; sent: boolean };
@@ -222,7 +233,11 @@ export async function tapFetch(
 			// undici already retried these (idempotent methods): TapTap is unavailable
 			if (res.status >= 500 || res.status === 429) {
 				logger.warn(`tap ${method} ${tapUrl(url)} ${res.status} ${ms}ms`);
-				throw new TapApiError(`TapAPI ${res.status} ${res.statusText}`);
+				throw new TapApiError(
+					`TapAPI ${res.status} ${res.statusText}`,
+					false,
+					res.status,
+				);
 			}
 			if (!res.ok) {
 				const text = await res.text().catch(() => "");

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test, { beforeEach } from "node:test";
 import { kvKey } from "@/phi/lib/const";
+import { TapApiError } from "@/phi/lib/tapapi";
 import { finishTapLogin, peekTapLogin } from "./tap-login";
 
 const LOGIN = "a".repeat(32);
@@ -29,7 +30,10 @@ const db = {
 	store: db,
 	rt: {
 		getQRcode: {
-			checkQRCodeResult: async () => qrResult,
+			checkQRCodeResult: async () => {
+				if (qrResult instanceof Error) throw qrResult;
+				return qrResult;
+			},
 			login: async () => {
 				logins += 1;
 				return {};
@@ -53,6 +57,16 @@ test("a pending sign-in waits, then shows the scan", async () => {
 	assert.deepEqual(await peekTapLogin(LOGIN), { status: "waiting" });
 	qrResult = { success: false, data: { error: "authorization_waiting" } };
 	assert.deepEqual(await peekTapLogin(LOGIN), { status: "scanned" });
+});
+
+test("a sign-in poll TapTap rate limits keeps waiting, flagged", async () => {
+	kv.set(QR, qrSession);
+	qrResult = new TapApiError("TapAPI 429 Too Many Requests", false, 429);
+	assert.deepEqual(await peekTapLogin(LOGIN), {
+		status: "waiting",
+		rateLimited: true,
+	});
+	assert.equal(kv.has(QR), true);
 });
 
 test("a confirmed scan comes back to finish", async () => {

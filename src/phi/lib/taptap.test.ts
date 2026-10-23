@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { setTapHttpForTest } from "./tapapi";
+import { isTapRateLimited, setTapHttpForTest } from "./tapapi";
 import { getQRcode, taptapProfile } from "./taptap";
 
 const GB_CLIENT = "kviehleldgxsagpozb";
@@ -73,6 +73,27 @@ test("global QR token poll uses tapapis.com even if useGlobal is omitted", async
 		assert.equal(calls[0]!.clientId, GB_CLIENT);
 		assert.equal(calls[0]!.urlencoded, true);
 	});
+});
+
+test("a 429 on the QR token poll is thrown, other failures read as waiting", async () => {
+	const qr = {
+		deviceId: "dev",
+		data: {
+			device_code: "c",
+			qrcode_url: "https://accounts.taptap.io/device?qrcode=1&user_code=c",
+		},
+	};
+	try {
+		setTapHttpForTest(async () => new Response("", { status: 429 }));
+		await assert.rejects(
+			() => getQRcode.checkQRCodeResult(qr, true),
+			isTapRateLimited,
+		);
+		setTapHttpForTest(async () => new Response("", { status: 503 }));
+		assert.equal(await getQRcode.checkQRCodeResult(qr, true), null);
+	} finally {
+		setTapHttpForTest();
+	}
 });
 
 test("global device code request uses international host and GB client id", async () => {

@@ -674,6 +674,7 @@ export type ClientMessages = {
 		bind_failed: string;
 		unbind_failed: string;
 		tapapi_unavailable: string;
+		tapapi_rate_limited: string;
 		migrate_rejected: string;
 		migrate_no_source_save: string;
 		migrate_same_account: string;
@@ -1580,6 +1581,8 @@ export const en: ClientMessages = {
 		unbind_failed: "Could not unbind.",
 		tapapi_unavailable:
 			"TapTap's cloud (TapAPI) timed out. This is TapTap's problem, not PhiBot. Try again in a few minutes.",
+		tapapi_rate_limited:
+			"TapTap answered 429 Too Many Requests: PhiBot is being rate limited by TapTap. If it keeps happening, wait a few minutes and try again.",
 		migrate_rejected:
 			"The server you picked did not accept this account. Check that CN or Global matches it.",
 		migrate_no_source_save:
@@ -2433,6 +2436,8 @@ export const zh: ClientMessages = {
 		unbind_failed: "无法解绑",
 		tapapi_unavailable:
 			"TapTap 云端（TapAPI）超时了。这是 TapTap 的问题，不是本站故障。请稍后再试",
+		tapapi_rate_limited:
+			"TapTap 返回了 429 Too Many Requests：PhiBot 正在被 TapTap 限流。如果一直这样，请等几分钟再试",
 		migrate_rejected: "所选区服不接受这个账号，请确认国服或国际服选对了",
 		migrate_no_source_save: "来源账号没有云存档，请先在 Phigros 上传一次",
 		migrate_same_account: "来源和目标是同一个账号，请登录另一个目标账号",

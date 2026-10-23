@@ -90,6 +90,7 @@ export function useTapQr<X extends string>({
 	useEffect(() => {
 		if (phase !== "qr" && phase !== "scanned") return;
 		const ctrl = new AbortController();
+		const limitText = m.errors.tapapi_rate_limited;
 		let dead = false;
 		let busy = false;
 		const poll = async () => {
@@ -104,6 +105,8 @@ export function useTapQr<X extends string>({
 					if (!dead) setWaitingTap(true);
 				});
 				if (dead) return;
+				if (data.rateLimited === true) setError(limitText);
+				else setError((e) => (e === limitText ? undefined : e));
 				if (onPollRef.current(data, { setPhase, setWaitingTap })) {
 					dead = true;
 					setWaitingTap(false);
@@ -138,8 +141,17 @@ export function useTapQr<X extends string>({
 			ctrl.abort();
 			window.clearInterval(id);
 			document.removeEventListener("visibilitychange", onVisible);
+			setError((e) => (e === limitText ? undefined : e));
 		};
-	}, [phase, base, busyPhase, failedText, fail, m.errors.tapapi_unavailable]);
+	}, [
+		phase,
+		base,
+		busyPhase,
+		failedText,
+		fail,
+		m.errors.tapapi_unavailable,
+		m.errors.tapapi_rate_limited,
+	]);
 
 	const tapWait = waitingTap && phase !== "idle";
 	const busy = phase === "starting" || phase === busyPhase || tapWait;

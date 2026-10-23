@@ -1,7 +1,7 @@
 import { kvKey } from "@/phi/lib/const";
 import type { Save } from "@/phi/lib/save";
 import { saveIdentity } from "@/phi/lib/saves";
-import { isTapApiFailure } from "@/phi/lib/tapapi";
+import { isTapApiFailure, isTapRateLimited } from "@/phi/lib/tapapi";
 import { noteTokenUser } from "./account-link";
 import { runInBackground } from "./background";
 import { dropUserCards } from "./cache";
@@ -27,6 +27,7 @@ export type ErrorCode =
 	| "cache_bypass_cooldown"
 	| "refresh_failed"
 	| "tapapi_unavailable"
+	| "tapapi_rate_limited"
 	| "unauthorized"
 	| "unknown_card"
 	| "rate_limit"
@@ -191,6 +192,9 @@ async function refreshSaveFor(
 		};
 	} catch (err) {
 		await host.store.del(coolKey);
+		if (isTapRateLimited(err)) {
+			return { error: "tapapi_rate_limited", status: 502 };
+		}
 		if (isTapApiFailure(err)) {
 			return { error: "tapapi_unavailable", status: 502 };
 		}

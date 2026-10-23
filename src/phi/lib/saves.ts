@@ -6,7 +6,7 @@ import { kvKey } from "./const";
 import { evictOldest } from "./lru";
 import type { PhiRuntime } from "./runtime";
 import type { Save, SavePayload } from "./save";
-import { isTapApiFailure, tapCnProxyUrl } from "./tapapi";
+import { isTapApiFailure, isTapRateLimited, tapCnProxyUrl } from "./tapapi";
 
 const SAVE = (token: string) => kvKey("save", token);
 const HISB30 = (userId: string) => kvKey("hisb30", userId);
@@ -290,6 +290,7 @@ async function updateSaveFor(
 			throw err;
 		user = await fetchSaveInfo(rt, token, !preferred).catch((other) => {
 			// The other host rejecting the token says nothing; the first one was down
+			if (isTapRateLimited(err)) throw err;
 			throw isTapApiFailure(err) && !isTapApiFailure(other) ? err : other;
 		});
 	}

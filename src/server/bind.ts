@@ -1,7 +1,7 @@
 import { kvKey } from "@/phi/lib/const";
 import type { PhiRuntime } from "@/phi/lib/runtime";
 import { clearUser, getToken, updateSave } from "@/phi/lib/saves";
-import { isTapApiFailure } from "@/phi/lib/tapapi";
+import { isTapApiFailure, isTapRateLimited } from "@/phi/lib/tapapi";
 import { isGlobalTapLogin, type TapQrData } from "@/phi/lib/taptap";
 import { noteTokenUser } from "./account-link";
 import { type PlayerSummary, playerFromSave } from "./bound";
@@ -34,6 +34,7 @@ export type BindErr = {
 		| "bind_failed"
 		| "unbind_failed"
 		| "tapapi_unavailable"
+		| "tapapi_rate_limited"
 		| "not_bound";
 	status: number;
 	detail?: string;
@@ -47,6 +48,9 @@ export function asServer(raw: unknown, globalFlag?: unknown): BindServer {
 export function failBind(err: unknown): BindErr {
 	const msg = err instanceof Error ? err.message : String(err);
 	logger.error("bind failed", err instanceof Error ? err : msg);
+	if (isTapRateLimited(err)) {
+		return { error: "tapapi_rate_limited", status: 502 };
+	}
 	if (isTapApiFailure(err)) {
 		return { error: "tapapi_unavailable", status: 502 };
 	}
@@ -195,14 +199,14 @@ export type QrResume = {
 };
 
 export function isQrResume(
-	value: { status: "waiting" | "scanned" } | BindOk | BindErr | QrResume,
+	value: QrWait | BindOk | BindErr | QrResume,
 ): value is QrResume {
 	return "resume" in value;
 }
 
 export async function peekQrBind(
 	userId: string,
-): Promise<{ status: "waiting" | "scanned" } | BindOk | BindErr | QrResume> {
+): Promise<QrWait | BindOk | BindErr | QrResume> {
 	return withDiscordUid(userId, () => peekQrBindFor(userId));
 }
 
@@ -221,6 +225,27 @@ async function qrGone(
 	return { error: "qr_expired", status: 410 };
 }
 
+export type QrWait = { status: "waiting" | "scanned"; rateLimited?: true };
+
+/** A 429 keeps the QR waiting, flagged so the page can say TapTap is rate limiting */
+async function pollQr(rt: PhiRuntime, stored: QrStored, useGlobal: boolean) {
+	try {
+		return {
+			result: await rt.getQRcode.checkQRCodeResult(stored, useGlobal),
+		};
+	} catch (err) {
+		if (isTapRateLimited(err))
+			return { result: null, rateLimited: true as const };
+		throw err;
+	}
+}
+
+function qrWaiting(rateLimited?: true): QrWait {
+	return rateLimited
+		? { status: "waiting", rateLimited }
+		: { status: "waiting" };
+}
+
 export const QR_PENDING = new Set([
 	"authorization_pending",
 	"authorization_waiting",
@@ -231,16 +256,12 @@ export const QR_PENDING = new Set([
 export async function peekQrAt(
 	qrKey: string,
 	lockKey: string,
-): Promise<
-	| { status: "waiting" | "scanned" }
-	| { error: "qr_expired"; status: 410 }
-	| QrResume
-> {
+): Promise<QrWait | { error: "qr_expired"; status: 410 } | QrResume> {
 	const host = await getDataHost();
 	const stored = parseQrStored(await host.db.get(qrKey));
 	if (!stored) return { error: "qr_expired", status: 410 };
 	const useGlobal = isGlobalTapLogin(stored, stored.global);
-	const result = await host.rt.getQRcode.checkQRCodeResult(stored, useGlobal);
+	const { result, rateLimited } = await pollQr(host.rt, stored, useGlobal);
 	if (qrSucceeded(result) && result) return { resume: { result, useGlobal } };
 	const err = result?.data?.error;
 	if (err === "authorization_waiting") return { status: "scanned" };
@@ -249,7 +270,7 @@ export async function peekQrAt(
 		await host.db.del(qrKey).catch(() => undefined);
 		return { error: "qr_expired", status: 410 };
 	}
-	return { status: "waiting" };
+	return qrWaiting(rateLimited);
 }
 
 /** A bind done elsewhere leaves our QR session pending, so check the token now and then */
@@ -278,13 +299,13 @@ export function resetQrPollForTest() {
 
 async function peekQrBindFor(
 	userId: string,
-): Promise<{ status: "waiting" | "scanned" } | BindOk | BindErr | QrResume> {
+): Promise<QrWait | BindOk | BindErr | QrResume> {
 	const host = await getDataHost();
 	const stored = parseQrStored(await host.db.get(QR_KEY(userId)));
 	if (!stored) return qrGone(host, userId);
 
 	const useGlobal = isGlobalTapLogin(stored, stored.global);
-	const result = await host.rt.getQRcode.checkQRCodeResult(stored, useGlobal);
+	const { result, rateLimited } = await pollQr(host.rt, stored, useGlobal);
 	if (qrSucceeded(result) && result) return { resume: { result, useGlobal } };
 	const err = result?.data?.error;
 	// A dead code with no binding yet keeps waiting: another tab's bind may still be saving
@@ -294,7 +315,7 @@ async function peekQrBindFor(
 		if (token) return qrGone(host, userId, token);
 	}
 	if (err === "authorization_waiting") return { status: "scanned" };
-	return { status: "waiting" };
+	return qrWaiting(rateLimited);
 }
 
 export async function finishQrBind(

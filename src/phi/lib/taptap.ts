@@ -1,7 +1,12 @@
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import QRCode from "qrcode";
 import { logger } from "@/server/logger";
-import { TAPAPI_QR_POLL_TIMEOUT_MS, tapFetch, tapRegion } from "./tapapi";
+import {
+	isTapRateLimited,
+	TAPAPI_QR_POLL_TIMEOUT_MS,
+	tapFetch,
+	tapRegion,
+} from "./tapapi";
 
 type PartialQR = {
 	deviceId?: string;
@@ -119,6 +124,8 @@ async function checkQRCodeResult(data: PartialQR, useGlobal = false) {
 			data?: { error?: string; kid?: string; access_token?: string };
 		};
 	} catch (err) {
+		// A 429 ends the poll; anything else reads as still waiting
+		if (isTapRateLimited(err)) throw err;
 		logger.warn(
 			`qr poll fail ${err instanceof Error ? `${err.name} ${err.message}` : err}`,
 		);

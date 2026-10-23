@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import test, { beforeEach } from "node:test";
 import { kvKey } from "@/phi/lib/const";
 import { resetSaveBlobMemForTest } from "@/phi/lib/saves";
-import { peekQrBind, resetQrPollForTest, unbindAccount } from "./bind";
+import { TapApiError } from "@/phi/lib/tapapi";
+import {
+	failBind,
+	peekQrBind,
+	resetQrPollForTest,
+	unbindAccount,
+} from "./bind";
 
 const TOKEN = "abcdefghijklmnopqrstuvwxy";
 const kv = new Map<string, string>();
@@ -53,6 +59,7 @@ const save = {
 		getQRcode: {
 			checkQRCodeResult: async () => {
 				log.push("taptap");
+				if (qrResult instanceof Error) throw qrResult;
 				return qrResult;
 			},
 		},
@@ -143,6 +150,33 @@ test("a finished bind (QR cleared elsewhere) reports the player", async () => {
 		1,
 		"the token is read once",
 	);
+});
+
+test("a poll TapTap rate limits keeps waiting, flagged, and keeps the QR", async () => {
+	kv.set(QR("p9"), qrSession);
+	qrResult = new TapApiError("TapAPI 429 Too Many Requests", false, 429);
+	assert.deepEqual(await peekQrBind("p9"), {
+		status: "waiting",
+		rateLimited: true,
+	});
+	assert.equal(kv.has(QR("p9")), true);
+	qrResult = { success: false, data: { error: "authorization_pending" } };
+	assert.deepEqual(await peekQrBind("p9"), { status: "waiting" });
+});
+
+test("a TapTap 429 is a rate limit, other TapTap failures are unavailable", () => {
+	assert.deepEqual(
+		failBind(new TapApiError("TapAPI 429 Too Many Requests", false, 429)),
+		{ error: "tapapi_rate_limited", status: 502 },
+	);
+	assert.deepEqual(
+		failBind(new TapApiError("TapAPI 503 Service Unavailable", false, 503)),
+		{ error: "tapapi_unavailable", status: 502 },
+	);
+	assert.deepEqual(failBind(new TapApiError("TapAPI timed out", true)), {
+		error: "tapapi_unavailable",
+		status: 502,
+	});
 });
 
 test("no QR and no binding: the QR expired", async () => {

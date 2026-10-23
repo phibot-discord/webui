@@ -3,6 +3,7 @@ import test from "node:test";
 import { isTimeoutError } from "@/server/outgoing";
 import {
 	isRetryableTapNet,
+	isTapRateLimited,
 	setTapHttpForTest,
 	TAPAPI_TIMEOUT_MS,
 	TapApiError,
@@ -257,7 +258,13 @@ test("a 5xx is retried by undici twice, then reported", async () => {
 			res.end();
 		},
 		async (url, hits) => {
-			await assert.rejects(() => tapFetch(url), /TapAPI 503/);
+			await assert.rejects(
+				() => tapFetch(url),
+				(err: unknown) =>
+					err instanceof TapApiError &&
+					/TapAPI 503/.test(err.message) &&
+					!isTapRateLimited(err),
+			);
 			assert.equal(hits(), 3);
 		},
 	);
@@ -270,7 +277,13 @@ test("a 429 that outlasts the retries is a TapAPI failure, not a plain response"
 			res.end();
 		},
 		async (url, hits) => {
-			await assert.rejects(() => tapFetch(url), TapApiError);
+			await assert.rejects(
+				() => tapFetch(url),
+				(err: unknown) =>
+					err instanceof TapApiError &&
+					err.status === 429 &&
+					isTapRateLimited(err),
+			);
 			assert.equal(hits(), 3);
 		},
 	);

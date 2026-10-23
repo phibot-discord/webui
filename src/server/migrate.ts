@@ -18,13 +18,14 @@ import {
 	getToken,
 	readSaveRaw,
 } from "@/phi/lib/saves";
-import { isTapApiFailure } from "@/phi/lib/tapapi";
+import { isTapApiFailure, isTapRateLimited } from "@/phi/lib/tapapi";
 import {
 	asServer,
 	type BindServer,
 	clearQrAt,
 	peekQrAt,
 	type QrResume,
+	type QrWait,
 	qrPngAt,
 	requestQr,
 } from "./bind";
@@ -60,6 +61,7 @@ export type MigrateErr = {
 		| "qr_expired"
 		| "qr_busy"
 		| "tapapi_unavailable"
+		| "tapapi_rate_limited"
 		| "migrate_rejected"
 		| "migrate_no_source_save"
 		| "migrate_same_account"
@@ -139,6 +141,8 @@ function logDetail(what: string, err: unknown): string | undefined {
 
 function failMigrate(err: unknown): MigrateErr {
 	const detail = logDetail("migrate failed", err);
+	if (isTapRateLimited(err))
+		return { error: "tapapi_rate_limited", status: 502 };
 	if (isTapApiFailure(err)) return { error: "tapapi_unavailable", status: 502 };
 	return { error: "migrate_failed", status: 502, detail };
 }
@@ -338,7 +342,7 @@ export function migrateQrPng(userId: string, slot: Slot) {
 export function peekMigrateQr(
 	userId: string,
 	slot: Slot,
-): Promise<{ status: "waiting" | "scanned" } | MigrateErr | QrResume> {
+): Promise<QrWait | MigrateErr | QrResume> {
 	return peekQrAt(QR_KEY(userId, slot), QR_LOCK(userId, slot));
 }
 
