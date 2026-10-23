@@ -9,9 +9,11 @@ import { persistCardReload } from "@/lib/save-refresh";
 export function UnbindButton({
 	manual = false,
 	inline = false,
+	small = false,
 }: {
 	manual?: boolean;
 	inline?: boolean;
+	small?: boolean;
 }) {
 	const { m } = useI18n();
 	const copy = manual
@@ -140,7 +142,7 @@ export function UnbindButton({
 		<div className="tool" ref={root}>
 			<button
 				ref={trigger}
-				className="btn btn-ghost"
+				className={small ? "btn btn-ghost btn-sm" : "btn btn-ghost"}
 				type="button"
 				aria-expanded={confirming}
 				aria-haspopup="dialog"

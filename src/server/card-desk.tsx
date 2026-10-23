@@ -72,7 +72,7 @@ export async function loadCardDesk(
 					<ShareToggle slug={shareSlug} />
 					<MoreMenu>
 						<BypassCacheButton cooldownMs={bypassCooldown} />
-						<UnbindButton manual={got.manual} inline />
+						{got.manual ? <UnbindButton manual inline /> : null}
 					</MoreMenu>
 				</>
 			),
