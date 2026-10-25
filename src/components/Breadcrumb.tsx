@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { FilesLink } from "./FilesLink";
 
 export type Crumb = { label: string; href?: string };
 
@@ -17,9 +17,7 @@ export function Breadcrumb({
 					return (
 						<li key={item.label}>
 							{item.href && !last ? (
-								<Link href={item.href} prefetch={false}>
-									{item.label}
-								</Link>
+								<FilesLink href={item.href}>{item.label}</FilesLink>
 							) : (
 								<span aria-current={last ? "page" : undefined}>
 									{item.label}

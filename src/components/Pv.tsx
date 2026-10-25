@@ -8,7 +8,6 @@ import {
 	WarningCircle,
 } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import {
 	type ReactNode,
 	type RefObject,
@@ -25,6 +24,7 @@ import { readLocal, writeLocal } from "@/lib/local-store";
 import type { OverlayKind } from "@/lib/pv";
 import { prefersReducedMotion } from "@/lib/scroll";
 import type { DeductionView } from "./Deduction";
+import { FilesLink } from "./FilesLink";
 import { LangName } from "./LangName";
 import { RevealCurrent } from "./RevealCurrent";
 import { type SegOption, SegRadio } from "./SegRadio";
@@ -298,14 +298,10 @@ function PvStage({
 				</div>
 				<div className="pv-now-actions">
 					{clip.transcript ? (
-						<Link
-							className="btn btn-ghost btn-sm"
-							href={clip.transcript}
-							prefetch={false}
-						>
+						<FilesLink className="btn btn-ghost btn-sm" href={clip.transcript}>
 							{t.transcript}
 							<Subtitles size={14} aria-hidden />
-						</Link>
+						</FilesLink>
 					) : null}
 					<a
 						className="btn btn-ghost btn-sm"

@@ -99,24 +99,6 @@
 	}
 }
 
-.files-skeleton .sk-crumb {
-	width: 9rem;
-	height: calc(var(--text-sm) * var(--leading));
-	margin-bottom: var(--space-3);
-}
-
-.files-skeleton .sk-title {
-	width: min(14rem, 60%);
-	height: calc(var(--text-2xl) * 1.15);
-	margin-bottom: var(--space-3);
-}
-
-.files-skeleton .sk-lede {
-	width: min(36rem, 90%);
-	height: calc(var(--text-md) * var(--leading));
-	margin-bottom: var(--space-6);
-}
-
 .files-skeleton .sk-stage {
 	width: min(100%, max(20rem, calc((100dvh - var(--nav-h) - 22rem) * 16 / 9)));
 	aspect-ratio: 16 / 9;
@@ -128,19 +110,6 @@
 	border-radius: var(--radius-md);
 }
 
-.files-skeleton .sk-lines {
-	display: grid;
-	gap: var(--space-3);
-}
-
-.files-skeleton .sk-line {
-	height: 1.25rem;
-}
-
-.files-skeleton .sk-line:nth-child(3n) {
-	width: 70%;
-}
-
 @media (min-width: 64rem) {
 	.files-skeleton .sk-stage {
 		width: min(
@@ -148,4 +117,8 @@
 			max(24rem, calc((100dvh - var(--nav-h) - 16rem) * 16 / 9))
 		);
 	}
+}
+
+.files-page[data-swap] .files-toc {
+	visibility: hidden;
 }

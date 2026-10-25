@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Messages } from "@/i18n/messages";
 import type { CollectionLang } from "@/lib/collection";
 import { textsHref } from "@/lib/files-view";
@@ -12,6 +11,8 @@ import { fill } from "@/phi/lib/card-i18n";
 import type { Crumb } from "./Breadcrumb";
 import { CollectionToc } from "./CollectionToc";
 import { DocHead } from "./DocHead";
+import { FilesSwap } from "./FilesFrame";
+import { FilesLink } from "./FilesLink";
 import { LangSwitch } from "./LangSwitch";
 import { RichText } from "./RichText";
 
@@ -132,62 +133,63 @@ export function GameTexts({
 				<ul className="coll-chips texts-chips">
 					{sections.map((section) => (
 						<li key={section.id}>
-							<Link
+							<FilesLink
 								className="coll-chip texts-chip"
 								href={textsHref(section.id, picked)}
-								prefetch={false}
 								aria-current={section.id === current ? "page" : undefined}
 							>
 								{section.name}
 								<span className="texts-chip-count">{section.count}</span>
-							</Link>
+							</FilesLink>
 						</li>
 					))}
 				</ul>
 			</nav>
-			{body?.kind === "groups" ? (
-				<CollectionToc label={tocLabel} variant="popover" />
-			) : null}
-			{!body ? (
-				<p className="callout" role="status">
-					{t.unavailable}
-				</p>
-			) : body.kind === "list" ? (
-				<>
-					<p className="texts-count">
-						{fill(t.count, { n: body.lines.length })}
+			<FilesSwap>
+				{body?.kind === "groups" ? (
+					<CollectionToc label={tocLabel} variant="popover" />
+				) : null}
+				{!body ? (
+					<p className="callout" role="status">
+						{t.unavailable}
 					</p>
-					{body.fallback ? <p className="coll-note">{t.fallback}</p> : null}
-					<ol className="texts-list" lang={body.lang}>
-						{keyed(body.lines, (l) => l).map(({ key, item: line }) => (
-							<li key={key}>
-								<RichText text={line} />
+				) : body.kind === "list" ? (
+					<>
+						<p className="texts-count">
+							{fill(t.count, { n: body.lines.length })}
+						</p>
+						{body.fallback ? <p className="coll-note">{t.fallback}</p> : null}
+						<ol className="texts-list" lang={body.lang}>
+							{keyed(body.lines, (l) => l).map(({ key, item: line }) => (
+								<li key={key}>
+									<RichText text={line} />
+								</li>
+							))}
+						</ol>
+					</>
+				) : body.kind === "groups" ? (
+					<TextGroups groups={body.groups} t={t} />
+				) : (
+					<ul className="texts-avatars">
+						{body.avatars.map((avatar) => (
+							<li key={avatar.name}>
+								<figure>
+									{/* biome-ignore lint/performance/noImgElement: R2 object, loaded straight from the public domain */}
+									<img
+										src={avatar.src}
+										alt=""
+										width={96}
+										height={96}
+										loading="lazy"
+										decoding="async"
+									/>
+									<figcaption>{avatar.name}</figcaption>
+								</figure>
 							</li>
 						))}
-					</ol>
-				</>
-			) : body.kind === "groups" ? (
-				<TextGroups groups={body.groups} t={t} />
-			) : (
-				<ul className="texts-avatars">
-					{body.avatars.map((avatar) => (
-						<li key={avatar.name}>
-							<figure>
-								{/* biome-ignore lint/performance/noImgElement: R2 object, loaded straight from the public domain */}
-								<img
-									src={avatar.src}
-									alt=""
-									width={96}
-									height={96}
-									loading="lazy"
-									decoding="async"
-								/>
-								<figcaption>{avatar.name}</figcaption>
-							</figure>
-						</li>
-					))}
-				</ul>
-			)}
+					</ul>
+				)}
+			</FilesSwap>
 		</article>
 	);
 }

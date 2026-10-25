@@ -1,5 +1,4 @@
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
-import Link from "next/link";
 import type { Messages } from "@/i18n/messages";
 import {
 	type CollectionLang,
@@ -17,6 +16,8 @@ import { CollectionNav, type ViewChapter } from "./CollectionNav";
 import { CollectionSearchForm } from "./CollectionSearch";
 import { CollectionToc, type TocItem } from "./CollectionToc";
 import { DocHead } from "./DocHead";
+import { FilesSwap } from "./FilesFrame";
+import { FilesLink } from "./FilesLink";
 import { TextGroups } from "./GameTexts";
 import { LangSwitch } from "./LangSwitch";
 import { RichText } from "./RichText";
@@ -126,10 +127,10 @@ function EntryText({
 			) : null}
 			{entry.hidden ? (
 				<p className="coll-hidden">
-					<Link href={entry.hidden.href} prefetch={false}>
+					<FilesLink href={entry.hidden.href}>
 						{entry.hidden.label}
 						<ArrowRight size={14} weight="bold" aria-hidden />
-					</Link>
+					</FilesLink>
 				</p>
 			) : null}
 			{entry.tile ? <CollectionTile tile={entry.tile} /> : null}
@@ -192,10 +193,9 @@ function PagerLink({
 }) {
 	const back = direction === "prev";
 	return (
-		<Link
+		<FilesLink
 			className={`coll-pager-link coll-pager-${direction}`}
 			href={collectionHref(chapter.id, lang)}
-			prefetch={false}
 			rel={direction}
 		>
 			<span className="coll-pager-dir">
@@ -204,7 +204,7 @@ function PagerLink({
 				{back ? null : <span aria-hidden="true"> ›</span>}
 			</span>
 			<span className="coll-pager-name">{chapterTip(chapter, "")}</span>
-		</Link>
+		</FilesLink>
 	);
 }
 
@@ -255,62 +255,64 @@ export function CollectionChapter({
 				lang={picked}
 				t={t}
 			/>
-			<CollectionToc label={t.onThisPage} variant="popover" />
-			{items.length ? (
-				<div className="doc-body" lang={picked}>
-					{items.map((item) => {
-						const [first, ...clues] = item.entries;
-						if (!first) return null;
-						const anchor = itemAnchor(item.key);
-						return (
-							<section key={item.key} className="coll-item">
-								<h2 id={anchor}>
-									<a href={`#${anchor}`}>
-										{first.title}
-										<span className="coll-anchor" aria-hidden="true">
-											#
-										</span>
-									</a>
-								</h2>
-								<FirstEntry entry={first} eager={first.art === lead} t={t} />
-								{clues.length ? (
-									<div className="coll-clues">
-										<h3>{t.clues}</h3>
-										{clues.map((entry) => (
-											<details key={entry.sub} className="coll-clue">
-												<summary lang={entry.original ? "zh-CN" : undefined}>
-													{entry.title}
-												</summary>
-												{entry.art ? (
-													<CollectionArt
-														art={entry.art}
-														title={entry.title}
-														eager={entry.art === lead}
-													/>
-												) : null}
-												<EntryText entry={entry} t={t} />
-											</details>
-										))}
-									</div>
-								) : null}
-							</section>
-						);
-					})}
-				</div>
-			) : (
-				<p className="asset-note">{t.empty}</p>
-			)}
-			{story.length ? <TextGroups groups={story} t={texts} /> : null}
-			{prev || next ? (
-				<nav className="coll-pager" aria-label={t.pagerLabel}>
-					{prev ? (
-						<PagerLink chapter={prev} direction="prev" lang={picked} t={t} />
-					) : null}
-					{next ? (
-						<PagerLink chapter={next} direction="next" lang={picked} t={t} />
-					) : null}
-				</nav>
-			) : null}
+			<FilesSwap>
+				<CollectionToc label={t.onThisPage} variant="popover" />
+				{items.length ? (
+					<div className="doc-body" lang={picked}>
+						{items.map((item) => {
+							const [first, ...clues] = item.entries;
+							if (!first) return null;
+							const anchor = itemAnchor(item.key);
+							return (
+								<section key={item.key} className="coll-item">
+									<h2 id={anchor}>
+										<a href={`#${anchor}`}>
+											{first.title}
+											<span className="coll-anchor" aria-hidden="true">
+												#
+											</span>
+										</a>
+									</h2>
+									<FirstEntry entry={first} eager={first.art === lead} t={t} />
+									{clues.length ? (
+										<div className="coll-clues">
+											<h3>{t.clues}</h3>
+											{clues.map((entry) => (
+												<details key={entry.sub} className="coll-clue">
+													<summary lang={entry.original ? "zh-CN" : undefined}>
+														{entry.title}
+													</summary>
+													{entry.art ? (
+														<CollectionArt
+															art={entry.art}
+															title={entry.title}
+															eager={entry.art === lead}
+														/>
+													) : null}
+													<EntryText entry={entry} t={t} />
+												</details>
+											))}
+										</div>
+									) : null}
+								</section>
+							);
+						})}
+					</div>
+				) : (
+					<p className="asset-note">{t.empty}</p>
+				)}
+				{story.length ? <TextGroups groups={story} t={texts} /> : null}
+				{prev || next ? (
+					<nav className="coll-pager" aria-label={t.pagerLabel}>
+						{prev ? (
+							<PagerLink chapter={prev} direction="prev" lang={picked} t={t} />
+						) : null}
+						{next ? (
+							<PagerLink chapter={next} direction="next" lang={picked} t={t} />
+						) : null}
+					</nav>
+				) : null}
+			</FilesSwap>
 		</article>
 	);
 }

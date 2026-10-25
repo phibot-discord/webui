@@ -115,7 +115,10 @@ export function PhiraPack() {
 			signal: ac.signal,
 		})
 			.then(async (res) => {
-				if (!res.ok) return;
+				if (!res.ok) {
+					setExtras({ id: songId, levels: [] });
+					return;
+				}
 				const body = (await res.json()) as {
 					levels?: unknown;
 					history?: History;
@@ -131,7 +134,9 @@ export function PhiraPack() {
 					: undefined;
 				setExtras({ id: songId, levels, history });
 			})
-			.catch(() => undefined);
+			.catch(() => {
+				if (!ac.signal.aborted) setExtras({ id: songId, levels: [] });
+			});
 		return () => ac.abort();
 	}, [songId]);
 
@@ -232,6 +237,7 @@ export function PhiraPack() {
 	}
 
 	const history = song && extras?.id === song.id ? extras.history : undefined;
+	const lookingFurther = Boolean(song) && extras?.id !== song?.id;
 	const era = history?.eras[eraAt];
 	const scored: Row[] = era
 		? Object.entries(era.charts)
@@ -443,6 +449,12 @@ export function PhiraPack() {
 								);
 							})}
 						</ul>
+						{lookingFurther ? (
+							<p className="phira-more" role="status">
+								<span className="phira-spinner" aria-hidden="true" />
+								{t.loadingMore}
+							</p>
+						) : null}
 					</div>
 				) : catalog.status === "failed" ? (
 					<div className="phira-failed" role="alert">

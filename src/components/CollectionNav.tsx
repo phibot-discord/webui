@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { Messages } from "@/i18n/messages";
 import { chapterTip, chipName } from "@/lib/collection";
 import { collectionHref } from "@/lib/files-view";
 import { revealInRow, rowFade } from "@/lib/scroll";
 import { fill } from "@/phi/lib/card-i18n";
+import { FilesLink } from "./FilesLink";
 
 export type ViewChapter = {
 	id: string;
@@ -84,10 +84,9 @@ export function CollectionNav({
 							data-start={start ? "" : undefined}
 							data-end={end ? "" : undefined}
 						>
-							<Link
+							<FilesLink
 								className="coll-chip"
 								href={collectionHref(chapter.id, lang)}
-								prefetch={false}
 								aria-current={chapter.id === currentId ? "page" : undefined}
 								aria-label={chipName(chapter.short, tip)}
 							>
@@ -95,7 +94,7 @@ export function CollectionNav({
 								<span className="coll-chip-tip" aria-hidden="true">
 									<span>{tip}</span>
 								</span>
-							</Link>
+							</FilesLink>
 						</li>
 					);
 				})}

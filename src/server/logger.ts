@@ -17,7 +17,7 @@ function stamp() {
 function uidTag(): string | undefined {
 	const uid = discordUid.getStore();
 	if (uid == null) return;
-	return `discord uid: ${uid}`;
+	return `duid: ${uid}`;
 }
 
 function emit(

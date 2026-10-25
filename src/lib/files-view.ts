@@ -3,11 +3,18 @@ export const FILES_VIEWS = [
 	"pv",
 	"collection",
 	"texts",
+	"timeline",
 	"c9s6",
 ] as const;
 export type FilesView = (typeof FILES_VIEWS)[number];
 
-export const NAV_VIEWS = ["files", "pv", "collection", "texts"] as const;
+export const NAV_VIEWS = [
+	"files",
+	"pv",
+	"collection",
+	"timeline",
+	"texts",
+] as const;
 export type NavView = (typeof NAV_VIEWS)[number];
 
 export function navView(view: FilesView): NavView {
@@ -59,4 +66,41 @@ export function textsHref(
 	const href = `/files?view=texts&section=${encodeURIComponent(section)}`;
 	const withLang = lang ? `${href}&lang=${encodeURIComponent(lang)}` : href;
 	return anchor ? `${withLang}#${anchor}` : withLang;
+}
+
+export const TIMELINE_TABS = [
+	"timeline",
+	"eras",
+	"threads",
+	"chapters",
+	"setting",
+] as const;
+export type TimelineTab = (typeof TIMELINE_TABS)[number];
+
+export function parseTimelineTab(raw: Param): TimelineTab {
+	const v = parseParam(raw);
+	return TIMELINE_TABS.find((t) => t === v) ?? "timeline";
+}
+
+/** The story timeline, narrowed to one thread and with community lore when asked */
+export function timelineHref(
+	opts: {
+		thread?: string;
+		community?: boolean;
+		tab?: TimelineTab;
+		kind?: string;
+		page?: number;
+	} = {},
+	anchor?: string,
+): string {
+	const params = new URLSearchParams({ view: "timeline" });
+	if (opts.tab && opts.tab !== "timeline") params.set("tab", opts.tab);
+	if (opts.tab === "setting" && opts.kind) {
+		params.set("kind", opts.kind);
+		if (opts.page) params.set("p", String(opts.page + 1));
+	}
+	if (opts.thread) params.set("thread", opts.thread);
+	if (opts.community) params.set("community", "1");
+	const href = `/files?${params.toString()}`;
+	return anchor ? `${href}#${anchor}` : href;
 }

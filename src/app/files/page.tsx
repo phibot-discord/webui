@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AssetBrowser } from "@/components/AssetBrowser";
 import { Breadcrumb, type Crumb } from "@/components/Breadcrumb";
 import { CollectionChapter, tocOf } from "@/components/CollectionChapter";
@@ -8,6 +9,8 @@ import {
 	type TocItem,
 	TocProvider,
 } from "@/components/CollectionToc";
+import { FilesFrame } from "@/components/FilesFrame";
+import { FilesSkeletonBody } from "@/components/FilesSkeleton";
 import { FilesViews } from "@/components/FilesViews";
 import {
 	GameTexts,
@@ -16,10 +19,18 @@ import {
 } from "@/components/GameTexts";
 import { HiddenSong } from "@/components/HiddenSong";
 import { Pv } from "@/components/Pv";
-import { localeTag } from "@/i18n/config";
+import { Timeline, timelineToc } from "@/components/Timeline";
+import { type Locale, localeTag } from "@/i18n/config";
+import type { Messages } from "@/i18n/messages";
 import { getMessages } from "@/i18n/server";
 import { parseCollectionLang } from "@/lib/collection";
-import { navView, parseParam, parseView, viewHref } from "@/lib/files-view";
+import {
+	navView,
+	parseParam,
+	parseTimelineTab,
+	parseView,
+	viewHref,
+} from "@/lib/files-view";
 import {
 	avatarKey,
 	CREDITS_GROUP,
@@ -29,6 +40,7 @@ import {
 	textAnchor,
 	tipsIn,
 } from "@/lib/texts";
+import { TERM_KINDS } from "@/lib/timeline";
 import { getInfo } from "@/phi/lib/get-info";
 import { objectUrls } from "@/server/asset-links";
 import {
@@ -39,9 +51,11 @@ import {
 	hiddenSongChapter,
 	sideTabsInUse,
 } from "@/server/files-page";
+import { afterFlush } from "@/server/flush";
 import { pageMetadata } from "@/server/og-meta";
 import { ensureSongInfo } from "@/server/song-info";
 import { loadStoryGroups, loadTips, viewTextGroups } from "@/server/texts";
+import { buildTimelineView } from "@/server/timeline";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +66,11 @@ type Search = Promise<{
 	lang?: string | string[];
 	section?: string | string[];
 	q?: string | string[];
+	thread?: string | string[];
+	community?: string | string[];
+	tab?: string | string[];
+	kind?: string | string[];
+	p?: string | string[];
 }>;
 
 type ViewCopy = { title: string; lede: string; unavailable: string };
@@ -70,19 +89,41 @@ export default async function FilesPage({
 	searchParams: Search;
 }) {
 	const { locale, m } = await getMessages();
-	const lang = localeTag(locale);
 	const params = await searchParams;
+	const view = navView(parseView(params.view));
+	return (
+		<FilesFrame
+			nav={<FilesViews view={view} t={m.files} />}
+			loading={m.files.loading}
+		>
+			<Suspense
+				fallback={<FilesSkeletonBody view={view} loading={m.files.loading} />}
+			>
+				<FilesBody params={params} locale={locale} m={m} />
+			</Suspense>
+		</FilesFrame>
+	);
+}
+
+async function FilesBody({
+	params,
+	locale,
+	m,
+}: {
+	params: Awaited<Search>;
+	locale: Locale;
+	m: Messages;
+}) {
+	await afterFlush();
+	const lang = localeTag(locale);
 	const view = parseView(params.view);
 	const textLang = parseCollectionLang(parseParam(params.lang)) ?? lang;
 
 	const shell = (main: React.ReactNode, toc?: React.ReactNode) => (
-		<main id="content" className="page files-page">
-			<FilesViews view={navView(view)} t={m.files} />
-			<div className="files-shell">
-				<div className="files-main">{main}</div>
-				{toc ? <aside className="files-toc">{toc}</aside> : null}
-			</div>
-		</main>
+		<div className="files-shell">
+			<div className="files-main">{main}</div>
+			{toc ? <aside className="files-toc">{toc}</aside> : null}
+		</div>
 	);
 	const crumbs = (...rest: Crumb[]) => [
 		{ label: m.files.views.files, href: viewHref("files") },
@@ -99,7 +140,9 @@ export default async function FilesPage({
 		<TocProvider items={items}>
 			{shell(
 				main,
-				<CollectionToc label={m.collection.onThisPage} variant="aside" />,
+				items.length ? (
+					<CollectionToc label={m.collection.onThisPage} variant="aside" />
+				) : undefined,
 			)}
 		</TocProvider>
 	);
@@ -249,6 +292,40 @@ export default async function FilesPage({
 			body.groups.map((g) => ({ id: textAnchor(g.id), title: g.title })),
 			page,
 		);
+	}
+
+	if (view === "timeline") {
+		const tab = parseTimelineTab(params.tab);
+		const kind = TERM_KINDS.find((k) => k === parseParam(params.kind));
+		const data = await buildTimelineView(m, locale, {
+			thread: tab === "timeline" ? parseParam(params.thread) : undefined,
+			community: parseParam(params.community) === "1",
+		});
+		if (!data.available) {
+			return unavailable(m.timeline, crumbs({ label: m.timeline.title }));
+		}
+		const terms = data.terms.find((g) => g.kind === kind)?.terms ?? [];
+		const asked = Math.floor(Number(parseParam(params.p)) - 1);
+		const page = Number.isFinite(asked)
+			? Math.min(Math.max(asked, 0), terms[terms.length - 1]?.page ?? 0)
+			: 0;
+		const body = (
+			<Timeline
+				tab={tab}
+				kind={kind}
+				page={page}
+				data={data}
+				thread={data.thread}
+				community={data.community}
+				crumbs={crumbs({ label: m.timeline.title })}
+				crumbLabel={m.files.breadcrumb}
+				tocLabel={m.collection.onThisPage}
+				t={m.timeline}
+			/>
+		);
+		return tab === "timeline"
+			? shell(body)
+			: withToc(timelineToc(tab, data, m.timeline, kind, page), body);
 	}
 
 	if (view === "c9s6") {

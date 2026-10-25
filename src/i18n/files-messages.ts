@@ -10,7 +10,13 @@ export type FilesMessages = {
 		tabsLabel: string;
 		tabs: { files: string; fools: string; removed: string; history: string };
 		viewsLabel: string;
-		views: { files: string; pv: string; collection: string; texts: string };
+		views: {
+			files: string;
+			pv: string;
+			collection: string;
+			texts: string;
+			timeline: string;
+		};
 		breadcrumb: string;
 		empty: string;
 		loading: string;
@@ -136,6 +142,110 @@ export type FilesMessages = {
 		video: string;
 		interactive: string;
 	};
+	timeline: {
+		title: string;
+		lede: string;
+		unavailable: string;
+		threadsLabel: string;
+		allThreads: string;
+		showCommunity: string;
+		hideCommunity: string;
+		filtered: string;
+		noEvents: string;
+		calendarTitle: string;
+		calendar: string[];
+		realApprox: string;
+		wikiRef: string;
+		unknownDate: string;
+		inferred: string;
+		sources: Record<"game" | "official" | "community", string>;
+		refs: string;
+		entries: string;
+		entriesOne: string;
+		newTab: string;
+		realTitle: string;
+		realLede: string;
+		unplacedTitle: string;
+		unplacedLede: string;
+		chaptersTitle: string;
+		chaptersLede: string;
+		jump: string;
+		openChapter: string;
+		towerApprox: string;
+		otherThread: string;
+		realBefore: string;
+		realAfter: string;
+		unplacedShort: string;
+		realBeforeTitle: string;
+		realBeforeLede: string;
+		realAfterTitle: string;
+		realAfterLede: string;
+		mapTitle: string;
+		mapLede: string;
+		mapLabel: string;
+		mapHint: string;
+		trackLabel: string;
+		prev: string;
+		next: string;
+		eras: string;
+		yearsLater: string;
+		yearLater: string;
+		more: string;
+		notes: string;
+		effects: Record<"supports" | "contradicts" | "adds", string>;
+		setting: string;
+		settingTitle: string;
+		settingLede: string;
+		settingCount: string;
+		kinds: Record<
+			| "place"
+			| "subspace"
+			| "people"
+			| "group"
+			| "person"
+			| "anomaly"
+			| "tech"
+			| "concept"
+			| "object"
+			| "work"
+			| "event",
+			string
+		>;
+		inTimeline: string;
+		inTimelineOne: string;
+		refsCount: string;
+		refsOne: string;
+		detailsLoading: string;
+		detailsFailed: string;
+		retry: string;
+		notInTimeline: string;
+		readMore: string;
+		wikiPages: string;
+		tabsLabel: string;
+		tabs: Record<
+			"timeline" | "eras" | "threads" | "chapters" | "setting",
+			string
+		>;
+		zoomIn: string;
+		zoomOut: string;
+		zoomLevels: string[];
+		zoomLabel: string;
+		erasLede: string;
+		eraEvents: string;
+		eraEventsOne: string;
+		eraOpen: string;
+		threadsLede: string;
+		threadOpen: string;
+		threadEvents: string;
+		interview: string;
+		mapZoomIn: string;
+		mapZoomOut: string;
+		mapZoomLabel: string;
+		settingAll: string;
+		settingPerKind: string;
+		pages: string;
+		pagesEnd: string;
+	};
 	c9s6: {
 		title: string;
 		lede: string;
@@ -198,6 +308,7 @@ export const filesEn: FilesMessages = {
 			files: "Files",
 			pv: "PV",
 			collection: "Collection",
+			timeline: "Timeline",
 		},
 		breadcrumb: "Breadcrumb",
 		empty: "No files yet.",
@@ -339,6 +450,136 @@ export const filesEn: FilesMessages = {
 		video: "Video",
 		interactive: "Interactive",
 	},
+	timeline: {
+		title: "Story timeline",
+		lede: "Phigros' story in in-game time. The Tower's history comes from the official Limbo Wiki, and the story told by the Collection sits on the days the game gives it.",
+		unavailable: "The story timeline is unavailable right now.",
+		threadsLabel: "Story threads",
+		allThreads: "All",
+		showCommunity: "Show community lore",
+		hideCommunity: "Hide community lore",
+		filtered:
+			"Only this thread's events are shown. Pick All to see everything.",
+		noEvents: "Nothing on the timeline matches this thread.",
+		calendarTitle: "About the dates",
+		calendar: [
+			"Tower years count from the first year (元年), written A.P. Earlier years are B.P. A Tower year has 377 days, so dates such as 770/03/32 are normal.",
+			"The wiki dates 72 B.P. to 2089-05-11 and 1 A.P. to 2089-07-22 in Limbo reality: one Tower year passes in about one day outside. The “≈” dates come from that rule, so treat them as a guide to within a day or two.",
+			"Events marked In game come from the Collection text. Limbo Wiki (official) events come from pages the wiki marks as official. Community lore is written by wiki users (碎数研) and is hidden unless you turn it on.",
+		],
+		realApprox: "≈ {date} in Limbo reality",
+		wikiRef: "Limbo Wiki: {title}",
+		unknownDate: "No date",
+		inferred: "Date inferred",
+		sources: {
+			game: "In game",
+			official: "Limbo Wiki (official)",
+			community: "Community lore",
+		},
+		refs: "Sources",
+		entries: "{n} more Collection entries",
+		entriesOne: "1 more Collection entry",
+		newTab: "(opens in a new tab)",
+		realTitle: "Limbo reality",
+		realLede:
+			"The world outside the Tower, on the Gregorian calendar. All of 770–773 A.P. passes here in a few days around the turn of August and September 2091.",
+		unplacedTitle: "Outside the calendars",
+		unplacedLede:
+			"Collection entries with no date, or with a date in a calendar the game never explains. They are listed as written.",
+		chaptersTitle: "Chapters at a glance",
+		chaptersLede:
+			"Where each chapter's own story sits in Tower time, as its Collection entries date it. Most chapters also look back on older history, which appears under its own year.",
+		jump: "Go to its first event",
+		openChapter: "Read it in the Collection",
+		towerApprox: "≈ {year} in the Tower",
+		otherThread: "Other events",
+		realBefore: "Reality, before",
+		realAfter: "Reality, after",
+		unplacedShort: "No date",
+		realBeforeTitle: "Limbo reality, before the Tower",
+		realBeforeLede:
+			"The world outside the Tower, on the Gregorian calendar, up to the day the PhigrOS plan starts: 2089-05-11, which is 72 B.P.",
+		realAfterTitle: "Limbo reality, while the Tower runs and after",
+		realAfterLede:
+			"From 2089-05-11 the Tower's years pass about one a day out here, so all of 770–773 A.P. is a few days around the turn of August 2091. Cards with a full date show the Tower year it falls on.",
+		mapTitle: "Story map",
+		mapLede:
+			"Every event in order, one row per story thread. A vertical line joins an event's threads. Click the map to jump the timeline there.",
+		mapLabel: "Story map: {n} events across {rows} threads, in timeline order",
+		mapHint:
+			"Drag the timeline, scroll it sideways (Shift and the mouse wheel), or focus it and use the arrow keys.",
+		trackLabel: "Timeline, scrolls sideways",
+		prev: "Earlier",
+		next: "Later",
+		eras: "Jump to",
+		yearsLater: "{n} years later",
+		yearLater: "1 year later",
+		more: "More",
+		notes: "Notes",
+		effects: {
+			supports: "Backs this up",
+			contradicts: "Disagrees",
+			adds: "Adds",
+		},
+		setting: "Setting",
+		settingTitle: "Setting",
+		settingLede:
+			"The places, peoples, groups, whims and ideas of the Limbo Wiki, each with the events that mention it. Official entries come first; community entries appear when community lore is on.",
+		settingCount: "{n} entries",
+		kinds: {
+			place: "Places",
+			subspace: "Subspaces",
+			people: "Peoples",
+			group: "Groups",
+			person: "People",
+			anomaly: "Whims and whim objects",
+			tech: "Tower technology",
+			concept: "Ideas and laws",
+			object: "Objects",
+			work: "Books, games and songs",
+			event: "Undated events",
+		},
+		inTimeline: "In {n} events",
+		inTimelineOne: "In 1 event",
+		refsCount: "{n} sources",
+		refsOne: "1 source",
+		detailsLoading: "Loading…",
+		detailsFailed: "This part did not load.",
+		retry: "Try again",
+		notInTimeline: "No dated events yet",
+		readMore: "Show all",
+		wikiPages: "Wiki pages",
+		tabsLabel: "Timeline sections",
+		tabs: {
+			timeline: "Timeline",
+			eras: "Eras",
+			threads: "Threads",
+			chapters: "Chapters",
+			setting: "Setting",
+		},
+		zoomIn: "Show more on each card",
+		zoomOut: "Show less on each card",
+		zoomLevels: ["Titles", "Brief", "Full", "Reading"],
+		zoomLabel: "Card detail",
+		erasLede:
+			"The Tower's history in its seven eras, with the world outside before and after it, the subspace story and the records no calendar places.",
+		eraEvents: "{n} events",
+		eraEventsOne: "1 event",
+		eraOpen: "Open on the timeline",
+		threadsLede:
+			"The story strands that run through the timeline: who and what each one follows, the wiki pages behind it, and its events in order.",
+		threadOpen: "Show only this thread on the timeline",
+		threadEvents: "Its events in order",
+		interview: "deathMark Q&A",
+		mapZoomIn: "Zoom in on the story map",
+		mapZoomOut: "Zoom out of the story map",
+		mapZoomLabel: "Story map zoom",
+		settingAll: "All official",
+		settingPerKind:
+			"Community entries are listed one kind at a time: pick a kind above.",
+		pages: "Pages",
+		pagesEnd: "Pages, end of list",
+	},
 	c9s6: {
 		title: "Hidden song",
 		lede: "Hidden song unlocked from the passcode tile on the Chapter 9 phase 1 map. The game lists no credits or level for it.",
@@ -398,7 +639,13 @@ export const filesZh: FilesMessages = {
 			history: "旧版本",
 		},
 		viewsLabel: "分区",
-		views: { files: "资源", pv: "PV", collection: "收藏品", texts: "其他资源" },
+		views: {
+			files: "资源",
+			pv: "PV",
+			collection: "收藏品",
+			texts: "其他资源",
+			timeline: "剧情",
+		},
 		breadcrumb: "当前位置",
 		empty: "暂时没有文件。",
 		loading: "正在加载文件…",
@@ -533,6 +780,132 @@ export const filesZh: FilesMessages = {
 		mode: "观看方式",
 		video: "视频",
 		interactive: "互动重播",
+	},
+	timeline: {
+		title: "剧情时间线",
+		lede: "按游戏内时间排列的 Phigros 剧情：像素塔的历史来自官方林泊百科，收藏品讲述的故事放在游戏给出的日期上。",
+		unavailable: "剧情时间线暂不可用。",
+		threadsLabel: "剧情线",
+		allThreads: "全部",
+		showCommunity: "显示社区设定",
+		hideCommunity: "隐藏社区设定",
+		filtered: "只显示这条剧情线的事件，选择「全部」可查看所有内容。",
+		noEvents: "时间线上没有属于这条剧情线的事件。",
+		calendarTitle: "关于日期",
+		calendar: [
+			"像素塔纪年从元年起算，记作 A.P.（后历），此前记作 B.P.。像素塔一年有 377 天，所以 770/03/32 这样的日期是正常的。",
+			"林泊百科记载 72.B.P 对应林泊现实的 2089-05-11，元年对应 2089-07-22：塔内一年约等于塔外一天。带「约」的日期按这条规则换算，误差在一两天以内。",
+			"标为「游戏内」的事件来自收藏品文本；「林泊百科（官方）」来自百科标记为官方的词条；「社区设定」由百科用户（碎数研）撰写，默认隐藏。",
+		],
+		realApprox: "林泊现实约 {date}",
+		wikiRef: "林泊百科：{title}",
+		unknownDate: "无日期",
+		inferred: "推定日期",
+		sources: {
+			game: "游戏内",
+			official: "林泊百科（官方）",
+			community: "社区设定",
+		},
+		refs: "来源",
+		entries: "另有收藏品 {n} 条",
+		entriesOne: "另有收藏品 1 条",
+		newTab: "（在新标签页打开）",
+		realTitle: "林泊现实",
+		realLede:
+			"像素塔之外的世界，使用公历。塔内的 770–773 A.P. 在这里只是 2091 年 8 月末到 9 月初的几天。",
+		unplacedTitle: "历法之外",
+		unplacedLede: "没有日期，或日期所用历法游戏从未说明的收藏品，按原样列出。",
+		chaptersTitle: "章节导览",
+		chaptersLede:
+			"按收藏品给出的日期，各章本身的故事落在像素塔时间的哪一段。多数章节也会回顾更早的历史，那些内容放在各自的年份下。",
+		jump: "跳到本章第一个事件",
+		openChapter: "在收藏品中阅读本章",
+		towerApprox: "塔内约 {year}",
+		otherThread: "其他事件",
+		realBefore: "现实·塔前",
+		realAfter: "现实·塔后",
+		unplacedShort: "无日期",
+		realBeforeTitle: "林泊现实：像素塔之前",
+		realBeforeLede:
+			"像素塔之外的世界，使用公历，直到 PhigrOS 计划开始的那一天：2089-05-11，即 72.B.P。",
+		realAfterTitle: "林泊现实：像素塔运行期间与之后",
+		realAfterLede:
+			"从 2089-05-11 起，塔内一年约等于塔外一天，所以 770–773 A.P. 只是 2091 年 8 月末前后的几天。有完整日期的卡片会标出它对应的塔内年份。",
+		mapTitle: "剧情地图",
+		mapLede:
+			"所有事件按时间线顺序排列，每条剧情线一行，竖线连起同一事件所属的几条线。点击地图即可让时间线跳到那里。",
+		mapLabel: "剧情地图：{rows} 条剧情线上的 {n} 个事件，按时间线顺序排列",
+		mapHint: "可拖动时间线、横向滚动（Shift 加鼠标滚轮），或聚焦后使用方向键。",
+		trackLabel: "时间线，可横向滚动",
+		prev: "更早",
+		next: "更晚",
+		eras: "跳到",
+		yearsLater: "{n} 年后",
+		yearLater: "1 年后",
+		more: "更多",
+		notes: "补充",
+		effects: {
+			supports: "佐证",
+			contradicts: "有出入",
+			adds: "补充",
+		},
+		setting: "设定",
+		settingTitle: "设定",
+		settingLede:
+			"林泊百科里的地点、族群、组织、异想与概念，各自列出提到它的事件。官方条目在前；打开社区设定后才显示社区条目。",
+		settingCount: "{n} 条",
+		kinds: {
+			place: "地点",
+			subspace: "亚空间",
+			people: "族群",
+			group: "组织",
+			person: "人物",
+			anomaly: "异想与异想之物",
+			tech: "塔技术",
+			concept: "概念与法规",
+			object: "物品",
+			work: "书籍、游戏与歌曲",
+			event: "无日期事件",
+		},
+		inTimeline: "出现在 {n} 个事件中",
+		inTimelineOne: "出现在 1 个事件中",
+		refsCount: "{n} 个来源",
+		refsOne: "1 个来源",
+		detailsLoading: "正在加载…",
+		detailsFailed: "这部分没有加载出来。",
+		retry: "重试",
+		notInTimeline: "暂无有日期的事件",
+		readMore: "全部显示",
+		wikiPages: "百科词条",
+		tabsLabel: "时间线分区",
+		tabs: {
+			timeline: "时间线",
+			eras: "纪元",
+			threads: "剧情线",
+			chapters: "章节",
+			setting: "设定",
+		},
+		zoomIn: "卡片显示更多内容",
+		zoomOut: "卡片显示更少内容",
+		zoomLevels: ["标题", "简要", "完整", "阅读"],
+		zoomLabel: "卡片详细程度",
+		erasLede:
+			"像素塔历史的七个纪元，加上塔前与塔后的外部世界、亚空间故事，以及无法放进任何历法的记录。",
+		eraEvents: "{n} 个事件",
+		eraEventsOne: "1 个事件",
+		eraOpen: "在时间线上查看",
+		threadsLede:
+			"贯穿时间线的剧情线：每条线追随的人与事、背后的百科词条，以及按时间排列的事件。",
+		threadOpen: "在时间线上只看这条剧情线",
+		threadEvents: "按时间排列的事件",
+		interview: "deathMark 答疑",
+		mapZoomIn: "放大剧情地图",
+		mapZoomOut: "缩小剧情地图",
+		mapZoomLabel: "剧情地图缩放",
+		settingAll: "全部官方条目",
+		settingPerKind: "社区条目按类别分页列出：请在上方选择类别。",
+		pages: "分页",
+		pagesEnd: "分页（列表末尾）",
 	},
 	c9s6: {
 		title: "隐藏曲",

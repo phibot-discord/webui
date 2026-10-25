@@ -6,6 +6,7 @@
 		"ill-sync": "Cloudflare Worker (ill-sync), cron. Mirrors phi-plugin's GitHub resources and community aliases; prunes only its own directories and refuses protected prefixes.",
 		"phi-specials": "Rust tool (ill-sync-worker-special), run by hand on the assets machine for anything that needs song, key or text knowledge.",
 		"pv-overlay": "Render pipeline (pv-overlay folder), run by hand; upload.sh sends its output.",
+		"story-timeline": "Limbo Wiki crawl and reading pipeline (story-timeline folder), run by hand; publish.sh checks the data and sends it with webui scripts/r2-upload.mjs.",
 		"webui-scripts": "webui scripts/publish-*.ts, run by hand; built on any machine and sent with scripts/r2-upload.mjs, every index.json last.",
 		"webui": "The site itself."
 	},
@@ -141,6 +142,12 @@
 			"writer": "phi-specials",
 			"contents": "story.json (shown in the Collection and Other resources); ui, data, images, sdk and chapter9 are research data the site no longer shows",
 			"manifest": "texts/index.json"
+		},
+		{
+			"prefix": "timeline/",
+			"writer": "story-timeline",
+			"contents": "index.json: the story timeline's eras, threads, events with their notes and wiki links, and the Setting glossary, built from the Collection and the Limbo Wiki",
+			"manifest": "timeline/index.json"
 		},
 		{
 			"prefix": "4-1/",

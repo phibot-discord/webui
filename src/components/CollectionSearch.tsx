@@ -1,5 +1,4 @@
 import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
-import Link from "next/link";
 import type { Messages } from "@/i18n/messages";
 import {
 	type CollectionLang,
@@ -13,6 +12,8 @@ import { fill } from "@/phi/lib/card-i18n";
 import type { Crumb } from "./Breadcrumb";
 import { CollectionNav, type ViewChapter } from "./CollectionNav";
 import { DocHead } from "./DocHead";
+import { FilesSwap } from "./FilesFrame";
+import { FilesLink } from "./FilesLink";
 import { LangSwitch } from "./LangSwitch";
 
 type Copy = Messages["collection"];
@@ -107,39 +108,42 @@ export function CollectionResults({
 				href={(each) => collectionSearchHref(q, each)}
 			/>
 			<CollectionNav chapters={chapters} currentId="" lang={picked} t={t} />
-			{hits.length ? (
-				<ol className="coll-results" lang={picked}>
-					{hits.map((hit) => {
-						const chapter = chapterOf.get(hit.chapter);
-						return (
-							<li key={`${hit.key}#${hit.sub}`}>
-								<Link
-									className="coll-result-title"
-									href={`${collectionHref(hit.chapter, picked)}#${itemAnchor(hit.key)}`}
-									prefetch={false}
-								>
-									{hit.titleMatch ? (
-										<Snippet snippet={hit.titleMatch} />
-									) : (
-										hit.title
-									)}
-								</Link>
-								{chapter ? (
-									<p className="coll-result-where">{chapterTip(chapter, "")}</p>
-								) : null}
-								{hit.snippet ? (
-									<p className="coll-result-snippet">
-										<Snippet snippet={hit.snippet} />
-									</p>
-								) : null}
-							</li>
-						);
-					})}
-				</ol>
-			) : null}
-			{total > hits.length ? (
-				<p className="asset-note">{fill(t.more, { n: hits.length })}</p>
-			) : null}
+			<FilesSwap>
+				{hits.length ? (
+					<ol className="coll-results" lang={picked}>
+						{hits.map((hit) => {
+							const chapter = chapterOf.get(hit.chapter);
+							return (
+								<li key={`${hit.key}#${hit.sub}`}>
+									<FilesLink
+										className="coll-result-title"
+										href={`${collectionHref(hit.chapter, picked)}#${itemAnchor(hit.key)}`}
+									>
+										{hit.titleMatch ? (
+											<Snippet snippet={hit.titleMatch} />
+										) : (
+											hit.title
+										)}
+									</FilesLink>
+									{chapter ? (
+										<p className="coll-result-where">
+											{chapterTip(chapter, "")}
+										</p>
+									) : null}
+									{hit.snippet ? (
+										<p className="coll-result-snippet">
+											<Snippet snippet={hit.snippet} />
+										</p>
+									) : null}
+								</li>
+							);
+						})}
+					</ol>
+				) : null}
+				{total > hits.length ? (
+					<p className="asset-note">{fill(t.more, { n: hits.length })}</p>
+				) : null}
+			</FilesSwap>
 		</article>
 	);
 }

@@ -14,6 +14,8 @@ export type ClientMessages = {
 	};
 	brand: string;
 	skip: string;
+	backToTop: string;
+	loading: string;
 	signIn: string;
 	signInTaptap: string;
 	invite: string;
@@ -192,6 +194,7 @@ export type ClientMessages = {
 		change: string;
 		notes: string;
 		levels: string;
+		loadingMore: string;
 		downloading: string;
 		downloadingPct: string;
 		downloaded: string;
@@ -716,6 +719,8 @@ export const en: ClientMessages = {
 	},
 	brand: "PhiBot",
 	skip: "Skip to content",
+	backToTop: "Back to top",
+	loading: "Loading…",
 	signIn: "Continue with Discord",
 	signInTaptap: "Continue with TapTap",
 	invite: "Add to Discord",
@@ -1001,6 +1006,7 @@ export const en: ClientMessages = {
 		change: "Change song",
 		notes: "{n} notes",
 		levels: "Difficulties",
+		loadingMore: "Looking for Legacy, SP and older versions of these charts…",
 		downloading: "Downloading…",
 		downloadingPct: "Downloading {pct}%",
 		downloaded: "Saved {file}",
@@ -1623,6 +1629,8 @@ export const zh: ClientMessages = {
 	},
 	brand: "PhiBot",
 	skip: "跳到正文",
+	backToTop: "回到顶部",
+	loading: "正在加载…",
 	signIn: "使用 Discord 继续",
 	signInTaptap: "使用 TapTap 继续",
 	invite: "邀请到 Discord",
@@ -1878,6 +1886,7 @@ export const zh: ClientMessages = {
 		change: "换一首",
 		notes: "{n} 物量",
 		levels: "难度",
+		loadingMore: "正在查找这首曲目的 Legacy、SP 谱面与旧版本…",
 		downloading: "正在下载…",
 		downloadingPct: "正在下载 {pct}%",
 		downloaded: "已保存 {file}",
@@ -2092,7 +2101,7 @@ export const zh: ClientMessages = {
 			"不用 TapTap。按游戏内显示逐谱面填写准确率，就能生成同样的成绩图。",
 		manualStart: "手动录入成绩",
 		unbind: "解绑",
-		unbindConfirm: "从当前登录解除 Phigros 绑定？",
+		unbindConfirm: "从当前登录账号解除 Phigros 绑定？",
 		unbindYes: "解绑",
 		unbindNo: "取消",
 		unbinding: "正在解绑…",

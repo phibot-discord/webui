@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { COLLECTION_LANGS, type CollectionLang } from "@/lib/collection";
+import { FilesLink } from "./FilesLink";
 import { LangName } from "./LangName";
 
 export function LangSwitch({
@@ -21,14 +21,13 @@ export function LangSwitch({
 			<ul>
 				{COLLECTION_LANGS.map((each) => (
 					<li key={each}>
-						<Link
+						<FilesLink
 							href={href(each === siteLang ? undefined : each)}
-							prefetch={false}
 							hrefLang={each}
 							aria-current={each === lang ? "true" : undefined}
 						>
 							<LangName lang={each} />
-						</Link>
+						</FilesLink>
 					</li>
 				))}
 			</ul>

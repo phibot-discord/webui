@@ -3,6 +3,79 @@ import type { ChangeRelease } from "./changelog";
 /** Every release's items, newest first, loaded only when the dialog opens */
 export const CHANGELOG_RELEASES: ChangeRelease[] = [
 	{
+		date: "2026-10-25",
+		sections: [
+			{
+				heading: { en: "Story timeline", zh: "剧情时间线" },
+				items: [
+					{
+						en: "Files has a new Timeline tab: Phigros' story laid out by in-game date on a track you scroll sideways, with artwork for each era and a story map that shows every thread at once.",
+						zh: "资源页新增「剧情」标签：按游戏内日期横向排列 Phigros 的剧情，每个纪元都有专属插图，剧情地图可一次纵览所有剧情线。",
+						href: "/files?view=timeline",
+					},
+					{
+						en: "Zoom the cards from brief titles to full notes, zoom the story map up to 16×, and jump straight to any era.",
+						zh: "事件卡片可在简要标题与完整注释之间缩放，剧情地图最多可放大 16 倍，也可以直接跳到任意纪元。",
+						href: "/files?view=timeline",
+					},
+					{
+						en: "Events come from the Collection and from every page of the Limbo Wiki, each linked to the wiki pages behind it. Notes mark where the wiki adds to, backs up or contradicts an event, including deathMark's Q&A answers.",
+						zh: "事件取自收藏品与林泊百科的全部页面，并链接到对应的百科页面。注释会标出百科对事件的补充、佐证或矛盾之处，也收录了 deathMark 的答疑。",
+						href: "/files?view=timeline",
+					},
+					{
+						en: "The Eras, Threads and Chapters tabs list the story by period, by story thread and by chapter.",
+						zh: "「纪元」「剧情线」「章节」标签分别按时期、剧情线与章节整理剧情。",
+						href: "/files?view=timeline&tab=eras",
+					},
+					{
+						en: "Setting is a glossary of the Tower's places, peoples, groups, whims and ideas, each with the events that mention it: 190 official entries, plus over 3,000 from the community.",
+						zh: "「设定」是像素塔的地点、族群、组织、异想与概念词典，每个条目都列出提到它的事件：190 条官方条目，另有 3,000 多条社区设定。",
+						href: "/files?view=timeline&tab=setting",
+					},
+					{
+						en: "Fan-written lore stays hidden until you choose Show community lore.",
+						zh: "社区创作的设定默认隐藏，点击「显示社区设定」即可查看。",
+						href: "/files?view=timeline&community=1",
+					},
+				],
+			},
+			{
+				heading: { en: "Account", zh: "账号" },
+				items: [
+					{
+						en: "Unbind now sits on the Account page, next to your sessionToken.",
+						zh: "「解绑」按钮移至账号页面，位于 sessionToken 旁边。",
+						href: "/account",
+					},
+					{
+						en: "When TapTap rate limits PhiBot, sign-in and save errors now say so and suggest waiting a few minutes.",
+						zh: "TapTap 对 PhiBot 限流时，登录与存档相关的报错会明确说明，并建议等几分钟再试。",
+					},
+				],
+			},
+			{
+				heading: { en: "Fixes", zh: "修复" },
+				items: [
+					{
+						en: "Long pages have a Back to top button in the corner.",
+						zh: "较长的页面右下角会出现「回到顶部」按钮。",
+					},
+					{
+						en: "Files and PV show a loading placeholder as soon as you click, instead of waiting on the old page.",
+						zh: "点击资源或 PV 后会立即显示加载占位，不再停留在原页面等待。",
+						href: "/files",
+					},
+					{
+						en: "The Phira page shows a spinner while it is still looking for a song's Legacy, SP and older charts.",
+						zh: "Phira 页面在查找曲目的 Legacy、SP 谱面与旧版本时会显示加载提示。",
+						href: "/phira",
+					},
+				],
+			},
+		],
+	},
+	{
 		date: "2026-10-22",
 		sections: [
 			{

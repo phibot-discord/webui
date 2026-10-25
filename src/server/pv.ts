@@ -30,9 +30,17 @@ const specials = jsonLoader(
 
 const overlays = jsonLoader(PV_OVERLAY_KEY, parseOverlayIndex, EMPTY_OVERLAYS);
 
+let merged:
+	| { list: readonly PvClip[]; extra: readonly PvSpecial[]; clips: PvClip[] }
+	| undefined;
+
+/** The same array while neither manifest changes, so memos keyed on it stay warm */
 export async function loadPv() {
 	const [list, extra] = await Promise.all([clips.load(), specials.load()]);
-	return mergeSpecials(list, extra);
+	if (merged?.list !== list || merged.extra !== extra) {
+		merged = { list, extra, clips: mergeSpecials(list, extra) };
+	}
+	return merged.clips;
 }
 
 export async function loadOverlays() {

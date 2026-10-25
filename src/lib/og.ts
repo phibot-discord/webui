@@ -13,6 +13,7 @@ export const OG_PAGES = [
 	"pv",
 	"collection",
 	"texts",
+	"timeline",
 	"c9s6",
 	"cards",
 	"tags",

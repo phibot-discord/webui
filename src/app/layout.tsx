@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { auth } from "@/auth";
+import { BackToTop } from "@/components/BackToTop";
 import { DomainMove } from "@/components/DomainMove";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -72,6 +73,7 @@ export default async function RootLayout({
 				lang={localeTag(locale)}
 				className={fontClasses}
 				data-theme={theme ?? undefined}
+				data-scroll-behavior="smooth"
 				style={theme ? { colorScheme: theme } : undefined}
 				suppressHydrationWarning
 			>
@@ -89,6 +91,7 @@ export default async function RootLayout({
 							{children}
 							<WhatsNew auto={!moved} />
 							<SiteFooter />
+							<BackToTop />
 						</div>
 					</I18nProvider>
 					<Analytics />
