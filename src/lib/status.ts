@@ -1,4 +1,4 @@
-export const STATUS_TARGETS = ["workers", "kv", "assets"] as const;
+export const STATUS_TARGETS = ["workers", "kv", "assets", "phira"] as const;
 export type StatusTargetId = (typeof STATUS_TARGETS)[number];
 export type StatusState = "up" | "degraded" | "down" | "unknown";
 
@@ -37,10 +37,34 @@ export type StatusHost = {
 	series30d: HostPoint[];
 };
 
+export type PhiraPoint = {
+	t: number;
+	players: number | null;
+	rooms: number | null;
+	cpu: number | null;
+	mem: number | null;
+};
+
+export type StatusPhira = {
+	players: number | null;
+	rooms: number | null;
+	playing: number | null;
+	cpu: number | null;
+	cpuProcess: number | null;
+	mem: number | null;
+	memProcessMb: number | null;
+	memUsedMb: number | null;
+	memTotalMb: number | null;
+	sampledAt: number | null;
+	series24h: PhiraPoint[];
+	series30d: PhiraPoint[];
+};
+
 export type StatusData = {
 	generatedAt: number;
 	intervalSec: number;
 	since: number | null;
 	targets: StatusTarget[];
 	host: StatusHost;
+	phira?: StatusPhira;
 };

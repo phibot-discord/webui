@@ -30,6 +30,7 @@ export async function loadStatus(): Promise<StatusData | null> {
 			.sort(
 				(a, b) => STATUS_TARGETS.indexOf(a.id) - STATUS_TARGETS.indexOf(b.id),
 			);
+		if (body.phira && !Array.isArray(body.phira.series30d)) delete body.phira;
 		return body;
 	} catch (err) {
 		logger.warn(

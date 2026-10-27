@@ -87,7 +87,7 @@ export type ClientMessages = {
 		range30d: string;
 		range24h: string;
 		targets: Record<
-			"workers" | "kv" | "assets",
+			"workers" | "kv" | "assets" | "phira",
 			{ name: string; blurb: string }
 		>;
 		states: Record<"up" | "degraded" | "down" | "unknown", string>;
@@ -106,6 +106,11 @@ export type ClientMessages = {
 		upFor: string;
 		days: string;
 		usage: string;
+		players: string;
+		rooms: string;
+		playing: string;
+		serverProcess: string;
+		playersRooms: string;
 		showTable: string;
 		time: string;
 		utcNote: string;
@@ -900,6 +905,10 @@ export const en: ClientMessages = {
 				name: "Assets worker",
 				blurb: "The machine that runs the asset pipeline.",
 			},
+			phira: {
+				name: "Multiplayer server",
+				blurb: "PhiBot's own Phira multiplayer server.",
+			},
 		},
 		states: {
 			up: "Operational",
@@ -927,6 +936,11 @@ export const en: ClientMessages = {
 		upFor: "Up for",
 		days: "{n} days",
 		usage: "CPU and memory",
+		players: "Players",
+		rooms: "Rooms",
+		playing: "{n} playing",
+		serverProcess: "Server process {v}",
+		playersRooms: "Players and rooms",
 		showTable: "Show as table",
 		time: "Time",
 		utcNote: "Times are in UTC. Checks run every minute.",
@@ -1803,6 +1817,10 @@ export const zh: ClientMessages = {
 			},
 			kv: { name: "KV 存储", blurb: "保存绑定、存档和设置的 Cloudflare KV" },
 			assets: { name: "资源 Worker", blurb: "运行资源处理流程的机器" },
+			phira: {
+				name: "多人游戏服务器",
+				blurb: "PhiBot 自己运行的 Phira 多人游戏服务器",
+			},
 		},
 		states: {
 			up: "正常",
@@ -1830,6 +1848,11 @@ export const zh: ClientMessages = {
 		upFor: "已运行",
 		days: "{n} 天",
 		usage: "CPU 和内存",
+		players: "玩家",
+		rooms: "房间",
+		playing: "{n} 个游戏中",
+		serverProcess: "服务器进程 {v}",
+		playersRooms: "玩家和房间",
 		showTable: "以表格显示",
 		time: "时间",
 		utcNote: "时间均为 UTC，每分钟检查一次",

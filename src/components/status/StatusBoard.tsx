@@ -16,6 +16,7 @@ import {
 	STATUS_TARGETS,
 	type StatusData,
 	type StatusHost,
+	type StatusPhira,
 	type StatusState,
 	type StatusTarget,
 } from "@/lib/status";
@@ -39,6 +40,8 @@ const SERIES = {
 	latency: "var(--series-1)",
 	cpu: "var(--series-1)",
 	mem: "var(--series-2)",
+	players: "var(--series-1)",
+	rooms: "var(--series-2)",
 };
 
 function useFormats() {
@@ -63,6 +66,7 @@ function useFormats() {
 		hourCycle: "h23",
 		timeZone: "UTC",
 	});
+	const count = new Intl.NumberFormat(tag, { maximumFractionDigits: 1 });
 	return {
 		m,
 		day: (t: number) => day.format(t),
@@ -71,6 +75,7 @@ function useFormats() {
 		pct: (v: number | null) =>
 			v == null ? "–" : v === 100 ? "100%" : `${v.toFixed(2)}%`,
 		usage: (v: number) => `${Math.round(v)}%`,
+		count: (v: number) => count.format(v),
 		ms: (v: number | null) => (v == null ? "–" : `${Math.round(v)} ms`),
 	};
 }
@@ -140,6 +145,22 @@ function HostPanel({ host, range }: { host: StatusHost; range: Range }) {
 					<dd>{t.days.replace("{n}", String(days))}</dd>
 				</div>
 			</dl>
+			<UsageChart points={points} range={range} />
+		</div>
+	);
+}
+
+function UsageChart({
+	points,
+	range,
+}: {
+	points: { t: number; cpu: number | null; mem: number | null }[];
+	range: Range;
+}) {
+	const f = useFormats();
+	const t = f.m.status;
+	return (
+		<>
 			<h3 className="status-chart-title">{t.usage}</h3>
 			<LineChart
 				label={`${t.usage}, ${range === "30d" ? t.range30d : t.range24h}`}
@@ -163,7 +184,117 @@ function HostPanel({ host, range }: { host: StatusHost; range: Range }) {
 				formatTime={range === "30d" ? f.dayHour : f.hour}
 				endLabels
 			/>
+		</>
+	);
+}
+
+function PhiraPanel({ phira, range }: { phira: StatusPhira; range: Range }) {
+	const f = useFormats();
+	const t = f.m.status;
+	const points = range === "30d" ? phira.series30d : phira.series24h;
+	const count = (v: number | null) => (v == null ? "–" : f.count(v));
+	return (
+		<div className="host-panel">
+			<dl className="status-stats">
+				<div>
+					<dt>{t.players}</dt>
+					<dd>{count(phira.players)}</dd>
+				</div>
+				<div>
+					<dt>{t.rooms}</dt>
+					<dd>
+						{count(phira.rooms)}
+						<span className="status-sub">
+							{t.playing.replace("{n}", count(phira.playing))}
+						</span>
+					</dd>
+				</div>
+				<div>
+					<dt>{t.cpu}</dt>
+					<dd>
+						{phira.cpu == null ? "–" : f.usage(phira.cpu)}
+						<span className="status-sub">
+							{t.serverProcess.replace(
+								"{v}",
+								phira.cpuProcess == null
+									? "–"
+									: `${phira.cpuProcess.toFixed(1)}%`,
+							)}
+						</span>
+					</dd>
+				</div>
+				<div>
+					<dt>{t.memory}</dt>
+					<dd>
+						{phira.mem == null ? "–" : f.usage(phira.mem)}
+						<span className="status-sub">
+							{t.serverProcess.replace(
+								"{v}",
+								phira.memProcessMb == null ? "–" : `${phira.memProcessMb} MB`,
+							)}
+						</span>
+					</dd>
+				</div>
+			</dl>
+			<h3 className="status-chart-title">{t.playersRooms}</h3>
+			<LineChart
+				label={`${t.playersRooms}, ${range === "30d" ? t.range30d : t.range24h}`}
+				times={points.map((p) => p.t)}
+				series={[
+					{
+						id: "players",
+						label: t.players,
+						color: SERIES.players,
+						values: points.map((p) => p.players),
+					},
+					{
+						id: "rooms",
+						label: t.rooms,
+						color: SERIES.rooms,
+						values: points.map((p) => p.rooms),
+					},
+				]}
+				format={f.count}
+				formatTime={range === "30d" ? f.dayHour : f.hour}
+				endLabels
+			/>
+			<UsageChart points={points} range={range} />
 		</div>
+	);
+}
+
+function PhiraTable({ phira, range }: { phira: StatusPhira; range: Range }) {
+	const f = useFormats();
+	const t = f.m.status;
+	const rows = rollup(
+		range === "30d" ? phira.series30d : phira.series24h,
+		range === "30d" ? DAY : HOUR,
+		["players", "rooms", "cpu", "mem"],
+	);
+	return (
+		<table className="status-table">
+			<caption className="sr-only">{t.playersRooms}</caption>
+			<thead>
+				<tr>
+					<th scope="col">{t.time}</th>
+					<th scope="col">{t.players}</th>
+					<th scope="col">{t.rooms}</th>
+					<th scope="col">{t.cpu}</th>
+					<th scope="col">{t.memory}</th>
+				</tr>
+			</thead>
+			<tbody>
+				{rows.map((r) => (
+					<tr key={r.t}>
+						<th scope="row">{range === "30d" ? f.day(r.t) : f.hour(r.t)}</th>
+						<td>{r.players == null ? "–" : f.count(r.players)}</td>
+						<td>{r.rooms == null ? "–" : f.count(r.rooms)}</td>
+						<td>{r.cpu == null ? "–" : f.usage(r.cpu)}</td>
+						<td>{r.mem == null ? "–" : f.usage(r.mem)}</td>
+					</tr>
+				))}
+			</tbody>
+		</table>
 	);
 }
 
@@ -201,10 +332,12 @@ function HostTable({ host, range }: { host: StatusHost; range: Range }) {
 function TargetCard({
 	target,
 	host,
+	phira,
 	range,
 }: {
 	target: StatusTarget;
 	host: StatusHost | null;
+	phira: StatusPhira | null;
 	range: Range;
 }) {
 	const f = useFormats();
@@ -282,6 +415,7 @@ function TargetCard({
 				<p className="status-empty">{t.noData}</p>
 			)}
 			{host ? <HostPanel host={host} range={range} /> : null}
+			{phira ? <PhiraPanel phira={phira} range={range} /> : null}
 			{hasData ? (
 				<details className="status-details">
 					<summary>{t.showTable}</summary>
@@ -309,6 +443,7 @@ function TargetCard({
 						</tbody>
 					</table>
 					{host ? <HostTable host={host} range={range} /> : null}
+					{phira ? <PhiraTable phira={phira} range={range} /> : null}
 				</details>
 			) : null}
 		</article>
@@ -384,6 +519,7 @@ export function StatusBoard({ data }: { data: StatusData | null }) {
 						key={target.id}
 						target={target}
 						host={target.id === "assets" && data ? data.host : null}
+						phira={(target.id === "phira" && data?.phira) || null}
 						range={range}
 					/>
 				))}
