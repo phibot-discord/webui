@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 			if ("error" in result) return localizedErrorBody(result);
 			return result;
 		},
-		{ error: "bind_failed", code: "bind_failed", status: 502 },
+		"bind_failed",
 	);
 	res.headers.append(
 		"Set-Cookie",

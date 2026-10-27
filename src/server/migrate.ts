@@ -19,18 +19,26 @@ import {
 	readSaveRaw,
 } from "@/phi/lib/saves";
 import { isTapApiFailure, isTapRateLimited } from "@/phi/lib/tapapi";
+import { noteTokenUser } from "./account-link";
+import { isTapUserId } from "./auth-tickets";
 import {
 	asServer,
+	type BindErr,
+	type BindOk,
 	type BindServer,
 	clearQrAt,
+	failBind,
 	peekQrAt,
 	type QrResume,
 	type QrWait,
 	qrPngAt,
 	requestQr,
+	switchBind,
 } from "./bind";
+import { playerFromSave } from "./bound";
 import { type DataHost, getDataHost } from "./data-host";
 import { logger, withDiscordUid } from "./logger";
+import { ensureSongInfo } from "./song-info";
 
 export type Slot = "from" | "to";
 export type Server = BindServer;
@@ -46,6 +54,8 @@ const QR_LOCK = (userId: string, slot: Slot) =>
 /** Both session tokens between sign-in and the copy; never sent to the browser */
 const STATE_KEY = (userId: string) => kvKey("webMigrate", userId);
 const RUN_LOCK = (userId: string) => kvKey("webMigrateLock", userId);
+/** The To session token after a copy, so it can be bound; never sent to the browser */
+const DONE_KEY = (userId: string) => kvKey("webMigrateDone", userId);
 /** The To row as it was before PhiBot first wrote it, for a restore by hand */
 const UNDO_KEY = (userId: string, server: Server, account: string) =>
 	kvKey("webMigrateUndo", userId, server, account);
@@ -69,7 +79,8 @@ export type MigrateErr = {
 		| "migrate_busy"
 		| "migrate_changed"
 		| "migrate_failed"
-		| "migrate_unverified";
+		| "migrate_unverified"
+		| "migrate_bind_expired";
 	status: number;
 	detail?: string;
 };
@@ -249,6 +260,20 @@ function writeState(host: DataHost, userId: string, state: State) {
 	return host.db.set(STATE_KEY(userId), JSON.stringify(state), STATE_TTL_MS);
 }
 
+async function readDone(
+	host: DataHost,
+	userId: string,
+): Promise<Account | undefined> {
+	const raw = await host.db.get(DONE_KEY(userId));
+	try {
+		const done = JSON.parse(raw ?? "null") as Partial<Account> | null;
+		const token = asSessionToken(done?.token);
+		return token ? { token, global: done?.global === true } : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 export type SlotReady = {
 	status: "ready";
 	side: SaveSide;
@@ -267,7 +292,10 @@ async function connectSlot(
 		if ("error" in read) return read;
 		if (!hasSource(read))
 			return { error: "migrate_no_source_save", status: 409 };
-		await writeState(host, userId, { from: account });
+		await Promise.all([
+			writeState(host, userId, { from: account }),
+			host.db.del(DONE_KEY(userId)).catch(() => undefined),
+		]);
 		return { status: "ready", side: side(read) };
 	}
 	const state = await readState(host, userId);
@@ -412,6 +440,7 @@ export type MigrateDone = {
 	status: "done";
 	to: SaveSide;
 	toIsBound: boolean;
+	bindOffer?: "ask" | "tap";
 };
 
 export async function runMigrate(
@@ -500,11 +529,71 @@ async function runMigrateFor(
 		getToken(host.rt, userId),
 		host.db.del(STATE_KEY(userId)).catch(() => undefined),
 	]);
+	const toIsBound = bound === token;
 	return {
 		status: "done",
 		to: side({ ...to, row }),
-		toIsBound: bound === token,
+		toIsBound,
+		bindOffer: toIsBound
+			? undefined
+			: await offerBind(host, userId, to.account),
 	};
+}
+
+/** A TapTap sign-in binds its own account again, so only Discord users are offered the To bind */
+async function offerBind(
+	host: DataHost,
+	userId: string,
+	account: Account,
+): Promise<MigrateDone["bindOffer"]> {
+	if (isTapUserId(userId)) return "tap";
+	try {
+		await host.db.set(DONE_KEY(userId), JSON.stringify(account), STATE_TTL_MS);
+		return "ask";
+	} catch (err) {
+		logDetail("migrate bind offer not saved", err);
+		return undefined;
+	}
+}
+
+/** Binds the To account of the last copy in place of the bound one; runs under the copy's lock */
+export async function bindMigrated(
+	userId: string,
+): Promise<BindOk | BindErr | MigrateErr> {
+	return withDiscordUid(userId, async () => {
+		const host = await getDataHost();
+		const locked = await host.store.set(RUN_LOCK(userId), "1", {
+			nx: true,
+			ttlMs: LOCK_MS,
+		});
+		if (locked !== "OK") return { error: "migrate_busy", status: 409 };
+		try {
+			return await bindMigratedFor(host, userId);
+		} finally {
+			await host.store.del(RUN_LOCK(userId)).catch(() => 0);
+		}
+	});
+}
+
+async function bindMigratedFor(
+	host: DataHost,
+	userId: string,
+): Promise<BindOk | BindErr | MigrateErr> {
+	let to: Account | undefined;
+	let save: Awaited<ReturnType<typeof switchBind>>;
+	try {
+		to = await readDone(host, userId);
+		if (!to) return { error: "migrate_bind_expired", status: 410 };
+		await ensureSongInfo();
+		save = await switchBind(host, userId, to.token, to.global);
+	} catch (err) {
+		return failBind(err);
+	}
+	await Promise.all([
+		noteTokenUser(userId, to.token),
+		host.db.del(DONE_KEY(userId)).catch(() => undefined),
+	]);
+	return playerFromSave(save);
 }
 
 export function clearMigrateQr(userId: string, slot: Slot) {
@@ -517,5 +606,6 @@ export async function resetMigrate(userId: string) {
 		clearMigrateQr(userId, "from"),
 		clearMigrateQr(userId, "to"),
 		host.db.del(STATE_KEY(userId)).catch(() => undefined),
+		host.db.del(DONE_KEY(userId)).catch(() => undefined),
 	]);
 }

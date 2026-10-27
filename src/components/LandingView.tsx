@@ -1,94 +1,35 @@
-"use client";
-
-import Link from "next/link";
-import { signInDiscord } from "@/auth-actions";
-import { DitherBall } from "@/components/landing/Dither";
-import { HeroStage } from "@/components/landing/HeroStage";
+import { Figure } from "@/components/Figure";
+import { Actions, AgreeNote } from "@/components/landing/Actions";
 import { InviteLink } from "@/components/landing/Invite";
 import { LevelChip } from "@/components/landing/LevelChip";
 import { LandingExplore, LandingLookups } from "@/components/landing/Lookups";
 import { Rich } from "@/components/landing/Rich";
 import { LandingScoreboard } from "@/components/landing/Scoreboard";
-import { SignInButton, SignInStatus } from "@/components/landing/SignIn";
-import { useI18n } from "@/i18n/provider";
+import { getMessages } from "@/i18n/server";
+import { fill } from "@/phi/lib/card-i18n";
 
-function Actions({
-	next,
-	signedIn,
-	secondary,
-}: {
-	next: string;
-	signedIn: boolean;
-	secondary: "taptap" | "invite";
-}) {
-	const { m } = useI18n();
-	if (signedIn) {
-		return (
-			<>
-				<Link className="pill pill-primary" href="/me/b30">
-					{m.home.openDesk}
-				</Link>
-				<InviteLink className="pill pill-secondary" />
-			</>
-		);
-	}
-	return (
-		<>
-			<form action={signInDiscord}>
-				<input type="hidden" name="next" value={next} />
-				<SignInButton className="pill pill-primary" />
-				<SignInStatus />
-			</form>
-			{secondary === "taptap" ? (
-				<Link
-					className="pill pill-secondary"
-					href={`/login/taptap?${new URLSearchParams({ next })}`}
-				>
-					{m.signInTaptap}
-				</Link>
-			) : (
-				<InviteLink className="pill pill-secondary" />
-			)}
-		</>
-	);
-}
-
-function AgreeNote() {
-	const { m } = useI18n();
-	const a = m.legal.agree;
-	return (
-		<p className="agree-note">
-			{a.before}
-			<Link href="/tos">{a.terms}</Link>
-			{a.and}
-			<Link href="/privacy">{a.privacy}</Link>
-			{a.after}
-		</p>
-	);
-}
-
-export function LandingView({
+export async function LandingView({
 	next,
 	signedIn = false,
 }: {
 	next: string;
 	signedIn?: boolean;
 }) {
-	const { m } = useI18n();
+	const { m } = await getMessages();
 	const t = m.home;
+	const f = m.figures;
+	const label = (n: number) => fill(f.label, { n });
 	return (
 		<main id="content" className="landing">
 			<section className="hero" aria-labelledby="hero-title">
 				<div className="hero-copy">
-					<p className="hero-eyebrow">
-						<span className="hero-eyebrow-phi" aria-hidden="true">
-							φ
-						</span>
-						{t.eyebrow}
-					</p>
+					<p className="hero-eyebrow caps-label">{t.eyebrow}</p>
 					<h1 id="hero-title" className="hero-title">
 						<Rich text={t.title} />
 					</h1>
+					<p className="hero-lede">
+						<Rich text={signedIn ? t.ledeSignedIn : t.lede} />
+					</p>
 					<div className="hero-actions">
 						<Actions next={next} signedIn={signedIn} secondary="taptap" />
 					</div>
@@ -99,30 +40,52 @@ export function LandingView({
 						</div>
 					)}
 				</div>
-				<HeroStage />
+				<Figure
+					name="b30"
+					className="hero-fig fig-enter"
+					label={label(1)}
+					caption={f.b30.caption}
+					parts={f.b30.parts}
+				/>
 			</section>
-
-			<p className="landing-lead">
-				<Rich text={signedIn ? t.ledeSignedIn : t.lede} />
-			</p>
 
 			<LandingScoreboard />
 
 			<LandingLookups signedIn={signedIn} />
 
-			<LandingExplore signedIn={signedIn} />
+			<LandingExplore
+				signedIn={signedIn}
+				figure={
+					<Figure
+						name="chart"
+						className="explore-fig"
+						label={label(2)}
+						caption={f.chart.caption}
+						parts={f.chart.parts}
+					/>
+				}
+			/>
 
-			<section className="closing" aria-labelledby="closing-title">
-				<LevelChip rank="AT" level="16.8" />
-				<h2 id="closing-title" className="closing-title">
-					{t.closingTitle}
-				</h2>
-				<p className="closing-caption">{t.closingCaption}</p>
-				<div className="closing-actions">
-					<Actions next={next} signedIn={signedIn} secondary="invite" />
-				</div>
-				<div className="closing-well" aria-hidden="true">
-					<DitherBall size={160} className="closing-ball" />
+			<section
+				className="closing landing-section lcard-grid"
+				aria-labelledby="closing-title"
+			>
+				<Figure
+					name="b30"
+					view="assembled"
+					className="closing-fig"
+					label={label(3)}
+					caption={f.b30.assembled}
+				/>
+				<div className="closing-copy">
+					<LevelChip rank="AT" level="16.8" />
+					<h2 id="closing-title" className="closing-title">
+						{t.closingTitle}
+					</h2>
+					<p className="closing-caption">{t.closingCaption}</p>
+					<div className="closing-actions">
+						<Actions next={next} signedIn={signedIn} secondary="invite" />
+					</div>
 				</div>
 			</section>
 		</main>

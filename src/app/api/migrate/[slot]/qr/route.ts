@@ -28,7 +28,7 @@ export async function POST(
 				if ("error" in result) return localizedErrorBody(result);
 				return result;
 			},
-			{ error: "migrate_failed", code: "migrate_failed", status: 502 },
+			"migrate_failed",
 		);
 	});
 }

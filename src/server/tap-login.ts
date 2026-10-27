@@ -1,6 +1,5 @@
 import { randomBytes } from "node:crypto";
 import { kvKey } from "@/phi/lib/const";
-import { clearUser, getToken, updateSave } from "@/phi/lib/saves";
 import type { TapLogin } from "@/phi/lib/taptap";
 import { tapSignInUser } from "./account-link";
 import { sealTapTicket } from "./auth-tickets";
@@ -16,11 +15,11 @@ import {
 	type QrWait,
 	qrPngAt,
 	requestQr,
+	switchBind,
 } from "./bind";
 import { playerFromSave } from "./bound";
-import { type DataHost, getDataHost } from "./data-host";
+import { getDataHost } from "./data-host";
 import { withDiscordUid } from "./logger";
-import { leaveManualMode } from "./manual";
 import { ensureSongInfo } from "./song-info";
 
 /** Keyed by a random id that only the visitor's httpOnly cookie holds */
@@ -65,21 +64,6 @@ export function peekTapLogin(
 	return peekQrAt(LOGIN_KEY(loginId), LOGIN_LOCK(loginId));
 }
 
-async function bindSignIn(
-	host: DataHost,
-	userId: string,
-	token: string,
-	global: boolean,
-) {
-	const existing = await getToken(host.rt, userId);
-	if (existing === token)
-		return updateSave(host.rt, host.db, userId, { bound: token, global });
-	if (existing) await clearUser(host.rt, userId);
-	const save = await updateSave(host.rt, host.db, userId, { token, global });
-	await leaveManualMode(userId);
-	return save;
-}
-
 export async function finishTapLogin(
 	loginId: string,
 	resume: QrResume["resume"],
@@ -112,7 +96,7 @@ export async function finishTapLogin(
 			const image = signInAvatar(userId, login.avatar);
 			try {
 				await songInfo;
-				const save = await bindSignIn(host, userId, token, resume.useGlobal);
+				const save = await switchBind(host, userId, token, resume.useGlobal);
 				const player = playerFromSave(save);
 				const ticket = await sealTapTicket(loginId, {
 					id: userId,

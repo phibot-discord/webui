@@ -80,7 +80,7 @@ function RowText({
 	return (
 		<>
 			<span className="lookup-icon">
-				<Icon size={22} aria-hidden="true" />
+				<Icon size={20} aria-hidden="true" />
 			</span>
 			<span className="lookup-name">
 				{name}
@@ -120,7 +120,7 @@ export function LandingLookups({ signedIn }: { signedIn: boolean }) {
 	const { m } = useI18n();
 	const t = m.home;
 	const list = (
-		<ul className="lookup-grid lookup-grid-four">
+		<ul className="lookup-grid">
 			{LOOKUPS.map(({ kind, href }) => (
 				<li key={kind}>
 					{signedIn ? (
@@ -162,7 +162,13 @@ export function LandingLookups({ signedIn }: { signedIn: boolean }) {
 	);
 }
 
-export function LandingExplore({ signedIn }: { signedIn: boolean }) {
+export function LandingExplore({
+	signedIn,
+	figure,
+}: {
+	signedIn: boolean;
+	figure: ReactNode;
+}) {
 	const { m } = useI18n();
 	const t = m.home.explore;
 	return (
@@ -174,20 +180,23 @@ export function LandingExplore({ signedIn }: { signedIn: boolean }) {
 				</h2>
 				<p className="section-intro">{t.intro}</p>
 			</header>
-			<ul className="lookup-grid">
-				{EXPLORE.map(({ kind, href }) => (
-					<li key={kind}>
-						<Link className="lookup" href={href}>
-							<RowText
-								{...t.items[kind]}
-								isNew={NEW_KINDS.has(kind)}
-								Icon={ICONS[kind]}
-							/>
-							<Go>{signedIn ? null : t.hint}</Go>
-						</Link>
-					</li>
-				))}
-			</ul>
+			<div className="explore-body">
+				{figure}
+				<ul className="lookup-grid">
+					{EXPLORE.map(({ kind, href }) => (
+						<li key={kind}>
+							<Link className="lookup" href={href}>
+								<RowText
+									{...t.items[kind]}
+									isNew={NEW_KINDS.has(kind)}
+									Icon={ICONS[kind]}
+								/>
+								<Go>{signedIn ? null : t.hint}</Go>
+							</Link>
+						</li>
+					))}
+				</ul>
+			</div>
 		</section>
 	);
 }

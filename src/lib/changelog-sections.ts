@@ -3,6 +3,52 @@ import type { ChangeRelease } from "./changelog";
 /** Every release's items, newest first, loaded only when the dialog opens */
 export const CHANGELOG_RELEASES: ChangeRelease[] = [
 	{
+		date: "2026-10-27",
+		sections: [
+			{
+				heading: { en: "New look", zh: "新外观" },
+				items: [
+					{
+						en: "Checkout PhiBot's New homepage!",
+						zh: "PhiBot 首页焕然一新！",
+						href: "/",
+					},
+				],
+			},
+			{
+				heading: { en: "Move save", zh: "迁移存档" },
+				items: [
+					{
+						en: "After a copy, Move save offers to bind the To account, so your cards and /b30 in Discord use the copied save.",
+						zh: "复制完成后，「迁移存档」会询问是否绑定目标账号，之后成绩图和 Discord 里的 /b30 都会使用复制过去的存档。",
+						href: "/account/migrate",
+					},
+					{
+						en: "If you sign in to PhiBot with TapTap, the offer tells you which TapTap account to sign in with afterwards.",
+						zh: "如果你用 TapTap 登录 PhiBot，绑定提示会说明之后应使用哪个 TapTap 账号登录。",
+					},
+				],
+			},
+			{
+				heading: { en: "Fixes", zh: "修复" },
+				items: [
+					{
+						en: "If TapTap fails while you switch to another account, the account you had stays bound, with its save.",
+						zh: "切换到其他账号时若 TapTap 出错，原来绑定的账号及其存档都会保留。",
+					},
+					{
+						en: "Switching the language changes the whole page at once, instead of the buttons first and the rest a moment later.",
+						zh: "切换语言时整个页面会同时切换，不再先切换按钮、稍后才切换其余内容。",
+					},
+					{
+						en: "A failed TapTap request shows a message in your language instead of a raw code such as bind_failed.",
+						zh: "TapTap 请求失败时会显示对应语言的提示，不再显示 bind_failed 之类的原始代码。",
+					},
+				],
+			},
+		],
+	},
+	{
 		date: "2026-10-25",
 		sections: [
 			{

@@ -1,15 +1,12 @@
 import { TAP_WAIT_PHASE } from "@/lib/tap-wait";
 import { withTapWait } from "@/phi/lib/tapapi";
+import { type ErrorKey, localizedErrorBody } from "./i18n-http";
 import { logger, withDiscordUid } from "./logger";
 
 export function tapWaitNdjson(
 	userId: string,
 	work: () => Promise<Record<string, unknown>>,
-	fallback: Record<string, unknown> = {
-		error: "request_failed",
-		code: "refresh_failed",
-		status: 502,
-	},
+	fallback: ErrorKey = "refresh_failed",
 ): Response {
 	const encoder = new TextEncoder();
 	// A client that aborts mid-stream (a QR poll on cancel) cancels it; the work still finishes, unheard
@@ -29,7 +26,7 @@ export function tapWaitNdjson(
 					send(result);
 				} catch (err) {
 					logger.error("tap-wait failed", err);
-					send(fallback);
+					send(await localizedErrorBody({ error: fallback, status: 502 }));
 				} finally {
 					if (!gone) controller.close();
 				}

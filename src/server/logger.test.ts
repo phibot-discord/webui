@@ -19,7 +19,7 @@ function captureLog(fn: () => void): string[] {
 test("logger omits discord uid outside a request", () => {
 	const [line] = captureLog(() => logger.info("boot"));
 	assert.ok(line);
-	assert.equal(line.includes("discord uid:"), false);
+	assert.equal(line.includes("duid:"), false);
 	assert.ok(line.includes("boot"));
 });
 
@@ -29,13 +29,13 @@ test("logger appends discord uid after the message", () => {
 	});
 	assert.ok(line);
 	assert.ok(line.includes("save cache miss"));
-	assert.ok(line.endsWith("discord uid: 847761781409447947"));
+	assert.ok(line.endsWith("duid: 847761781409447947"));
 });
 
-test("missing user logs as discord uid: -", () => {
+test("missing user logs as duid: -", () => {
 	const [line] = captureLog(() => {
 		withDiscordUid(undefined, () => logger.info("api GET /api/me"));
 	});
 	assert.ok(line);
-	assert.ok(line.includes("discord uid: -"));
+	assert.ok(line.includes("duid: -"));
 });

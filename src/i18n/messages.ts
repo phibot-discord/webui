@@ -1,3 +1,4 @@
+import type { FigureMessages } from "./figure-messages";
 import type { FilesMessages } from "./files-messages";
 
 export type ClientMessages = {
@@ -24,6 +25,7 @@ export type ClientMessages = {
 	credit: { before: string; after: string; heart: string; name: string };
 	locale: { en: string; zh: string; label: string };
 	theme: { label: string; light: string; dark: string; system: string };
+	footer: { credit: string; revision: string; more: string };
 	home: {
 		eyebrow: string;
 		title: string;
@@ -61,7 +63,6 @@ export type ClientMessages = {
 		closingTitle: string;
 		closingCaption: string;
 		openDesk: string;
-		pauseMotion: string;
 	};
 	legal: {
 		nav: string;
@@ -208,6 +209,11 @@ export type ClientMessages = {
 		versionCurrent: string;
 		versionNote: string;
 		sameAsCurrent: string;
+		mpTitle: string;
+		mpBody: string;
+		mpCopy: string;
+		mpCopied: string;
+		mpCopyFailed: string;
 	};
 	simulate: {
 		listLabel: string;
@@ -484,6 +490,15 @@ export type ClientMessages = {
 		doneLede: string;
 		doneSteps: string[];
 		doneBound: string;
+		bindTitle: string;
+		bindSwitch: string;
+		bindNew: string;
+		bindYes: string;
+		bindNo: string;
+		bindDone: string;
+		bindFailed: string;
+		bindTap: string;
+		bindTapMoves: string;
 		doneBind: string;
 	};
 	public: {
@@ -687,11 +702,12 @@ export type ClientMessages = {
 		migrate_unconfirmed: string;
 		migrate_failed: string;
 		migrate_unverified: string;
+		migrate_bind_expired: string;
 	};
 };
 
 /** Everything the server renders with; pages pass the files sections to client parts as props */
-export type Messages = ClientMessages & FilesMessages;
+export type Messages = ClientMessages & FilesMessages & FigureMessages;
 
 export const en: ClientMessages = {
 	meta: {
@@ -739,6 +755,7 @@ export const en: ClientMessages = {
 		dark: "Dark",
 		system: "System",
 	},
+	footer: { credit: "Credit", revision: "Revision", more: "More" },
 	home: {
 		eyebrow: "Phigros cards for Discord and the web",
 		title: "After the last chart.\nYour *B30* is ready.",
@@ -840,7 +857,6 @@ export const en: ClientMessages = {
 		closingTitle: "Open your B30",
 		closingCaption: "one more chart, then sleep.",
 		openDesk: "Open your cards",
-		pauseMotion: "Pause animation",
 	},
 	legal: {
 		nav: "Legal",
@@ -1022,6 +1038,12 @@ export const en: ClientMessages = {
 		versionNote:
 			"Charts as they were in that version. Legacy charts show whichever version you pick.",
 		sameAsCurrent: "Same as current",
+		mpTitle: "Multiplayer server",
+		mpBody:
+			"PhiBot now runs its own Phira multiplayer server. In Phira's settings, turn on multiplayer and set the server address to this one.",
+		mpCopy: "Copy",
+		mpCopied: "Copied",
+		mpCopyFailed: "Couldn't copy. Select the address and copy it.",
 	},
 	simulate: {
 		listLabel: "Charts to edit",
@@ -1335,6 +1357,18 @@ export const en: ClientMessages = {
 		],
 		doneBound:
 			"The To account is the one bound on PhiBot. Refresh on the cards page to load the new save.",
+		bindTitle: "Bind the To account on PhiBot?",
+		bindSwitch:
+			"PhiBot follows your bound account now. Binding the To account replaces that bind, so your cards and /b30 in Discord use the copied save. Card settings and B30 history stay.",
+		bindNew: "Bind it and your cards and /b30 in Discord use the copied save.",
+		bindYes: "Bind To account",
+		bindNo: "Not now",
+		bindDone: "The To account is bound. Your cards load the copied save.",
+		bindFailed: "Could not bind the To account. Try again.",
+		bindTap:
+			"You signed in with TapTap, so PhiBot follows that TapTap account. To use the To account here, sign in with it instead.",
+		bindTapMoves:
+			"TapTap sign-in opens this PhiBot account through the account you have bound now. After you bind the To account, sign in with TapTap as the To account instead.",
 		doneBind:
 			"PhiBot keeps following the account you have bound. To track the To account here, unbind and bind it.",
 	},
@@ -1602,6 +1636,8 @@ export const en: ClientMessages = {
 		migrate_failed: "Could not copy the save.",
 		migrate_unverified:
 			"The To save was written, but PhiBot could not confirm the copy. Check it in Phigros before trying again.",
+		migrate_bind_expired:
+			"The bind offer is closed. It stays open only a short time after the copy, and starting over closes it. If the To account is not bound yet, unbind on Account if another account is bound, then bind it on Cards.",
 	},
 };
 
@@ -1644,6 +1680,7 @@ export const zh: ClientMessages = {
 		dark: "深色",
 		system: "跟随系统",
 	},
+	footer: { credit: "制作", revision: "版本", more: "更多" },
 	home: {
 		eyebrow: "Discord 和网页都能用的 Phigros 查分器",
 		title: "打完一首\n快速\n查询你的 *B30*",
@@ -1731,7 +1768,6 @@ export const zh: ClientMessages = {
 		closingTitle: "查看你的 B30",
 		closingCaption: "再打一首就睡",
 		openDesk: "查看成绩图",
-		pauseMotion: "暂停动画",
 	},
 	legal: {
 		nav: "条款与隐私",
@@ -1900,6 +1936,12 @@ export const zh: ClientMessages = {
 		versionCurrent: "当前（{v}）",
 		versionNote: "显示该版本时的谱面。Legacy 谱面不随版本切换，始终显示。",
 		sameAsCurrent: "与最新相同",
+		mpTitle: "多人游戏服务器",
+		mpBody:
+			"PhiBot 现在有自己的 Phira 多人游戏服务器。在 Phira 设置里开启多人游戏，把服务器地址改成下面这个即可。",
+		mpCopy: "复制",
+		mpCopied: "已复制",
+		mpCopyFailed: "复制失败，请选中地址手动复制。",
 	},
 	simulate: {
 		listLabel: "可编辑的谱面",
@@ -2201,6 +2243,18 @@ export const zh: ClientMessages = {
 		],
 		doneBound:
 			"目标账号就是在 PhiBot 绑定的账号。请在成绩图页面刷新以载入新存档。",
+		bindTitle: "要在 PhiBot 绑定目标账号吗？",
+		bindSwitch:
+			"PhiBot 现在跟踪你已绑定的账号。绑定目标账号会替换原来的绑定，之后成绩图和 Discord 里的 /b30 都使用复制过去的存档。成绩图设置和 B30 历史会保留。",
+		bindNew: "绑定后，成绩图和 Discord 里的 /b30 都会使用复制过去的存档。",
+		bindYes: "绑定目标账号",
+		bindNo: "暂不绑定",
+		bindDone: "目标账号已绑定，成绩图会载入复制过去的存档。",
+		bindFailed: "无法绑定目标账号，请重试。",
+		bindTap:
+			"你是用 TapTap 登录的，PhiBot 跟踪的是那个 TapTap 账号。想在这里使用目标账号，请改用它登录。",
+		bindTapMoves:
+			"现在用 TapTap 登录会通过你已绑定的账号进入这个 PhiBot 账号。绑定目标账号后，请改用目标账号的 TapTap 登录。",
 		doneBind:
 			"PhiBot 仍然跟踪你已绑定的账号。想在这里跟踪目标账号，请解绑后重新绑定它。",
 	},
@@ -2457,5 +2511,7 @@ export const zh: ClientMessages = {
 		migrate_failed: "存档迁移失败",
 		migrate_unverified:
 			"目标存档已写入，但 PhiBot 无法确认复制结果。请先在 Phigros 里检查，再决定是否重试",
+		migrate_bind_expired:
+			"绑定提示已关闭。它只在复制后保留一小段时间，重新开始迁移也会关闭它。如果目标账号还没绑定，而已绑定其他账号，请先在账号页解绑，再到成绩图页绑定",
 	},
 };

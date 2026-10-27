@@ -18,7 +18,7 @@ export async function POST() {
 					if ("error" in result) return localizedErrorBody(result);
 					return { status: "bound", ...result };
 				},
-				{ error: "bind_failed", code: "bind_failed", status: 502 },
+				"bind_failed",
 			);
 		}
 		if ("error" in peeked) return localizedBindError(peeked);

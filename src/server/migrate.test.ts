@@ -3,15 +3,19 @@ import test, { afterEach, beforeEach } from "node:test";
 import JSZip from "jszip";
 import { SAVE_ENTRIES } from "@/phi/lib/cloud-save";
 import { kvKey } from "@/phi/lib/const";
+import { Save } from "@/phi/lib/save";
 import { resetSaveBlobMemForTest } from "@/phi/lib/saves";
-import { setTapHttpForTest } from "@/phi/lib/tapapi";
+import { setTapHttpForTest, TapApiError } from "@/phi/lib/tapapi";
 import {
+	bindMigrated,
 	boundAsFrom,
 	connectMigrateToken,
 	type MigratePreview,
+	resetMigrate,
 	runMigrate,
 	type SlotReady,
 } from "./migrate";
+import { markSongInfoReadyForTest } from "./song-info";
 
 const GB_A = "gbA".padEnd(25, "0");
 const GB_B = "gbB".padEnd(25, "0");
@@ -65,12 +69,42 @@ const store = {
 		return "OK";
 	},
 };
+let tapDown = false;
+class FakeUser {
+	saveInfo = {
+		gameFile: { url: `${FILES}/cnOldFile` },
+		modifiedAt: { iso: new Date("2026-05-01T00:00:00.000Z") },
+		summary: { rankingScore: 12.5, challengeModeRank: 312 },
+		PlayerId: "CN Player",
+	};
+	playerInfo = {};
+	gameRecord = {};
+	Recordver = 1;
+	constructor(
+		readonly session: string,
+		readonly global = false,
+	) {}
+	async getSaveInfo() {
+		if (tapDown)
+			throw new TapApiError("TapAPI 503 Service Unavailable", false, 503);
+		return this.saveInfo;
+	}
+	async buildRecord() {}
+}
 (globalThis as Record<string, unknown>).__phiDataHost = Promise.resolve({
 	db,
 	store,
 	rt: {
+		PhigrosUser: FakeUser,
+		Save,
 		store: {
 			getSessionToken: (userId: string) => db.get(kvKey("userToken", userId)),
+			setSessionToken: (userId: string, token: string) =>
+				db.set(kvKey("userToken", userId), token),
+			clearLocalCredentials: (userId: string) =>
+				db.del(kvKey("userToken", userId)),
+			clearSessionSave: (token: string) => db.del(kvKey("save", token)),
+			isSessionTokenBanned: async () => false,
 		},
 	},
 	lib: {},
@@ -126,6 +160,11 @@ function undoOf(userId: string, server: Server, account: string) {
 	return JSON.parse(raw) as Record<string, unknown>;
 }
 
+function bindOffer(userId: string) {
+	const raw = kv.get(kvKey("webMigrateDone", userId));
+	return raw ? (JSON.parse(raw) as unknown) : undefined;
+}
+
 function saveWrites() {
 	return calls.filter(
 		(c) => c.method !== "GET" && c.url.includes("/classes/_GameSave"),
@@ -142,6 +181,8 @@ async function zipOf(tag: string) {
 beforeEach(async () => {
 	kv.clear();
 	resetSaveBlobMemForTest();
+	markSongInfoReadyForTest();
+	tapDown = false;
 	calls = [];
 	writeStatus = 200;
 	ignoreWrites = false;
@@ -513,4 +554,102 @@ test("one copy runs at a time", async () => {
 		error: "migrate_busy",
 		status: 409,
 	});
+});
+
+test("a copy to another account keeps the To sign-in for the bind offer", async () => {
+	bind("u10", GB_A, true);
+	ok(await boundAsFrom("u10"));
+	previewOf(await connectMigrateToken("u10", "to", CN_B, "cn"));
+	const done = ok(await runMigrate("u10"));
+	assert.equal(done.toIsBound, false);
+	assert.equal(done.bindOffer, "ask");
+	assert.ok(!JSON.stringify(done).includes(CN_B), "tokens stay server-side");
+	assert.deepEqual(bindOffer("u10"), { token: CN_B, global: false });
+	assert.equal(kv.has(kvKey("webMigrate", "u10")), false);
+});
+
+test("no bind offer when the To account is bound, or for a TapTap sign-in", async () => {
+	bind("u11", GB_A, true);
+	ok(await connectMigrateToken("u11", "from", CN_A, "cn"));
+	previewOf(await connectMigrateToken("u11", "to", GB_A, "gb"));
+	assert.equal(ok(await runMigrate("u11")).bindOffer, undefined);
+	assert.equal(bindOffer("u11"), undefined);
+
+	ok(await connectMigrateToken("tap:obj1", "from", GB_A, "gb"));
+	previewOf(await connectMigrateToken("tap:obj1", "to", CN_B, "cn"));
+	assert.equal(ok(await runMigrate("tap:obj1")).bindOffer, "tap");
+	assert.equal(bindOffer("tap:obj1"), undefined);
+	assert.deepEqual(await bindMigrated("tap:obj1"), {
+		error: "migrate_bind_expired",
+		status: 410,
+	});
+});
+
+test("a new From or a reset ends the bind offer", async () => {
+	for (const userId of ["u12", "u13"]) {
+		ok(await connectMigrateToken(userId, "from", GB_A, "gb"));
+		previewOf(await connectMigrateToken(userId, "to", CN_B, "cn"));
+		ok(await runMigrate(userId));
+		assert.ok(bindOffer(userId));
+	}
+	ok(await connectMigrateToken("u12", "from", CN_A, "cn"));
+	assert.equal(bindOffer("u12"), undefined);
+	await resetMigrate("u13");
+	assert.equal(bindOffer("u13"), undefined);
+	assert.deepEqual(await bindMigrated("u13"), {
+		error: "migrate_bind_expired",
+		status: 410,
+	});
+});
+
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+test("a bind TapTap fails keeps the account bound before it, and its save", async () => {
+	bind("u14", GB_A, true);
+	ok(await boundAsFrom("u14"));
+	previewOf(await connectMigrateToken("u14", "to", CN_B, "cn"));
+	ok(await runMigrate("u14"));
+	const before = kv.get(kvKey("save", GB_A));
+	tapDown = true;
+	assert.deepEqual(await bindMigrated("u14"), {
+		error: "tapapi_unavailable",
+		status: 502,
+	});
+	await tick();
+	assert.equal(kv.get(kvKey("userToken", "u14")), GB_A);
+	assert.equal(kv.get(kvKey("save", GB_A)), before, "the bound save stays");
+	assert.ok(bindOffer("u14"), "the offer stays for a retry");
+	assert.equal(kv.has(kvKey("webMigrateLock", "u14")), false);
+});
+
+test("binding the To account replaces the bound one and ends the offer", async () => {
+	bind("u15", GB_A, true);
+	ok(await boundAsFrom("u15"));
+	previewOf(await connectMigrateToken("u15", "to", CN_B, "cn"));
+	ok(await runMigrate("u15"));
+	const player = ok(await bindMigrated("u15"));
+	assert.equal(player.playerId, "CN Player");
+	await tick();
+	assert.equal(kv.get(kvKey("userToken", "u15")), CN_B);
+	assert.ok(kv.get(kvKey("save", CN_B)), "the To save is cached");
+	assert.equal(kv.has(kvKey("save", GB_A)), false, "the old save goes");
+	assert.equal(kv.get(kvKey("tokenUser", CN_B)), "u15");
+	assert.equal(bindOffer("u15"), undefined);
+	assert.deepEqual(await bindMigrated("u15"), {
+		error: "migrate_bind_expired",
+		status: 410,
+	});
+});
+
+test("a bind waits for a copy in progress", async () => {
+	bind("u16", GB_A, true);
+	ok(await boundAsFrom("u16"));
+	previewOf(await connectMigrateToken("u16", "to", CN_B, "cn"));
+	ok(await runMigrate("u16"));
+	kv.set(kvKey("webMigrateLock", "u16"), "1");
+	assert.deepEqual(await bindMigrated("u16"), {
+		error: "migrate_busy",
+		status: 409,
+	});
+	assert.equal(kv.get(kvKey("userToken", "u16")), GB_A);
 });

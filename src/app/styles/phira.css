@@ -5,6 +5,66 @@
 	gap: var(--space-5);
 }
 
+.phira-mp {
+	max-width: 44rem;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	grid-template-areas: "icon text address";
+	align-items: center;
+	gap: var(--space-1) var(--space-4);
+	margin-bottom: var(--space-5);
+	padding: var(--space-4) var(--space-5);
+	border: 1px solid var(--line);
+	border-left: 2px solid var(--primary);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+
+.phira-mp-icon {
+	grid-area: icon;
+	align-self: start;
+	color: var(--primary);
+}
+
+.phira-mp-text {
+	grid-area: text;
+	min-width: 0;
+}
+
+.phira-mp-text h2 {
+	margin: 0;
+	font-size: var(--text-md);
+}
+
+.phira-mp-text p {
+	margin: 2px 0 0;
+	color: var(--muted);
+	font-size: var(--text-sm);
+}
+
+.phira-mp-address {
+	grid-area: address;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.phira-mp-address code {
+	padding: 4px var(--space-2);
+	border-radius: var(--radius-sm);
+	background: var(--surface-2);
+	color: var(--ink);
+	font-family: ui-monospace, Menlo, Monaco, monospace;
+	font-size: var(--text-sm);
+	overflow-wrap: anywhere;
+	user-select: all;
+}
+
+.phira-mp-error {
+	grid-column: 2 / -1;
+	margin: 0;
+}
+
 .phira-search .field-label {
 	color: var(--ink);
 	font-size: var(--text-sm);
@@ -240,7 +300,25 @@
 	color: var(--danger);
 }
 
+@media (max-width: 47.99em) {
+	.phira-mp {
+		grid-template-columns: auto minmax(0, 1fr);
+		grid-template-areas:
+			"icon text"
+			". address";
+		row-gap: var(--space-3);
+	}
+
+	.phira-mp-address {
+		justify-self: start;
+	}
+}
+
 @media (max-width: 29.99em) {
+	.phira-mp {
+		padding-inline: var(--space-4);
+	}
+
 	.phira-level {
 		grid-template-columns: minmax(0, 1fr) auto;
 		grid-template-areas:

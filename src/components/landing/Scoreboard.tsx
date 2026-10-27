@@ -21,7 +21,7 @@ type Shot = {
 	Icon: typeof Table;
 };
 
-export const SHOTS: Shot[] = [
+const SHOTS: Shot[] = [
 	{
 		layout: "classic",
 		file: "b30-sample",
@@ -50,7 +50,7 @@ export const SHOTS: Shot[] = [
 
 const FULL = "/landing/b30-sample-full.webp";
 
-export const srcSet = (file: string, widths: number[], ext: string) =>
+const srcSet = (file: string, widths: number[], ext: string) =>
 	widths.map((w) => `/landing/${file}-${w}.${ext} ${w}w`).join(", ");
 
 const sizes = (layout: Layout) =>

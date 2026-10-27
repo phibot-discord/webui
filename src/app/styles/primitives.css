@@ -20,7 +20,7 @@ h1,
 h2,
 h3 {
 	text-wrap: balance;
-	letter-spacing: -0.03em;
+	letter-spacing: -0.015em;
 }
 
 h1 {
@@ -28,6 +28,18 @@ h1 {
 	line-height: 1.15;
 	margin: 0 0 var(--space-3);
 	font-weight: 600;
+}
+
+:is(.page:not(.status-page), .page-main, .bind-panel, .status-head, .legal-head)
+	> h1::before,
+.page:not(.files-page) > .page-skeleton::before {
+	content: "";
+	display: block;
+	width: 1.5rem;
+	height: 2px;
+	margin-bottom: var(--space-4);
+	background: var(--primary);
+	transform: skewX(-24deg);
 }
 
 h2 {
@@ -61,6 +73,19 @@ p {
 	margin: 0;
 	font-variant-numeric: tabular-nums;
 	font-weight: 500;
+}
+
+.caps-label {
+	font-family: var(--mono);
+	font-size: var(--text-label);
+	font-weight: 500;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+html[lang="zh-CN"] .caps-label {
+	letter-spacing: 0.02em;
+	text-transform: none;
 }
 
 .sr-only {
@@ -124,11 +149,13 @@ p {
 		border-color var(--dur) var(--ease),
 		box-shadow var(--dur) var(--ease),
 		color var(--dur) var(--ease),
-		transform 120ms var(--ease);
+		transform 150ms ease-out;
 }
 
-.btn:active:not(:disabled) {
-	transform: scale(0.98);
+@media (prefers-reduced-motion: no-preference) {
+	.btn:active:not(:disabled, [aria-disabled="true"]) {
+		transform: scale(0.96);
+	}
 }
 
 .btn-primary {
@@ -196,6 +223,18 @@ p {
 	min-height: 2rem;
 	padding: 0 var(--space-3);
 	font-size: var(--text-sm);
+}
+
+.btn-lg {
+	min-height: 3rem;
+	padding: 0 var(--space-6);
+	border-radius: var(--radius-md);
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+.btn-lg svg {
+	flex: none;
 }
 
 .btn-icon {
@@ -275,8 +314,10 @@ p {
 	justify-items: center;
 }
 
-.btn-skew:active:not(:disabled) {
-	transform: skewX(-12deg) scale(0.98);
+@media (prefers-reduced-motion: no-preference) {
+	.btn-skew:active:not(:disabled) {
+		transform: skewX(-12deg) scale(0.96);
+	}
 }
 
 @media (hover: hover) {

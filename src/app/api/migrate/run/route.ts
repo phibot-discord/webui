@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 				}
 				return result;
 			},
-			{ error: "migrate_failed", code: "migrate_failed", status: 502 },
+			"migrate_failed",
 		);
 	});
 }

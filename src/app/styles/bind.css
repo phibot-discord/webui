@@ -401,12 +401,13 @@
 	border-top: 1px solid var(--line);
 }
 
-.migrate-step > h2 {
+.migrate-step > h2,
+.migrate-ask h3 {
 	margin: 0;
 	font-size: var(--text-md);
 }
 
-.migrate-step > h2:focus {
+.migrate-step > :is(h2, .account-notice, .migrate-note):focus {
 	outline: none;
 }
 
@@ -470,7 +471,8 @@
 }
 
 .migrate-warn,
-.migrate-note {
+.migrate-note,
+.migrate-ask {
 	margin: 0;
 	padding: var(--space-3) var(--space-4);
 	border: 1px solid var(--line-strong);
@@ -539,6 +541,19 @@
 	margin: 0;
 }
 
+.migrate-ask {
+	display: flex;
+	flex-direction: column;
+	align-self: stretch;
+	align-items: flex-start;
+	gap: var(--space-3);
+	padding: var(--space-4);
+}
+
+.migrate-ask p {
+	margin: 0;
+}
+
 .migrate-or {
 	align-self: stretch;
 	margin: var(--space-2) 0 0;
@@ -564,5 +579,9 @@
 	.migrate-actions .btn {
 		align-self: stretch;
 		width: 100%;
+	}
+
+	.migrate-step .migrate-actions {
+		align-self: stretch;
 	}
 }

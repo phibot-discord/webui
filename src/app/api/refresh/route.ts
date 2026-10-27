@@ -21,7 +21,7 @@ export async function POST() {
 					cooldownMs: result.cooldownMs,
 				};
 			},
-			{ error: "refresh_failed", code: "refresh_failed", status: 502 },
+			"refresh_failed",
 		),
 	);
 }

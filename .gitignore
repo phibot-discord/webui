@@ -5,6 +5,7 @@ node_modules
 .env.local
 .env.*.local
 *.tsbuildinfo
+next-env.d.ts
 data
 src/phi/art-compiled.ts
 src/phi/css/bundle.ts

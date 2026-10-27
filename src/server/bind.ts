@@ -5,7 +5,7 @@ import { isTapApiFailure, isTapRateLimited } from "@/phi/lib/tapapi";
 import { isGlobalTapLogin, type TapQrData } from "@/phi/lib/taptap";
 import { noteTokenUser } from "./account-link";
 import { type PlayerSummary, playerFromSave } from "./bound";
-import { getDataHost } from "./data-host";
+import { type DataHost, getDataHost } from "./data-host";
 import { logger, withDiscordUid } from "./logger";
 import { clearManual, leaveManualMode } from "./manual";
 import { ensureSongInfo } from "./song-info";
@@ -355,8 +355,7 @@ async function finishQrBindFor(
 			token,
 			global: resume.useGlobal,
 		});
-		await clearQr(userId);
-		await leaveManualMode(userId);
+		await Promise.all([clearQr(userId), leaveManual(userId)]);
 		await noteTokenUser(userId, token);
 		return playerFromSave(save);
 	} catch (err) {
@@ -396,13 +395,41 @@ async function bindWithTokenFor(
 			token,
 			global: asServer(server, globalFlag) === "gb",
 		});
-		await clearQr(userId);
-		await leaveManualMode(userId);
+		await Promise.all([clearQr(userId), leaveManual(userId)]);
 		await noteTokenUser(userId, token);
 		return playerFromSave(save);
 	} catch (err) {
 		return failBind(err);
 	}
+}
+
+/** Binds `token` over the bound one, which stays until the new save is in; the same token only refreshes */
+export async function switchBind(
+	host: DataHost,
+	userId: string,
+	token: string,
+	global: boolean,
+) {
+	const existing = await getToken(host.rt, userId);
+	if (existing === token)
+		return updateSave(host.rt, host.db, userId, { bound: token, global });
+	const save = await updateSave(host.rt, host.db, userId, {
+		token,
+		bound: existing,
+		global,
+		replace: true,
+	});
+	await leaveManual(userId);
+	return save;
+}
+
+/** After the token is written the bind has happened, so a failure here is only logged */
+function leaveManual(userId: string) {
+	return leaveManualMode(userId).catch((err) =>
+		logger.warn(
+			`manual mode kept after a bind: ${err instanceof Error ? err.message : err}`,
+		),
+	);
 }
 
 export async function cancelQrBind(userId: string): Promise<{ ok: true }> {

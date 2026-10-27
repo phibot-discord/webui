@@ -126,6 +126,12 @@ export function onCatalogReload(fn: () => void): void {
 	reloadListeners.add(fn);
 }
 
+/** Lets a test build saves without the info cache on disk */
+export function markSongInfoReadyForTest() {
+	initedCommit = BUNDLED;
+	checkedAt = Date.now();
+}
+
 export function resetSongInfoForTest(
 	fools: () => Promise<FoolsSong[]> = loadFools,
 	illLevels: () => Promise<IllLevels> = loadIllLevels,

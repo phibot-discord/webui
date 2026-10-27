@@ -1,0 +1,279 @@
+.drawing {
+	position: relative;
+	container-type: inline-size;
+	width: 100%;
+	aspect-ratio: var(--ratio);
+}
+
+.drawing svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+
+.drawing path {
+	fill: none;
+	stroke: var(--fig-ink);
+	stroke-linejoin: round;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+	transition: stroke 150ms ease;
+}
+
+.drawing [data-line-role="outline"] {
+	stroke-width: 1.5px;
+}
+
+.drawing [data-line-role="edge"] {
+	stroke-width: 1px;
+}
+
+.drawing [data-line-role="detail"] {
+	stroke-width: 0.75px;
+}
+
+.drawing [data-line-role="texture"] {
+	stroke-width: 0.6px;
+	stroke: var(--fig-soft);
+}
+
+.drawing [data-line-role="axis"] {
+	stroke-width: 0.75px;
+	stroke-dasharray: 6 2 1 2;
+	stroke-linecap: butt;
+}
+
+.drawing [data-fills] path {
+	stroke: none;
+	fill: var(--fig-paper);
+	transition: fill 150ms ease;
+}
+
+.drawing [data-leaders] path {
+	stroke: var(--fig-soft);
+}
+
+.drawing [data-leaders] circle {
+	fill: var(--fig-soft);
+}
+
+.drawing[data-drawing="b30"]
+	:is(path[data-part="best"], path[data-part="header"]),
+.drawing[data-drawing="pez"] path[data-part="music"] {
+	fill: var(--fig-cool);
+}
+
+.drawing[data-drawing="b30"] path[data-part="phi"],
+.drawing[data-drawing="pez"] path[data-part="art"],
+.drawing[data-drawing="chart"] path[data-part="line"] {
+	fill: var(--fig-warm);
+}
+
+.drawing[data-drawing="chart"]
+	:is(path[data-part="tap"], path[data-part="hold"]) {
+	fill: var(--note-tap);
+}
+
+.drawing[data-drawing="chart"] path[data-part="drag"] {
+	fill: var(--note-drag);
+}
+
+.drawing[data-drawing="chart"] path[data-part="flick"] {
+	fill: var(--note-flick);
+}
+
+.drawing-tag,
+.fig-n {
+	display: inline-grid;
+	flex: none;
+	place-items: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	border: 1px solid var(--fig-ink);
+	border-radius: 50%;
+	background: var(--fig-paper);
+	color: var(--ink);
+	font-family: var(--mono);
+	font-size: 0.75rem;
+	font-weight: 500;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+	transition:
+		background-color 150ms ease,
+		border-color 150ms ease,
+		color 150ms ease;
+}
+
+.drawing-tag {
+	position: absolute;
+	translate: -50% -50%;
+}
+
+@container (max-width: 22rem) {
+	.drawing-tag {
+		width: 1.25rem;
+		height: 1.25rem;
+		font-size: 0.6875rem;
+	}
+}
+
+.fig {
+	margin: 0;
+}
+
+.fig[data-active] .drawing g[data-part]:not([data-on]) path,
+.fig[data-active] .drawing [data-trails] path {
+	stroke: var(--fig-faint);
+}
+
+.fig .drawing g[data-part][data-on] path {
+	stroke: var(--primary);
+}
+
+.fig .drawing path[data-part][data-on] {
+	fill: var(--fig-hi);
+}
+
+.fig .drawing-tag[data-on],
+.fig li[data-on] .fig-n {
+	border-color: var(--primary);
+	background: var(--primary);
+	color: var(--on-primary);
+}
+
+.fig-caption {
+	margin-top: var(--space-4);
+}
+
+.fig-title {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--space-1) var(--space-3);
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--text-sm);
+}
+
+.fig-label {
+	color: var(--ink);
+	white-space: nowrap;
+}
+
+.fig-parts {
+	display: grid;
+	gap: var(--space-3) var(--space-6);
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+	margin: var(--space-4) 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.fig-parts li {
+	display: grid;
+	grid-template-columns: 1.5rem minmax(0, 1fr);
+	column-gap: var(--space-3);
+	align-items: baseline;
+}
+
+.fig-parts .fig-n {
+	grid-row: span 2;
+	align-self: start;
+}
+
+.fig-name {
+	font-size: var(--text-sm);
+	font-weight: 600;
+	line-height: 1.5rem;
+}
+
+.fig-note {
+	grid-column: 2;
+	color: var(--muted);
+	font-size: var(--text-sm);
+	line-height: 1.45;
+}
+
+.page-split {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-12);
+	align-items: start;
+}
+
+.page-split > .page-main {
+	min-width: 0;
+}
+
+.page-aside .fig-parts {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 40em) and (max-width: 74.99em) {
+	.page-aside {
+		max-width: 40rem;
+	}
+
+	.page-aside .fig-parts {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (min-width: 75em) {
+	.page-split {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 21rem);
+	}
+
+	.page-split > .page-main {
+		max-width: none;
+	}
+
+	.page-aside {
+		position: sticky;
+		top: calc(var(--nav-h) + var(--space-8));
+		padding-top: var(--space-4);
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.fig-enter .drawing svg [data-part] {
+		animation:
+			part-lift 900ms var(--ease) both,
+			part-fade 500ms ease both;
+		animation-delay: calc(var(--i, 0) * 100ms);
+	}
+
+	.fig-enter .drawing :is([data-leaders], [data-trails], .drawing-tag) {
+		animation: part-fade 400ms ease 800ms both;
+	}
+}
+
+@keyframes part-lift {
+	from {
+		translate: calc(var(--dx, 0) * 0.4px) calc(var(--dy, 0) * 0.4px);
+	}
+}
+
+@keyframes part-fade {
+	from {
+		opacity: 0;
+	}
+}
+
+@media (forced-colors: active) {
+	.drawing path {
+		stroke: CanvasText;
+	}
+
+	.drawing[data-drawing] path[data-part] {
+		fill: Canvas;
+	}
+
+	.drawing-tag,
+	.fig-n {
+		border-color: CanvasText;
+		background: Canvas;
+		color: CanvasText;
+	}
+}

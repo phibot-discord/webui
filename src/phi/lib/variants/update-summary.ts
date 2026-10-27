@@ -621,17 +621,17 @@ export function sparkline(pts: LinePt[], from = 0, w = SPARK_W, h = SPARK_H) {
 	const p0 = period[0]!;
 	const end = period[period.length - 1]!;
 	const span = end.x - p0.x;
-	const X = (p: LinePt, i: number) =>
+	const toX = (p: LinePt, i: number) =>
 		x0 +
 		(w - padX - x0) *
 			(span > 1e-9 ? (p.x - p0.x) / span : i / (period.length - 1));
 	const ys = [...(lead ? [lead.y] : []), ...period.map((p) => p.y)];
 	const lo = Math.min(...ys);
 	const hi = Math.max(...ys);
-	const Y = (y: number) =>
+	const toY = (y: number) =>
 		hi - lo > 1e-9 ? h - padY - ((y - lo) / (hi - lo)) * (h - padY * 2) : h / 2;
 	const f = (v: number) => v.toFixed(2);
-	const xy = period.map((p, i) => [X(p, i), Y(p.y)] as const);
+	const xy = period.map((p, i) => [toX(p, i), toY(p.y)] as const);
 	const line = xy
 		.map(([x, y], i) => `${i ? "L" : "M"}${f(x)} ${f(y)}`)
 		.join(" ");
@@ -648,7 +648,7 @@ export function sparkline(pts: LinePt[], from = 0, w = SPARK_W, h = SPARK_H) {
 	if (lead)
 		out.push(
 			`<path d="M${f(ax)} 0 L${f(ax)} ${h}" stroke="#62d2ff" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="2 2"/>`,
-			`<path d="M${f(padX)} ${f(Y(lead.y))} L${f(ax)} ${f(ay)}" fill="none" stroke="#62d2ff" stroke-opacity="0.4" stroke-width="1.4" ${stroke}/>`,
+			`<path d="M${f(padX)} ${f(toY(lead.y))} L${f(ax)} ${f(ay)}" fill="none" stroke="#62d2ff" stroke-opacity="0.4" stroke-width="1.4" ${stroke}/>`,
 		);
 	out.push(
 		`<path d="${line}" fill="none" stroke="#62d2ff" stroke-width="1.8" ${stroke}/>`,

@@ -241,6 +241,7 @@ export type UpdateSaveOpts = {
 	token?: string;
 	bound?: string;
 	global?: boolean;
+	replace?: boolean;
 };
 
 export async function updateSave(
@@ -264,7 +265,7 @@ async function updateSaveFor(
 	opts: UpdateSaveOpts = {},
 ) {
 	const existing = opts.bound ?? (await getToken(rt, userId));
-	if (opts.token && existing) throw new Error(ALREADY_BOUND);
+	if (opts.token && existing && !opts.replace) throw new Error(ALREADY_BOUND);
 	const token = opts.token || existing;
 	if (!token) throw new Error(NOT_BOUND);
 	if (!/[a-z0-9A-Z]{25}/.test(token))
@@ -310,15 +311,21 @@ async function updateSaveFor(
 		? hot?.raw
 		: await (savedJob ?? readSaveRaw(db, token));
 	const cached = cachedRaw ? JSON.parse(cachedRaw) : undefined;
-	const writeToken = () =>
-		token === existing ? undefined : setToken(rt, userId, token);
+	// Written last, so a failure before it leaves the earlier binding (and its save) as it was
+	const writeToken = async () => {
+		if (token === existing) return;
+		await setToken(rt, userId, token);
+		if (!existing) return;
+		forgetBound(userId, existing);
+		dropSave(rt, existing);
+	};
 	if (cached?.gameRecord && rev && rev === saveRev(cached.saveInfo)) {
 		logger.info(`save cache hit ${rev}${hop}${memHit ? " (mem)" : ""}`);
+		const save = new rt.Save(cached);
+		if (opts.token) await snapshotB30(db, userId, save);
 		await writeToken();
 		if (cachedRaw)
 			remember(cachedRaw, Boolean(opts.token), memHit ? hot?.kvAt : undefined);
-		const save = new rt.Save(cached);
-		if (opts.token) await snapshotB30(db, userId, save);
 		return save;
 	}
 	logger.info(`save cache miss ${rev || "-"}${hop}`);
@@ -349,7 +356,6 @@ async function updateSaveFor(
 	});
 	const save = new rt.Save(user as unknown as SavePayload);
 	await Promise.all([
-		writeToken(),
 		orphaned().then((gone) => {
 			if (gone) logger.info("save not cached: unbound during the refresh");
 			else return db.set(SAVE(token), payload);
@@ -359,6 +365,7 @@ async function updateSaveFor(
 			.then((m) => m.applySaveToHistory(rt, db, token, save, historyJob))
 			.catch(() => undefined),
 	]);
+	await writeToken();
 	// Unbound elsewhere: that unbind deleted the blob, so forget the copy read above
 	if (await orphaned()) blobMem.delete(token);
 	else remember(payload, true);

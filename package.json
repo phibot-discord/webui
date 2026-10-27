@@ -13,11 +13,12 @@
 		"dev:local": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && PHI_LOCAL_DATA=1 CLOUDFLARE_R2_BUCKET=off CLOUDFLARE_R2_PUBLIC_BASE=${CLOUDFLARE_R2_PUBLIC_BASE:-https://r2.phibot.dev} NODE_OPTIONS='--import tsx' next dev --turbopack",
 		"render-card": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && node --import tsx scripts/render-card-local.ts",
 		"start": "NODE_OPTIONS='--import tsx' next start",
-		"typecheck": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && tsc --noEmit",
+		"typecheck": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && NODE_OPTIONS='--import tsx' next typegen && tsc --noEmit",
 		"test": "node --import tsx --test 'src/**/*.test.ts'",
 		"fmt": "pnpx @biomejs/biome format --write",
 		"precompile-art": "node scripts/precompile-art.mjs",
-		"bundle-css": "node scripts/bundle-css.mjs"
+		"bundle-css": "node scripts/bundle-css.mjs",
+		"drawings": "node tools/drawings/build.mjs"
 	},
 	"dependencies": {
 		"@phosphor-icons/react": "^2.1.10",
@@ -39,7 +40,7 @@
 		"yaml": "^2.9.1"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.6.2",
+		"@biomejs/biome": "2.6.3",
 		"@types/node": "^26.6.5",
 		"@types/react": "^19.3.0",
 		"@types/react-dom": "^19.3.0",

@@ -3,7 +3,7 @@ import { catalogs, getRequestLocale } from "@/i18n/server";
 import type { ErrorCode } from "./bound";
 import { jsonError, retryAfter } from "./http";
 
-type ErrorKey = keyof Messages["errors"];
+export type ErrorKey = keyof Messages["errors"];
 
 function asErrorKey(code: string): ErrorKey | undefined {
 	return code in catalogs.en.errors ? (code as ErrorKey) : undefined;

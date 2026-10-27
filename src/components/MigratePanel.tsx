@@ -13,6 +13,7 @@ import {
 import { useI18n } from "@/i18n/provider";
 import { apiErrorText } from "@/lib/api-error";
 import { displayPlayerId, displayRks } from "@/lib/player-display";
+import { persistCardReload } from "@/lib/save-refresh";
 import { readJsonWithTapWait, tapWaitFailed } from "@/lib/tap-wait";
 import type {
 	BoundAccount,
@@ -23,7 +24,8 @@ import type {
 } from "@/server/migrate";
 
 type Step = "from" | "to" | "review" | "done";
-type Done = { to: SaveSide; toIsBound: boolean };
+type Done = { to: SaveSide; toIsBound: boolean; bindOffer?: "ask" | "tap" };
+type Asked = "bound" | "skipped";
 type TapQr = ReturnType<typeof useTapQr<"connecting">>;
 type TapData = Awaited<ReturnType<typeof readJsonWithTapWait>>["data"];
 
@@ -75,13 +77,24 @@ async function connectVia(
 	return false;
 }
 
-export function MigratePanel({ bound }: { bound?: BoundAccount }) {
+const focusOnMount = (el: HTMLElement | null) => {
+	el?.focus();
+};
+
+export function MigratePanel({
+	bound,
+	tapOpens,
+}: {
+	bound?: BoundAccount;
+	tapOpens: boolean;
+}) {
 	const { m } = useI18n();
 	const t = m.migrate;
 	const ids = useId();
 	const [from, setFrom] = useState<SaveSide>();
 	const [view, setView] = useState<MigratePreview>();
 	const [done, setDone] = useState<Done>();
+	const [asked, setAsked] = useState<Asked>();
 	const [changed, setChanged] = useState(false);
 	const [runError, setRunError] = useState<string>();
 	const [running, setRunning] = useState(false);
@@ -175,6 +188,7 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 		setFrom(undefined);
 		setView(undefined);
 		setDone(undefined);
+		setAsked(undefined);
 		setChanged(false);
 		setRunError(undefined);
 		setUntil(0);
@@ -217,7 +231,12 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 			);
 			const to = asSide(data.to);
 			if (!tapWaitFailed(res, data) && data.status === "done" && to) {
-				setDone({ to, toIsBound: data.toIsBound === true });
+				const offer = data.bindOffer;
+				setDone({
+					to,
+					toIsBound: data.toIsBound === true,
+					bindOffer: offer === "ask" || offer === "tap" ? offer : undefined,
+				});
 				return;
 			}
 			const next = asPreview(data.preview);
@@ -470,16 +489,141 @@ export function MigratePanel({ bound }: { bound?: BoundAccount }) {
 							</li>
 						))}
 					</ol>
-					{done.toIsBound ? (
+					{asked === "bound" ? (
+						<p ref={focusOnMount} className="account-notice" tabIndex={-1}>
+							{t.bindDone}
+						</p>
+					) : done.toIsBound ? (
 						<p className="field-hint">{t.doneBound}</p>
+					) : done.bindOffer === "tap" ? (
+						<p className="field-hint">{t.bindTap}</p>
+					) : done.bindOffer === "ask" && !asked ? (
+						<BindAsk
+							switching={Boolean(bound)}
+							tapOpens={tapOpens}
+							onBound={() => setAsked("bound")}
+							onSkip={() => {
+								setAsked("skipped");
+								doneHead.current?.focus();
+							}}
+						/>
 					) : bound ? (
 						<p className="field-hint">{t.doneBind}</p>
 					) : null}
-					<Link className="btn btn-ghost" href="/account" prefetch={false}>
-						{t.back}
-					</Link>
+					<div className="migrate-actions">
+						{asked === "bound" ? (
+							<Link className="btn btn-primary" href="/me/b30" prefetch={false}>
+								{m.home.openDesk}
+							</Link>
+						) : null}
+						<Link className="btn btn-ghost" href="/account" prefetch={false}>
+							{t.back}
+						</Link>
+					</div>
 				</section>
 			) : null}
+		</section>
+	);
+}
+
+function BindAsk({
+	switching,
+	tapOpens,
+	onBound,
+	onSkip,
+}: {
+	switching: boolean;
+	tapOpens: boolean;
+	onBound: () => void;
+	onSkip: () => void;
+}) {
+	const { m } = useI18n();
+	const t = m.migrate;
+	const titleId = useId();
+	const [binding, setBinding] = useState(false);
+	const [waitingTap, setWaitingTap] = useState(false);
+	const [error, setError] = useState<{ text: string; expired: boolean }>();
+
+	async function bind() {
+		if (binding) return;
+		setBinding(true);
+		setWaitingTap(false);
+		setError(undefined);
+		try {
+			const res = await fetch("/api/migrate/bind", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ confirm: true }),
+			});
+			const { httpStatus, data } = await readJsonWithTapWait(res, () =>
+				setWaitingTap(true),
+			);
+			if (!tapWaitFailed(res, data) && data.status === "bound") {
+				persistCardReload();
+				onBound();
+				return;
+			}
+			const text = apiErrorText(
+				{ status: httpStatus },
+				data,
+				m.errors.tapapi_unavailable,
+				t.bindFailed,
+			);
+			setError({ text, expired: data.code === "migrate_bind_expired" });
+		} catch {
+			setError({ text: t.bindFailed, expired: false });
+		} finally {
+			setBinding(false);
+			setWaitingTap(false);
+		}
+	}
+
+	function skip() {
+		if (binding) return;
+		void fetch("/api/migrate/reset", { method: "POST" }).catch(() => undefined);
+		onSkip();
+	}
+
+	if (error?.expired)
+		return (
+			<p ref={focusOnMount} className="migrate-note" tabIndex={-1}>
+				{error.text}
+			</p>
+		);
+
+	return (
+		<section className="migrate-ask" aria-labelledby={titleId}>
+			<h3 id={titleId}>{t.bindTitle}</h3>
+			<p>{switching ? t.bindSwitch : t.bindNew}</p>
+			{tapOpens ? <p>{t.bindTapMoves}</p> : null}
+			<Announce>
+				{binding ? (waitingTap ? m.bind.waitingTap : m.bind.binding) : ""}
+			</Announce>
+			{error ? (
+				<p className="bind-error" role="alert">
+					{error.text}
+				</p>
+			) : null}
+			<div className="migrate-actions">
+				<SteadyButton
+					className="btn-primary"
+					type="button"
+					labels={[t.bindYes, m.bind.binding]}
+					aria-disabled={binding || undefined}
+					aria-busy={binding || undefined}
+					onClick={() => void bind()}
+				>
+					{binding ? m.bind.binding : t.bindYes}
+				</SteadyButton>
+				<button
+					className="btn btn-ghost"
+					type="button"
+					aria-disabled={binding || undefined}
+					onClick={skip}
+				>
+					{t.bindNo}
+				</button>
+			</div>
 		</section>
 	);
 }

@@ -4,6 +4,7 @@ import {
 	ArrowCounterClockwise,
 	CheckCircle,
 	FileArchive,
+	UsersThree,
 	WarningCircle,
 } from "@phosphor-icons/react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -20,6 +21,7 @@ import {
 	type PackLevel,
 	packLevelName,
 } from "@/lib/chart-catalog";
+import { PHIRA_MP_SERVER } from "@/lib/site";
 import type { Era } from "@/server/history";
 
 type Download =
@@ -84,6 +86,57 @@ function eraLabel(era: Era): string {
 function goneFrom(song: ChartSummary): string {
 	const from = new Set(Object.values(song.removed ?? {}).map((r) => r.from));
 	return [...from].join(" / ");
+}
+
+function PhiraMp({ onSay }: { onSay: (text: string) => void }) {
+	const { m } = useI18n();
+	const t = m.phira;
+	const titleId = useId();
+	const address = useRef<HTMLElement>(null);
+	const timer = useRef<number | undefined>(undefined);
+	const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
+
+	useEffect(() => () => window.clearTimeout(timer.current), []);
+
+	async function copyAddress() {
+		window.clearTimeout(timer.current);
+		try {
+			await navigator.clipboard.writeText(PHIRA_MP_SERVER);
+			setCopy("copied");
+			onSay(t.mpCopied);
+			timer.current = window.setTimeout(() => setCopy("idle"), 2000);
+		} catch {
+			setCopy("failed");
+			const node = address.current;
+			if (node) window.getSelection()?.selectAllChildren(node);
+		}
+	}
+
+	return (
+		<section className="phira-mp" aria-labelledby={titleId}>
+			<UsersThree className="phira-mp-icon" size={22} aria-hidden />
+			<div className="phira-mp-text">
+				<h2 id={titleId}>{t.mpTitle}</h2>
+				<p>{t.mpBody}</p>
+			</div>
+			<div className="phira-mp-address">
+				<code ref={address}>{PHIRA_MP_SERVER}</code>
+				<SteadyButton
+					type="button"
+					className="btn-ghost btn-sm"
+					labels={[t.mpCopy, t.mpCopied]}
+					onClick={() => void copyAddress()}
+				>
+					{copy === "copied" ? t.mpCopied : t.mpCopy}
+				</SteadyButton>
+			</div>
+			{copy === "failed" ? (
+				<p className="field-error phira-mp-error" role="alert">
+					{t.mpCopyFailed}
+				</p>
+			) : null}
+		</section>
+	);
 }
 
 export function PhiraPack() {
@@ -271,6 +324,7 @@ export function PhiraPack() {
 		<>
 			<h1>{t.title}</h1>
 			<p className="lede">{t.lede}</p>
+			<PhiraMp onSay={setSaid} />
 			<section className="callout phira-pack">
 				<div className="field field-col phira-search" ref={searchBox}>
 					<span className="field-label" id={labelId}>

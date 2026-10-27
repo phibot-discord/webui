@@ -6,8 +6,10 @@ import {
 	type ReactNode,
 	useCallback,
 	useContext,
+	useEffect,
 	useMemo,
 	useState,
+	useTransition,
 } from "react";
 import { bumpCardReload } from "@/lib/save-refresh";
 import { LOCALE_COOKIE, type Locale, localeTag } from "./config";
@@ -35,13 +37,16 @@ export function I18nProvider({
 }) {
 	const router = useRouter();
 	const [locale, setLocaleState] = useState(initialLocale);
+	const [, startTransition] = useTransition();
 	const m = catalogs[locale];
+
+	useEffect(() => {
+		document.documentElement.lang = localeTag(locale);
+	}, [locale]);
 
 	const setLocale = useCallback(
 		(next: Locale) => {
 			if (next === locale) return;
-			setLocaleState(next);
-			document.documentElement.lang = localeTag(next);
 			writeLocaleCookie(next);
 			bumpCardReload();
 			void fetch("/api/locale", {
@@ -49,9 +54,11 @@ export function I18nProvider({
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({ locale: next }),
 				keepalive: true,
-			})
-				.catch(() => {})
-				.finally(() => router.refresh());
+			}).catch(() => {});
+			startTransition(() => {
+				setLocaleState(next);
+				router.refresh();
+			});
 		},
 		[locale, router],
 	);
