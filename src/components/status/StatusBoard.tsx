@@ -6,6 +6,7 @@ import {
 	WarningCircle,
 	XCircle,
 } from "@phosphor-icons/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SegRadio } from "@/components/SegRadio";
@@ -195,6 +196,9 @@ function PhiraPanel({ phira, range }: { phira: StatusPhira; range: Range }) {
 	const count = (v: number | null) => (v == null ? "–" : f.count(v));
 	return (
 		<div className="host-panel">
+			<p className="status-more">
+				<Link href="/phira-mp">{f.m.mp.open}</Link>
+			</p>
 			<dl className="status-stats">
 				<div>
 					<dt>{t.players}</dt>

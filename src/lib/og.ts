@@ -6,6 +6,7 @@ export const OG_PAGES = [
 	"songs",
 	"score",
 	"phira",
+	"mp",
 	"status",
 	"tos",
 	"privacy",

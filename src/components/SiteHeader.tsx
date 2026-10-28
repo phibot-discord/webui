@@ -55,7 +55,7 @@ export function SiteHeader({
 	const links = [
 		{ href: "/songs", match: ["/songs"], label: m.nav.songs },
 		{ href: "/score", match: ["/score"], label: m.nav.score },
-		{ href: "/phira", match: ["/phira"], label: m.nav.phira },
+		{ href: "/phira", match: ["/phira", "/phira-mp"], label: m.nav.phira },
 		{ href: "/files", match: ["/files"], label: m.nav.files },
 		...(signedIn
 			? [

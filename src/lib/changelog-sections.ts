@@ -3,6 +3,26 @@ import type { ChangeRelease } from "./changelog";
 /** Every release's items, newest first, loaded only when the dialog opens */
 export const CHANGELOG_RELEASES: ChangeRelease[] = [
 	{
+		date: "2026-10-28",
+		sections: [
+			{
+				heading: { en: "Multiplayer server", zh: "多人游戏服务器" },
+				items: [
+					{
+						en: "The new Multiplayer server page shows whether PhiBot's Phira server is online, how many players and rooms there are, and who is in each room. It updates every 15 seconds; open it from the Phira page.",
+						zh: "新的「多人游戏服务器」页面会显示 PhiBot 的 Phira 服务器是否在线、在线玩家与房间数量，以及每个房间里的玩家，每 15 秒更新一次。可从 Phira 页面进入。",
+						href: "/phira-mp",
+					},
+					{
+						en: "Status now tracks the multiplayer server too: uptime, latency, players, rooms, CPU and memory.",
+						zh: "运行状态页新增多人游戏服务器：可用率、延迟、玩家、房间、CPU 和内存。",
+						href: "/status",
+					},
+				],
+			},
+		],
+	},
+	{
 		date: "2026-10-27",
 		sections: [
 			{

@@ -7,6 +7,7 @@ import {
 	UsersThree,
 	WarningCircle,
 } from "@phosphor-icons/react";
+import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { ChartSearch, useChartCatalog } from "@/components/ChartSearch";
 import { chartSearchText } from "@/components/ScoreControl";
@@ -118,6 +119,9 @@ function PhiraMp({ onSay }: { onSay: (text: string) => void }) {
 			<div className="phira-mp-text">
 				<h2 id={titleId}>{t.mpTitle}</h2>
 				<p>{t.mpBody}</p>
+				<Link className="phira-mp-link" href="/phira-mp">
+					{m.mp.open}
+				</Link>
 			</div>
 			<div className="phira-mp-address">
 				<code ref={address}>{PHIRA_MP_SERVER}</code>

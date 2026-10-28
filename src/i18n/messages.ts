@@ -115,6 +115,33 @@ export type ClientMessages = {
 		time: string;
 		utcNote: string;
 	};
+	mp: {
+		title: string;
+		lede: string;
+		address: string;
+		online: string;
+		offline: string;
+		updated: string;
+		players: string;
+		rooms: string;
+		playing: string;
+		roomList: string;
+		noRooms: string;
+		roomsFailed: string;
+		states: Record<
+			"select_chart" | "waiting_for_ready" | "playing" | "other",
+			string
+		>;
+		locked: string;
+		cycle: string;
+		chart: string;
+		noChart: string;
+		host: string;
+		members: string;
+		noPlayers: string;
+		statusLink: string;
+		open: string;
+	};
 	notice: {
 		title: string;
 		coffee: string;
@@ -944,6 +971,35 @@ export const en: ClientMessages = {
 		showTable: "Show as table",
 		time: "Time",
 		utcNote: "Times are in UTC. Checks run every minute.",
+	},
+	mp: {
+		title: "Multiplayer server",
+		lede: "Who's playing on PhiBot's Phira multiplayer server right now. The page updates every 15 seconds.",
+		address: "Server address",
+		online: "The server is online.",
+		offline: "Can't reach the server right now. Try again in a minute.",
+		updated: "Updated",
+		players: "Players online",
+		rooms: "Rooms",
+		playing: "{n} playing",
+		roomList: "Rooms",
+		noRooms: "No rooms are open right now.",
+		roomsFailed: "The room list is unavailable right now.",
+		states: {
+			select_chart: "Choosing a chart",
+			waiting_for_ready: "Getting ready",
+			playing: "Playing",
+			other: "Unknown",
+		},
+		locked: "Locked",
+		cycle: "Host rotates",
+		chart: "Chart",
+		noChart: "No chart chosen yet",
+		host: "Host",
+		members: "Players ({n})",
+		noPlayers: "Nobody here yet",
+		statusLink: "Uptime history is on the Status page.",
+		open: "See rooms and players",
 	},
 	notice: {
 		title: "What's new",
@@ -1856,6 +1912,35 @@ export const zh: ClientMessages = {
 		showTable: "以表格显示",
 		time: "时间",
 		utcNote: "时间均为 UTC，每分钟检查一次",
+	},
+	mp: {
+		title: "多人游戏服务器",
+		lede: "PhiBot 的 Phira 多人游戏服务器上此刻的房间和玩家，页面每 15 秒更新一次",
+		address: "服务器地址",
+		online: "服务器运行正常",
+		offline: "暂时无法连接服务器，请稍后再试",
+		updated: "更新于",
+		players: "在线玩家",
+		rooms: "房间",
+		playing: "{n} 个游戏中",
+		roomList: "房间列表",
+		noRooms: "目前没有开放的房间",
+		roomsFailed: "暂时无法获取房间列表",
+		states: {
+			select_chart: "选择谱面中",
+			waiting_for_ready: "准备中",
+			playing: "游戏中",
+			other: "未知",
+		},
+		locked: "已锁定",
+		cycle: "轮流房主",
+		chart: "谱面",
+		noChart: "尚未选择谱面",
+		host: "房主",
+		members: "玩家（{n}）",
+		noPlayers: "暂无玩家",
+		statusLink: "可用率历史请见运行状态页",
+		open: "查看房间和玩家",
 	},
 	notice: {
 		title: "更新内容",

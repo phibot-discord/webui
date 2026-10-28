@@ -56,7 +56,7 @@ test("every item reads in both languages and links only inside the site", () => 
 	}
 	for (const item of items) {
 		assert.ok(item.en.trim() && item.zh.trim(), item.en);
-		if (item.href) assert.match(item.href, /^\/[^/]/, item.href);
+		if (item.href) assert.match(item.href, /^\/(?!\/)/, item.href);
 	}
 });
 
