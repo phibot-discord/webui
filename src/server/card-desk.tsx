@@ -1,13 +1,13 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { BypassCacheButton } from "@/components/BypassCacheButton";
 import { MeGate } from "@/components/Desk";
+import Link from "@/components/LocaleLink";
 import { MoreMenu } from "@/components/MoreMenu";
 import { RefreshButton } from "@/components/RefreshButton";
 import { ShareToggle } from "@/components/ShareToggle";
 import { UnbindButton } from "@/components/UnbindButton";
-import { getMessages } from "@/i18n/server";
+import { getMessages, localeHref } from "@/i18n/server";
 import { displayPlayerId, displayRks } from "@/lib/player-display";
 import {
 	type Bound,
@@ -39,7 +39,7 @@ export async function loadCardDesk(
 		getMessages(),
 	]);
 	if ("error" in got) {
-		if (got.error === "not_bound") redirect("/me");
+		if (got.error === "not_bound") redirect(await localeHref("/me"));
 		return {
 			gate: (
 				<MeGate

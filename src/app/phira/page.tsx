@@ -8,7 +8,7 @@ import { pageMetadata } from "@/server/og-meta";
 export const dynamic = "force-dynamic";
 
 export function generateMetadata(): Promise<Metadata> {
-	return pageMetadata("phira");
+	return pageMetadata("phira", { path: "/phira" });
 }
 
 export default async function PhiraPage() {

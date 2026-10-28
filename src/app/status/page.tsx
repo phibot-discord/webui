@@ -6,7 +6,7 @@ import { loadStatus } from "@/server/status";
 export const dynamic = "force-dynamic";
 
 export function generateMetadata(): Promise<Metadata> {
-	return pageMetadata("status");
+	return pageMetadata("status", { path: "/status" });
 }
 
 export default async function StatusPage() {

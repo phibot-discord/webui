@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { type AccountLinkError, AccountView } from "@/components/AccountView";
+import { signInHref } from "@/i18n/server";
 import { tapSignInOpens } from "@/server/account-link";
 import { isTapUserId } from "@/server/auth-tickets";
 import { getDataHost } from "@/server/data-host";
@@ -26,7 +27,7 @@ export default async function AccountPage({
 	searchParams: Promise<{ link?: string; linked?: string }>;
 }) {
 	const session = await auth();
-	if (!session?.user?.id) redirect("/?next=/account");
+	if (!session?.user?.id) redirect(await signInHref("/account"));
 	const userId = session.user.id;
 	const params = await searchParams;
 	return withDiscordUid(userId, async () => {

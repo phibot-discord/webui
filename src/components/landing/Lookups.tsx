@@ -17,14 +17,15 @@ import {
 	SquaresFour,
 	Tag,
 } from "@phosphor-icons/react";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { signInDiscord } from "@/auth-actions";
+import Link from "@/components/LocaleLink";
 import { LevelChip } from "@/components/landing/LevelChip";
 import { SignInStatus } from "@/components/landing/SignIn";
 import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
+import { localePath } from "@/lib/locale-path";
 import { CARD_KINDS, CARD_PAGES } from "@/server/card-kinds";
 
 type LookupKind = keyof Messages["home"]["lookups"];
@@ -117,7 +118,7 @@ function SignInRow({ kind, next }: { kind: LookupKind; next: string }) {
 }
 
 export function LandingLookups({ signedIn }: { signedIn: boolean }) {
-	const { m } = useI18n();
+	const { locale, m } = useI18n();
 	const t = m.home;
 	const list = (
 		<ul className="lookup-grid">
@@ -133,7 +134,7 @@ export function LandingLookups({ signedIn }: { signedIn: boolean }) {
 							<Go />
 						</Link>
 					) : (
-						<SignInRow kind={kind} next={href} />
+						<SignInRow kind={kind} next={localePath(href, locale)} />
 					)}
 				</li>
 			))}

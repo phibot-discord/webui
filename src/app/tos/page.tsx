@@ -5,7 +5,7 @@ import { getMessages } from "@/i18n/server";
 import { pageMetadata } from "@/server/og-meta";
 
 export function generateMetadata(): Promise<Metadata> {
-	return pageMetadata("tos");
+	return pageMetadata("tos", { path: "/tos" });
 }
 
 export default async function TermsPage() {

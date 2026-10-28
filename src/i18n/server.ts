@@ -1,5 +1,6 @@
 import { cookies, headers } from "next/headers";
 import { cache } from "react";
+import { LOCALE_HEADER, localePath } from "@/lib/locale-path";
 import {
 	isLocale,
 	LOCALE_COOKIE,
@@ -19,13 +20,26 @@ const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 export const getRequestLocale = cache(resolveRequestLocale);
 
-/** Cookie, then Accept-Language; page renders never read notes for this */
+/** The page URL's locale (set by the proxy), else cookie, then Accept-Language; never the notes */
 async function resolveRequestLocale(): Promise<Locale> {
+	const hdrs = await headers();
+	const fromUrl = hdrs.get(LOCALE_HEADER);
+	if (isLocale(fromUrl)) return fromUrl;
 	const jar = await cookies();
 	const cookie = jar.get(LOCALE_COOKIE)?.value;
 	if (isLocale(cookie)) return cookie;
-	const hdrs = await headers();
 	return negotiateLocale(undefined, hdrs.get("accept-language"));
+}
+
+/** `path` in the locale of the page being rendered */
+export async function localeHref(path: string): Promise<string> {
+	return localePath(path, await getRequestLocale());
+}
+
+/** The landing page, which signs in and then opens `next`, in this page's locale */
+export async function signInHref(next: string): Promise<string> {
+	const locale = await getRequestLocale();
+	return `${localePath("/", locale)}?next=${encodeURIComponent(localePath(next, locale))}`;
 }
 
 export async function getMessages(): Promise<{ locale: Locale; m: Messages }> {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { TapLoginPanel } from "@/components/TapLoginPanel";
+import { localeHref } from "@/i18n/server";
 import { safeNext } from "@/lib/safe-next";
 import { pageMetadata } from "@/server/og-meta";
 
@@ -17,7 +18,7 @@ export default async function TapLoginPage({
 	searchParams: Promise<{ next?: string }>;
 }) {
 	const session = await auth();
-	const next = safeNext((await searchParams).next);
+	const next = await localeHref(safeNext((await searchParams).next));
 	if (session?.user?.id) redirect(next);
 	return (
 		<main id="content" className="page page-bind">

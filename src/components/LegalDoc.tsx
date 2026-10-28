@@ -1,5 +1,5 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
+import Link from "@/components/LocaleLink";
 import { formatDay } from "@/i18n/datetime";
 import { LEGAL_UPDATED, type LegalDoc } from "@/i18n/legal";
 import { getMessages } from "@/i18n/server";

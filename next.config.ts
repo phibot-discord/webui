@@ -87,6 +87,7 @@ export const nonCardRoutes = [
 	"/render/**",
 	"/score",
 	"/simulate",
+	"/sitemap.xml",
 	"/songs",
 	"/status",
 	"/tags",

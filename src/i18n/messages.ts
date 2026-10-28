@@ -25,7 +25,7 @@ export type ClientMessages = {
 	credit: { before: string; after: string; heart: string; name: string };
 	locale: { en: string; zh: string; label: string };
 	theme: { label: string; light: string; dark: string; system: string };
-	footer: { credit: string; revision: string; more: string };
+	footer: { credit: string; revision: string; more: string; source: string };
 	home: {
 		eyebrow: string;
 		title: string;
@@ -743,7 +743,7 @@ export type Messages = ClientMessages & FilesMessages & FigureMessages;
 
 export const en: ClientMessages = {
 	meta: {
-		title: "PhiBot",
+		title: "PhiBot · Phigros B30 cards, RKS and game files",
 		description:
 			"Look up your Phigros B30, history, and player info. The same cards as the Discord bot.",
 	},
@@ -787,7 +787,12 @@ export const en: ClientMessages = {
 		dark: "Dark",
 		system: "System",
 	},
-	footer: { credit: "Credit", revision: "Revision", more: "More" },
+	footer: {
+		credit: "Credit",
+		revision: "Revision",
+		more: "More",
+		source: "Source code",
+	},
 	home: {
 		eyebrow: "Phigros cards for Discord and the web",
 		title: "After the last chart.\nYour *B30* is ready.",
@@ -1713,7 +1718,7 @@ export const en: ClientMessages = {
 
 export const zh: ClientMessages = {
 	meta: {
-		title: "PhiBot",
+		title: "PhiBot · Phigros B30 成绩图、RKS 和游戏文件",
 		description:
 			"查询你的 Phigros B30、历史成绩和玩家信息。和 Discord 机器人同一套成绩图",
 	},
@@ -1750,7 +1755,7 @@ export const zh: ClientMessages = {
 		dark: "深色",
 		system: "跟随系统",
 	},
-	footer: { credit: "制作", revision: "版本", more: "更多" },
+	footer: { credit: "制作", revision: "版本", more: "更多", source: "源代码" },
 	home: {
 		eyebrow: "Discord 和网页都能用的 Phigros 查分器",
 		title: "打完一首\n快速\n查询你的 *B30*",

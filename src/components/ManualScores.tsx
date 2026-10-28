@@ -16,6 +16,7 @@ import {
 	type ChartSummary,
 	findChart,
 } from "@/lib/chart-catalog";
+import { localePath } from "@/lib/locale-path";
 import { persistCardReload } from "@/lib/save-refresh";
 import {
 	chartRks,
@@ -80,7 +81,7 @@ export function ManualScores({
 	initial: ManualSaveData | null;
 	defaultName: string;
 }) {
-	const { m } = useI18n();
+	const { m, locale } = useI18n();
 	const t = m.manual;
 	const router = useRouter();
 	const catalog = useChartCatalog();
@@ -251,7 +252,7 @@ export function ManualScores({
 				return;
 			}
 			persistCardReload();
-			router.push("/me/b30");
+			router.push(localePath("/me/b30", locale));
 		} catch {
 			setError(t.saveFailed);
 		} finally {
@@ -271,7 +272,7 @@ export function ManualScores({
 				return;
 			}
 			persistCardReload();
-			router.push("/me");
+			router.push(localePath("/me", locale));
 		} catch {
 			setError(t.clearFailed);
 			setConfirmClear("back");

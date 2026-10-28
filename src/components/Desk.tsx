@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import type { ReactNode } from "react";
+import Link from "@/components/LocaleLink";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useHydrated } from "@/components/Tool";
 import { UnbindButton } from "@/components/UnbindButton";

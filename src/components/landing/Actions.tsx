@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { signInDiscord } from "@/auth-actions";
+import Link from "@/components/LocaleLink";
 import { InviteLink } from "@/components/landing/Invite";
 import { SignInButton, SignInStatus } from "@/components/landing/SignIn";
 import { useI18n } from "@/i18n/provider";

@@ -8,7 +8,7 @@ import { pageMetadata } from "@/server/og-meta";
 export const dynamic = "force-dynamic";
 
 export function generateMetadata(): Promise<Metadata> {
-	return pageMetadata("score");
+	return pageMetadata("score", { path: "/score" });
 }
 
 export default async function ScorePage({

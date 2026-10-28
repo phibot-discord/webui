@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { isLocale, LOCALE_COOKIE, type Locale, localeTag } from "@/i18n/config";
 import { en, zh } from "@/i18n/messages";
+import { localePath, pathLocale } from "@/lib/locale-path";
 import { isTheme, THEME_COOKIE, type Theme } from "@/theme/config";
 import { fontClasses } from "@/theme/fonts";
 import "./globals.css";
@@ -16,11 +17,14 @@ function readCookie(name: string): string | undefined {
 
 function readPrefs(): string {
 	const saved = readCookie(LOCALE_COOKIE);
-	const locale: Locale = isLocale(saved)
-		? saved
-		: navigator.language.toLowerCase().startsWith("zh")
+	const locale: Locale =
+		pathLocale(location.pathname) === "zh"
 			? "zh"
-			: "en";
+			: isLocale(saved)
+				? saved
+				: navigator.language.toLowerCase().startsWith("zh")
+					? "zh"
+					: "en";
 	const theme = readCookie(THEME_COOKIE);
 	return `${locale}|${isTheme(theme) ? theme : ""}`;
 }
@@ -67,7 +71,7 @@ export default function GlobalError({
 							>
 								{m.error.retry}
 							</button>
-							<a className="btn btn-ghost" href="/">
+							<a className="btn btn-ghost" href={localePath("/", locale)}>
 								{m.error.home}
 							</a>
 						</div>

@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
+import Link from "@/components/LocaleLink";
 import { Announce } from "@/components/Tool";
 import {
 	TapQrColumn,
@@ -12,11 +12,12 @@ import {
 } from "@/components/useTapQr";
 import { useI18n } from "@/i18n/provider";
 import { apiErrorText } from "@/lib/api-error";
+import { localePath } from "@/lib/locale-path";
 import { persistCardReload } from "@/lib/save-refresh";
 import { readJsonWithTapWait, tapWaitFailed } from "@/lib/tap-wait";
 
 export function BindPanel() {
-	const { m } = useI18n();
+	const { m, locale } = useI18n();
 	const router = useRouter();
 	const ids = useId();
 	const [qrBound, setQrBound] = useState(false);
@@ -28,7 +29,7 @@ export function BindPanel() {
 			if (data.status !== "bound") return false;
 			setQrBound(true);
 			persistCardReload();
-			router.replace("/me/b30");
+			router.replace(localePath("/me/b30", locale));
 			return true;
 		},
 	});
@@ -75,7 +76,7 @@ export function BindPanel() {
 				return false;
 			}
 			persistCardReload();
-			router.replace("/me/b30");
+			router.replace(localePath("/me/b30", locale));
 			return true;
 		} catch {
 			fail(m.bind.failed);

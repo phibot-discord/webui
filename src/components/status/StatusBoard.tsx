@@ -6,9 +6,9 @@ import {
 	WarningCircle,
 	XCircle,
 } from "@phosphor-icons/react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import Link from "@/components/LocaleLink";
 import { SegRadio } from "@/components/SegRadio";
 import { localeTag } from "@/i18n/config";
 import { useI18n } from "@/i18n/provider";

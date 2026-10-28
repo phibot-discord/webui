@@ -48,6 +48,7 @@ import {
 	buildCollectionSearch,
 	buildHiddenSong,
 	buildPvGroups,
+	filesPageMeta,
 	hiddenSongChapter,
 	sideTabsInUse,
 } from "@/server/files-page";
@@ -80,7 +81,12 @@ export async function generateMetadata({
 }: {
 	searchParams: Search;
 }): Promise<Metadata> {
-	return pageMetadata(parseView((await searchParams).view));
+	const [params, { locale, m }] = await Promise.all([
+		searchParams,
+		getMessages(),
+	]);
+	const view = parseView(params.view);
+	return pageMetadata(view, await filesPageMeta(m, locale, view, params));
 }
 
 export default async function FilesPage({

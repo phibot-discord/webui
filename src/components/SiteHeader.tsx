@@ -1,15 +1,16 @@
 "use client";
 
 import { List, X } from "@phosphor-icons/react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { signOutAction } from "@/auth-actions";
+import Link from "@/components/LocaleLink";
 import { LocaleSwitch } from "@/components/LocaleSwitch";
 import { focusMain } from "@/components/SkipLink";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { useToolDismiss } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
+import { stripLocale } from "@/lib/locale-path";
 import { CARD_PAGES } from "@/server/card-kinds";
 import type { ThemeChoice } from "@/theme/config";
 
@@ -30,6 +31,7 @@ export function SiteHeader({
 }) {
 	const { m } = useI18n();
 	const path = usePathname();
+	const bare = stripLocale(path);
 	const menuId = useId();
 	const root = useRef<HTMLElement>(null);
 	const toggle = useRef<HTMLButtonElement>(null);
@@ -109,11 +111,11 @@ export function SiteHeader({
 								className="topbar-link"
 								href={link.href}
 								prefetch={"heavy" in link ? false : undefined}
-								aria-current={here(path, link.match) ? "page" : undefined}
+								aria-current={here(bare, link.match) ? "page" : undefined}
 								onClick={() => {
 									if (!open) return;
 									setOpen(false);
-									if (link.href === path) focusMain();
+									if (link.href === bare) focusMain();
 									else leftFrom.current = path;
 								}}
 							>

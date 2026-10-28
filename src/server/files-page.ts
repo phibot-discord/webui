@@ -4,7 +4,7 @@ import type { ViewChapter } from "@/components/CollectionNav";
 import type { CutsceneView } from "@/components/Cutscene";
 import type { HiddenDownload, HiddenSongView } from "@/components/HiddenSong";
 import type { ClipOverlay, PlayerGroup } from "@/components/Pv";
-import type { Locale } from "@/i18n/config";
+import { type Locale, localeTag } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
 import { formatSize, SIDE_TREES, type SideTab } from "@/lib/assets";
 import { type Cutscene, unlockChapter, unlocksHiddenSong } from "@/lib/c9s6";
@@ -25,7 +25,17 @@ import {
 	entryPlace,
 	entryTile,
 } from "@/lib/collection-art";
-import { collectionHref, textsHref, viewHref } from "@/lib/files-view";
+import {
+	collectionHref,
+	type FilesView,
+	NAV_VIEWS,
+	parseParam,
+	parseTimelineTab,
+	TIMELINE_TABS,
+	textsHref,
+	timelineHref,
+	viewHref,
+} from "@/lib/files-view";
 import {
 	clipTitle,
 	formatDuration,
@@ -35,10 +45,13 @@ import {
 } from "@/lib/pv";
 import {
 	CREDITS_GROUP,
+	parseTextSection,
+	TEXT_SECTIONS,
 	type Transcript,
 	textAnchor,
 	type ViewTextGroup,
 } from "@/lib/texts";
+import { TERM_KINDS } from "@/lib/timeline";
 import { describeUnlock } from "@/lib/unlock";
 import { fill } from "@/phi/lib/card-i18n";
 import { type ObjectUrl, objectUrls } from "./asset-links";
@@ -51,6 +64,7 @@ import {
 import { buildDeduction } from "./deduction";
 import { loadFools } from "./fools";
 import { loadHistory } from "./history";
+import type { PageMetaOpts } from "./og-meta";
 import { loadOverlays, loadPv, missingClips } from "./pv";
 import { loadRemoved } from "./removed";
 import { loadStoryGroups, loadTextsIndex, viewTextGroups } from "./texts";
@@ -288,6 +302,80 @@ export async function hiddenSongChapter(
 	if (!chapter) return undefined;
 	const { label, name } = chapterHeading(chapter, lang);
 	return { label: label || name, href: collectionHref(chapter.id) };
+}
+
+type Param = string | string[] | undefined;
+
+/** The canonical URL and title of a Files page: a chapter, section or timeline tab is a page of its own */
+export async function filesPageMeta(
+	m: Messages,
+	locale: Locale,
+	view: FilesView,
+	params: Record<string, Param>,
+): Promise<PageMetaOpts> {
+	if (view === "collection") {
+		if (parseParam(params.q)) return { noindex: true };
+		const id = parseParam(params.chapter) ?? DEFAULT_CHAPTER;
+		const index = await loadCollectionIndex();
+		const chapter = index.chapters.find((c) => c.id === id);
+		const heading = chapter && chapterHeading(chapter, localeTag(locale));
+		const name = heading
+			? [heading.label, heading.name].filter(Boolean).join(" ")
+			: id === OTHER_CHAPTER && index.items.some((i) => !i.chapter)
+				? m.collection.other
+				: undefined;
+		if (!name) return { path: viewHref(view) };
+		return {
+			path: id === DEFAULT_CHAPTER ? viewHref(view) : collectionHref(id),
+			title: `${name} · ${m.collection.title}`,
+		};
+	}
+	if (view === "texts") {
+		const section = parseTextSection(parseParam(params.section));
+		if (section === TEXT_SECTIONS[0]) return { path: viewHref(view) };
+		return {
+			path: textsHref(section),
+			title: `${m.texts.sections[section].name} · ${m.texts.title}`,
+		};
+	}
+	if (view === "timeline") {
+		const tab = parseTimelineTab(params.tab);
+		const kind =
+			tab === "setting"
+				? TERM_KINDS.find((k) => k === parseParam(params.kind))
+				: undefined;
+		const page = Math.floor(Number(parseParam(params.p)) - 1);
+		return {
+			path: timelineHref({
+				tab,
+				kind,
+				page: kind && page > 0 ? page : undefined,
+				thread: tab === "timeline" ? parseParam(params.thread) : undefined,
+				community: parseParam(params.community) === "1",
+			}),
+			title:
+				tab === "timeline"
+					? undefined
+					: `${m.timeline.tabs[tab]} · ${m.timeline.title}`,
+		};
+	}
+	return { path: viewHref(view) };
+}
+
+/** Every Files page the sitemap lists: the views, each chapter, section and timeline tab */
+export async function filesSitemapPaths(): Promise<string[]> {
+	const index = await loadCollectionIndex();
+	return [
+		...NAV_VIEWS.map(viewHref),
+		...index.chapters
+			.filter((c) => c.id !== DEFAULT_CHAPTER)
+			.map((c) => collectionHref(c.id)),
+		...(index.items.some((i) => !i.chapter)
+			? [collectionHref(OTHER_CHAPTER)]
+			: []),
+		...TEXT_SECTIONS.slice(1).map((s) => textsHref(s)),
+		...TIMELINE_TABS.slice(1).map((tab) => timelineHref({ tab })),
+	];
 }
 
 function fileName(key: string): string {

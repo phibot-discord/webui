@@ -1,7 +1,8 @@
 "use client";
 
-import Link, { useLinkStatus } from "next/link";
+import { useLinkStatus } from "next/link";
 import { type ComponentProps, createContext, useContext } from "react";
+import Link from "@/components/LocaleLink";
 import type { NavView } from "@/lib/files-view";
 
 export type Pending = { view: NavView; swap: boolean };

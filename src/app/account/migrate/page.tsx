@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { MigratePanel } from "@/components/MigratePanel";
+import { signInHref } from "@/i18n/server";
 import { tapSignInOpens } from "@/server/account-link";
 import { isTapUserId } from "@/server/auth-tickets";
 import { withDiscordUid } from "@/server/logger";
@@ -16,7 +17,7 @@ export function generateMetadata(): Promise<Metadata> {
 
 export default async function MigratePage() {
 	const session = await auth();
-	if (!session?.user?.id) redirect("/?next=/account/migrate");
+	if (!session?.user?.id) redirect(await signInHref("/account/migrate"));
 	const userId = session.user.id;
 	return withDiscordUid(userId, async () => (
 		<main id="content" className="page page-bind">

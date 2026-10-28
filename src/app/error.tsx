@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
+import Link from "@/components/LocaleLink";
 import { useI18n } from "@/i18n/provider";
 
 export default function RouteError({

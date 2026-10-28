@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { SyncTime } from "@/components/Desk";
+import Link from "@/components/LocaleLink";
 import { Announce, SteadyButton } from "@/components/Tool";
 import {
 	TapQrColumn,

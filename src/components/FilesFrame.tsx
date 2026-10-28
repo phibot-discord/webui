@@ -17,12 +17,19 @@ import { FrameContext, type Go, type Pending } from "@/components/FilesLink";
 import { FilesSkeletonBody, SkeletonBlock } from "@/components/FilesSkeleton";
 import { focusMain } from "@/components/SkipLink";
 import { navView, parseView } from "@/lib/files-view";
+import { localePath, pathLocale, stripLocale } from "@/lib/locale-path";
 
 const SKELETON_AFTER_MS = 100;
 
 function filesTarget(href: string): URL | undefined {
 	const url = new URL(href, location.href);
-	if (url.origin !== location.origin || url.pathname !== "/files") return;
+	if (
+		url.origin !== location.origin ||
+		stripLocale(url.pathname) !== "/files"
+	) {
+		return;
+	}
+	url.pathname = localePath("/files", pathLocale(location.pathname));
 	return url.search === location.search ? undefined : url;
 }
 

@@ -8,7 +8,6 @@ import {
 	X,
 } from "@phosphor-icons/react";
 import Form from "next/form";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
 	type FormEvent,
@@ -23,10 +22,12 @@ import {
 	useState,
 } from "react";
 import { useChartCatalog } from "@/components/ChartSearch";
+import Link from "@/components/LocaleLink";
 import { Announce, useHydrated } from "@/components/Tool";
 import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
 import { CHART_LEVELS, type ChartSummary } from "@/lib/chart-catalog";
+import { localePath } from "@/lib/locale-path";
 import { looseFold, rankSongs, type SongMatch } from "@/lib/song-search";
 import { fill } from "@/phi/lib/card-i18n";
 
@@ -309,7 +310,7 @@ export function SongLookup({
 			<div className="songs-layout">
 				<div className="songs-main">
 					<Form
-						action="/songs"
+						action={localePath("/songs", locale)}
 						replace
 						scroll={false}
 						prefetch={false}

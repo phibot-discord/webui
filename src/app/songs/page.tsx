@@ -16,7 +16,7 @@ const SHOWN = 20;
 const EXAMPLES = ["无限光", "ASA", "Ad"];
 
 export function generateMetadata(): Promise<Metadata> {
-	return pageMetadata("songs");
+	return pageMetadata("songs", { path: "/songs" });
 }
 
 export default async function SongsPage({

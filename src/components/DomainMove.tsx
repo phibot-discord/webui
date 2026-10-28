@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef } from "react";
 import { useI18n } from "@/i18n/provider";
 import { readSession, writeSession } from "@/lib/local-store";
+import { stripLocale } from "@/lib/locale-path";
 import { SITE_ORIGIN } from "@/lib/site";
 
 const PROMPT_KEY = "phi-domain-move";
@@ -20,8 +21,8 @@ export function DomainMove({ signedIn }: { signedIn: boolean }) {
 	const titleId = useId();
 	const ref = useRef<HTMLDialogElement>(null);
 	const go = useRef<HTMLAnchorElement>(null);
-	const render = path.startsWith("/render/");
-	const shared = path.startsWith("/p/");
+	const render = stripLocale(path).startsWith("/render/");
+	const shared = stripLocale(path).startsWith("/p/");
 
 	useEffect(() => {
 		const node = ref.current;

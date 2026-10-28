@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { CardNav } from "@/components/CardNav";
 import { Desk } from "@/components/Desk";
 import { TagGlossary } from "@/components/TagGlossary";
+import { signInHref } from "@/i18n/server";
 import type { ChartTagTreeNode } from "@/phi/lib/b30-analysis";
 import { loadChartTagTree } from "@/phi/lib/chart-tags-api";
 import { loadCardDesk } from "@/server/card-desk";
@@ -27,7 +28,7 @@ async function tagTree(): Promise<ChartTagTreeNode[]> {
 
 export default async function TagsPage() {
 	const session = await auth();
-	if (!session?.user?.id) redirect("/?next=/tags");
+	if (!session?.user?.id) redirect(await signInHref("/tags"));
 	const userId = session.user.id;
 	return withDiscordUid(userId, async () => {
 		const host = await getDataHost();

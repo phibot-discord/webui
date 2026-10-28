@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
 	createContext,
 	type ReactNode,
@@ -11,6 +11,7 @@ import {
 	useState,
 	useTransition,
 } from "react";
+import { localePath, pathLocale, stripLocale } from "@/lib/locale-path";
 import { bumpCardReload } from "@/lib/save-refresh";
 import { LOCALE_COOKIE, type Locale, localeTag } from "./config";
 import { type ClientMessages, en, zh } from "./messages";
@@ -36,8 +37,16 @@ export function I18nProvider({
 	children: ReactNode;
 }) {
 	const router = useRouter();
+	const path = usePathname();
 	const [locale, setLocaleState] = useState(initialLocale);
+	const [seenPath, setSeenPath] = useState(path);
 	const [, startTransition] = useTransition();
+	if (seenPath !== path) {
+		setSeenPath(path);
+		if (!stripLocale(path).startsWith("/render/")) {
+			setLocaleState(pathLocale(path));
+		}
+	}
 	const m = catalogs[locale];
 
 	useEffect(() => {
@@ -55,6 +64,12 @@ export function I18nProvider({
 				body: JSON.stringify({ locale: next }),
 				keepalive: true,
 			}).catch(() => {});
+			const { pathname, search, hash } = window.location;
+			const to = localePath(pathname + search + hash, next);
+			if (to !== pathname + search + hash) {
+				window.location.assign(to);
+				return;
+			}
 			startTransition(() => {
 				setLocaleState(next);
 				router.refresh();

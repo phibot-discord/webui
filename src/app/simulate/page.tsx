@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { CardNav } from "@/components/CardNav";
 import { Desk } from "@/components/Desk";
 import { SongSimulation } from "@/components/SongSimulation";
+import { signInHref } from "@/i18n/server";
 import { loadCardDesk } from "@/server/card-desk";
 import { getDataHost } from "@/server/data-host";
 import { withDiscordUid } from "@/server/logger";
@@ -18,7 +19,7 @@ export function generateMetadata(): Promise<Metadata> {
 
 export default async function SimulatePage() {
 	const session = await auth();
-	if (!session?.user?.id) redirect("/?next=/simulate");
+	if (!session?.user?.id) redirect(await signInHref("/simulate"));
 	const userId = session.user.id;
 	return withDiscordUid(userId, async () => {
 		const host = await getDataHost();

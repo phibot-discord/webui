@@ -7,9 +7,9 @@ import {
 	UsersThree,
 	WarningCircle,
 } from "@phosphor-icons/react";
-import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { ChartSearch, useChartCatalog } from "@/components/ChartSearch";
+import Link from "@/components/LocaleLink";
 import { chartSearchText } from "@/components/ScoreControl";
 import { Announce, SteadyButton } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";

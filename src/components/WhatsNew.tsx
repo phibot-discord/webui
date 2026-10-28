@@ -1,9 +1,9 @@
 "use client";
 
 import { Coffee, X } from "@phosphor-icons/react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import Link from "@/components/LocaleLink";
 import type { Locale } from "@/i18n/config";
 import { formatDay } from "@/i18n/datetime";
 import { useI18n } from "@/i18n/provider";
@@ -16,6 +16,7 @@ import {
 	readSeen,
 	shouldOpen,
 } from "@/lib/changelog";
+import { stripLocale } from "@/lib/locale-path";
 
 const COFFEE_URL = "https://buymeacoffee.com/yuemiyuki";
 const SHOW_DELAY_MS = 900;
@@ -29,7 +30,8 @@ export function WhatsNew({ auto = true }: { auto?: boolean }) {
 	const ok = useRef<HTMLButtonElement>(null);
 	const [open, setOpen] = useState(false);
 	const [releases, setReleases] = useState<ChangeRelease[] | null>(null);
-	const shared = path.startsWith("/p/") || path.startsWith("/render/");
+	const bare = stripLocale(path);
+	const shared = bare.startsWith("/p/") || bare.startsWith("/render/");
 
 	useEffect(() => {
 		if (!auto || shared || !shouldOpen(readSeen())) return;

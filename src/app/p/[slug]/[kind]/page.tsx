@@ -1,14 +1,15 @@
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { signInDiscord } from "@/auth-actions";
 import { CardNav } from "@/components/CardNav";
 import { CardStage } from "@/components/CardStage";
 import { Desk } from "@/components/Desk";
+import Link from "@/components/LocaleLink";
 import { SignInButton, SignInStatus } from "@/components/landing/SignIn";
 import { getMessages } from "@/i18n/server";
+import { localePath } from "@/lib/locale-path";
 import { ogShareUrl } from "@/lib/og";
 import {
 	cardStyles,
@@ -44,9 +45,15 @@ export async function generateMetadata({
 	return {
 		title,
 		description,
+		robots: { index: false },
 		...(await ogMetadata(
 			{ url: ogShareUrl(slug, kind, locale), alt: title },
-			{ title, description, url: `/p/${slug}/${kind}`, type: "profile" },
+			{
+				title,
+				description,
+				url: localePath(`/p/${slug}/${kind}`, locale),
+				type: "profile",
+			},
 		)),
 	};
 }

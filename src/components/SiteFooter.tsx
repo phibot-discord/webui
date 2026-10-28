@@ -1,13 +1,13 @@
 "use client";
 
 import { Heart } from "@phosphor-icons/react";
-import Link from "next/link";
 import { useEffect } from "react";
+import Link from "@/components/LocaleLink";
 import { useI18n } from "@/i18n/provider";
 import { adoptStoredRefresh, markRefresh } from "@/lib/asset-refresh";
 import { CHANGELOG_EVENT } from "@/lib/changelog";
+import { AUTHOR_URL, REPO_URL } from "@/lib/site";
 
-const GITHUB = "https://github.com/YueMiyuki";
 const COMMIT = process.env.NEXT_PUBLIC_COMMIT_SHA ?? "";
 
 export function SiteFooter() {
@@ -33,7 +33,7 @@ export function SiteFooter() {
 								aria-label={m.credit.heart}
 							/>
 							{m.credit.after}
-							<a href={GITHUB} rel="noopener noreferrer" target="_blank">
+							<a href={AUTHOR_URL} rel="noopener noreferrer" target="_blank">
 								{m.credit.name}
 							</a>
 						</dd>
@@ -42,7 +42,13 @@ export function SiteFooter() {
 						<div className="foot-cell">
 							<dt className="foot-label caps-label">{m.footer.revision}</dt>
 							<dd className="foot-value site-foot-rev" title={COMMIT}>
-								{COMMIT.slice(0, 7)}
+								<a
+									href={`${REPO_URL}/commit/${COMMIT}`}
+									rel="noopener noreferrer"
+									target="_blank"
+								>
+									{COMMIT.slice(0, 7)}
+								</a>
 							</dd>
 						</div>
 					) : null}
@@ -70,6 +76,9 @@ export function SiteFooter() {
 							{m.assetRefresh.label}
 						</button>
 						<Link href="/status">{m.status.title}</Link>
+						<a href={REPO_URL} rel="noopener noreferrer" target="_blank">
+							{m.footer.source}
+						</a>
 						<Link href="/tos">{m.legal.terms}</Link>
 						<Link href="/privacy">{m.legal.privacy}</Link>
 					</div>

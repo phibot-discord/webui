@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { LinkPending } from "@/components/LinkPending";
+import Link from "@/components/LocaleLink";
 import { useI18n } from "@/i18n/provider";
 import { revealInRow, rowFade } from "@/lib/scroll";
 import { CARD_KINDS, CARD_PAGES, isPublicKind } from "@/server/card-kinds";

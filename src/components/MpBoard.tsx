@@ -7,9 +7,9 @@ import {
 	LockSimple,
 	XCircle,
 } from "@phosphor-icons/react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import Link from "@/components/LocaleLink";
 import { localeTag } from "@/i18n/config";
 import { useI18n } from "@/i18n/provider";
 import type { MpData, MpRoom } from "@/lib/phira-mp";

@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { sessionUserId, signIn, signOut } from "@/auth";
+import { localeHref, signInHref } from "@/i18n/server";
 import { withBoundAuthUrl } from "@/lib/auth-url";
 import { safeNext } from "@/lib/safe-next";
 import {
@@ -16,7 +17,8 @@ import {
 } from "@/server/auth-tickets";
 
 export async function signOutAction() {
-	await withBoundAuthUrl(await headers(), () => signOut({ redirectTo: "/" }));
+	const redirectTo = await localeHref("/");
+	await withBoundAuthUrl(await headers(), () => signOut({ redirectTo }));
 }
 
 export async function signInDiscord(formData: FormData) {
@@ -53,8 +55,8 @@ export async function signInTaptap(
 /** A TapTap account links Discord: Discord OAuth comes back to the `signIn` callback, which merges */
 export async function linkDiscord() {
 	const userId = await sessionUserId();
-	if (!userId) redirect("/?next=/account");
-	if (!isTapUserId(userId)) redirect("/account");
+	if (!userId) redirect(await signInHref("/account"));
+	if (!isTapUserId(userId)) redirect(await localeHref("/account"));
 	const hdrs = await headers();
 	const jar = await cookies();
 	jar.set(DISCORD_LINK_COOKIE, await sealDiscordLink(userId), {
@@ -64,7 +66,6 @@ export async function linkDiscord() {
 		sameSite: "lax",
 		secure: isSecureRequest(hdrs),
 	});
-	await withBoundAuthUrl(hdrs, () =>
-		signIn("discord", { redirectTo: "/account?linked=discord" }),
-	);
+	const redirectTo = await localeHref("/account?linked=discord");
+	await withBoundAuthUrl(hdrs, () => signIn("discord", { redirectTo }));
 }

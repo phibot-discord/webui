@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { CardNav } from "@/components/CardNav";
 import { CardStage } from "@/components/CardStage";
 import { Desk } from "@/components/Desk";
-import { getMessages } from "@/i18n/server";
+import { getMessages, localeHref } from "@/i18n/server";
 import {
 	cardStyles,
 	isStyledKind,
@@ -55,7 +55,7 @@ export default async function KindPage({
 	}>;
 }) {
 	const session = await auth();
-	if (!session?.user?.id) redirect("/");
+	if (!session?.user?.id) redirect(await localeHref("/"));
 	const userId = session.user.id;
 	return withDiscordUid(userId, async () => {
 		const { kind } = await params;

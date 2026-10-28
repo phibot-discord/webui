@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { linkDiscord } from "@/auth-actions";
 import { LinkDiscordButton } from "@/components/LinkDiscordButton";
+import Link from "@/components/LocaleLink";
 import { SignInStatus } from "@/components/landing/SignIn";
 import { SessionTokenRow } from "@/components/SessionTokenRow";
 import { useI18n } from "@/i18n/provider";
