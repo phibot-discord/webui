@@ -1,4 +1,4 @@
-import { Part } from "../lib/shapes.mjs";
+import { Part } from "../shapes.mjs";
 
 const W = 110,
 	D = 62,
@@ -9,7 +9,6 @@ const turn = (TILT * Math.PI) / 180,
 	cos = Math.cos(turn),
 	sin = Math.sin(turn);
 const centre = [W / 2, D * 0.24, 1.3];
-/** The judge line's frame: x along the line, z up from the illustration */
 const onLine = ([x, y, z]) => [
 	centre[0] + x * cos - y * sin,
 	centre[1] + x * sin + y * cos,

@@ -4,9 +4,11 @@ import { type PointerEvent, type ReactNode, useRef } from "react";
 
 export function FigureFrame({
 	className,
+	slot,
 	children,
 }: {
 	className: string;
+	slot?: string;
 	children: ReactNode;
 }) {
 	const ref = useRef<HTMLElement>(null);
@@ -30,6 +32,7 @@ export function FigureFrame({
 		<figure
 			ref={ref}
 			className={className}
+			data-stage-slot={slot}
 			onPointerOver={over}
 			onPointerLeave={() => mark(null)}
 		>

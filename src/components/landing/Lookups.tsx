@@ -141,7 +141,7 @@ export function LandingLookups({ signedIn }: { signedIn: boolean }) {
 		</ul>
 	);
 	return (
-		<section className="landing-section" aria-labelledby="lookups-title">
+		<section className="landing-section sheet" aria-labelledby="lookups-title">
 			<header className="section-head">
 				<LevelChip rank="HD" level="10" />
 				<h2 id="lookups-title" className="section-title">
@@ -174,7 +174,7 @@ export function LandingExplore({
 	const t = m.home.explore;
 	return (
 		<section className="landing-section" aria-labelledby="explore-title">
-			<header className="section-head">
+			<header className="section-head sheet">
 				<LevelChip rank="IN" level="13" />
 				<h2 id="explore-title" className="section-title">
 					{t.title}
@@ -183,7 +183,7 @@ export function LandingExplore({
 			</header>
 			<div className="explore-body">
 				{figure}
-				<ul className="lookup-grid">
+				<ul className="lookup-grid sheet">
 					{EXPLORE.map(({ kind, href }) => (
 						<li key={kind}>
 							<Link className="lookup" href={href}>

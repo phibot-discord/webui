@@ -1,0 +1,48 @@
+::view-transition {
+	pointer-events: none;
+}
+
+::view-transition-group(site-header) {
+	z-index: 100;
+	animation: none;
+}
+
+::view-transition-old(site-header) {
+	display: none;
+}
+
+::view-transition-new(site-header) {
+	animation: none;
+}
+
+::view-transition-old(.page-out) {
+	animation: page-out 140ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+::view-transition-new(.page-in) {
+	animation: page-in 360ms var(--ease) 90ms both;
+}
+
+@keyframes page-out {
+	to {
+		opacity: 0;
+		translate: 0 -8px;
+		filter: blur(2px);
+	}
+}
+
+@keyframes page-in {
+	from {
+		opacity: 0;
+		translate: 0 16px;
+		filter: blur(3px);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation: none !important;
+	}
+}

@@ -1,7 +1,5 @@
 const CREASE_COS = Math.cos((30 * Math.PI) / 180);
-/** In mm along the view: below the 0.01 mm that marks sit above their face */
 const DEPTH_EPS = 1e-3;
-/** In mm on screen: keeps a face from hiding the lines on its own border */
 const INSET = 1e-4;
 const MIN_PIECE = 0.02;
 
@@ -14,7 +12,6 @@ const cross = (a, b) => [
 	a[2] * b[0] - a[0] * b[2],
 	a[0] * b[1] - a[1] * b[0],
 ];
-const unit = (a) => scale(a, 1 / Math.hypot(...a));
 const turn = (o, a, b) =>
 	(a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
 const span = (p, q) => Math.hypot(q[0] - p[0], q[1] - p[1]);
@@ -25,7 +22,6 @@ const box2 = (...pts) => [
 	Math.max(...pts.map((p) => p[1])),
 ];
 
-/** Parallel view from the azimuth and elevation of the eye, z up */
 function camera({ azimuth, elevation }) {
 	const a = (azimuth * Math.PI) / 180,
 		e = (elevation * Math.PI) / 180;
@@ -34,7 +30,7 @@ function camera({ azimuth, elevation }) {
 		Math.cos(e) * Math.sin(a),
 		Math.sin(e),
 	];
-	const right = unit(cross([0, 0, 1], toEye));
+	const right = [-Math.sin(a), Math.cos(a), 0];
 	const up = cross(toEye, right);
 	return {
 		toEye,
@@ -43,37 +39,43 @@ function camera({ azimuth, elevation }) {
 }
 
 function newell(points, face) {
-	let n = [0, 0, 0];
+	let x = 0,
+		y = 0,
+		z = 0;
 	for (let i = 0; i < face.length; i++) {
 		const p = points[face[i]],
 			q = points[face[(i + 1) % face.length]];
-		n = add(n, [
-			(p[1] - q[1]) * (p[2] + q[2]),
-			(p[2] - q[2]) * (p[0] + q[0]),
-			(p[0] - q[0]) * (p[1] + q[1]),
-		]);
+		x += (p[1] - q[1]) * (p[2] + q[2]);
+		y += (p[2] - q[2]) * (p[0] + q[0]);
+		z += (p[0] - q[0]) * (p[1] + q[1]);
 	}
-	const len = Math.hypot(...n);
-	return len ? scale(n, 1 / len) : n;
+	const len = Math.hypot(x, y, z);
+	return len ? [x * (1 / len), y * (1 / len), z * (1 / len)] : [x, y, z];
 }
 
-function occluder(a, b, c) {
-	let area = turn(a, b, c);
+function occluder(face) {
+	let area = 0;
+	for (let i = 1; i + 1 < face.length; i++)
+		area += turn(face[0], face[i], face[i + 1]);
 	if (Math.abs(area) < 1e-9) return undefined;
-	if (area < 0) {
-		[b, c] = [c, b];
-		area = -area;
-	}
-	const edges = [
-		[a, b],
-		[b, c],
-		[c, a],
-	].map(([p, q]) => {
+	const loop = area < 0 ? [...face].reverse() : face;
+	const edges = [];
+	loop.forEach((p, i) => {
+		const q = loop[(i + 1) % loop.length];
 		const len = span(p, q);
+		if (len < 1e-12) return;
 		const nx = -(q[1] - p[1]) / len,
 			ny = (q[0] - p[0]) / len;
-		return [nx, ny, nx * p[0] + ny * p[1]];
+		edges.push(nx, ny, nx * p[0] + ny * p[1]);
 	});
+	const a = loop[0];
+	let b = loop[1],
+		c = loop[2],
+		widest = 0;
+	for (let i = 1; i + 1 < loop.length; i++) {
+		const t = turn(a, loop[i], loop[i + 1]);
+		if (t > widest) [b, c, widest] = [loop[i], loop[i + 1], t];
+	}
 	const da = a[2],
 		db = b[2] - da,
 		dc = c[2] - da;
@@ -81,51 +83,90 @@ function occluder(a, b, c) {
 		by = b[1] - a[1],
 		cx = c[0] - a[0],
 		cy = c[1] - a[1];
-	const alpha = (db * cy - dc * by) / area,
-		beta = (bx * dc - cx * db) / area;
+	const alpha = (db * cy - dc * by) / widest,
+		beta = (bx * dc - cx * db) / widest;
 	return {
 		edges,
 		plane: [alpha, beta, da - alpha * a[0] - beta * a[1]],
-		box: box2(a, b, c),
-		near: Math.min(a[2], b[2], c[2]),
+		box: box2(...loop),
+		near: Math.min(...loop.map((p) => p[2])),
 	};
 }
 
-/** Narrows [lo, hi] to where p + q·t ≥ r, or returns undefined */
-function atLeast(range, p, q, r) {
-	let [lo, hi] = range;
-	if (Math.abs(q) < 1e-12) return p >= r ? range : undefined;
-	const t = (r - p) / q;
+function hidden(s, e, tri) {
+	const dx = e[0] - s[0],
+		dy = e[1] - s[1];
+	const edges = tri.edges;
+	let lo = 0,
+		hi = 1;
+	for (let i = 0; i < edges.length; i += 3) {
+		const nx = edges[i],
+			ny = edges[i + 1];
+		const p = nx * s[0] + ny * s[1] - edges[i + 2],
+			q = nx * dx + ny * dy;
+		if (Math.abs(q) < 1e-12) {
+			if (p >= INSET) continue;
+			return undefined;
+		}
+		const t = (INSET - p) / q;
+		if (q > 0) lo = Math.max(lo, t);
+		else hi = Math.min(hi, t);
+		if (!(lo < hi)) return undefined;
+	}
+	const [alpha, beta, gamma] = tri.plane;
+	const p = s[2] - (alpha * s[0] + beta * s[1] + gamma),
+		q = e[2] - s[2] - (alpha * dx + beta * dy);
+	if (Math.abs(q) < 1e-12) return p >= DEPTH_EPS ? [lo, hi] : undefined;
+	const t = (DEPTH_EPS - p) / q;
 	if (q > 0) lo = Math.max(lo, t);
 	else hi = Math.min(hi, t);
 	return lo < hi ? [lo, hi] : undefined;
 }
 
-/** The part of segment s–e (screen x, y, depth) that the triangle hides */
-function hidden(s, e, tri) {
-	const dx = e[0] - s[0],
-		dy = e[1] - s[1];
-	let range = [0, 1];
-	for (const [nx, ny, c] of tri.edges) {
-		range = atLeast(range, nx * s[0] + ny * s[1] - c, nx * dx + ny * dy, INSET);
-		if (!range) return undefined;
+function grid(occluders) {
+	const n = Math.max(1, Math.min(48, Math.ceil(Math.sqrt(occluders.length))));
+	let x0 = Infinity,
+		y0 = Infinity,
+		x1 = -Infinity,
+		y1 = -Infinity;
+	for (const { box } of occluders) {
+		x0 = Math.min(x0, box[0]);
+		y0 = Math.min(y0, box[1]);
+		x1 = Math.max(x1, box[2]);
+		y1 = Math.max(y1, box[3]);
 	}
-	const [alpha, beta, gamma] = tri.plane;
-	return atLeast(
-		range,
-		s[2] - (alpha * s[0] + beta * s[1] + gamma),
-		e[2] - s[2] - (alpha * dx + beta * dy),
-		DEPTH_EPS,
-	);
+	const w = (x1 - x0) / n || 1,
+		h = (y1 - y0) / n || 1;
+	const col = (x) => Math.min(n - 1, Math.max(0, Math.floor((x - x0) / w)));
+	const row = (y) => Math.min(n - 1, Math.max(0, Math.floor((y - y0) / h)));
+	const cells = Array.from({ length: n * n }, () => []);
+	occluders.forEach(({ box }, i) => {
+		for (let r = row(box[1]); r <= row(box[3]); r++)
+			for (let c = col(box[0]); c <= col(box[2]); c++) cells[r * n + c].push(i);
+	});
+	const stamp = new Uint32Array(occluders.length);
+	let query = 0;
+	return (box) => {
+		query++;
+		const near = [];
+		for (let r = row(box[1]); r <= row(box[3]); r++)
+			for (let c = col(box[0]); c <= col(box[2]); c++)
+				for (const i of cells[r * n + c])
+					if (stamp[i] !== query) {
+						stamp[i] = query;
+						near.push(occluders[i]);
+					}
+		return near;
+	};
 }
 
-function visiblePieces(s, e, occluders) {
+function visiblePieces(s, e, nearby) {
 	const len = span(s, e);
 	if (len < MIN_PIECE) return [];
 	const box = box2(s, e);
 	const far = Math.max(s[2], e[2]);
 	const cover = [];
-	for (const tri of occluders) {
+	for (const tri of nearby(box)) {
 		if (tri.near >= far - DEPTH_EPS) continue;
 		const b = tri.box;
 		if (b[0] > box[2] || b[2] < box[0] || b[1] > box[3] || b[3] < box[1])
@@ -161,10 +202,11 @@ function hull(points) {
 	return [...half(sorted), ...half(sorted.reverse())];
 }
 
-/** Classifies a solid's edges for this view: silhouettes and sharp front creases */
-function solidEdges(points, faces, toEye) {
-	const normals = faces.map((f) => newell(points, f));
-	const front = normals.map((n) => dot(n, toEye) > 1e-9);
+const SIDES = new WeakMap();
+
+function sidesOf(faces) {
+	let list = SIDES.get(faces);
+	if (list) return list;
 	const sides = new Map();
 	faces.forEach((face, f) => {
 		face.forEach((v, i) => {
@@ -175,12 +217,20 @@ function solidEdges(points, faces, toEye) {
 			else sides.set(key, { v, w, faces: [f] });
 		});
 	});
+	list = [...sides.values()];
+	SIDES.set(faces, list);
+	return list;
+}
+
+function solidEdges(points, faces, toEye) {
+	const normals = faces.map((f) => newell(points, f));
+	const front = normals.map((n) => dot(n, toEye) > 1e-9);
 	const edges = [];
 	for (const {
 		v,
 		w,
 		faces: [f, g],
-	} of sides.values()) {
+	} of sidesOf(faces)) {
 		let role;
 		if (g === undefined) role = front[f] ? "outline" : undefined;
 		else if (front[f] !== front[g]) role = "outline";
@@ -191,10 +241,6 @@ function solidEdges(points, faces, toEye) {
 	return { edges, front };
 }
 
-/**
- * Renders parts with hidden lines removed. `amount` scales each part's lift;
- * the result is fitted into `fit` [width, height] screen units.
- */
 export function render(
 	parts,
 	{ view, amount = 1, trails = [], anchors = [], fit },
@@ -230,14 +276,8 @@ export function render(
 			if (!part.clear) {
 				faces.forEach((face, f) => {
 					if (!front[f]) return;
-					for (let i = 1; i + 1 < face.length; i++) {
-						const tri = occluder(
-							screen[face[0]],
-							screen[face[i]],
-							screen[face[i + 1]],
-						);
-						if (tri) occluders.push(tri);
-					}
+					const o = occluder(face.map((i) => screen[i]));
+					if (o) occluders.push(o);
 				});
 				hulls.push({
 					id: part.id,
@@ -267,8 +307,9 @@ export function render(
 
 	const ink = [];
 	const seen = new Map(parts.map((p) => [p.id, { drawn: 0, shown: 0 }]));
+	const nearby = grid(occluders);
 	for (const c of candidates) {
-		const pieces = visiblePieces(c.a, c.b, occluders);
+		const pieces = visiblePieces(c.a, c.b, nearby);
 		if (c.id) {
 			const stat = seen.get(c.id);
 			stat.drawn += span(c.a, c.b);
@@ -323,5 +364,7 @@ export function render(
 		seen: Object.fromEntries(
 			[...seen].map(([id, s]) => [id, s.drawn ? s.shown / s.drawn : 1]),
 		),
+		scale: k,
+		place: (v) => toSheet(cam.project(v)),
 	};
 }

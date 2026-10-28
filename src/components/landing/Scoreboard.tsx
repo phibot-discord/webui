@@ -155,7 +155,7 @@ export function LandingScoreboard() {
 	const { m } = useI18n();
 	const t = m.home;
 	return (
-		<section className="landing-section" aria-labelledby="board-title">
+		<section className="landing-section sheet" aria-labelledby="board-title">
 			<header className="section-head">
 				<LevelChip rank="EZ" level="4" />
 				<h2 id="board-title" className="section-title">

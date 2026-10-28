@@ -1,4 +1,4 @@
-import { Part, roundRect } from "../lib/shapes.mjs";
+import { Part, roundRect } from "../shapes.mjs";
 
 const W = 86,
 	D = 64,

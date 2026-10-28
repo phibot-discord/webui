@@ -1,6 +1,5 @@
 const CORNER_STEPS = 6;
 
-/** Counter-clockwise outline of a rectangle with rounded corners, seen from +z */
 export function roundRect([x0, y0], [x1, y1], radius = 0) {
 	if (radius <= 0)
 		return [
@@ -25,7 +24,6 @@ export function roundRect([x0, y0], [x1, y1], radius = 0) {
 	return loop;
 }
 
-/** Counter-clockwise circle outline, seen from +z */
 function circleLoop([cx, cy], r, steps) {
 	return Array.from({ length: steps }, (_, i) => {
 		const a = (i / steps) * Math.PI * 2;
@@ -33,10 +31,6 @@ function circleLoop([cx, cy], r, steps) {
 	});
 }
 
-/**
- * One drawn part: closed solids with outward faces, plus lines marked on them.
- * `lift` is how far the part moves in the exploded view; a `clear` part hides nothing.
- */
 export class Part {
 	constructor(id, { lift = [0, 0, 0], clear = false } = {}) {
 		this.id = id;
@@ -47,7 +41,6 @@ export class Part {
 		this.place = (p) => p;
 	}
 
-	/** Builds inside a local frame; `place` maps local points to the part's frame */
 	within(place, build) {
 		const outer = this.place;
 		this.place = (p) => outer(place(p));
@@ -61,7 +54,6 @@ export class Part {
 		return this;
 	}
 
-	/** A prism standing on a counter-clockwise outline */
 	slab(loop, z0, z1) {
 		const n = loop.length;
 		const points = [
@@ -76,7 +68,6 @@ export class Part {
 		return this.solid(points, faces);
 	}
 
-	/** A prism with a hole; both outlines counter-clockwise with matching vertices */
 	ring(outer, inner, z0, z1) {
 		const n = outer.length;
 		if (inner.length !== n) throw Error("ring outlines need matching vertices");
@@ -127,12 +118,10 @@ export class Part {
 		return this.loop(circleLoop(center, radius, steps), z, role);
 	}
 
-	/** A framed rectangle drawn flat at height z */
 	frame(from, to, z, role = "detail") {
 		return this.loop(roundRect(from, to), z, role);
 	}
 
-	/** One stroke standing in for a line of text */
 	text(x0, x1, y, z, role = "texture") {
 		return this.line(
 			[
@@ -143,7 +132,6 @@ export class Part {
 		);
 	}
 
-	/** A sun and a ridge, standing in for a picture */
 	picture([x0, y0], [x1, y1], z, role = "detail") {
 		const w = x1 - x0,
 			h = y1 - y0;

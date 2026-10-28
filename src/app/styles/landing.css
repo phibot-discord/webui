@@ -1,8 +1,55 @@
 .landing {
 	--section-gap: clamp(4.5rem, 3rem + 5vw, 8rem);
+	--veil: color-mix(in srgb, var(--bg) 84%, transparent);
+	isolation: isolate;
 	width: var(--wrap);
 	margin: 0 auto;
 	padding-top: var(--space-6);
+}
+
+.stage {
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	overflow: hidden;
+	pointer-events: none;
+	visibility: hidden;
+}
+
+.landing[data-stage] .stage {
+	visibility: visible;
+}
+
+.landing[data-stage] [data-stage-slot] .drawing {
+	opacity: 0;
+}
+
+.stage-layer {
+	position: absolute;
+	top: 0;
+	left: 0;
+	will-change: transform;
+}
+
+.stage-layer .drawing {
+	aspect-ratio: auto;
+}
+
+.stage-layer :is(.drawing-tag, [data-leaders]) {
+	opacity: var(--tags, 1);
+}
+
+.sheet,
+.explore-fig .fig-caption {
+	border-image:
+		linear-gradient(var(--veil), var(--veil)) 0 fill / 0 / 0 100vmax;
+}
+
+@media (max-width: 1023px) {
+	.break-fig .fig-caption {
+		border-image:
+			linear-gradient(var(--veil), var(--veil)) 0 fill / 0 / 0 100vmax;
+	}
 }
 
 .landing .line {
@@ -156,6 +203,34 @@
 
 .landing-section {
 	margin-top: var(--section-gap);
+}
+
+.break-fig {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	align-items: center;
+	gap: var(--space-8);
+}
+
+.break-fig .fig-caption {
+	margin-top: 0;
+}
+
+.landing[data-stage] .break-fig :is(.fig-title, .fig-parts li) {
+	opacity: var(--o, 1);
+	translate: 0 calc((1 - var(--o, 1)) * 16px);
+}
+
+@media (min-width: 1024px) {
+	.break-fig {
+		grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+		gap: var(--space-16);
+	}
+
+	.break-fig .fig-parts {
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--space-5);
+	}
 }
 
 .section-head {

@@ -1,4 +1,4 @@
-import { Part } from "../lib/shapes.mjs";
+import { Part } from "../shapes.mjs";
 
 const W = 120,
 	D = 108,
@@ -12,6 +12,7 @@ export default {
 	views: [
 		{ name: "exploded", amount: 1, tags: true },
 		{ name: "assembled", amount: 0 },
+		{ name: "front", amount: 0, view: { azimuth: -90, elevation: 90 } },
 	],
 	build() {
 		const backdrop = new Part("backdrop")

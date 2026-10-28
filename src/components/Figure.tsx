@@ -10,6 +10,7 @@ export function Figure({
 	caption,
 	parts,
 	className,
+	slot,
 }: {
 	name: DrawingName;
 	view?: string;
@@ -17,10 +18,14 @@ export function Figure({
 	caption: string;
 	parts?: Record<string, FigurePart>;
 	className?: string;
+	slot?: string;
 }) {
 	const tags = parts ? drawingTags(name, view) : [];
 	return (
-		<FigureFrame className={`fig${className ? ` ${className}` : ""}`}>
+		<FigureFrame
+			className={`fig${className ? ` ${className}` : ""}`}
+			slot={slot}
+		>
 			<Drawing name={name} view={view} />
 			<figcaption className="fig-caption">
 				<p className="fig-title">
