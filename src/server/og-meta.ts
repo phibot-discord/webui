@@ -83,7 +83,12 @@ function localeAlternatesOf(path: string, locale: Locale) {
 	};
 }
 
-export type PageMetaOpts = { noindex?: boolean; path?: string; title?: string };
+export type PageMetaOpts = {
+	noindex?: boolean;
+	path?: string;
+	title?: string;
+	description?: string;
+};
 
 /** A page's title, description and share card; `path` is its canonical URL, `noindex` keeps it out of search results */
 export async function pageMetadata(
@@ -92,7 +97,10 @@ export async function pageMetadata(
 ): Promise<Metadata> {
 	const { locale } = await getMessages();
 	const { title, lede } = await pageCopy(id, locale);
-	const copy = { title: opts.title ?? title, description: lede };
+	const copy = {
+		title: opts.title ?? title,
+		description: opts.description ?? lede,
+	};
 	const url = opts.path && localePath(opts.path, locale);
 	return {
 		...copy,

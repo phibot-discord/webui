@@ -20,6 +20,7 @@ import { lastSyncedIso } from "@/server/bound";
 import { isPublicKind } from "@/server/card-kinds";
 import { ogMetadata, pageOg } from "@/server/og-meta";
 import { parsePaintQuality } from "@/server/render/paint-budget";
+import { comparableUser } from "@/server/share";
 import { loadShared } from "./load-shared";
 
 export const dynamic = "force-dynamic";
@@ -67,11 +68,12 @@ export default async function PublicKindPage({
 }) {
 	const { slug, kind } = await params;
 	if (!isPublicKind(kind)) notFound();
-	const [shared, q, { m }, session] = await Promise.all([
+	const [shared, q, { m }, session, comparable] = await Promise.all([
 		loadShared(slug),
 		searchParams,
 		getMessages(),
 		auth(),
+		comparableUser(slug),
 	]);
 	if (!shared) notFound();
 	const { got, notes, player, rks } = shared;
@@ -85,10 +87,25 @@ export default async function PublicKindPage({
 			publicHint
 			note={got.manual ? m.manual.deskNote : undefined}
 			tools={
-				<Link className="btn btn-ghost desk-mast-cta" href="/" prefetch={false}>
-					{m.public.cta}
-					<ArrowRight aria-hidden="true" size={16} />
-				</Link>
+				<>
+					{comparable ? (
+						<Link
+							className="btn btn-ghost"
+							href={`/compare?a=me&b=${encodeURIComponent(slug)}`}
+							prefetch={false}
+						>
+							{m.compare.compareWith}
+						</Link>
+					) : null}
+					<Link
+						className="btn btn-ghost desk-mast-cta"
+						href="/"
+						prefetch={false}
+					>
+						{m.public.cta}
+						<ArrowRight aria-hidden="true" size={16} />
+					</Link>
+				</>
 			}
 			nav={<CardNav current={kind} base={`/p/${slug}`} publicOnly />}
 		>

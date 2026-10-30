@@ -21,6 +21,7 @@ import type { Messages } from "@/i18n/messages";
 import { parseCollectionLang } from "@/lib/collection";
 import { pvHref } from "@/lib/files-view";
 import { readLocal, writeLocal } from "@/lib/local-store";
+import { localePath, pathLocale } from "@/lib/locale-path";
 import type { OverlayKind } from "@/lib/pv";
 import { prefersReducedMotion } from "@/lib/scroll";
 import type { DeductionView } from "./Deduction";
@@ -104,7 +105,9 @@ export function Pv({
 		setPickedId(next.id);
 		setChosen(true);
 		setFailed(false);
-		replaceUrl(pvHref(next.id));
+		replaceUrl(
+			localePath(pvHref(next.id), pathLocale(window.location.pathname)),
+		);
 	}, []);
 
 	const fail = useCallback(() => setFailed(true), []);

@@ -1,7 +1,8 @@
 import type { FigureMessages } from "./figure-messages";
 import type { FilesMessages } from "./files-messages";
+import { type ToolsMessages, toolsEn, toolsZh } from "./tools-messages";
 
-export type ClientMessages = {
+export type ClientMessages = ToolsMessages & {
 	meta: { title: string; description: string };
 	og: { cardAlt: string; pageAlt: string };
 	assetRefresh: { label: string; hint: string };
@@ -35,7 +36,17 @@ export type ClientMessages = {
 		lookupsSignedIn: string;
 		lookupsSignedOut: string;
 		lookups: Record<
-			"b30" | "hisb30" | "info" | "x30" | "fc30" | "song" | "tags" | "simulate",
+			| "b30"
+			| "hisb30"
+			| "info"
+			| "x30"
+			| "fc30"
+			| "song"
+			| "tags"
+			| "simulate"
+			| "targets"
+			| "progress"
+			| "trend",
 			{ name: string; blurb: string }
 		>;
 		explore: {
@@ -43,7 +54,7 @@ export type ClientMessages = {
 			intro: string;
 			hint: string;
 			items: Record<
-				"songs" | "phira" | "score" | "files" | "pv" | "collection",
+				"songs" | "phira" | "score" | "files" | "pv" | "collection" | "guess",
 				{ name: string; blurb: string }
 			>;
 		};
@@ -70,6 +81,7 @@ export type ClientMessages = {
 		privacy: string;
 		updated: string;
 		contents: string;
+		tldr: string;
 		agree: {
 			before: string;
 			terms: string;
@@ -160,7 +172,18 @@ export type ClientMessages = {
 		files: string;
 		score: string;
 		simulate: string;
+		targets: string;
+		progress: string;
+		trend: string;
 		account: string;
+		accountOf: string;
+		groups: Record<"tools" | "scores" | "files", string>;
+		compare: string;
+		guess: string;
+		pv: string;
+		collection: string;
+		timeline: string;
+		texts: string;
 		b30: string;
 		hisb30: string;
 		info: string;
@@ -350,6 +373,8 @@ export type ClientMessages = {
 	songs: {
 		title: string;
 		lede: string;
+		songPage: string;
+		songPageFor: string;
 		label: string;
 		placeholder: string;
 		search: string;
@@ -742,6 +767,7 @@ export type ClientMessages = {
 export type Messages = ClientMessages & FilesMessages & FigureMessages;
 
 export const en: ClientMessages = {
+	...toolsEn,
 	meta: {
 		title: "PhiBot · Phigros B30 cards, RKS and game files",
 		description:
@@ -826,6 +852,18 @@ export const en: ClientMessages = {
 				blurb:
 					"Try better scores on some charts and see what your RKS becomes.",
 			},
+			targets: {
+				name: "Next targets",
+				blurb: "The accuracy each chart needs to push your RKS up a step.",
+			},
+			progress: {
+				name: "Progress",
+				blurb: "Clears, full combos and APs by difficulty and constant.",
+			},
+			trend: {
+				name: "RKS trend",
+				blurb: "Your RKS over time and the scores that went up.",
+			},
 		},
 		explore: {
 			title: "Open to everyone.",
@@ -861,6 +899,11 @@ export const en: ClientMessages = {
 					name: "Collection",
 					blurb:
 						"Every entry and its clues, by chapter, in any of the game's five languages. Searchable.",
+				},
+				guess: {
+					name: "Guess the song",
+					blurb:
+						"A daily puzzle: name the song from a blurred, recoloured close-up of its illustration.",
 				},
 			},
 		},
@@ -901,6 +944,7 @@ export const en: ClientMessages = {
 		privacy: "Privacy policy",
 		updated: "Last updated",
 		contents: "On this page",
+		tldr: "TL;DR",
 		agree: {
 			before: "By signing in, you agree to the ",
 			terms: "terms of use",
@@ -1019,12 +1063,23 @@ export const en: ClientMessages = {
 		menu: "Pages",
 		toggle: "Menu",
 		tags: "Tags",
-		songs: "Nicknames",
+		songs: "Songs",
 		phira: "Phira",
 		files: "Files",
 		score: "Score control",
 		simulate: "Simulation",
+		targets: "Targets",
+		progress: "Progress",
+		trend: "Trend",
 		account: "Account",
+		accountOf: "Account: {name}",
+		groups: { tools: "Tools", scores: "Scores", files: "Files" },
+		compare: "Compare players",
+		guess: "Guess the song",
+		pv: "PV",
+		collection: "Collection",
+		timeline: "Story timeline",
+		texts: "Other resources",
 		b30: "B30",
 		hisb30: "History",
 		info: "Info",
@@ -1233,7 +1288,9 @@ export const en: ClientMessages = {
 	},
 	songs: {
 		title: "Song nicknames",
-		lede: "Look a song up by its title, a nickname players use for it, or its composer.",
+		lede: "Look a song up by its title, a nickname players use for it, or its composer, then open its song page for every chart, its older versions and your scores.",
+		songPage: "Song page",
+		songPageFor: "Song page: {song}",
 		label: "Title, nickname or composer",
 		placeholder: "无限光, ASA, Ad…",
 		search: "Search",
@@ -1717,6 +1774,7 @@ export const en: ClientMessages = {
 };
 
 export const zh: ClientMessages = {
+	...toolsZh,
 	meta: {
 		title: "PhiBot · Phigros B30 成绩图、RKS 和游戏文件",
 		description:
@@ -1780,6 +1838,18 @@ export const zh: ClientMessages = {
 				name: "曲目模拟",
 				blurb: "给一些谱面填上更好的成绩，看看 RKS 会变成多少",
 			},
+			targets: {
+				name: "推分目标",
+				blurb: "每张谱面把 RKS 推高一档所需的准确率",
+			},
+			progress: {
+				name: "完成度",
+				blurb: "按难度和定数统计通关、FC 与 AP",
+			},
+			trend: {
+				name: "RKS 走势",
+				blurb: "RKS 随时间的变化，以及提升过的成绩",
+			},
 		},
 		explore: {
 			title: "人人都能用",
@@ -1810,6 +1880,10 @@ export const zh: ClientMessages = {
 				collection: {
 					name: "收藏品",
 					blurb: "按章节收录的全部条目与线索，五种语言可选，支持搜索",
+				},
+				guess: {
+					name: "猜曲绘",
+					blurb: "每日一题：从模糊、变色的曲绘特写中猜出曲目",
 				},
 			},
 		},
@@ -1850,6 +1924,7 @@ export const zh: ClientMessages = {
 		privacy: "隐私政策",
 		updated: "最后更新",
 		contents: "本页目录",
+		tldr: "一句话总结",
 		agree: {
 			before: "登录即表示你同意",
 			terms: "使用条款",
@@ -1960,12 +2035,23 @@ export const zh: ClientMessages = {
 		menu: "页面",
 		toggle: "菜单",
 		tags: "标签",
-		songs: "别名",
+		songs: "歌曲",
 		phira: "Phira",
 		files: "资源",
 		score: "控分",
 		simulate: "模拟",
+		targets: "推分目标",
+		progress: "完成度",
+		trend: "走势",
 		account: "账号",
+		accountOf: "账号：{name}",
+		groups: { tools: "工具", scores: "成绩", files: "资源" },
+		compare: "玩家对比",
+		guess: "猜曲绘",
+		pv: "PV",
+		collection: "收藏品",
+		timeline: "剧情时间线",
+		texts: "其他资源",
 		b30: "B30",
 		hisb30: "历史",
 		info: "信息",
@@ -2165,7 +2251,9 @@ export const zh: ClientMessages = {
 	},
 	songs: {
 		title: "曲目别名",
-		lede: "用曲名、玩家常用的别名或曲师查找曲目。",
+		lede: "用曲名、玩家常用的别名或曲师查找曲目，再打开曲目页面查看所有谱面、旧版本和你的成绩。",
+		songPage: "曲目页面",
+		songPageFor: "曲目页面：{song}",
 		label: "曲名、别名或曲师",
 		placeholder: "无限光、ASA、Ad…",
 		search: "搜索",

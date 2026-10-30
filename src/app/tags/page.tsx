@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { CardNav } from "@/components/CardNav";
 import { Desk } from "@/components/Desk";
 import { TagGlossary } from "@/components/TagGlossary";
 import { signInHref } from "@/i18n/server";
@@ -38,7 +37,7 @@ export default async function TagsPage() {
 		]);
 		if ("gate" in loaded) return loaded.gate;
 		return (
-			<Desk {...loaded.desk} nav={<CardNav current="tags" />}>
+			<Desk {...loaded.desk}>
 				<TagGlossary tree={tree} />
 			</Desk>
 		);

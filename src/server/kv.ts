@@ -199,6 +199,19 @@ function localRemote(): RemoteKv {
 			`local kv: no save at ${savePath} (${err instanceof Error ? err.message : err})`,
 		);
 	}
+	const historyPath = process.env.PHI_LOCAL_HISTORY?.trim();
+	if (historyPath) {
+		try {
+			mem.set(
+				`phi:history:${token}`,
+				readFileSync(/*turbopackIgnore: true*/ historyPath, "utf8"),
+			);
+		} catch (err) {
+			logger.warn(
+				`local kv: no history at ${historyPath} (${err instanceof Error ? err.message : err})`,
+			);
+		}
+	}
 	return {
 		label: "local",
 		getRaw: async (key) => mem.get(key),

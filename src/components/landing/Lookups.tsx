@@ -9,13 +9,17 @@ import {
 	FilmStrip,
 	Flask,
 	FolderOpen,
+	GridFour,
 	IdentificationCard,
+	ImageSquare,
 	MagnifyingGlass,
 	Medal,
 	Package,
 	Ranking,
 	SquaresFour,
 	Tag,
+	Target,
+	TrendUp,
 } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { useFormStatus } from "react-dom";
@@ -26,7 +30,7 @@ import { SignInStatus } from "@/components/landing/SignIn";
 import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
 import { localePath } from "@/lib/locale-path";
-import { CARD_KINDS, CARD_PAGES } from "@/server/card-kinds";
+import { CARD_KINDS, CARD_PAGES, TOOL_PAGES } from "@/server/card-kinds";
 
 type LookupKind = keyof Messages["home"]["lookups"];
 type ExploreKind = keyof Messages["home"]["explore"]["items"];
@@ -34,12 +38,13 @@ type ExploreKind = keyof Messages["home"]["explore"]["items"];
 const LOOKUPS: { kind: LookupKind; href: string }[] = [
 	...CARD_KINDS.map((kind) => ({ kind, href: `/me/${kind}` })),
 	...CARD_PAGES.map((page) => ({ kind: page.id, href: page.href })),
+	...TOOL_PAGES.map((page) => ({ kind: page.id, href: page.href })),
 ];
 const NEW_KINDS: ReadonlySet<LookupKind | ExploreKind> = new Set([
-	"simulate",
-	"phira",
-	"pv",
-	"collection",
+	"targets",
+	"progress",
+	"trend",
+	"guess",
 ]);
 const ICONS: Record<LookupKind | ExploreKind, typeof ArrowRight> = {
 	b30: SquaresFour,
@@ -50,12 +55,16 @@ const ICONS: Record<LookupKind | ExploreKind, typeof ArrowRight> = {
 	song: Ranking,
 	tags: Tag,
 	simulate: Flask,
+	targets: Target,
+	progress: GridFour,
+	trend: TrendUp,
 	songs: MagnifyingGlass,
 	phira: Package,
 	score: Calculator,
 	files: FolderOpen,
 	pv: FilmStrip,
 	collection: BookOpenText,
+	guess: ImageSquare,
 };
 const EXPLORE: { kind: ExploreKind; href: string }[] = [
 	{ kind: "songs", href: "/songs" },
@@ -64,6 +73,7 @@ const EXPLORE: { kind: ExploreKind; href: string }[] = [
 	{ kind: "files", href: "/files" },
 	{ kind: "pv", href: "/files?view=pv" },
 	{ kind: "collection", href: "/files?view=collection" },
+	{ kind: "guess", href: "/guess" },
 ];
 
 function RowText({

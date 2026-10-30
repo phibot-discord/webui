@@ -206,6 +206,16 @@ test("unbind never lists users and deletes the token-keyed save", async () => {
 	);
 });
 
+test("unbind turns compare off and keeps the share link", async () => {
+	kv.set(kvKey("userToken", "p6"), TOKEN);
+	kv.set(kvKey("webShareUser", "p6"), "sharedSlug12");
+	kv.set(kvKey("webShare", "sharedSlug12"), "p6");
+	kv.set(kvKey("webCompare", "sharedSlug12"), "1");
+	assert.deepEqual(await unbindAccount("p6"), { ok: true });
+	assert.equal(kv.has(kvKey("webCompare", "sharedSlug12")), false);
+	assert.equal(kv.get(kvKey("webShare", "sharedSlug12")), "p6");
+});
+
 test("unbinding with nothing bound is not_bound", async () => {
 	assert.deepEqual(await unbindAccount("p5"), {
 		error: "not_bound",

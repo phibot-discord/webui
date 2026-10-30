@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { CardNav } from "@/components/CardNav";
 import { Desk } from "@/components/Desk";
 import { SongSimulation } from "@/components/SongSimulation";
 import { signInHref } from "@/i18n/server";
@@ -27,7 +26,7 @@ export default async function SimulatePage() {
 		if ("gate" in loaded) return loaded.gate;
 		const got = simBaseOf(loaded.bound);
 		return (
-			<Desk {...loaded.desk} nav={<CardNav current="simulate" />}>
+			<Desk {...loaded.desk}>
 				<SongSimulation
 					userId={userId}
 					playerId={got.playerId}

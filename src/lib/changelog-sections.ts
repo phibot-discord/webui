@@ -3,6 +3,109 @@ import type { ChangeRelease } from "./changelog";
 /** Every release's items, newest first, loaded only when the dialog opens */
 export const CHANGELOG_RELEASES: ChangeRelease[] = [
 	{
+		date: "2026-10-31",
+		sections: [
+			{
+				heading: { en: "Navigation", zh: "导航" },
+				items: [
+					{
+						en: "The top bar now has three menus: Tools, Scores and Files. Hover over one, or click it, to see its pages. Your avatar opens your Account.",
+						zh: "顶栏改为三个菜单：工具、成绩和资源。将鼠标移到菜单上或点击即可看到其中的页面。点击头像即可打开账号页面。",
+					},
+					{
+						en: "Simulation, Targets and Tags moved from the Cards tabs to Tools, next to Score control, Nicknames, Phira and Guess the song.",
+						zh: "曲目模拟、推分目标和谱面标签从成绩图标签移到了「工具」，与分数计算器、曲目别名、Phira 和猜曲绘放在一起。",
+						href: "/simulate",
+					},
+				],
+			},
+			{
+				heading: { en: "Song pages", zh: "曲目页面" },
+				items: [
+					{
+						en: "Every song has its own page: illustration, composer, illustrator, chapter, BPM, and each chart's constant, note count, note types and charter. Signed in, you also see your score and rank on each chart.",
+						zh: "每首曲目都有了自己的页面：曲绘、曲师、画师、章节、BPM，以及每张谱面的定数、物量、音符类型和谱师。登录后还能看到你在每张谱面上的成绩与排名。",
+						href: "/songs",
+					},
+					{
+						en: "Chart versions lists how each chart changed across older Phigros versions. Pick two versions to compare note counts, note types, judge lines and notes per second, second by second.",
+						zh: "「谱面版本」列出每张谱面在旧版 Phigros 中的变化。选择两个版本，即可对比物量、音符类型、判定线数量，以及逐秒的音符密度。",
+					},
+					{
+						en: "Search results on Nicknames link to the song page, and the song page opens Phira with that song already picked.",
+						zh: "曲目别名的搜索结果会链接到曲目页面，曲目页面可直接打开已选好该曲目的 Phira 页面。",
+						href: "/songs",
+					},
+				],
+			},
+			{
+				heading: { en: "New Cards tabs", zh: "成绩图新标签" },
+				items: [
+					{
+						en: "Targets lists the accuracy each chart needs to push your RKS up to the next step, with filters by level. Each song links to its song page.",
+						zh: "「推分目标」列出每张谱面把 RKS 推到下一档所需的准确率，可按难度筛选，点击曲名即可打开曲目页面。",
+						href: "/targets",
+					},
+					{
+						en: "Progress shows how many charts you have cleared, full combo'd and All Perfect'd, by difficulty and constant. Pick a cell to list its charts.",
+						zh: "「完成度」按难度和定数显示通关、Full Combo 和 All Perfect 的谱面数量，点击格子即可列出其中的谱面。",
+						href: "/progress",
+					},
+					{
+						en: "Trend draws your RKS over time and lists the scores that went up, newest first.",
+						zh: "「走势」绘制 RKS 随时间的变化，并按时间倒序列出提升过的成绩。",
+						href: "/trend",
+					},
+					{
+						en: "More now has Download scores: every chart you have played, as CSV or JSON.",
+						zh: "「更多」菜单新增「下载成绩」：以 CSV 或 JSON 导出你玩过的所有谱面。",
+						href: "/me",
+					},
+				],
+			},
+			{
+				heading: { en: "Sharing", zh: "分享" },
+				items: [
+					{
+						en: "Compare players puts two players side by side: RKS, clears by difficulty, best 30 and every chart both have played. A player can be compared only after turning on Allow compare in their Share link menu; it is off by default.",
+						zh: "「玩家对比」可并排查看两位玩家：RKS、各难度通关、Best 30，以及两人都玩过的每张谱面。玩家需在「分享链接」菜单中打开「允许对比」才能被对比，默认关闭。",
+						href: "/compare",
+					},
+					{
+						en: "The Share link menu has an RKS badge for GitHub profiles and forum signatures, in six styles, with Markdown and HTML to copy.",
+						zh: "「分享链接」菜单新增 RKS 徽章，可用于 GitHub 主页和论坛签名，提供六种样式，可复制 Markdown 或 HTML。",
+						href: "/me",
+					},
+				],
+			},
+			{
+				heading: { en: "Guess the song", zh: "猜曲绘" },
+				items: [
+					{
+						en: "A daily puzzle: name the song from a close-up of its illustration, blurred, recoloured and inverted. Each wrong guess zooms out and clears it up. Practice puzzles never run out.",
+						zh: "每日一题：从经过模糊、变色和反色处理的曲绘特写中猜出曲目。每猜错一次，画面就会拉远并变得更清晰。练习题可以无限游玩。",
+						href: "/guess",
+					},
+					{
+						en: "A timer runs from Start, and signed-in players can join the daily leaderboard, ranked by fewest tries, then fastest time.",
+						zh: "按下「开始」后开始计时；登录后可加入每日排行榜，先比尝试次数，再比用时。",
+						href: "/guess",
+					},
+				],
+			},
+			{
+				heading: { en: "Terms and privacy", zh: "条款与隐私" },
+				items: [
+					{
+						en: "Every section of the terms and the privacy policy now starts with a one-line TL;DR. Both pages cover comparing, the badge, score downloads and the Guess the song leaderboard.",
+						zh: "使用条款和隐私政策的每一节开头都新增了一句话总结。两份文件都已加入对比、徽章、成绩下载和猜曲绘排行榜的说明。",
+						href: "/privacy",
+					},
+				],
+			},
+		],
+	},
+	{
 		date: "2026-10-28",
 		sections: [
 			{

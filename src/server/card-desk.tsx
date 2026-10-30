@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { BypassCacheButton } from "@/components/BypassCacheButton";
 import { MeGate } from "@/components/Desk";
+import { ExportRecords } from "@/components/ExportRecords";
 import Link from "@/components/LocaleLink";
 import { MoreMenu } from "@/components/MoreMenu";
 import { RefreshButton } from "@/components/RefreshButton";
@@ -72,6 +73,7 @@ export async function loadCardDesk(
 					<ShareToggle slug={shareSlug} />
 					<MoreMenu>
 						<BypassCacheButton cooldownMs={bypassCooldown} />
+						<ExportRecords />
 						{got.manual ? <UnbindButton manual inline /> : null}
 					</MoreMenu>
 				</>

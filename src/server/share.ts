@@ -4,6 +4,7 @@ import { getDataHost } from "./data-host";
 
 const SHARE = (slug: string) => kvKey("webShare", slug);
 const SHARE_USER = (userId: string) => kvKey("webShareUser", userId);
+const COMPARE = (slug: string) => kvKey("webCompare", slug);
 
 const slugMem = new Map<string, { userId: string; at: number }>();
 const SLUG_MEMO_MS = 60_000;
@@ -58,6 +59,7 @@ export async function revokeShare(userId: string): Promise<void> {
 	if (slug) {
 		slugMem.delete(slug);
 		await host.db.del(SHARE(slug));
+		await host.db.del(COMPARE(slug));
 	}
 	for (const [s, hit] of slugMem) if (hit.userId === userId) slugMem.delete(s);
 	await host.db.del(SHARE_USER(userId));
@@ -72,4 +74,36 @@ export async function moveShare(from: string, to: string): Promise<void> {
 	await host.db.set(SHARE_USER(to), slug);
 	await host.db.del(SHARE_USER(from));
 	rememberSlug(slug, to);
+}
+
+export async function getCompareOptIn(userId: string): Promise<boolean> {
+	const slug = await getShareSlug(userId);
+	if (!slug) return false;
+	const host = await getDataHost();
+	return (await host.db.get(COMPARE(slug))) === "1";
+}
+
+export async function setCompareOptIn(
+	userId: string,
+	on: boolean,
+): Promise<"ok" | "no_share"> {
+	const slug = await getShareSlug(userId);
+	if (!slug) return "no_share";
+	const host = await getDataHost();
+	if (on) await host.db.set(COMPARE(slug), "1");
+	else await host.db.del(COMPARE(slug));
+	return "ok";
+}
+
+export async function disableCompare(userId: string): Promise<void> {
+	await setCompareOptIn(userId, false);
+}
+
+export async function comparableUser(
+	slug: string,
+): Promise<string | undefined> {
+	const userId = await userIdForSlug(slug);
+	if (!userId) return undefined;
+	const host = await getDataHost();
+	return (await host.db.get(COMPARE(slug))) === "1" ? userId : undefined;
 }

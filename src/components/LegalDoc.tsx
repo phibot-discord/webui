@@ -74,6 +74,9 @@ export async function LegalPage({
 						</span>
 						{s.title}
 					</h2>
+					<p className="legal-tldr">
+						<strong>{m.legal.tldr}</strong> {s.tldr}
+					</p>
 					{s.body.map((block) =>
 						Array.isArray(block) ? (
 							<ul key={block[0]}>

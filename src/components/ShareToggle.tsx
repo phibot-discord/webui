@@ -3,6 +3,8 @@
 import { GlobeSimple } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { BadgeSnippet } from "@/components/BadgeSnippet";
+import { CompareOptIn } from "@/components/CompareOptIn";
 import {
 	Announce,
 	SteadyButton,
@@ -177,6 +179,8 @@ export function ShareToggle({ slug }: { slug?: string | null }) {
 						</button>
 					</div>
 					<Announce>{copy === "copied" ? m.share.copied : ""}</Announce>
+					<CompareOptIn key={liveSlug} />
+					<BadgeSnippet slug={liveSlug} />
 				</ToolPop>
 			) : null}
 			{error && !open ? (

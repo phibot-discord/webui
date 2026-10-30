@@ -11,8 +11,14 @@ export type CardKind = (typeof CARD_KINDS)[number];
 
 /** The Cards page's other tabs, after the card kinds: pages of their own that work from the same bound save */
 export const CARD_PAGES = [
-	{ id: "tags", href: "/tags" },
+	{ id: "progress", href: "/progress" },
+	{ id: "trend", href: "/trend" },
+] as const;
+
+export const TOOL_PAGES = [
 	{ id: "simulate", href: "/simulate" },
+	{ id: "targets", href: "/targets" },
+	{ id: "tags", href: "/tags" },
 ] as const;
 const PUBLIC_KINDS = ["b30", "hisb30", "info"] as const;
 export type PublicKind = (typeof PUBLIC_KINDS)[number];

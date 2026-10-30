@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import test, { beforeEach } from "node:test";
 import {
+	comparableUser,
 	createShare,
+	disableCompare,
+	getCompareOptIn,
+	moveShare,
 	resetShareMemForTest,
 	revokeShare,
+	setCompareOptIn,
 	userIdForSlug,
 } from "./share";
 
@@ -77,4 +82,50 @@ test("revoking forgets the slug in this process", async () => {
 	);
 	await revokeShare("u3");
 	assert.equal(await userIdForSlug(slug), undefined);
+});
+
+test("compare is off until the owner turns it on, and needs a share", async () => {
+	assert.equal(await setCompareOptIn("u4", true), "no_share");
+	const slug = await createShare("u4");
+	assert.equal(await getCompareOptIn("u4"), false);
+	assert.equal(await comparableUser(slug), undefined);
+	assert.equal(await setCompareOptIn("u4", true), "ok");
+	assert.equal(await getCompareOptIn("u4"), true);
+	assert.equal(await comparableUser(slug), "u4");
+	await setCompareOptIn("u4", false);
+	assert.equal(await comparableUser(slug), undefined);
+});
+
+test("revoking the share drops compare, and a new share starts with it off", async () => {
+	const slug = await createShare("u5");
+	await setCompareOptIn("u5", true);
+	await revokeShare("u5");
+	assert.equal(kv.has(`phi:webCompare:${slug}`), false);
+	assert.equal(await comparableUser(slug), undefined);
+	const next = await createShare("u5");
+	assert.notEqual(next, slug);
+	assert.equal(await getCompareOptIn("u5"), false);
+});
+
+test("compare follows a moved share, and is dropped when the move revokes", async () => {
+	const slug = await createShare("tap:a");
+	await setCompareOptIn("tap:a", true);
+	await moveShare("tap:a", "d1");
+	assert.equal(await comparableUser(slug), "d1");
+	assert.equal(await getCompareOptIn("d1"), true);
+
+	const other = await createShare("tap:b");
+	await setCompareOptIn("tap:b", true);
+	await createShare("d2");
+	await moveShare("tap:b", "d2");
+	assert.equal(await comparableUser(other), undefined);
+	assert.equal(kv.has(`phi:webCompare:${other}`), false);
+});
+
+test("unbinding turns compare off but keeps the share", async () => {
+	const slug = await createShare("u6");
+	await setCompareOptIn("u6", true);
+	await disableCompare("u6");
+	assert.equal(await userIdForSlug(slug), "u6");
+	assert.equal(await comparableUser(slug), undefined);
 });

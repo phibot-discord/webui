@@ -24,10 +24,12 @@ import {
 import { useChartCatalog } from "@/components/ChartSearch";
 import Link from "@/components/LocaleLink";
 import { Announce, useHydrated } from "@/components/Tool";
+import type { Locale } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
 import { CHART_LEVELS, type ChartSummary } from "@/lib/chart-catalog";
 import { localePath } from "@/lib/locale-path";
+import { songPath } from "@/lib/song-path";
 import { looseFold, rankSongs, type SongMatch } from "@/lib/song-search";
 import { fill } from "@/phi/lib/card-i18n";
 
@@ -54,10 +56,10 @@ function clip(raw: string | null, max: number): string {
 	return (raw ?? "").trim().slice(0, max);
 }
 
-function replaceQuery(written: RefObject<string>, q: string) {
+function replaceQuery(written: RefObject<string>, q: string, locale: Locale) {
 	if (q === written.current) return;
 	written.current = q;
-	window.history.replaceState(null, "", songsHref(q));
+	window.history.replaceState(null, "", localePath(songsHref(q), locale));
 }
 
 function langOf(text: string): string | undefined {
@@ -161,9 +163,12 @@ export function SongLookup({
 
 	useEffect(() => {
 		if (trimmed === written.current) return;
-		const timer = setTimeout(() => replaceQuery(written, trimmed), SETTLE_MS);
+		const timer = setTimeout(
+			() => replaceQuery(written, trimmed, locale),
+			SETTLE_MS,
+		);
 		return () => clearTimeout(timer);
-	}, [trimmed]);
+	}, [trimmed, locale]);
 
 	useEffect(() => {
 		if (!typed) return;
@@ -191,7 +196,7 @@ export function SongLookup({
 	const show = (q: string) => {
 		setQuery(q);
 		setTyped(true);
-		replaceQuery(written, q.trim());
+		replaceQuery(written, q.trim(), locale);
 	};
 
 	const onSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -402,7 +407,9 @@ function SongHit({
 		<article className="song-hit" aria-labelledby={`${id}-t`}>
 			<div className="song-hit-head">
 				<h3 id={`${id}-t`} className="song-hit-title" lang={langOf(song.song)}>
-					{song.song}
+					<Link href={songPath(song.id)} prefetch={false}>
+						{song.song}
+					</Link>
 				</h3>
 				{song.composer || label ? (
 					<p className="song-hit-meta">
@@ -453,17 +460,28 @@ function SongHit({
 					<p className="song-hit-none">{t.noNicknames}</p>
 				)}
 			</div>
-			{signedIn && top ? (
+			<div className="song-hit-actions">
 				<Link
-					className="btn btn-ghost btn-sm song-hit-card"
-					href={`/me/song?chart=${encodeURIComponent(song.id)}&level=${top}`}
+					className="btn btn-ghost btn-sm"
+					href={songPath(song.id)}
 					prefetch={false}
-					aria-label={fill(t.cardFor, { song: song.song })}
+					aria-label={fill(t.songPageFor, { song: song.song })}
 				>
-					{t.card}
+					{t.songPage}
 					<ArrowRight size={16} weight="bold" aria-hidden />
 				</Link>
-			) : null}
+				{signedIn && top ? (
+					<Link
+						className="btn btn-ghost btn-sm"
+						href={`/me/song?chart=${encodeURIComponent(song.id)}&level=${top}`}
+						prefetch={false}
+						aria-label={fill(t.cardFor, { song: song.song })}
+					>
+						{t.card}
+						<ArrowRight size={16} weight="bold" aria-hidden />
+					</Link>
+				) : null}
+			</div>
 		</article>
 	);
 }

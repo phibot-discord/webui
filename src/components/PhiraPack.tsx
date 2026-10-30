@@ -143,7 +143,7 @@ function PhiraMp({ onSay }: { onSay: (text: string) => void }) {
 	);
 }
 
-export function PhiraPack() {
+export function PhiraPack({ initialId }: { initialId?: string }) {
 	const { m } = useI18n();
 	const t = m.phira;
 	const catalog = useChartCatalog(true);
@@ -163,7 +163,16 @@ export function PhiraPack() {
 		Partial<Record<PackLevel, Download>>
 	>({});
 	const [said, setSaid] = useState("");
+	const wanted = useRef(initialId);
 	const songId = song?.id;
+
+	useEffect(() => {
+		const want = wanted.current;
+		if (!want || catalog.status !== "ready") return;
+		wanted.current = undefined;
+		const hit = catalog.list.find((s) => s.id === want);
+		if (hit) setSong(hit);
+	}, [catalog]);
 
 	useEffect(() => {
 		if (!songId) return;

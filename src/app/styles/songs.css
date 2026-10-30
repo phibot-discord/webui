@@ -347,9 +347,11 @@
 	font-size: var(--text-sm);
 }
 
-.song-hit-card {
+.song-hit-actions {
 	grid-column: 1 / -1;
-	justify-self: start;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
 }
 
 @media (max-width: 39.99em) {
@@ -371,8 +373,9 @@
 		font-size: var(--text-md);
 	}
 
-	.song-hit-card {
-		justify-self: stretch;
+	.song-hit-actions > * {
+		flex: 1 1 auto;
+		justify-content: center;
 	}
 }
 

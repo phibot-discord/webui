@@ -4,14 +4,15 @@ import { useParams, useSearchParams } from "next/navigation";
 import { defaultCardSize } from "@/components/card-shape";
 import { useI18n } from "@/i18n/provider";
 import { parseCardStyle } from "@/phi/lib/card-styles";
-import { CARD_KINDS, CARD_PAGES } from "@/server/card-kinds";
+import { CARD_KINDS, CARD_PAGES, TOOL_PAGES } from "@/server/card-kinds";
 
 export function DeskSkeleton({ current }: { current?: string }) {
 	const { m } = useI18n();
 	const params = useParams<{ kind?: string }>();
 	const query = useSearchParams();
 	const kind = current ?? params?.kind ?? "b30";
-	const page = CARD_PAGES.some((p) => p.id === kind);
+	const tool = TOOL_PAGES.some((p) => p.id === kind);
+	const page = tool || CARD_PAGES.some((p) => p.id === kind);
 	const [w, h] = defaultCardSize(
 		kind,
 		parseCardStyle(kind, query?.get("style")),
@@ -32,15 +33,17 @@ export function DeskSkeleton({ current }: { current?: string }) {
 					<span className="sk sk-btn" />
 				</div>
 			</div>
-			<ul className="card-nav" aria-hidden="true">
-				{[...CARD_KINDS, ...CARD_PAGES.map((p) => p.id)].map((key) => (
-					<li key={key}>
-						<span className="sk-tab" data-current={key === kind || undefined}>
-							{m.nav[key]}
-						</span>
-					</li>
-				))}
-			</ul>
+			{tool ? null : (
+				<ul className="card-nav" aria-hidden="true">
+					{[...CARD_KINDS, ...CARD_PAGES.map((p) => p.id)].map((key) => (
+						<li key={key}>
+							<span className="sk-tab" data-current={key === kind || undefined}>
+								{m.nav[key]}
+							</span>
+						</li>
+					))}
+				</ul>
+			)}
 			{page ? null : (
 				<>
 					<div className="card-toolbar" aria-hidden="true">
