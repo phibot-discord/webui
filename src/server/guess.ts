@@ -1,12 +1,14 @@
-import { createHmac } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import sharp from "sharp";
 import { bareId } from "@/lib/chart-catalog";
 import { GUESS_STEPS } from "@/lib/guess";
 import { songPath } from "@/lib/song-path";
 import { getInfo } from "@/phi/lib/get-info";
-import { chartCatalog } from "./charts";
+import { evictOldest } from "@/phi/lib/lru";
+import { type ChartSummary, chartCatalog } from "./charts";
+import { illKey } from "./ill";
 import { logger } from "./logger";
-import { fetchR2Object, publicObjectUrl, r2Config } from "./r2";
+import { fetchR2Object, publicObjectUrl } from "./r2";
 
 export const GUESS_W = 640;
 export const GUESS_H = 360;
@@ -70,13 +72,62 @@ export function rngFrom(seed: Buffer): () => number {
 	};
 }
 
-export function pickIndex(puzzle: string, size: number, key?: string): number {
-	if (size <= 0) return -1;
-	return seedBytes(`answer:${puzzle}`, key).readUInt32LE(0) % size;
+export function pickAnswer<T extends { id: string }>(
+	puzzle: string,
+	pool: readonly T[],
+	key?: string,
+): T | undefined {
+	let best: T | undefined;
+	let top = -1;
+	for (const song of pool) {
+		const score = seedBytes(`answer:${puzzle}:${song.id}`, key).readUIntBE(
+			0,
+			6,
+		);
+		if (score > top) {
+			top = score;
+			best = song;
+		}
+	}
+	return best;
 }
+
+const CLUE_TOKEN_BYTES = 12;
+
+export function clueToken(puzzle: string, step: number, key?: string): string {
+	return seedBytes(`clue:${puzzle}:${step}`, key)
+		.subarray(0, CLUE_TOKEN_BYTES)
+		.toString("base64url");
+}
+
+export function clueTokenOk(
+	puzzle: string,
+	step: number,
+	token: string,
+	key?: string,
+): boolean {
+	const want = Buffer.from(clueToken(puzzle, step, key));
+	const got = Buffer.from(token);
+	return got.length === want.length && timingSafeEqual(got, want);
+}
+
+export function clueUrl(puzzle: string, step: number): string {
+	return `/api/guess/image?${new URLSearchParams({
+		p: puzzle,
+		s: String(step),
+		k: clueToken(puzzle, step),
+	})}`;
+}
+
+let poolMemo: { list: readonly ChartSummary[]; songs: GuessSong[] } | undefined;
 
 export async function guessPool(): Promise<GuessSong[]> {
 	const { list } = await chartCatalog();
+	if (poolMemo?.list !== list) poolMemo = { list, songs: poolOf(list) };
+	return poolMemo.songs;
+}
+
+function poolOf(list: readonly ChartSummary[]): GuessSong[] {
 	return list
 		.filter((s) => {
 			const info = getInfo.ori_info[s.id];
@@ -91,15 +142,23 @@ export async function guessPool(): Promise<GuessSong[]> {
 		.sort((a, b) => (a.id < b.id ? -1 : 1));
 }
 
+const ANSWERS_MAX = 256;
+const answers = new Map<string, GuessSong | undefined>();
+let answersPool: readonly GuessSong[] | undefined;
+
 export async function answerFor(
 	puzzle: string,
 ): Promise<GuessSong | undefined> {
 	const pool = await guessPool();
-	return pool[pickIndex(puzzle, pool.length)];
-}
-
-function illKey(stem: string, size: "ill" | "illLow"): string {
-	return `${r2Config().prefix || "original_ill"}/${size}/${stem}.png`;
+	if (answersPool !== pool) {
+		answersPool = pool;
+		answers.clear();
+	}
+	if (answers.has(puzzle)) return answers.get(puzzle);
+	const answer = pickAnswer(puzzle, pool);
+	answers.set(puzzle, answer);
+	evictOldest(answers, ANSWERS_MAX);
+	return answer;
 }
 
 export function answerView(song: GuessSong): GuessAnswer {
@@ -107,7 +166,7 @@ export function answerView(song: GuessSong): GuessAnswer {
 		id: song.id,
 		title: song.title,
 		composer: song.composer,
-		jacket: publicObjectUrl(illKey(song.stem, "illLow")),
+		jacket: publicObjectUrl(illKey(song.stem, "low")),
 		path: songPath(song.id),
 	};
 }
@@ -115,11 +174,8 @@ export function answerView(song: GuessSong): GuessAnswer {
 const jackets = new Map<string, Promise<Buffer | undefined>>();
 const JACKETS_MAX = 24;
 
-function jacket(
-	stem: string,
-	size: "ill" | "illLow",
-): Promise<Buffer | undefined> {
-	const key = illKey(stem, size);
+function jacket(stem: string): Promise<Buffer | undefined> {
+	const key = illKey(stem, "common");
 	const hit = jackets.get(key);
 	if (hit) {
 		jackets.delete(key);
@@ -128,38 +184,42 @@ function jacket(
 	}
 	const job = fetchR2Object(key, { cache: "no-store" }).catch(() => undefined);
 	jackets.set(key, job);
-	while (jackets.size > JACKETS_MAX) {
-		const oldest = jackets.keys().next().value;
-		if (oldest === undefined) break;
-		jackets.delete(oldest);
-	}
+	evictOldest(jackets, JACKETS_MAX);
+	void job.then((buf) => {
+		if (!buf && jackets.get(key) === job) jackets.delete(key);
+	});
 	return job;
 }
 
-const images = new Map<string, Buffer>();
+const images = new Map<string, Promise<Buffer | undefined>>();
 const IMAGES_MAX = 48;
 
-function remember(key: string, buf: Buffer) {
-	images.delete(key);
-	images.set(key, buf);
-	while (images.size > IMAGES_MAX) {
-		const oldest = images.keys().next().value;
-		if (oldest === undefined) break;
-		images.delete(oldest);
-	}
-}
-
-export async function puzzleImage(
+export function puzzleImage(
 	puzzle: string,
 	step: number,
 ): Promise<Buffer | undefined> {
-	const cacheKey = `${puzzle}:${step}`;
-	const hot = images.get(cacheKey);
-	if (hot) return hot;
-	const pool = await guessPool();
-	const answer = pool[pickIndex(puzzle, pool.length)];
+	const key = `${puzzle}:${step}`;
+	const hit = images.get(key);
+	if (hit) return hit;
+	const job = renderPuzzle(puzzle, step);
+	images.set(key, job);
+	evictOldest(images, IMAGES_MAX);
+	const forget = () => {
+		if (images.get(key) === job) images.delete(key);
+	};
+	job.then((buf) => {
+		if (!buf) forget();
+	}, forget);
+	return job;
+}
+
+async function renderPuzzle(
+	puzzle: string,
+	step: number,
+): Promise<Buffer | undefined> {
+	const answer = await answerFor(puzzle);
 	if (!answer) return undefined;
-	const full = await jacket(answer.stem, "ill");
+	const full = await jacket(answer.stem);
 	if (!full) {
 		logger.warn(`guess: no jacket for ${answer.id}`);
 		return undefined;
@@ -200,7 +260,5 @@ export async function puzzleImage(
 	}
 	let out = sharp(img);
 	if (at(INVERT, s)) out = out.negate({ alpha: false });
-	const jpeg = await out.jpeg({ quality: 80, mozjpeg: true }).toBuffer();
-	remember(cacheKey, jpeg);
-	return jpeg;
+	return out.jpeg({ quality: 80, mozjpeg: true }).toBuffer();
 }

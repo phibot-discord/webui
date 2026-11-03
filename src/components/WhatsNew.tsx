@@ -21,7 +21,7 @@ import { stripLocale } from "@/lib/locale-path";
 const COFFEE_URL = "https://buymeacoffee.com/yuemiyuki";
 const SHOW_DELAY_MS = 900;
 
-export function WhatsNew({ auto = true }: { auto?: boolean }) {
+export function WhatsNew() {
 	const { m, locale } = useI18n();
 	const t = m.notice;
 	const path = usePathname();
@@ -34,10 +34,10 @@ export function WhatsNew({ auto = true }: { auto?: boolean }) {
 	const shared = bare.startsWith("/p/") || bare.startsWith("/render/");
 
 	useEffect(() => {
-		if (!auto || shared || !shouldOpen(readSeen())) return;
+		if (shared || !shouldOpen(readSeen())) return;
 		const timer = window.setTimeout(() => setOpen(true), SHOW_DELAY_MS);
 		return () => window.clearTimeout(timer);
-	}, [auto, shared]);
+	}, [shared]);
 
 	useEffect(() => {
 		const show = () => setOpen(true);

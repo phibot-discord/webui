@@ -7,7 +7,11 @@ import {
 	packOf,
 	splitTree,
 } from "../lib/assets";
-import { parseHistoryManifest } from "./history";
+import {
+	parseHistoryLatest,
+	parseHistoryManifest,
+	parseHistoryTables,
+} from "./history";
 
 const MANIFEST = {
 	v: 1,
@@ -60,4 +64,45 @@ test("history/<apk>/ is a side tree: kinds, packs and chart JSON read through it
 		"phira/AT/A.x-AT.pez",
 	]);
 	assert.deepEqual(splitTree("historyx/a"), ["", "historyx/a"]);
+	assert.deepEqual(splitTree("history/4.0.1.2/info/info.csv"), [
+		"history/4.0.1.2/",
+		"info/info.csv",
+	]);
+	assert.equal(assetKind("history/4.0.1.2/info/info.csv"), "info");
+});
+
+test("history tables need a version, a code and their own key", () => {
+	assert.deepEqual(
+		parseHistoryTables({
+			tables: {
+				"4.0.1.2": { code: 160, key: "history/4.0.1.2/info/info.csv", at: 1 },
+				"4.0.1.1-158": { code: 158, key: "history/4.0.1.1-158/info/info.csv" },
+				"4.0.1": { code: 157, key: "history/other/info.csv" },
+				bad: { code: 1, key: "history/bad/info/info.csv" },
+				"4.0.2": { code: "161", key: "history/4.0.2/info/info.csv" },
+			},
+		}),
+		[
+			{
+				version: "4.0.1.1-158",
+				code: 158,
+				key: "history/4.0.1.1-158/info/info.csv",
+			},
+			{ version: "4.0.1.2", code: 160, key: "history/4.0.1.2/info/info.csv" },
+		],
+	);
+	assert.deepEqual(parseHistoryTables(MANIFEST), []);
+	assert.deepEqual(parseHistoryTables(null), []);
+});
+
+test("the newest recorded build is the highest code among listed versions", () => {
+	assert.deepEqual(
+		parseHistoryLatest({
+			versions: ["4.0.1", "4.0.1.1", "4.0.1.2"],
+			codes: { "4.0.1.1": 159, "4.0.1.2": 160, "9.9": 999 },
+		}),
+		{ version: "4.0.1.2", code: 160 },
+	);
+	assert.equal(parseHistoryLatest({ versions: ["4.0.1"] }), undefined);
+	assert.equal(parseHistoryLatest(null), undefined);
 });

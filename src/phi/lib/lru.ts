@@ -1,4 +1,4 @@
-export function evictOldest(map: Map<string, unknown>, max: number) {
+export function evictOldest<K>(map: Map<K, unknown>, max: number) {
 	while (map.size > max) {
 		const oldest = map.keys().next().value;
 		if (oldest === undefined) break;

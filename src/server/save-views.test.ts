@@ -58,19 +58,21 @@ test("trend points are sorted and the current save is added once", () => {
 	);
 });
 
-test("each recorded score becomes an improvement, newest first", () => {
+test("each recorded score becomes an improvement, newest first, whatever the stored order", () => {
 	const events = trendEvents({
 		scoreHistory: {
 			"a.0": {
 				IN: [
-					["99.0000", 990_000, "2026-10-05T00:00:00Z", true],
 					["97.5000", 970_000, "2026-10-01T00:00:00Z", false],
+					["99.0000", 990_000, "2026-10-05T00:00:00Z", true],
+					["90.0000", 900_000, "2026-09-20T00:00:00Z", false],
 				],
 			},
 		},
 	});
-	assert.equal(events.length, 2);
+	assert.equal(events.length, 3);
 	assert.equal(events[0]?.after.acc, 99);
 	assert.deepEqual(events[0]?.before, { acc: 97.5, score: 970_000 });
-	assert.equal(events[1]?.before, null);
+	assert.deepEqual(events[1]?.before, { acc: 90, score: 900_000 });
+	assert.equal(events[2]?.before, null);
 });

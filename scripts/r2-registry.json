@@ -2,34 +2,46 @@
 	"v": 1,
 	"about": "Who writes what in the phi-web-assets bucket. Each prefix has one writer; a writer never touches another's keys. Uploaded as index.json at the bucket root by webui scripts/r2-upload.mjs. Rendered cards live in the private bucket phi-web-cache, not here.",
 	"writers": {
-		"phi-unpackd": "Rust ripper (ill-sync-worker) on the assets machine. Runs by itself when TapTap ships a new version: lists R2, uploads only files whose size and MD5 differ, and removes keys it no longer produces under the prefixes it alone owns.",
-		"ill-sync": "Cloudflare Worker (ill-sync), cron. Mirrors phi-plugin's GitHub resources and community aliases; prunes only its own directories and refuses protected prefixes.",
-		"phi-specials": "Rust tool (ill-sync-worker-special), run by hand on the assets machine for anything that needs song, key or text knowledge.",
+		"phi-unpackd": "Rust ripper (ill-sync-worker repo) on the assets machine. Runs by itself when TapTap ships a new version: lists R2, uploads only files whose size and MD5 differ, and removes keys it no longer produces under the prefixes it alone owns.",
+		"ill-sync": "Cloudflare Worker (ill-sync repo), cron. Mirrors phi-plugin's GitHub resources and community aliases; prunes only its own directories and refuses protected prefixes.",
+		"phi-specials": "Rust tool (phi-specials repo), run by hand on the assets machine and only for special version releases, for work that needs knowledge of specific songs, keys or texts.",
 		"pv-overlay": "Render pipeline (pv-overlay folder), run by hand; upload.sh sends its output.",
 		"story-timeline": "Limbo Wiki crawl and reading pipeline (story-timeline folder), run by hand; publish.sh checks the data and sends it with webui scripts/r2-upload.mjs.",
 		"webui-scripts": "webui scripts/publish-*.ts, run by hand; built on any machine and sent with scripts/r2-upload.mjs, every index.json last.",
 		"webui": "The site itself."
 	},
 	"caching": {
-		"about": "Cache Rules on the phibot.dev zone.",
+		"about": "Cache Rules on the phibot.dev zone (Caching > Cache Rules), for r2.phibot.dev; every matching rule applies and later rules win. The site adds ?v=<first 12 hex of the R2 etag> to every R2 link it makes (server/r2.ts publicObjectUrl), so a link changes exactly when its file does. The footer's Refresh files button adds a 30-day personal token to v. R2 sends no Cache-Control header, so rules without an explicit edge TTL get Cloudflare's default of 2 h for a 200. Rule 4's browser TTL is 2 h because the Free plan offers nothing shorter there.",
 		"rules": [
 			{
-				"match": "original_ill/, music/, phira/, chart/, html/",
+				"match": "original_ill/, music/, phira/, chart/, html/ (but original_ill/levels.json)",
 				"edge": "30d",
 				"browser": "1d",
 				"why": "change only when the game updates"
 			},
 			{
-				"match": "4-1/, removed/, history/, info/oldInfo/, c9s6/, deduction/, collection-art/, texts/images/, pv/video/, pv/overlay/, pv/special/",
+				"match": "4-1/, removed/, info/oldInfo/, c9s6/, deduction/, collection-art/, texts/images/, pv/video/, pv/overlay/, pv/special/ (but their index.json and specials.json)",
 				"edge": "1y",
-				"browser": "30d",
+				"browser": "1 month",
 				"why": "archives and story art that never change"
 			},
 			{
-				"match": "info/ (but oldInfo/), tips/, _sync/, collection/, texts/*.json, web-cards/, every index.json and specials.json, original_ill/levels.json; only without ?v",
+				"match": "history/ (but history/index.json)",
+				"edge": "1y",
+				"browser": "1y",
+				"why": "superseded charts; a version folder is never rewritten"
+			},
+			{
+				"match": "only without ?v: info/ (but oldInfo/), tips/, collection/, texts/*.json, every index.json and specials.json, original_ill/levels.json",
+				"edge": "2h (Cloudflare's default)",
+				"browser": "2h",
+				"why": "data that changes in place; the site reads these through the API, so only the bot and scripts see an edge copy up to 2 h old"
+			},
+			{
+				"match": "_sync/, web-cards/",
 				"edge": "never",
 				"browser": "never",
-				"why": "data that changes in place; the site reads these through the API"
+				"why": "rewritten on every run"
 			},
 			{
 				"match": "any ?v= link",
@@ -38,8 +50,9 @@
 				"why": "content-addressed"
 			}
 		],
-		"errors": "4xx stay at the edge 60s, 5xx are never kept. A Response Header Transform Rule on each zone (\"R2 errors: no browser cache\", http.response.code ge 400) sends Cache-Control: no-store to browsers",
-		"purge": "Nothing purges after a game update: unversioned game files can be up to 30 days old at the edge. The zone token has no Cache Purge permission"
+		"errors": "4xx stay at the edge for 60s and 5xx are never kept. A Response Header Transform Rule on each zone (\"R2 errors: no browser cache\", http.response.code ge 400) sends Cache-Control: no-store to browsers.",
+		"purge": "Nothing purges after a game update, so an unversioned game file can be up to 30 days old at the edge. The zone token has no Cache Purge permission. An edge copy keeps the TTL it was stored with, so after changing a rule, purge the affected URLs by hand (Caching > Configuration > Purge Cache > Custom Purge).",
+		"cors": "Bucket CORS policy, set 2026-11-03 with wrangler r2 bucket cors set: GET and HEAD from https://phibot.dev, https://www.phibot.dev, https://pv.phibot.dev (preview deployments) and, for development, http://localhost:3000, :3123 and :3471. Other sites get no Access-Control-Allow-Origin header. The edge caches a separate copy per Origin (Vary: Origin), so a copy cached for a plain request never answers a CORS one. The site adds cors=1 to the links its scripts fetch (chart player, song downloads), so the browser does not reuse a copy that an <img> or <audio> loaded without CORS. Response Header Transform Rules cannot set Access-Control-Allow-Origin. Add any new site origin to the policy."
 	},
 	"trees": [
 		{
@@ -167,7 +180,7 @@
 			"prefix": "history/",
 			"writer": "phi-unpackd",
 			"script": "scripts/publish-history.ts (the first 13 APKs)",
-			"contents": "<apk>/ older revisions of charts, one copy of the main layout per APK. Each new build, the ripper keeps the charts it changes or drops (by content, not bytes) under the previous version and adds their eras; a build published out of order is added with --insert-build; it never deletes here",
+			"contents": "<apk>/ holds older chart revisions, one copy of the main layout per APK. On each new build the ripper compares charts by content, keeps the ones that changed or were dropped under the previous version, and adds their eras. A build published out of order is added with --insert-build. Each build's info.csv is kept as <version>/info/info.csv and listed under `tables` in the index; older builds were added with --save-table. The ripper never deletes here.",
 			"manifest": "history/index.json"
 		},
 		{

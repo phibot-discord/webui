@@ -108,6 +108,7 @@ function mockDb(opts: { log: string[]; save?: string }) {
 		},
 		del: async () => undefined,
 		keys: async () => [],
+		list: async () => [],
 	} satisfies Kv;
 }
 

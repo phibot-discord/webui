@@ -18,6 +18,30 @@ export type Target = {
 	apGain: number;
 };
 
+export type TargetRow = {
+	id: string;
+	rank: LevelKind;
+	c: number;
+	acc: number | null;
+	need: number;
+	ap: boolean;
+	gain: number;
+};
+
+export type ReachableTarget = Target & { need: number };
+
+export function targetOfRow(r: TargetRow): ReachableTarget {
+	return {
+		id: r.id,
+		rank: r.rank,
+		difficulty: r.c,
+		acc: r.acc,
+		need: r.need,
+		viaAp: r.ap,
+		apGain: r.gain,
+	};
+}
+
 export type TargetSet = {
 	rks: number;
 	goal: number;
@@ -27,6 +51,10 @@ export type TargetSet = {
 export function rksGoal(rks: number): number {
 	const step = Math.floor(rks * 100) / 100 + 0.005;
 	return step > rks ? step : step + 0.01;
+}
+
+export function shownGoal(goal: number): string {
+	return ((Math.floor(goal * 100) + 1) / 100).toFixed(2);
 }
 
 export function accForRks(rks: number, difficulty: number): number {
@@ -108,7 +136,10 @@ export function targetsFor(
 
 export type TargetSort = "gap" | "need" | "constant" | "ap";
 
-export function sortTargets(list: readonly Target[], by: TargetSort): Target[] {
+export function sortTargets<T extends Target>(
+	list: readonly T[],
+	by: TargetSort,
+): T[] {
 	const reachable = (t: Target) => (t.need == null ? 1 : 0);
 	const gap = (t: Target) =>
 		t.need == null ? Number.POSITIVE_INFINITY : t.need - (t.acc ?? 0);

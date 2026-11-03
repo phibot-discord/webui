@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { LevelKind } from "./const";
 import { type SimBaseRecord, simulate } from "./simulation";
-import { rksGoal, sortTargets, targetsFor } from "./targets";
+import { rksGoal, shownGoal, sortTargets, targetsFor } from "./targets";
 
 function seeded(seed: number) {
 	let s = seed >>> 0;
@@ -43,6 +43,8 @@ test("the goal is the next 0.005 step above the current RKS", () => {
 	assert.equal(rksGoal(16.7073).toFixed(4), "16.7150");
 	assert.equal(rksGoal(16.701).toFixed(4), "16.7050");
 	assert.equal(rksGoal(16.705).toFixed(4), "16.7150");
+	assert.equal(shownGoal(rksGoal(16.0412)), "16.05");
+	assert.equal(shownGoal(rksGoal(16.0462)), "16.06");
 });
 
 test("every reachable target is the lowest accuracy that reaches the goal", () => {

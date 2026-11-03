@@ -54,6 +54,12 @@ export function applyGuess(
 	};
 }
 
+export function runStep(run: Pick<GuessRun, "guesses" | "status">): number {
+	return run.status === "playing"
+		? Math.min(GUESS_STEPS - 1, run.guesses.length)
+		: GUESS_STEPS - 1;
+}
+
 export function compareEntries(a: BoardEntry, b: BoardEntry): number {
 	return (
 		a.tries - b.tries ||

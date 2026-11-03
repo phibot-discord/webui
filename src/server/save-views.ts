@@ -1,22 +1,17 @@
 import { type ChartStatus, chartStatus } from "@/lib/chart-status";
+import { type SimilarIndex, suggestFrom } from "@/lib/similar";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
 import type { Save } from "@/phi/lib/save";
 import { openHistory, type SaveHistory } from "@/phi/lib/save-history";
-import { type TargetChart, targetsFor } from "@/phi/lib/targets";
+import {
+	type TargetChart,
+	type TargetRow,
+	targetsFor,
+} from "@/phi/lib/targets";
 import type { ChartSummary } from "./charts";
 import { simBaseOf } from "./simulation";
 
 export type SongNames = Record<string, string>;
-
-export type TargetRow = {
-	id: string;
-	rank: LevelKind;
-	c: number;
-	acc: number | null;
-	need: number;
-	ap: boolean;
-	gain: number;
-};
 
 export type TargetsView = {
 	rks: number;
@@ -110,6 +105,55 @@ export function targetsView(
 	};
 }
 
+export type SuggestionRow = {
+	id: string;
+	rank: string;
+	c: number;
+	seed: { id: string; rank: string };
+};
+
+export type SuggestionsView = {
+	basis: "ap" | "fc" | "best";
+	rows: SuggestionRow[];
+	songs: SongNames;
+};
+
+const SEEDS_MAX = 30;
+const SEEDS_MIN = 5;
+const SUGGEST_MAX = 10;
+
+export function suggestionsView(
+	save: Save,
+	index: SimilarIndex,
+	list: readonly ChartSummary[],
+): SuggestionsView {
+	const played = save.getRecord().filter((r) => r.score > 0);
+	const byConstant = (rows: typeof played) =>
+		[...rows].sort((a, b) => b.difficulty - a.difficulty).slice(0, SEEDS_MAX);
+	const ap = played.filter((r) => r.score >= 1_000_000);
+	const fc = played.filter((r) => r.fc || r.score >= 1_000_000);
+	const basis: SuggestionsView["basis"] =
+		ap.length >= SEEDS_MIN ? "ap" : fc.length >= SEEDS_MIN ? "fc" : "best";
+	const seeds =
+		basis === "ap"
+			? byConstant(ap)
+			: basis === "fc"
+				? byConstant(fc)
+				: [...played].sort((a, b) => b.rks - a.rks).slice(0, SEEDS_MAX);
+	const done = new Set(played.map((r) => `${r.id}:${r.rank}`));
+	const rows = suggestFrom(
+		index,
+		seeds.map((r) => ({ id: r.id, rank: r.rank })),
+		(f) => !done.has(`${f.id}:${f.rank}`),
+		SUGGEST_MAX,
+	).map((s) => ({ id: s.id, rank: s.rank, c: s.c, seed: s.seed }));
+	return {
+		basis,
+		rows,
+		songs: namesFor(list, new Set(rows.flatMap((r) => [r.id, r.seed.id]))),
+	};
+}
+
 export function progressView(
 	save: Save,
 	list: readonly ChartSummary[],
@@ -163,15 +207,16 @@ export function trendEvents(
 	for (const [id, levels] of Object.entries(history.scoreHistory)) {
 		for (const [rank, list] of Object.entries(levels ?? {})) {
 			if (!list?.length) continue;
-			const opened = list.map(openHistory).reverse();
+			const opened = list
+				.map(openHistory)
+				.filter((h) => Number.isFinite(h.date.getTime()))
+				.sort((a, b) => a.date.getTime() - b.date.getTime());
 			opened.forEach((cur, i) => {
-				const t = cur.date.getTime();
-				if (!Number.isFinite(t)) return;
-				const prev = i > 0 ? opened[i - 1] : undefined;
+				const prev = opened[i - 1];
 				events.push({
 					id,
 					rank,
-					t,
+					t: cur.date.getTime(),
 					before: prev ? { acc: prev.acc, score: prev.score } : null,
 					after: { acc: cur.acc, score: cur.score, fc: cur.fc },
 				});

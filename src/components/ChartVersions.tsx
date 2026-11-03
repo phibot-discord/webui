@@ -2,6 +2,7 @@
 
 import {
 	type KeyboardEvent,
+	memo,
 	type PointerEvent,
 	useEffect,
 	useId,
@@ -10,13 +11,11 @@ import {
 } from "react";
 import { Announce } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
+import { versionSpan } from "@/lib/apk-version";
 import { CHART_LEVELS } from "@/lib/chart-catalog";
-import {
-	type ChartStats,
-	diffStats,
-	formatDuration,
-	type NoteKinds,
-} from "@/lib/chart-stats";
+import { type ChartStats, diffStats, type NoteKinds } from "@/lib/chart-stats";
+import { formatDuration } from "@/lib/pv";
+import { stepKey } from "@/lib/trend-chart";
 import { fill } from "@/phi/lib/card-i18n";
 import type { SongLevelView, SongPageView } from "@/server/song-page";
 
@@ -31,16 +30,6 @@ const KINDS: (keyof NoteKinds)[] = ["tap", "drag", "hold", "flick"];
 const CURRENT = "current";
 const STRIP_H = 44;
 const BAR_W = 4;
-
-function shownVersion(version: string): string {
-	return version.replace(/-(\d+)$/, " ($1)");
-}
-
-function versionSpan(versions: string[]): string {
-	const first = shownVersion(versions[0] ?? "");
-	const last = shownVersion(versions.at(-1) ?? "") || first;
-	return first === last ? first : `${first} – ${last}`;
-}
 
 function signed(n: number): string {
 	if (!n) return "0";
@@ -87,6 +76,35 @@ function useStats(id: string, level: string, ver: string): Loaded {
 	return loaded;
 }
 
+const Bars = memo(function Bars({
+	values,
+	scale,
+	mid,
+	diff,
+}: {
+	values: number[];
+	scale: number;
+	mid: number;
+	diff?: boolean;
+}) {
+	return values.map((v, i) => {
+		if (!v) return null;
+		const h = Math.max(1.5, Math.abs(v) * scale);
+		return (
+			<rect
+				// biome-ignore lint/suspicious/noArrayIndexKey: one bar per second, the index is the second
+				key={i}
+				x={i * BAR_W + 0.5}
+				width={BAR_W - 1}
+				y={v > 0 ? mid - h : mid}
+				height={h}
+				rx={1}
+				data-sign={diff ? (v > 0 ? "up" : "down") : undefined}
+			/>
+		);
+	});
+});
+
 function Strip({
 	values,
 	seconds,
@@ -113,17 +131,7 @@ function Strip({
 		onAt(Math.min(seconds - 1, Math.max(0, Math.floor(x))));
 	};
 	const key = (e: KeyboardEvent<SVGSVGElement>) => {
-		const cur = at ?? 0;
-		const next =
-			e.key === "ArrowLeft"
-				? Math.max(0, cur - 1)
-				: e.key === "ArrowRight"
-					? Math.min(seconds - 1, cur + 1)
-					: e.key === "Home"
-						? 0
-						: e.key === "End"
-							? seconds - 1
-							: undefined;
+		const next = stepKey(e.key, at ?? 0, seconds - 1);
 		if (next == null) return;
 		e.preventDefault();
 		onAt(next);
@@ -145,22 +153,7 @@ function Strip({
 			{diff ? (
 				<line className="cv-mid" x1={0} x2={w} y1={mid} y2={mid} />
 			) : null}
-			{values.map((v, i) => {
-				if (!v) return null;
-				const h = Math.max(1.5, Math.abs(v) * scale);
-				return (
-					<rect
-						// biome-ignore lint/suspicious/noArrayIndexKey: one bar per second, the index is the second
-						key={i}
-						x={i * BAR_W + 0.5}
-						width={BAR_W - 1}
-						y={v > 0 ? mid - h : mid}
-						height={h}
-						rx={1}
-						data-sign={diff ? (v > 0 ? "up" : "down") : undefined}
-					/>
-				);
-			})}
+			<Bars values={values} scale={scale} mid={mid} diff={diff} />
 			{at != null ? (
 				<rect
 					className="cv-at"
@@ -192,6 +185,13 @@ function Compare({
 	const a = useStats(id, rank, from);
 	const b = useStats(id, rank, to);
 	const [at, setAt] = useState<number>();
+	const diff = useMemo(
+		() =>
+			a.state === "ok" && b.state === "ok"
+				? diffStats(a.stats, b.stats)
+				: undefined,
+		[a, b],
+	);
 
 	if (a.state === "loading" || b.state === "loading") {
 		return (
@@ -200,7 +200,7 @@ function Compare({
 			</p>
 		);
 	}
-	if (a.state === "failed" || b.state === "failed") {
+	if (a.state === "failed" || b.state === "failed" || !diff) {
 		return (
 			<p className="callout" role="alert">
 				{t.failed}
@@ -209,7 +209,6 @@ function Compare({
 	}
 	const sa = a.stats;
 	const sb = b.stats;
-	const diff = diffStats(sa, sb);
 	const seconds = Math.max(sa.density.length, sb.density.length);
 	const max = Math.max(...sa.density, ...sb.density, 1);
 	const maxDiff = Math.max(...diff.density.map(Math.abs), 1);

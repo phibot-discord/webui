@@ -3,6 +3,7 @@ import { displayPlayerId } from "@/lib/player-display";
 import { loadBound } from "@/server/bound";
 import { getDataHost } from "@/server/data-host";
 import { withDiscordUid } from "@/server/logger";
+import { clientIp, rateLimit } from "@/server/rate-limit";
 import { userIdForSlug } from "@/server/share";
 
 export const runtime = "nodejs";
@@ -11,7 +12,12 @@ export const dynamic = "force-dynamic";
 const CACHE =
 	"public, max-age=600, s-maxage=1800, stale-while-revalidate=86400";
 
-function svg(body: string, status: number, cache: string) {
+function svg(
+	body: string,
+	status: number,
+	cache: string,
+	extra: Record<string, string> = {},
+) {
 	return new Response(body, {
 		status,
 		headers: {
@@ -20,6 +26,7 @@ function svg(body: string, status: number, cache: string) {
 			"Content-Security-Policy":
 				"default-src 'none'; style-src 'unsafe-inline'",
 			"X-Content-Type-Options": "nosniff",
+			...extra,
 		},
 	});
 }
@@ -31,6 +38,12 @@ export async function GET(
 	const { slug } = await ctx.params;
 	const style = parseBadgeStyle(new URL(request.url).searchParams.get("style"));
 	const id = slug.replace(/\.svg$/, "");
+	const limited = rateLimit({ ip: `badge:${clientIp(request.headers)}` });
+	if (!limited.ok) {
+		return svg(badgeSvg({ name: "PhiBot" }, style), 429, "no-store", {
+			"Retry-After": String(limited.retryAfter),
+		});
+	}
 	const userId = await userIdForSlug(id);
 	const missing = () =>
 		svg(

@@ -23,6 +23,7 @@ export const OG_PAGES = [
 	"progress",
 	"trend",
 	"compare",
+	"versions",
 	"guess",
 	"manual",
 	"account",

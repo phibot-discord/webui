@@ -6,14 +6,6 @@ export type ClientMessages = ToolsMessages & {
 	meta: { title: string; description: string };
 	og: { cardAlt: string; pageAlt: string };
 	assetRefresh: { label: string; hint: string };
-	domainMove: {
-		label: string;
-		title: string;
-		text: string;
-		signIn: string;
-		go: string;
-		stay: string;
-	};
 	brand: string;
 	skip: string;
 	backToTop: string;
@@ -184,6 +176,7 @@ export type ClientMessages = ToolsMessages & {
 		collection: string;
 		timeline: string;
 		texts: string;
+		versions: string;
 		b30: string;
 		hisb30: string;
 		info: string;
@@ -782,15 +775,6 @@ export const en: ClientMessages = {
 		label: "Refresh files",
 		hint: "Load illustrations, music, videos and packs again instead of using the copies this browser keeps",
 	},
-	domainMove: {
-		label: "Site move",
-		title: "PhiBot has a new address",
-		text: "PhiBot is moving to phibot.dev. This address may stop working later, so update your bookmarks.",
-		signIn:
-			"You'll need to sign in again there; your account and saves stay as they are.",
-		go: "Go to phibot.dev",
-		stay: "Stay here for now",
-	},
 	brand: "PhiBot",
 	skip: "Skip to content",
 	backToTop: "Back to top",
@@ -1080,6 +1064,7 @@ export const en: ClientMessages = {
 		collection: "Collection",
 		timeline: "Story timeline",
 		texts: "Other resources",
+		versions: "Version changes",
 		b30: "B30",
 		hisb30: "History",
 		info: "Info",
@@ -1287,7 +1272,7 @@ export const en: ClientMessages = {
 		count: "{n} tags",
 	},
 	songs: {
-		title: "Song nicknames",
+		title: "Songs",
 		lede: "Look a song up by its title, a nickname players use for it, or its composer, then open its song page for every chart, its older versions and your scores.",
 		songPage: "Song page",
 		songPageFor: "Song page: {song}",
@@ -1788,14 +1773,6 @@ export const zh: ClientMessages = {
 		label: "刷新文件缓存",
 		hint: "重新加载曲绘、音乐、视频和谱面包，不使用浏览器保存的副本",
 	},
-	domainMove: {
-		label: "网站迁移",
-		title: "PhiBot 有新地址了",
-		text: "PhiBot 正在迁移到 phibot.dev，此地址以后可能停止服务，请更新书签。",
-		signIn: "在新地址需要重新登录，账号和存档不受影响。",
-		go: "前往 phibot.dev",
-		stay: "暂时留在这里",
-	},
 	brand: "PhiBot",
 	skip: "跳到正文",
 	backToTop: "回到顶部",
@@ -2052,6 +2029,7 @@ export const zh: ClientMessages = {
 		collection: "收藏品",
 		timeline: "剧情时间线",
 		texts: "其他资源",
+		versions: "版本变化",
 		b30: "B30",
 		hisb30: "历史",
 		info: "信息",

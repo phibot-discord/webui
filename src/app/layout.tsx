@@ -1,11 +1,9 @@
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata, Viewport } from "next";
-import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { auth } from "@/auth";
 import { BackToTop } from "@/components/BackToTop";
-import { DomainMove } from "@/components/DomainMove";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SkipLink } from "@/components/SkipLink";
@@ -13,8 +11,7 @@ import { WhatsNew } from "@/components/WhatsNew";
 import { localeTag } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/provider";
 import { getMessages, getRequestLocale } from "@/i18n/server";
-import { requestHost } from "@/lib/auth-url";
-import { isMovedHost, SITE_ORIGIN } from "@/lib/site";
+import { SITE_ORIGIN } from "@/lib/site";
 import { avatarPath } from "@/server/avatar";
 import { withDiscordUid } from "@/server/logger";
 import { THEME_COLORS } from "@/theme/config";
@@ -66,7 +63,6 @@ export default async function RootLayout({
 	return withDiscordUid(session?.user?.id, async () => {
 		const locale = await getRequestLocale();
 		const theme = await getRequestTheme();
-		const moved = isMovedHost(requestHost(await headers()));
 		const signedIn = Boolean(session?.user?.id);
 		return (
 			<html
@@ -81,7 +77,6 @@ export default async function RootLayout({
 					<I18nProvider locale={locale}>
 						<SkipLink />
 						<div className="shell">
-							{moved ? <DomainMove signedIn={signedIn} /> : null}
 							<SiteHeader
 								signedIn={signedIn}
 								name={session?.user?.name}
@@ -89,7 +84,7 @@ export default async function RootLayout({
 								theme={theme ?? "system"}
 							/>
 							{children}
-							<WhatsNew auto={!moved} />
+							<WhatsNew />
 							<SiteFooter />
 							<BackToTop />
 						</div>

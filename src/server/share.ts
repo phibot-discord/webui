@@ -95,10 +95,6 @@ export async function setCompareOptIn(
 	return "ok";
 }
 
-export async function disableCompare(userId: string): Promise<void> {
-	await setCompareOptIn(userId, false);
-}
-
 export async function comparableUser(
 	slug: string,
 ): Promise<string | undefined> {

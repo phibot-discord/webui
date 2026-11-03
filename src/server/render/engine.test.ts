@@ -271,11 +271,13 @@ test("an emoji Takumi cannot decode is dropped and not tried again", async () =>
 	const engine = new RenderEngine();
 	const html = `<html><body style="margin:0;background:#ffffff"><p style="margin:0;font-size:40px;line-height:40px">😀</p></body></html>`;
 	clearRemoteImageCache();
-	// Passes the byte sniff (starts with <svg, ends with </svg>) but is not XML
-	await remoteImageBytes(GRIN, async () =>
-		new TextEncoder().encode(
-			`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16"</svg>`,
-		),
+	// Passes the byte sniff (a PNG signature) but is cut off; Takumi 2.19 skips malformed SVGs instead of failing
+	await remoteImageBytes(
+		GRIN,
+		async () =>
+			new Uint8Array([
+				137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82,
+			]),
 	);
 	for (const height of [50, undefined]) {
 		const img = await engine.renderHtml(html, {

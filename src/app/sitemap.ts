@@ -13,6 +13,7 @@ const PAGES = [
 	"/score",
 	"/phira",
 	"/guess",
+	"/versions",
 	"/status",
 	"/privacy",
 	"/tos",

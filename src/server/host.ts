@@ -12,6 +12,15 @@ import {
 } from "./render/og-page";
 import type { PaintQuality } from "./render/paint-budget";
 import {
+	type ProgressSnap,
+	progressSnapHtml,
+	SNAP_PROGRESS,
+	SNAP_TARGETS,
+	SNAP_W,
+	type TargetsSnap,
+	targetsSnapHtml,
+} from "./render/snapshot";
+import {
 	type App,
 	defineTemplate,
 	type RenderedImage,
@@ -131,6 +140,23 @@ async function bootRender(): Promise<WebHost> {
 			format: "jpeg",
 			quality: 90,
 			html: (raw) => ogPageHtml(raw as OgPageData),
+		}),
+	);
+
+	app.template(
+		defineTemplate({
+			id: SNAP_PROGRESS,
+			width: SNAP_W,
+			format: "png",
+			html: (raw) => progressSnapHtml(raw as ProgressSnap),
+		}),
+	);
+	app.template(
+		defineTemplate({
+			id: SNAP_TARGETS,
+			width: SNAP_W,
+			format: "png",
+			html: (raw) => targetsSnapHtml(raw as TargetsSnap),
 		}),
 	);
 

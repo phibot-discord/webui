@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { CardNav } from "@/components/CardNav";
 import { Desk } from "@/components/Desk";
 import { ProgressGrid } from "@/components/ProgressGrid";
+import { SnapshotLinks } from "@/components/SnapshotLinks";
 import { signInHref } from "@/i18n/server";
 import { loadCardDesk } from "@/server/card-desk";
 import { chartCatalog } from "@/server/charts";
@@ -32,6 +33,7 @@ export default async function ProgressPage() {
 		return (
 			<Desk {...loaded.desk} nav={<CardNav current="progress" />}>
 				<ProgressGrid view={progressView(loaded.bound.save, catalog.list)} />
+				<SnapshotLinks view="progress" />
 			</Desk>
 		);
 	});

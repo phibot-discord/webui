@@ -15,7 +15,8 @@ export type NavItemId =
 	| "pv"
 	| "collection"
 	| "timeline"
-	| "texts";
+	| "texts"
+	| "versions";
 
 export type NavItem = { id: NavItemId; href: string; match: string[] };
 export type NavGroup = { id: NavGroupId; items: NavItem[] };
@@ -53,6 +54,7 @@ export const NAV_GROUPS: NavGroup[] = [
 			page("collection", "/files?view=collection", []),
 			page("timeline", "/files?view=timeline", []),
 			page("texts", "/files?view=texts", []),
+			page("versions", "/versions"),
 		],
 	},
 ];
@@ -60,7 +62,7 @@ export const NAV_GROUPS: NavGroup[] = [
 export const GROUP_MATCH: Record<NavGroupId, string[]> = {
 	tools: NAV_GROUPS[0]?.items.flatMap((i) => i.match) ?? [],
 	scores: ["/me", ...(NAV_GROUPS[1]?.items.flatMap((i) => i.match) ?? [])],
-	files: ["/files"],
+	files: ["/files", "/versions"],
 };
 
 export function isHere(path: string, match: readonly string[]): boolean {

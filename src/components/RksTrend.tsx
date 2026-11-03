@@ -3,7 +3,6 @@
 import {
 	type KeyboardEvent,
 	type PointerEvent,
-	useEffect,
 	useId,
 	useMemo,
 	useRef,
@@ -11,8 +10,9 @@ import {
 } from "react";
 import Link from "@/components/LocaleLink";
 import { SegRadio } from "@/components/SegRadio";
+import { useWidth } from "@/components/status/useWidth";
 import { Announce } from "@/components/Tool";
-import type { Locale } from "@/i18n/config";
+import { type Locale, localeTag } from "@/i18n/config";
 import { useI18n } from "@/i18n/provider";
 import { songPath } from "@/lib/song-path";
 import {
@@ -20,6 +20,7 @@ import {
 	inRange,
 	nearestIndex,
 	signedDelta,
+	stepKey,
 	TREND_RANGES,
 	type TrendRange,
 	timeTicks,
@@ -33,27 +34,12 @@ const PAD = { top: 12, right: 16, bottom: 28, left: 56 };
 const STEP = 30;
 
 function dayFormat(locale: Locale, withYear = true) {
-	return new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en", {
+	return new Intl.DateTimeFormat(localeTag(locale), {
 		timeZone: "Asia/Shanghai",
 		year: withYear ? "numeric" : undefined,
 		month: "short",
 		day: "numeric",
 	});
-}
-
-function useWidth() {
-	const ref = useRef<HTMLDivElement>(null);
-	const [width, setWidth] = useState(0);
-	useEffect(() => {
-		const node = ref.current;
-		if (!node) return;
-		const ro = new ResizeObserver(([entry]) => {
-			if (entry) setWidth(Math.round(entry.contentRect.width));
-		});
-		ro.observe(node);
-		return () => ro.disconnect();
-	}, []);
-	return { ref, width };
 }
 
 function TrendChart({
@@ -64,29 +50,33 @@ function TrendChart({
 	label: string;
 }) {
 	const { locale, m } = useI18n();
-	const { ref, width } = useWidth();
+	const ref = useRef<HTMLDivElement>(null);
+	const width = useWidth(ref);
 	const [at, setAt] = useState<number>();
 	const fmt = useMemo(() => dayFormat(locale), [locale]);
 	const tickFmt = useMemo(() => dayFormat(locale, false), [locale]);
 	const w = Math.max(width, 280);
-	const x0 = points[0]?.[0] ?? 0;
-	const x1 = points.at(-1)?.[0] ?? x0;
-	const values = points.map(([, v]) => v);
-	const { min, max, ticks } = valueTicks(
-		Math.min(...values),
-		Math.max(...values),
-	);
-	const plotW = w - PAD.left - PAD.right;
 	const plotH = H - PAD.top - PAD.bottom;
-	const sx = (t: number) =>
-		PAD.left + (x1 > x0 ? ((t - x0) / (x1 - x0)) * plotW : plotW / 2);
-	const sy = (v: number) => PAD.top + (1 - (v - min) / (max - min)) * plotH;
-	const xs = points.map(([t]) => sx(t));
-	const path = points
-		.map(
-			([t, v], i) => `${i ? "L" : "M"}${sx(t).toFixed(1)},${sy(v).toFixed(1)}`,
-		)
-		.join("");
+	const { x0, x1, ticks, sx, sy, xs, path } = useMemo(() => {
+		const x0 = points[0]?.[0] ?? 0;
+		const x1 = points.at(-1)?.[0] ?? x0;
+		const values = points.map(([, v]) => v);
+		const { min, max, ticks } = valueTicks(
+			Math.min(...values),
+			Math.max(...values),
+		);
+		const plotW = w - PAD.left - PAD.right;
+		const sx = (t: number) =>
+			PAD.left + (x1 > x0 ? ((t - x0) / (x1 - x0)) * plotW : plotW / 2);
+		const sy = (v: number) => PAD.top + (1 - (v - min) / (max - min)) * plotH;
+		const path = points
+			.map(
+				([t, v], i) =>
+					`${i ? "L" : "M"}${sx(t).toFixed(1)},${sy(v).toFixed(1)}`,
+			)
+			.join("");
+		return { x0, x1, ticks, sx, sy, xs: points.map(([t]) => sx(t)), path };
+	}, [points, w, plotH]);
 	const spanYears = x1 - x0 > 300 * 86_400_000;
 	const tFmt = spanYears ? fmt : tickFmt;
 	const hit = at != null ? points[at] : undefined;
@@ -100,17 +90,7 @@ function TrendChart({
 	};
 	const key = (e: KeyboardEvent<SVGSVGElement>) => {
 		const last = points.length - 1;
-		const cur = at ?? last;
-		const next =
-			e.key === "ArrowLeft"
-				? Math.max(0, cur - 1)
-				: e.key === "ArrowRight"
-					? Math.min(last, cur + 1)
-					: e.key === "Home"
-						? 0
-						: e.key === "End"
-							? last
-							: undefined;
+		const next = stepKey(e.key, at ?? last, last);
 		if (next == null) return;
 		e.preventDefault();
 		setAt(next);

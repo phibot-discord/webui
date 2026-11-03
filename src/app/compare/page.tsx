@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { sessionUserId } from "@/auth";
 import { CompareForm, CompareView } from "@/components/CompareView";
+import { formatDay } from "@/i18n/datetime";
 import { getMessages } from "@/i18n/server";
-import { compareSides } from "@/lib/compare";
+import { type CompareSide, compareSides } from "@/lib/compare";
 import { fill } from "@/phi/lib/card-i18n";
 import { chartCatalog } from "@/server/charts";
-import { loadCompareSide, type SideLoad } from "@/server/compare";
+import { loadCompareSide, pastDays, type SideLoad } from "@/server/compare";
 import { pageMetadata } from "@/server/og-meta";
 
 export const dynamic = "force-dynamic";
@@ -26,12 +27,27 @@ export default async function ComparePage({
 	const q = await searchParams;
 	const a = first(q.a);
 	const b = first(q.b);
-	const [viewer, { m }] = await Promise.all([sessionUserId(), getMessages()]);
+	const [viewer, { m, locale }] = await Promise.all([
+		sessionUserId(),
+		getMessages(),
+	]);
 	const t = m.compare;
-	const [sa, sb] = await Promise.all([
+	const [sa, sb, days] = await Promise.all([
 		loadCompareSide(a, viewer),
 		loadCompareSide(b, viewer),
+		pastDays(viewer).catch(() => []),
 	]);
+	for (const load of [sa, sb]) {
+		if (load.state === "ok" && load.day) {
+			load.side = {
+				...load.side,
+				name: fill(t.pastName, {
+					name: load.side.name,
+					date: formatDay(load.day, locale),
+				}),
+			};
+		}
+	}
 	const errorOf = (load: SideLoad, label: string) =>
 		load.state === "bad"
 			? fill(t.bad, { label })
@@ -39,7 +55,9 @@ export default async function ComparePage({
 				? fill(t.signin, { label })
 				: load.state === "unavailable"
 					? fill(t.unavailable, { label })
-					: undefined;
+					: load.state === "nohistory"
+						? fill(t.noHistory, { label })
+						: undefined;
 	const errors = [errorOf(sa, t.a), errorOf(sb, t.b)].filter((e): e is string =>
 		Boolean(e),
 	);
@@ -54,15 +72,34 @@ export default async function ComparePage({
 		const { list } = await chartCatalog();
 		const songs: Record<string, string> = {};
 		for (const song of list) if (ids.has(song.id)) songs[song.id] = song.song;
+		const player = ({ name, rks, challenge }: CompareSide) => ({
+			name,
+			rks,
+			challenge,
+		});
 		view = (
-			<CompareView a={sa.side} b={sb.side} result={result} songs={songs} />
+			<CompareView
+				a={player(sa.side)}
+				b={player(sb.side)}
+				result={result}
+				songs={songs}
+			/>
 		);
 	}
 	return (
 		<main id="content" className="page compare-page">
 			<h1>{t.title}</h1>
 			<p className="lede">{t.lede}</p>
-			<CompareForm a={a} b={b} signedIn={Boolean(viewer)} errors={errors} />
+			<CompareForm
+				a={a}
+				b={b}
+				signedIn={Boolean(viewer)}
+				errors={errors}
+				days={days.map((day) => ({ day, label: formatDay(day, locale) }))}
+			/>
+			{(sa.state === "ok" && sa.day) || (sb.state === "ok" && sb.day) ? (
+				<p className="field-hint">{t.pastNote}</p>
+			) : null}
 			{view}
 		</main>
 	);

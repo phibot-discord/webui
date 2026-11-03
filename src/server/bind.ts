@@ -8,7 +8,7 @@ import { type PlayerSummary, playerFromSave } from "./bound";
 import { type DataHost, getDataHost } from "./data-host";
 import { logger, withDiscordUid } from "./logger";
 import { clearManual, leaveManualMode } from "./manual";
-import { disableCompare } from "./share";
+import { setCompareOptIn } from "./share";
 import { ensureSongInfo } from "./song-info";
 
 export type BindServer = "cn" | "gb";
@@ -453,7 +453,7 @@ async function unbindAccountFor(
 		await clearQr(userId);
 		if (!had && !(await clearManual(userId)))
 			return { error: "not_bound", status: 409 };
-		await disableCompare(userId);
+		await setCompareOptIn(userId, false);
 		return { ok: true };
 	} catch (err) {
 		logger.error("unbind failed", err);

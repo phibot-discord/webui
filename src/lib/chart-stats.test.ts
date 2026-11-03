@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chartStats, diffStats, formatDuration } from "./chart-stats";
+import { chartStats, diffStats } from "./chart-stats";
 
 const line = (bpm: number, notes: [number, number, number?][]) => ({
 	bpm,
@@ -80,9 +80,4 @@ test("a diff compares counts and per-second density", () => {
 	assert.deepEqual(d.kinds, { tap: -1, drag: 2, hold: 0, flick: 0 });
 	assert.deepEqual(d.density, [0, 0, 1]);
 	assert.equal(d.changedSeconds, 1);
-});
-
-test("durations read as m:ss", () => {
-	assert.equal(formatDuration(125.4), "2:05");
-	assert.equal(formatDuration(0), "0:00");
 });

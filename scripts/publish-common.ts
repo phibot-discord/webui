@@ -1,4 +1,5 @@
 // Helpers shared by the publish-* scripts
+import { changesInPlace } from "../src/lib/assets";
 import { poolAll } from "../src/server/pool";
 
 type Note = { type: number };
@@ -21,8 +22,9 @@ export const publicBase = (
 ).replace(/\/$/, "");
 
 export async function fetchPublic(key: string, agent: string): Promise<Buffer> {
+	const fresh = changesInPlace(key) ? `?fresh=${Date.now()}` : "";
 	const res = await fetch(
-		`${publicBase}/${key.split("/").map(encodeURIComponent).join("/")}`,
+		`${publicBase}/${key.split("/").map(encodeURIComponent).join("/")}${fresh}`,
 		{ headers: { "User-Agent": `Mozilla/5.0 ${agent}` } },
 	);
 	if (!res.ok) throw new Error(`${key}: ${res.status}`);

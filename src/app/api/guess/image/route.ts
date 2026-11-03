@@ -1,5 +1,5 @@
-import { clampStep, puzzleKind } from "@/lib/guess";
-import { puzzleImage } from "@/server/guess";
+import { clampStep, dailyId, puzzleKind } from "@/lib/guess";
+import { clueTokenOk, puzzleImage } from "@/server/guess";
 import { localizedError } from "@/server/i18n-http";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 
@@ -13,7 +13,17 @@ export async function GET(request: Request) {
 	const puzzle = params.get("p") || "";
 	const kind = puzzleKind(puzzle);
 	if (!kind) return new Response(null, { status: 404 });
-	const image = await puzzleImage(puzzle, clampStep(params.get("s")));
+	const step = clampStep(params.get("s"));
+	if (
+		puzzle === dailyId() &&
+		!clueTokenOk(puzzle, step, params.get("k") ?? "")
+	) {
+		return new Response(null, {
+			status: 403,
+			headers: { "Cache-Control": "no-store" },
+		});
+	}
+	const image = await puzzleImage(puzzle, step);
 	if (!image) return new Response(null, { status: 503 });
 	return new Response(new Uint8Array(image), {
 		headers: {

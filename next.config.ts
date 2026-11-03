@@ -62,6 +62,7 @@ export const nonCardRoutes = [
 	"/api/bind/**",
 	"/api/cache/**",
 	"/api/charts",
+	"/api/chart-board",
 	"/api/chart-stats",
 	"/api/guess/**",
 	"/api/guess",
@@ -101,6 +102,7 @@ export const nonCardRoutes = [
 	"/progress",
 	"/trend",
 	"/tos",
+	"/versions",
 ];
 export const renderFonts = ["phi-assets/html/common/font/**", "src/fonts/**"];
 // next/font copies these into the static build; no function reads them
@@ -129,6 +131,8 @@ const nextConfig: NextConfig = {
 		"/api/og/share/*/*": phiRenderAssets,
 		"/api/og/share/[slug]/[kind]": phiRenderAssets,
 		"/api/og/share/[slug]/[kind]/route": phiRenderAssets,
+		"/api/snapshot": phiRenderAssets,
+		"/api/snapshot/route": phiRenderAssets,
 		"/api/refresh": phiInfoOnly,
 		"/api/bind/poll": phiInfoOnly,
 		"/api/bind/token": phiInfoOnly,

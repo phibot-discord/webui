@@ -35,11 +35,20 @@ export type TemplateDefinition = {
 	) => string | Promise<string>;
 };
 
+export type KvMeta = Record<string, unknown>;
+
 export type Kv = {
 	get: (key: string) => Promise<string | undefined>;
-	set: (key: string, value: string, ttlMs?: number) => Promise<void>;
+	set: (
+		key: string,
+		value: string,
+		ttlMs?: number,
+		meta?: KvMeta,
+	) => Promise<void>;
 	del: (key: string) => Promise<void>;
 	keys: (prefix?: string) => Promise<string[]>;
+	/** One LIST call per 1,000 keys; meta is what `set` stored, up to 60 s stale */
+	list: (prefix: string) => Promise<{ key: string; meta: unknown }[]>;
 };
 
 export type FontEntry = {

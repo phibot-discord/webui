@@ -1108,7 +1108,10 @@ function placementJson(p: Placement): PlacementJson {
 	};
 }
 
-async function within<T>(work: Promise<T>, ms: number): Promise<T | "late"> {
+export async function within<T>(
+	work: Promise<T>,
+	ms: number,
+): Promise<T | "late"> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const late = new Promise<"late">((resolve) => {
 		timer = setTimeout(() => resolve("late"), ms);

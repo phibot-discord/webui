@@ -29,10 +29,27 @@ export type SongHistory = {
 	eras: Era[];
 };
 
-const manifest = jsonLoader(
+export type HistoryTable = { version: string; code: number; key: string };
+
+export type HistoryBuild = { version: string; code: number };
+
+type HistoryManifest = {
+	songs: SongHistory[];
+	tables: HistoryTable[];
+	latest?: HistoryBuild;
+};
+
+const manifest = jsonLoader<HistoryManifest>(
 	HISTORY_MANIFEST_KEY,
-	parseHistoryManifest,
-	[] as SongHistory[],
+	(raw) => {
+		const latest = parseHistoryLatest(raw);
+		return {
+			songs: parseHistoryManifest(raw),
+			tables: parseHistoryTables(raw),
+			...(latest ? { latest } : {}),
+		};
+	},
+	{ songs: [], tables: [] },
 );
 
 function versionList(v: unknown): string[] {
@@ -76,8 +93,53 @@ export function parseHistoryManifest(raw: unknown): SongHistory[] {
 	return out;
 }
 
-export function loadHistory(): Promise<SongHistory[]> {
-	return manifest.load();
+export function parseHistoryTables(raw: unknown): HistoryTable[] {
+	const tables = (raw as { tables?: unknown } | null)?.tables;
+	if (!tables || typeof tables !== "object" || Array.isArray(tables)) return [];
+	const out: HistoryTable[] = [];
+	for (const [version, row] of Object.entries(tables)) {
+		const r = row as { code?: unknown; key?: unknown } | null;
+		const code = r?.code;
+		if (
+			!VERSION.test(version) ||
+			typeof code !== "number" ||
+			!Number.isInteger(code) ||
+			code <= 0
+		) {
+			continue;
+		}
+		if (r?.key !== `${HISTORY_PREFIX}/${version}/info/info.csv`) continue;
+		out.push({ version, code, key: r.key });
+	}
+	return out.sort((a, b) => a.code - b.code);
+}
+
+export function parseHistoryLatest(raw: unknown): HistoryBuild | undefined {
+	const r = raw as { versions?: unknown; codes?: unknown } | null;
+	const codes =
+		r?.codes && typeof r.codes === "object"
+			? (r.codes as Record<string, unknown>)
+			: {};
+	let best: HistoryBuild | undefined;
+	for (const version of versionList(r?.versions)) {
+		const code = codes[version];
+		if (typeof code !== "number" || !Number.isInteger(code) || code <= 0)
+			continue;
+		if (!best || code > best.code) best = { version, code };
+	}
+	return best;
+}
+
+export async function loadHistory(): Promise<SongHistory[]> {
+	return (await manifest.load()).songs;
+}
+
+export async function historyTables(): Promise<HistoryTable[]> {
+	return (await manifest.load()).tables;
+}
+
+export async function historyLatest(): Promise<HistoryBuild | undefined> {
+	return (await manifest.load()).latest;
 }
 
 export async function songHistory(

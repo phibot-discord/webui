@@ -35,6 +35,21 @@ export function songIllPath(
 		: join(originalIll, dir, png);
 }
 
+export function illKey(
+	stem: string,
+	kind: "common" | "low",
+	tree: IllTree = "normal",
+	level?: string,
+): string {
+	return songIllPath(
+		r2Config().prefix || "original_ill",
+		stem,
+		kind,
+		tree,
+		level,
+	);
+}
+
 function underIllTree(absPath: string): string | undefined {
 	const ill = illDir().replace(/\\/g, "/");
 	const n = absPath.replace(/\\/g, "/");

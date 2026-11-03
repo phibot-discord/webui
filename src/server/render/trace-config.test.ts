@@ -17,6 +17,7 @@ const CARD_ROUTES = [
 	"/api/public/[slug]/card/[kind]",
 	"/api/og/[id]",
 	"/api/og/share/[slug]/[kind]",
+	"/api/snapshot",
 ];
 
 function appRoutes() {

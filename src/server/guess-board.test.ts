@@ -11,17 +11,35 @@ import {
 } from "./guess-board";
 
 const kv = new Map<string, string>();
+const meta = new Map<string, unknown>();
+let lists = 0;
+let failEntries = false;
 const db = {
 	get: async (key: string) => kv.get(key),
-	set: async (key: string, value: string) => {
+	set: async (
+		key: string,
+		value: string,
+		_ttlMs?: number,
+		m?: Record<string, unknown>,
+	) => {
 		await new Promise((r) => setTimeout(r, 1));
+		if (failEntries && key.includes("guessEntry")) throw new Error("KV PUT");
 		kv.set(key, value);
+		if (m) meta.set(key, m);
+		else meta.delete(key);
 	},
 	del: async (key: string) => {
 		kv.delete(key);
+		meta.delete(key);
 	},
 	keys: async (prefix = "") =>
 		[...kv.keys()].filter((k) => k.startsWith(prefix)),
+	list: async (prefix: string) => {
+		lists += 1;
+		return [...kv.keys()]
+			.filter((k) => k.startsWith(prefix))
+			.map((key) => ({ key, meta: meta.get(key) }));
+	},
 };
 (globalThis as Record<string, unknown>).__phiDataHost = Promise.resolve({
 	db,
@@ -30,6 +48,9 @@ const db = {
 
 beforeEach(() => {
 	kv.clear();
+	meta.clear();
+	lists = 0;
+	failEntries = false;
 	resetGuessBoardForTest();
 });
 
@@ -139,7 +160,7 @@ test("a win with ranking off stays off the board, and a loss can't be added", as
 	assert.equal((await boardFor(DAY)).total, 0);
 });
 
-test("the whole day's board is one key, so reading it is one KV call", async () => {
+test("winners on different instances all land, and reading the board is one KV list", async () => {
 	for (const user of ["a", "b", "c"]) {
 		await startRun(DAY, user, 0);
 		await guessRun({
@@ -151,8 +172,30 @@ test("the whole day's board is one key, so reading it is one KV call", async () 
 			rank: true,
 			now: 9,
 		});
+		resetGuessBoardForTest();
 	}
-	const boardKeys = [...kv.keys()].filter((k) => k.includes("guessBoard"));
-	assert.deepEqual(boardKeys, [`phi:guessBoard:${DAY}`]);
+	lists = 0;
 	assert.equal((await boardFor(DAY)).total, 3);
+	assert.equal(lists, 1);
+	assert.equal(await isRanked(DAY, "b"), true);
+});
+
+test("a board write that fails still counts the win, unranked", async () => {
+	await startRun(DAY, "w", 0);
+	failEntries = true;
+	const done = await guessRun({
+		day: DAY,
+		user: "w",
+		name: "w",
+		answer: "a",
+		guess: "a",
+		rank: true,
+		now: 5,
+	});
+	assert.equal(done?.run.status, "won");
+	assert.equal(done?.ranked, false);
+	assert.equal(await isRanked(DAY, "w"), false);
+	failEntries = false;
+	assert.equal(await setRanked(DAY, "w", "w", true), true);
+	assert.equal((await boardFor(DAY)).total, 1);
 });

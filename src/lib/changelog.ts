@@ -7,8 +7,8 @@ export type ChangeRelease = { date: string; sections: ChangeSection[] };
 export type Changelog = { version: string; date: string };
 
 export const CHANGELOG: Changelog = {
-	version: "2026-10-31.1",
-	date: "2026-10-31",
+	version: "2026-11-03.2",
+	date: "2026-11-03",
 };
 
 const STORAGE_KEY = "phi-notice:whats-new";

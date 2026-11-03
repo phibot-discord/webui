@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs";
 import { cfFail, cfFetch } from "./cf-fetch";
 import { logger } from "./logger";
-import type { Kv } from "./sdk";
+import type { Kv, KvMeta } from "./sdk";
 
 type KvSetOptions = {
 	ttlMs?: number;
 	nx?: boolean;
 	background?: boolean;
+	meta?: KvMeta;
 };
 type Envelope = { d: string; e?: number };
 
@@ -84,6 +85,8 @@ function globToRegExp(pattern: string): RegExp {
 	return new RegExp(`^${escaped}$`);
 }
 
+export type KvListItem = { name: string; metadata?: unknown };
+
 export type RemoteKv = {
 	label: string;
 	getRaw: (key: string) => Promise<string | undefined>;
@@ -91,11 +94,25 @@ export type RemoteKv = {
 		key: string,
 		value: string,
 		ttlSec?: number,
-		opts?: { background?: boolean },
+		opts?: { background?: boolean; metadata?: string },
 	) => Promise<void>;
 	delRaw: (key: string) => Promise<void>;
-	listRaw: (prefix: string) => Promise<string[]>;
+	listRaw: (prefix: string) => Promise<KvListItem[]>;
 };
+
+function multipart(fields: Record<string, string>) {
+	const boundary = `phi${crypto.randomUUID().replaceAll("-", "")}`;
+	const body = Object.entries(fields)
+		.map(
+			([name, value]) =>
+				`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`,
+		)
+		.join("");
+	return {
+		type: `multipart/form-data; boundary=${boundary}`,
+		body: `${body}--${boundary}--\r\n`,
+	};
+}
 
 function restRemote(cfg: KvConfig): RemoteKv {
 	const accountId = cfg.accountId.trim();
@@ -123,10 +140,17 @@ function restRemote(cfg: KvConfig): RemoteKv {
 			const url = ttlSec
 				? `${base}/values/${encodeURIComponent(key)}?expiration_ttl=${ttlSec}`
 				: `${base}/values/${encodeURIComponent(key)}`;
+			const form =
+				opts?.metadata != null
+					? multipart({ value, metadata: opts.metadata })
+					: undefined;
 			const res = await cfFetch(url, {
 				method: "PUT",
-				headers: { ...headers, "Content-Type": "text/plain; charset=utf-8" },
-				body: value,
+				headers: {
+					...headers,
+					"Content-Type": form?.type ?? "text/plain; charset=utf-8",
+				},
+				body: form?.body ?? value,
 				background: opts?.background,
 			});
 			if (!res.ok) await cfFail(res, `KV PUT ${key}`);
@@ -139,7 +163,7 @@ function restRemote(cfg: KvConfig): RemoteKv {
 			if (!res.ok && res.status !== 404) await cfFail(res, `KV DELETE ${key}`);
 		},
 		listRaw: async (prefix) => {
-			const names: string[] = [];
+			const items: KvListItem[] = [];
 			let cursor = "";
 			for (;;) {
 				const params = new URLSearchParams({ limit: "1000" });
@@ -149,16 +173,18 @@ function restRemote(cfg: KvConfig): RemoteKv {
 				if (!res.ok) await cfFail(res, "KV LIST");
 				const body = (await res.json()) as {
 					success?: boolean;
-					result?: { name: string }[];
+					result?: KvListItem[];
 					result_info?: { cursor?: string };
 				};
 				if (!body.success) throw new Error("KV LIST failed");
-				for (const item of body.result || []) names.push(item.name);
+				for (const item of body.result || []) {
+					items.push({ name: item.name, metadata: item.metadata });
+				}
 				const next = body.result_info?.cursor;
 				if (!next) break;
 				cursor = next;
 			}
-			return names;
+			return items;
 		},
 	};
 }
@@ -185,6 +211,7 @@ export function localDataMode(): boolean {
 
 function localRemote(): RemoteKv {
 	const mem = new Map<string, string>();
+	const meta = new Map<string, unknown>();
 	const uid = process.env.PHI_LOCAL_UID?.trim() || "local-dev";
 	const token = "localdevtoken000000000000";
 	const savePath = process.env.PHI_LOCAL_SAVE?.trim() || "data/raw-save.json";
@@ -215,14 +242,19 @@ function localRemote(): RemoteKv {
 	return {
 		label: "local",
 		getRaw: async (key) => mem.get(key),
-		putRaw: async (key, value) => {
+		putRaw: async (key, value, _ttlSec, opts) => {
 			mem.set(key, value);
+			if (opts?.metadata != null) meta.set(key, JSON.parse(opts.metadata));
+			else meta.delete(key);
 		},
 		delRaw: async (key) => {
 			mem.delete(key);
+			meta.delete(key);
 		},
 		listRaw: async (prefix) =>
-			[...mem.keys()].filter((k) => k.startsWith(prefix)),
+			[...mem.keys()]
+				.filter((k) => k.startsWith(prefix))
+				.map((name) => ({ name, metadata: meta.get(name) })),
 	};
 }
 
@@ -308,13 +340,16 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 	const putRemote = async (
 		key: string,
 		envl: Envelope,
-		opts?: { background?: boolean },
+		opts?: { background?: boolean; meta?: KvMeta },
 	) => {
 		const ttlSec =
 			envl.e != null
 				? Math.max(CF_MIN_TTL_SEC, Math.ceil((envl.e - Date.now()) / 1000))
 				: undefined;
-		await remote.putRaw(key, encodeEnvelope(envl), ttlSec, opts);
+		await remote.putRaw(key, encodeEnvelope(envl), ttlSec, {
+			background: opts?.background,
+			...(opts?.meta ? { metadata: JSON.stringify(opts.meta) } : {}),
+		});
 	};
 
 	const getRemote = async (key: string): Promise<Envelope | undefined> => {
@@ -377,7 +412,10 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 			}
 			rememberWrite(key, env);
 			try {
-				await putRemote(key, env, { background: options?.background });
+				await putRemote(key, env, {
+					background: options?.background,
+					meta: options?.meta,
+				});
 			} catch (err) {
 				forget(key);
 				throw err;
@@ -411,7 +449,9 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 		const re = globToRegExp(pattern);
 		const prefix = globToPrefix(pattern);
 		const listed = await remote.listRaw(prefix === "*" ? "" : prefix);
-		const names = new Set<string>(listed.filter((name) => re.test(name)));
+		const names = new Set<string>(
+			listed.map((item) => item.name).filter((name) => re.test(name)),
+		);
 		const now = Date.now();
 		for (const [key, entry] of overlay) {
 			if (!alive(entry.env, now)) {
@@ -433,13 +473,21 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 
 	const db: Kv = {
 		get: async (key) => (await get(key)) ?? undefined,
-		set: async (key, value, ttlMs) => {
-			await write(key, value, ttlMs ? { ttlMs } : undefined);
+		set: async (key, value, ttlMs, meta) => {
+			await write(key, value, {
+				...(ttlMs ? { ttlMs } : {}),
+				...(meta ? { meta } : {}),
+			});
 		},
 		del: async (key) => {
 			await del(key);
 		},
 		keys: (prefix = "") => keys(prefix ? `${prefix}*` : "*"),
+		list: async (prefix) =>
+			(await remote.listRaw(prefix)).map((item) => ({
+				key: item.name,
+				meta: item.metadata,
+			})),
 	};
 
 	return { store, db, label: remote.label };

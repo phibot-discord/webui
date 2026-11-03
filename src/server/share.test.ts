@@ -3,7 +3,6 @@ import test, { beforeEach } from "node:test";
 import {
 	comparableUser,
 	createShare,
-	disableCompare,
 	getCompareOptIn,
 	moveShare,
 	resetShareMemForTest,
@@ -120,12 +119,4 @@ test("compare follows a moved share, and is dropped when the move revokes", asyn
 	await moveShare("tap:b", "d2");
 	assert.equal(await comparableUser(other), undefined);
 	assert.equal(kv.has(`phi:webCompare:${other}`), false);
-});
-
-test("unbinding turns compare off but keeps the share", async () => {
-	const slug = await createShare("u6");
-	await setCompareOptIn("u6", true);
-	await disableCompare("u6");
-	assert.equal(await userIdForSlug(slug), "u6");
-	assert.equal(await comparableUser(slug), undefined);
 });

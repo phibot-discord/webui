@@ -4,65 +4,33 @@ import { type CSSProperties, useId, useMemo, useRef, useState } from "react";
 import Link from "@/components/LocaleLink";
 import { SegRadio } from "@/components/SegRadio";
 import { useI18n } from "@/i18n/provider";
-import { type ChartStatus, STATUS_ORDER } from "@/lib/chart-status";
+import { STATUS_ORDER } from "@/lib/chart-status";
+import {
+	cellKey,
+	metricCount,
+	PROGRESS_METRICS,
+	type ProgressMetric,
+	progressGrid,
+} from "@/lib/progress-grid";
 import { songPath } from "@/lib/song-path";
 import { fill } from "@/phi/lib/card-i18n";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
 import type { ProgressRow, ProgressView } from "@/server/save-views";
 
-type Metric = "clear" | "fc" | "ap";
-const METRICS: Metric[] = ["clear", "fc", "ap"];
-const COUNTS: Record<Metric, ReadonlySet<ChartStatus>> = {
-	clear: new Set(["ap", "fc", "clear"]),
-	fc: new Set(["ap", "fc"]),
-	ap: new Set(["ap"]),
-};
-
-type Cell = { rows: ProgressRow[]; by: Record<ChartStatus, number> };
 type Pick = { rank: LevelKind; bucket: number | "all" };
-
-function emptyCell(): Cell {
-	return { rows: [], by: { ap: 0, fc: 0, clear: 0, played: 0, none: 0 } };
-}
-
-function countOf(cell: Cell, metric: Metric) {
-	let n = 0;
-	for (const s of COUNTS[metric]) n += cell.by[s];
-	return n;
-}
 
 export function ProgressGrid({ view }: { view: ProgressView }) {
 	const { m } = useI18n();
 	const t = m.progress;
 	const ids = useId();
 	const detail = useRef<HTMLHeadingElement>(null);
-	const [metric, setMetric] = useState<Metric>("clear");
+	const [metric, setMetric] = useState<ProgressMetric>("clear");
 	const [picked, setPicked] = useState<Pick>();
 
-	const { buckets, cells, totals } = useMemo(() => {
-		const cells = new Map<string, Cell>();
-		const totals = new Map<LevelKind, Cell>();
-		let lo = Number.POSITIVE_INFINITY;
-		let hi = 0;
-		for (const row of view.rows) {
-			const [, rank, constant, status] = row;
-			const bucket = Math.floor(constant);
-			lo = Math.min(lo, bucket);
-			hi = Math.max(hi, bucket);
-			const key = `${rank}:${bucket}`;
-			const cell = cells.get(key) ?? emptyCell();
-			cell.rows.push(row);
-			cell.by[status]++;
-			cells.set(key, cell);
-			const total = totals.get(rank) ?? emptyCell();
-			total.rows.push(row);
-			total.by[status]++;
-			totals.set(rank, total);
-		}
-		const buckets: number[] = [];
-		for (let b = hi; b >= lo; b--) buckets.push(b);
-		return { buckets, cells, totals };
-	}, [view.rows]);
+	const { buckets, cells, totals } = useMemo(
+		() => progressGrid<ProgressRow>(view.rows),
+		[view.rows],
+	);
 
 	if (!view.rows.length) {
 		return (
@@ -76,7 +44,7 @@ export function ProgressGrid({ view }: { view: ProgressView }) {
 	const cellAt = (p: Pick) =>
 		p.bucket === "all"
 			? totals.get(p.rank)
-			: cells.get(`${p.rank}:${p.bucket}`);
+			: cells.get(cellKey(p.rank, p.bucket));
 	const what = t.show[metric];
 	const top = [...LEVEL].reverse().find((rank) => totals.has(rank)) ?? "IN";
 	const shown: Pick = picked ?? { rank: top, bucket: "all" };
@@ -105,7 +73,7 @@ export function ProgressGrid({ view }: { view: ProgressView }) {
 			);
 		}
 		const total = cell.rows.length;
-		const n = countOf(cell, metric);
+		const n = metricCount(cell, metric);
 		const on =
 			shown.rank === p.rank && shown.bucket === p.bucket ? true : undefined;
 		return (
@@ -142,7 +110,10 @@ export function ProgressGrid({ view }: { view: ProgressView }) {
 					<SegRadio
 						legend={t.showLabel}
 						value={metric}
-						options={METRICS.map((value) => ({ value, label: t.show[value] }))}
+						options={PROGRESS_METRICS.map((value) => ({
+							value,
+							label: t.show[value],
+						}))}
 						onChange={setMetric}
 						note={t.legend}
 					/>

@@ -14,6 +14,7 @@ import {
 import { signOutAction } from "@/auth-actions";
 import Link from "@/components/LocaleLink";
 import { LocaleSwitch } from "@/components/LocaleSwitch";
+import { SearchPalette } from "@/components/SearchPalette";
 import { focusMain } from "@/components/SkipLink";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { useToolDismiss } from "@/components/Tool";
@@ -45,8 +46,8 @@ function NavGroupMenu({
 	open: boolean;
 	current: boolean;
 	path: string;
-	onOpen: (id: NavGroupId, focusFirst?: boolean) => void;
-	onClose: (focusTrigger?: boolean) => void;
+	onOpen: (id: NavGroupId) => void;
+	onClose: () => void;
 	onPick: (href: string) => void;
 }) {
 	const { m } = useI18n();
@@ -63,7 +64,7 @@ function NavGroupMenu({
 	const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
 		if (e.key === "Escape" && open) {
 			e.preventDefault();
-			onClose(true);
+			onClose();
 			trigger.current?.focus();
 			return;
 		}
@@ -290,6 +291,7 @@ export function SiteHeader({
 						) : null}
 					</div>
 				</div>
+				<SearchPalette signedIn={signedIn} />
 			</div>
 		</header>
 	);

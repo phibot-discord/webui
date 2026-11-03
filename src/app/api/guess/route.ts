@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
-import { clampStep, GUESS_STEPS, puzzleKind } from "@/lib/guess";
-import { answerFor, answerView } from "@/server/guess";
+import { clampStep, dayKey, GUESS_STEPS, puzzleKind } from "@/lib/guess";
+import { runStep } from "@/lib/guess-board";
+import { answerFor, answerView, clueUrl } from "@/server/guess";
 import { guessRun } from "@/server/guess-board";
 import { localizedError } from "@/server/i18n-http";
 import { clientIp, rateLimit } from "@/server/rate-limit";
@@ -21,6 +22,12 @@ export async function POST(request: Request) {
 	const puzzle = typeof body.p === "string" ? body.p : "";
 	const kind = puzzleKind(puzzle);
 	if (!kind) return Response.json({ error: "bad_request" }, { status: 400 });
+	const headers = { "Cache-Control": "no-store" };
+	const day = kind === "daily" ? puzzle.slice(2) : "";
+	const live = day !== "" && day === dayKey();
+	const session = kind === "daily" ? await auth() : null;
+	const user = session?.user?.id;
+	if (live && !user) return localizedError(401, "unauthorized");
 	const answer = await answerFor(puzzle);
 	if (!answer) return Response.json({ error: "unavailable" }, { status: 503 });
 	const guess =
@@ -28,37 +35,33 @@ export async function POST(request: Request) {
 			? body.guess.slice(0, 200)
 			: undefined;
 	const giveUp = body.giveUp === true;
-	const headers = { "Cache-Control": "no-store" };
+	const rank = live && body.rank !== false;
 
-	if (kind === "daily") {
-		const session = await auth();
-		const user = session?.user?.id;
-		if (user) {
-			const done = await guessRun({
-				day: puzzle.slice(2),
-				user,
-				name: session.user?.name ?? "",
-				answer: answer.id,
-				guess,
-				giveUp,
-				rank: body.rank !== false,
-			});
-			if (!done) {
-				return Response.json(
-					{ error: "not_started" },
-					{ status: 409, headers },
-				);
-			}
+	if (user) {
+		const done = await guessRun({
+			day,
+			user,
+			name: session?.user?.name ?? "",
+			answer: answer.id,
+			guess,
+			giveUp,
+			rank,
+		});
+		if (done) {
 			const over = done.run.status !== "playing";
 			return Response.json(
 				{
 					correct: done.correct,
 					run: done.run,
-					ranked: done.correct && body.rank !== false,
+					ranked: done.ranked,
+					clue: clueUrl(puzzle, runStep(done.run)),
 					...(over ? { answer: answerView(answer) } : {}),
 				},
 				{ headers },
 			);
+		}
+		if (live) {
+			return Response.json({ error: "not_started" }, { status: 409, headers });
 		}
 	}
 

@@ -114,6 +114,9 @@ function memoryDb() {
 			async keys() {
 				return [];
 			},
+			async list() {
+				return [];
+			},
 		},
 	};
 }

@@ -3,6 +3,115 @@ import type { ChangeRelease } from "./changelog";
 /** Every release's items, newest first, loaded only when the dialog opens */
 export const CHANGELOG_RELEASES: ChangeRelease[] = [
 	{
+		date: "2026-11-03",
+		sections: [
+			{
+				heading: { en: "Chart preview", zh: "谱面预览" },
+				items: [
+					{
+						en: "Every song page can play its charts: notes, judge lines, hit effects and noise fields, drawn in your browser from the game's own chart file and kept in time with the music.",
+						zh: "每首曲目的页面现在都能播放谱面：音符、判定线、打击特效和噪域都由浏览器根据游戏自己的谱面文件实时绘制，并与音乐保持同步。",
+						href: "/songs",
+					},
+					{
+						en: "Pick any version PhiBot keeps: the current chart, older charts from earlier Phigros versions, removed charts such as Destination, and April Fools specials.",
+						zh: "可以选择 PhiBot 保存的任意版本：当前谱面、旧版 Phigros 中的谱面、Destination 等已移除的谱面，以及愚人节特别谱面。",
+						href: "/songs",
+					},
+					{
+						en: "Set the playback speed from 0.5× to 1.5×, and open Settings to set the hit sound volume for taps, drags and flicks separately, pick a note size, turn noise fields on or off, and switch on Color chords to give each close or larger chord its own glow color.",
+						zh: "可以把播放速度设为 0.5× 至 1.5×；在「设置」里分别调节 Tap、Drag、Flick 的打击音音量、选择音符大小、开关噪域，并开启「多押分色」，让相邻或三押以上的多押各用不同颜色的光晕。",
+						href: "/songs",
+					},
+					{
+						en: "The corner of the stage names the song, the difficulty and its chart constant, in the preview and in any video you download.",
+						zh: "画面角落会显示曲名、难度和定数，预览和下载的视频里都有。",
+						href: "/songs",
+					},
+					{
+						en: "The preview stays light on phones and older machines: it draws only the notes that can be on screen, lowers its resolution when frames run late, and stops drawing while it is scrolled out of view.",
+						zh: "预览在手机和较旧的设备上也很轻量：只绘制可能出现在屏幕上的音符，掉帧时自动降低分辨率，滚出视野时暂停绘制。",
+						href: "/songs",
+					},
+					{
+						en: "Download video saves the chart as a 1080p 60 fps MP4 with its music and hit sounds, marked Rendered by PhiBot.",
+						zh: "「下载视频」会把谱面保存为带音乐和打击音的 1080p 60 帧 MP4，角落带有 Rendered by PhiBot 字样。",
+						href: "/songs",
+					},
+				],
+			},
+			{
+				heading: { en: "Search", zh: "搜索" },
+				items: [
+					{
+						en: "Search from any page: press Ctrl K (⌘K on a Mac) or the Search button in the top bar to find a song by title, nickname or composer, or jump to any page.",
+						zh: "在任何页面都能搜索：按 Ctrl K（Mac 上为 ⌘K）或点击顶栏的「搜索」，即可按曲名、别名或曲师查找曲目，或跳转到任意页面。",
+					},
+				],
+			},
+			{
+				heading: { en: "Song pages", zh: "曲目页面" },
+				items: [
+					{
+						en: "Your scores now show each chart's accuracy over time, drawn from your save history.",
+						zh: "「你的成绩」现在会显示每张谱面准确率随时间的变化，数据来自你的存档记录。",
+						href: "/songs",
+					},
+					{
+						en: "Accuracy and rank draws where each accuracy places on a chart, and how many places your next 0.25%, 0.5% or 1% would gain.",
+						zh: "「准确率与排名」显示各准确率在谱面上的排名，以及再提升 0.25%、0.5% 或 1% 能前进多少名。",
+						href: "/songs",
+					},
+					{
+						en: "Similar charts lists charts close in constant, note density, note mix and BPM.",
+						zh: "「相似谱面」列出定数、物量密度、音符构成和 BPM 相近的谱面。",
+						href: "/songs",
+					},
+					{
+						en: "In Files links a song to its chapter in the Collection and to its PVs.",
+						zh: "「相关资源」把曲目链接到收藏品中的章节和相关 PV。",
+						href: "/songs",
+					},
+					{
+						en: "In Files also plays the song's music and lets you download its illustration in full, small and blurred sizes, any per-level art, and the chart JSON and Phira pack of every version.",
+						zh: "「相关资源」还可以试听曲目音乐，并下载原图、小图和模糊图曲绘、各难度的专属曲绘，以及每个版本的谱面 JSON 与 Phira 谱面包。",
+						href: "/songs",
+					},
+				],
+			},
+			{
+				heading: { en: "Scores", zh: "成绩" },
+				items: [
+					{
+						en: "Compare players can put you against your past self: pick a day from your save history.",
+						zh: "「玩家对比」可以与过去的自己对比：从存档记录中选一天即可。",
+						href: "/compare",
+					},
+					{
+						en: "Progress and Targets can be saved as images to share.",
+						zh: "「完成度」和「推分目标」可以保存为图片分享。",
+						href: "/progress",
+					},
+					{
+						en: "Targets suggests charts you have not played that look like the hardest ones you have AP'd.",
+						zh: "「推分目标」会推荐你还没玩过、与你 AP 过的最难谱面相似的谱面。",
+						href: "/targets",
+					},
+				],
+			},
+			{
+				heading: { en: "Version changes", zh: "版本变化" },
+				items: [
+					{
+						en: "A new page under Files compares two Phigros versions: songs added and removed, constant changes and release notes. Signed in, it shows your RKS under each version's constants.",
+						zh: "「资源」下新增页面，可对比两个 Phigros 版本：新增和移除的曲目、定数调整以及更新说明。登录后还会显示你在两个版本定数下的 RKS。",
+						href: "/versions",
+					},
+				],
+			},
+		],
+	},
+	{
 		date: "2026-10-31",
 		sections: [
 			{

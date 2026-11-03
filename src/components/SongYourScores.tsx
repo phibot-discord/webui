@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { localeTag } from "@/i18n/config";
 import { useI18n } from "@/i18n/provider";
 import { fill } from "@/phi/lib/card-i18n";
 
@@ -11,7 +12,75 @@ export type YourScore = {
 	acc: number;
 	fc: boolean;
 	rks: number;
+	history: [t: number, acc: number][];
 };
+
+const SPARK_W = 96;
+const SPARK_H = 24;
+const SPARK_PAD = 3;
+
+function AccHistory({ points }: { points: YourScore["history"] }) {
+	const { m, locale } = useI18n();
+	const t = m.songPage;
+	const first = points[0];
+	const last = points.at(-1);
+	if (!first || !last) return <span className="muted">—</span>;
+	const day = (ms: number) =>
+		new Date(ms).toLocaleDateString(localeTag(locale), {
+			timeZone: "Asia/Shanghai",
+			dateStyle: "medium",
+		});
+	if (points.length < 2) {
+		return (
+			<span className="muted">
+				{fill(t.historyOne, { date: day(first[0]) })}
+			</span>
+		);
+	}
+	const accs = points.map((p) => p[1]);
+	const lo = Math.min(...accs);
+	const hi = Math.max(...accs);
+	const span = hi - lo || 1;
+	const step = (SPARK_W - SPARK_PAD * 2) / (points.length - 1);
+	const path = points
+		.map((p, i) => {
+			const x = SPARK_PAD + i * step;
+			const y =
+				SPARK_PAD + (1 - (p[1] - lo) / span) * (SPARK_H - SPARK_PAD * 2);
+			return `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`;
+		})
+		.join(" ");
+	const label = fill(t.historySummary, {
+		n: points.length,
+		from: `${first[1].toFixed(2)}%`,
+		to: `${last[1].toFixed(2)}%`,
+		date: day(first[0]),
+	});
+	return (
+		<span className="acc-spark">
+			<svg
+				role="img"
+				aria-label={label}
+				width={SPARK_W}
+				height={SPARK_H}
+				viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
+			>
+				<title>{label}</title>
+				<path d={path} />
+				<circle
+					cx={SPARK_PAD + (points.length - 1) * step}
+					cy={
+						SPARK_PAD + (1 - (last[1] - lo) / span) * (SPARK_H - SPARK_PAD * 2)
+					}
+					r={2.5}
+				/>
+			</svg>
+			<span className="acc-spark-gain" aria-hidden="true">
+				{last[1] > first[1] ? `+${(last[1] - first[1]).toFixed(2)}` : "="}
+			</span>
+		</span>
+	);
+}
 
 type Rank =
 	| { state: "loading" }
@@ -100,6 +169,7 @@ export function SongYourScores({
 						<th scope="col" className="num">
 							{t.rank}
 						</th>
+						<th scope="col">{t.history}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -126,6 +196,9 @@ export function SongYourScores({
 							<td className="num">{row.rks.toFixed(2)}</td>
 							<td className="num">
 								<RankCell id={id} row={row} />
+							</td>
+							<td>
+								<AccHistory points={row.history} />
 							</td>
 						</tr>
 					))}

@@ -1,6 +1,7 @@
 import { HISTORY_PREFIX } from "@/lib/assets";
 import { bareId } from "@/lib/chart-catalog";
 import { type ChartStats, chartStats } from "@/lib/chart-stats";
+import { evictOldest } from "@/phi/lib/lru";
 import { assetVersion } from "./assets";
 import { songHistory } from "./history";
 import { fetchR2Object } from "./r2";
@@ -19,15 +20,7 @@ export function chartJsonKey(stem: string, level: string, ver?: string) {
 function remember(key: string, value: ChartStats | null) {
 	cache.delete(key);
 	cache.set(key, value);
-	while (cache.size > MAX) {
-		const oldest = cache.keys().next().value;
-		if (oldest === undefined) break;
-		cache.delete(oldest);
-	}
-}
-
-export function resetChartStatsForTest() {
-	cache.clear();
+	evictOldest(cache, MAX);
 }
 
 export async function chartStatsKey(

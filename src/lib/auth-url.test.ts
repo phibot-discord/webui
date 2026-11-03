@@ -15,11 +15,11 @@ test("requestHost takes the first forwarded host, then host", () => {
 	assert.equal(
 		requestHost(
 			headers({
-				"x-forwarded-host": "phi.yuemiyuki.dev, proxy.internal",
-				host: "phi-webui.vercel.app",
+				"x-forwarded-host": "pv.phibot.dev, proxy.internal",
+				host: "phibot.dev",
 			}),
 		),
-		"phi.yuemiyuki.dev",
+		"pv.phibot.dev",
 	);
 	assert.equal(requestHost(headers({ host: "phibot.dev" })), "phibot.dev");
 	assert.equal(requestHost(headers({})), "");
@@ -27,47 +27,44 @@ test("requestHost takes the first forwarded host, then host", () => {
 
 test("resolveAuthOrigin keeps the request host when it is in AUTH_URLS", () => {
 	resetAuthOriginsForTest({
-		AUTH_URLS: "https://phi.yuemiyuki.dev,https://phi-web.vercel.app",
-		AUTH_URL: "https://phi-webui.vercel.app",
+		AUTH_URLS: "https://phibot.dev,https://pv.phibot.dev",
+		AUTH_URL: "http://localhost:3000",
 	});
 	assert.equal(
 		resolveAuthOrigin(
 			headers({
-				host: "phi.yuemiyuki.dev",
+				host: "pv.phibot.dev",
 				"x-forwarded-proto": "https",
 			}),
 		),
-		"https://phi.yuemiyuki.dev",
+		"https://pv.phibot.dev",
 	);
 	assert.equal(
-		resolveAuthOrigin(
-			headers({
-				"x-forwarded-host": "phi-web.vercel.app",
-				"x-forwarded-proto": "https",
-			}),
-		),
-		"https://phi-web.vercel.app",
+		resolveAuthOrigin(headers({ host: "localhost:3000" })),
+		"http://localhost:3000",
 	);
 	assert.deepEqual(configuredAuthOrigins(), [
-		"https://phi.yuemiyuki.dev",
-		"https://phi-web.vercel.app",
-		"https://phi-webui.vercel.app",
+		"https://phibot.dev",
+		"https://pv.phibot.dev",
+		"http://localhost:3000",
 	]);
 });
 
-test("resolveAuthOrigin includes Vercel production and deployment URLs", () => {
-	resetAuthOriginsForTest({
-		AUTH_URLS: "",
-		AUTH_URL: "",
-		VERCEL_PROJECT_PRODUCTION_URL: "phi.yuemiyuki.dev",
-		VERCEL_URL: "phi-web-git-main-team.vercel.app",
-	});
-	assert.equal(
-		resolveAuthOrigin(headers({ host: "phi.yuemiyuki.dev" })),
-		"https://phi.yuemiyuki.dev",
-	);
-	assert.equal(
-		resolveAuthOrigin(headers({ host: "phi-web-git-main-team.vercel.app" })),
-		"https://phi-web-git-main-team.vercel.app",
-	);
+test("resolveAuthOrigin sends unlisted hosts to the first origin", () => {
+	const prev = process.env.VERCEL_URL;
+	process.env.VERCEL_URL = "phi-webui-git-main-team.vercel.app";
+	try {
+		resetAuthOriginsForTest({
+			AUTH_URLS: "https://phibot.dev,https://pv.phibot.dev",
+		});
+		assert.equal(
+			resolveAuthOrigin(
+				headers({ host: "phi-webui-git-main-team.vercel.app" }),
+			),
+			"https://phibot.dev",
+		);
+	} finally {
+		if (prev === undefined) delete process.env.VERCEL_URL;
+		else process.env.VERCEL_URL = prev;
+	}
 });

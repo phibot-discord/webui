@@ -21,9 +21,6 @@ function envOrigins(): string[] {
 		...splitOrigins(process.env.AUTH_URLS),
 		...splitOrigins(process.env.AUTH_URL),
 		...splitOrigins(process.env.NEXTAUTH_URL),
-		...splitOrigins(process.env.VERCEL_PROJECT_PRODUCTION_URL),
-		...splitOrigins(process.env.VERCEL_BRANCH_URL),
-		...splitOrigins(process.env.VERCEL_URL),
 	];
 }
 
@@ -47,14 +44,7 @@ function parseAuthOrigins(): string[] {
 export function resetAuthOriginsForTest(
 	env: Record<string, string | undefined> = {},
 ) {
-	const keys = [
-		"AUTH_URLS",
-		"AUTH_URL",
-		"NEXTAUTH_URL",
-		"VERCEL_PROJECT_PRODUCTION_URL",
-		"VERCEL_BRANCH_URL",
-		"VERCEL_URL",
-	] as const;
+	const keys = ["AUTH_URLS", "AUTH_URL", "NEXTAUTH_URL"] as const;
 	for (const key of keys) {
 		const value = env[key];
 		if (value) process.env[key] = value;

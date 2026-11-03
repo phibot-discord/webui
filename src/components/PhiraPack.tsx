@@ -13,6 +13,7 @@ import Link from "@/components/LocaleLink";
 import { chartSearchText } from "@/components/ScoreControl";
 import { Announce, SteadyButton } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
+import { saveBlob, versionSpan } from "@/lib/apk-version";
 import {
 	CHART_LEVELS,
 	type ChartCell,
@@ -41,17 +42,6 @@ function fileNameOf(res: Response, fallback: string) {
 	return /filename="([^"]+)"/i.exec(cd)?.[1] ?? fallback;
 }
 
-function saveBlob(blob: Blob, file: string) {
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = file;
-	document.body.append(a);
-	a.click();
-	a.remove();
-	window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-}
-
 type History = { current: string[]; eras: Era[] };
 type Row = {
 	rank: PackLevel;
@@ -63,16 +53,6 @@ type Row = {
 function levelOrder(level: string): number {
 	const at = CHART_LEVELS.indexOf(level as (typeof CHART_LEVELS)[number]);
 	return at < 0 ? CHART_LEVELS.length : at;
-}
-
-function shownVersion(version: string): string {
-	return version.replace(/-(\d+)$/, " ($1)");
-}
-
-function versionSpan(versions: string[]): string {
-	const first = shownVersion(versions[0] ?? "");
-	const last = shownVersion(versions.at(-1) ?? "") || first;
-	return first === last ? first : `${first} – ${last}`;
 }
 
 function eraLabel(era: Era): string {

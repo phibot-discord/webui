@@ -117,6 +117,13 @@ export type ToolsMessages = {
 		jacketAlt: string;
 		levelJacket: string;
 		description: string;
+		history: string;
+		historyOne: string;
+		historySummary: string;
+		filesTitle: string;
+		filesCollection: string;
+		filesPv: string;
+		filesPvHint: string;
 	};
 	chartVersions: {
 		title: string;
@@ -162,6 +169,7 @@ export type ToolsMessages = {
 		signin: string;
 		rks: string;
 		challenge: string;
+		challengeColors: string[];
 		levelsTitle: string;
 		played: string;
 		clear: string;
@@ -185,6 +193,12 @@ export type ToolsMessages = {
 		optInFailed: string;
 		openCompare: string;
 		compareWith: string;
+		pastName: string;
+		pastLabel: string;
+		pastSubmit: string;
+		pastHint: string;
+		pastNote: string;
+		noHistory: string;
 	};
 	guess: {
 		title: string;
@@ -221,7 +235,8 @@ export type ToolsMessages = {
 		time: string;
 		rankMe: string;
 		rankHint: string;
-		signInToRank: string;
+		signInToPlay: string;
+		pastUnranked: string;
 		signIn: string;
 		boardTitle: string;
 		boardTitleDay: string;
@@ -235,6 +250,170 @@ export type ToolsMessages = {
 		boardMine: string;
 		boardMore: string;
 		wonIn: string;
+	};
+	rankCurve: {
+		title: string;
+		lede: string;
+		signedOut: string;
+		level: string;
+		load: string;
+		loading: string;
+		gathering: string;
+		failed: string;
+		retry: string;
+		none: string;
+		summary: string;
+		chartLabel: string;
+		topTick: string;
+		acc: string;
+		rank: string;
+		top: string;
+		gain: string;
+		ap: string;
+		you: string;
+		tied: string;
+		about: string;
+		places: string;
+		source: string;
+	};
+	songFiles: {
+		music: string;
+		art: string;
+		charts: string;
+		chartsHint: string;
+		download: string;
+		saving: string;
+		saveLabel: string;
+		listen: string;
+		full: string;
+		small: string;
+		blur: string;
+		sp: string;
+		json: string;
+		pack: string;
+	};
+	chartPlayer: {
+		title: string;
+		lede: string;
+		level: string;
+		start: string;
+		startLabel: string;
+		loadingChart: string;
+		loadingAudio: string;
+		failed: string;
+		retry: string;
+		noAudio: string;
+		noGl: string;
+		play: string;
+		pause: string;
+		seek: string;
+		back: string;
+		forward: string;
+		hitSounds: string;
+		hitVolume: string;
+		hitKinds: Record<"tap" | "drag" | "flick", string>;
+		hitTest: string;
+		settings: string;
+		settingsTitle: string;
+		soundSection: string;
+		lookSection: string;
+		noteSize: string;
+		reset: string;
+		close: string;
+		chordColors: string;
+		chordColorsHint: string;
+		speed: string;
+		video: string;
+		videoHint: string;
+		videoProgress: string;
+		videoCancel: string;
+		videoFailed: string;
+		videoDone: string;
+		version: string;
+		current: string;
+		removed: string;
+		removedFrom: string;
+		fools: string;
+		noise: string;
+		noiseHint: string;
+		fullscreen: string;
+		exitFullscreen: string;
+		canvas: string;
+		keys: string;
+	};
+	similar: {
+		title: string;
+		lede: string;
+		level: string;
+		song: string;
+		levelCol: string;
+		constant: string;
+		yours: string;
+	};
+	suggest: {
+		title: string;
+		basis: Record<"ap" | "fc" | "best", string>;
+		song: string;
+		level: string;
+		constant: string;
+		like: string;
+		likeOf: string;
+	};
+	snapshot: {
+		open: string;
+		download: string;
+		progress: string;
+		targets: string;
+		progressLegend: string;
+		goal: string;
+	};
+	search: {
+		open: string;
+		label: string;
+		placeholder: string;
+		close: string;
+		songs: string;
+		pages: string;
+		viaAlias: string;
+		results: string;
+		none: string;
+		loading: string;
+		keys: string;
+	};
+	versions: {
+		title: string;
+		lede: string;
+		loading: string;
+		from: string;
+		to: string;
+		submit: string;
+		currentLabel: string;
+		coverage: string;
+		unavailable: string;
+		summaryTitle: string;
+		added: string;
+		removed: string;
+		changed: string;
+		newCharts: string;
+		dates: string;
+		yoursTitle: string;
+		yoursSignedOut: string;
+		yoursNotBound: string;
+		yoursNone: string;
+		yoursHint: string;
+		delta: string;
+		yourRks: string;
+		notesTitle: string;
+		changedTitle: string;
+		addedTitle: string;
+		removedTitle: string;
+		chartsTitle: string;
+		song: string;
+		level: string;
+		what: string;
+		constant: string;
+		chartAdded: string;
+		chartRemoved: string;
 	};
 };
 
@@ -376,6 +555,14 @@ export const toolsEn: ToolsMessages = {
 		levelJacket: "{level} illustration",
 		description:
 			"{title} by {composer}: chart constants {levels}, note counts, charters and every older version of its charts.",
+		history: "History",
+		historyOne: "One entry, {date}",
+		historySummary: "{n} saved scores since {date}, from {from} to {to}",
+		filesTitle: "In Files",
+		filesCollection: "Collection",
+		filesPv: "PV",
+		filesPvHint:
+			"Clips that name this song come first, then the rest of its chapter's.",
 	},
 	chartVersions: {
 		title: "Chart versions",
@@ -423,6 +610,7 @@ export const toolsEn: ToolsMessages = {
 		signin: "{label}: sign in to compare with your own save.",
 		rks: "RKS",
 		challenge: "Challenge",
+		challengeColors: ["", "Green", "Blue", "Red", "Gold", "Rainbow"],
 		levelsTitle: "By difficulty",
 		played: "Played",
 		clear: "Cleared",
@@ -448,6 +636,15 @@ export const toolsEn: ToolsMessages = {
 		optInFailed: "Could not change this. Try again.",
 		openCompare: "Compare with someone",
 		compareWith: "Compare with me",
+		pastName: "{name} on {date}",
+		pastLabel: "Or compare with your past self",
+		pastSubmit: "Compare with this day",
+		pastHint:
+			"Your scores at the end of that day (China time), from your save history.",
+		pastNote:
+			"Past scores use today's chart constants, so their per-chart RKS can differ from what the game showed then. The RKS at the top is the one the game recorded.",
+		noHistory:
+			"{label}: there is no save history for that day. Save history starts when the site first reads your save, and accounts added without a TapTap login have none.",
 	},
 	guess: {
 		title: "Guess the song",
@@ -482,8 +679,8 @@ export const toolsEn: ToolsMessages = {
 			"Everyone gets the same daily puzzle; practice puzzles are random and never run out.",
 			"The first clue is a small close-up of the illustration: blurred, pixelated, recoloured and inverted, and sometimes mirrored.",
 			"Each wrong guess zooms out and eases the effects off. The sixth clue is the whole illustration as it is.",
-			"Signed in, your daily run is kept on PhiBot from the moment you press Start, so the clock can't be restarted. Practice puzzles, and daily puzzles played signed out, are kept in this browser only.",
-			"The leaderboard ranks fewer tries first, then the faster time.",
+			"Today's puzzle needs a sign-in. Your run is kept on PhiBot from the moment you press Start, so the clock can't be restarted. Practice puzzles and past dailies are open to everyone and kept in this browser only.",
+			"Only today's puzzle is ranked: fewer tries first, then the faster time.",
 		],
 		shareLabel: "PhiBot Guess",
 		start: "Start",
@@ -492,7 +689,9 @@ export const toolsEn: ToolsMessages = {
 		rankMe: "Show me on the leaderboard",
 		rankHint:
 			"Shows your display name, tries and time to everyone. Untick it any time to take them off.",
-		signInToRank: "Sign in to be ranked on the daily leaderboard.",
+		signInToPlay:
+			"Sign in to play today's puzzle and join its leaderboard. Practice puzzles and past dailies need no account.",
+		pastUnranked: "Past daily puzzles are not ranked.",
 		signIn: "Sign in",
 		boardTitle: "Today's leaderboard",
 		boardTitleDay: "Leaderboard, {date}",
@@ -507,6 +706,186 @@ export const toolsEn: ToolsMessages = {
 		boardMine: "You are #{rank} of {total}.",
 		boardMore: "{n} players solved it.",
 		wonIn: "Got it in {n} tries, {time}.",
+	},
+	rankCurve: {
+		title: "Accuracy and rank",
+		signedOut: "Sign in to see where each accuracy places on this chart.",
+		lede: "Where each accuracy places on this chart among every player phib19.top has a record for, and what your next steps would buy.",
+		level: "Difficulty",
+		load: "Show the curve",
+		loading: "Loading…",
+		gathering:
+			"Collecting every record for this chart. The first time can take a minute.",
+		failed: "The rank data is unavailable right now.",
+		retry: "Try again",
+		none: "No records for this chart yet.",
+		summary: "{n} records · {ap} AP · {fc} FC",
+		chartLabel: "Rank against accuracy for {n} records, from {lo}% to 100%",
+		topTick: "top {p}%",
+		acc: "Accuracy",
+		rank: "Rank",
+		top: "Top",
+		gain: "Places gained",
+		ap: "AP",
+		you: "You",
+		tied: "Tied first with {n}",
+		about: "About {rank}",
+		places: "+{n}",
+		source: "Ranks are estimated from phib19.top's records as of {date}.",
+	},
+	songFiles: {
+		music: "Music",
+		art: "Illustration",
+		charts: "Charts",
+		chartsHint:
+			"Every chart PhiBot keeps for this song: the game's chart JSON and a Phira pack, for the current game and every older or removed version.",
+		download: "Download",
+		saving: "Saving…",
+		saveLabel: "Download {name}, {size}",
+		listen: "Listen to {name}",
+		full: "Full size",
+		small: "Small",
+		blur: "Blurred",
+		sp: "SP",
+		json: "JSON",
+		pack: "Phira pack",
+	},
+	chartPlayer: {
+		title: "Chart preview",
+		lede: "Each chart plays itself here, drawn in your browser from the game's own chart file. Notes are simple shapes in the game's colors, not its artwork.",
+		level: "Difficulty",
+		start: "Play preview",
+		startLabel: "Play the {level} chart preview",
+		loadingChart: "Loading the chart…",
+		loadingAudio: "Loading the music {p}%",
+		failed: "The chart could not be loaded.",
+		retry: "Try again",
+		noAudio:
+			"This browser cannot play the music, so the preview runs silently.",
+		noGl: "This browser cannot draw the preview: it needs WebGL 2.",
+		play: "Play",
+		pause: "Pause",
+		seek: "Position",
+		back: "Back 5 seconds",
+		forward: "Forward 5 seconds",
+		hitSounds: "Hit sounds",
+		hitVolume: "Hit sound volume",
+		hitKinds: { tap: "Tap", drag: "Drag", flick: "Flick" },
+		hitTest: "Play the {kind} sound",
+		settings: "Settings",
+		settingsTitle: "Preview settings",
+		soundSection: "Sound",
+		lookSection: "Look",
+		noteSize: "Note size",
+		reset: "Reset to defaults",
+		close: "Close",
+		speed: "Playback speed",
+		video: "Download video",
+		videoHint:
+			"Render this chart to a 1080p 60 fps MP4 with its music and hit sounds, using your current settings.",
+		videoProgress: "Making the video: {p}%",
+		videoCancel: "Cancel",
+		videoFailed:
+			"The video could not be made in this browser. Try a recent Chrome, Edge or Safari.",
+		videoDone: "The video is in your downloads.",
+		version: "Version",
+		current: "Current",
+		removed: "Removed chart",
+		removedFrom: "Removed chart · from {version}",
+		fools: "April Fools",
+		noise: "Noise fields",
+		noiseHint:
+			"Show the chart's noise fields: the red areas where the game blocks touch input.",
+		chordColors: "Color chords",
+		chordColorsHint:
+			"Give each chord its own glow color when chords sit close together or have three or more notes.",
+		fullscreen: "Full screen",
+		exitFullscreen: "Exit full screen",
+		canvas: "{title} {level} chart preview",
+		keys: "Space plays or pauses. Arrow keys skip 5 seconds. F toggles full screen.",
+	},
+	similar: {
+		title: "Similar charts",
+		lede: "Charts close in constant, note density, note mix and BPM.",
+		level: "Difficulty",
+		song: "Song",
+		levelCol: "Level",
+		constant: "Constant",
+		yours: "Yours",
+	},
+	suggest: {
+		title: "Charts to try next",
+		basis: {
+			ap: "Charts you have not played that look like the hardest charts you have AP'd.",
+			fc: "Charts you have not played that look like the hardest charts you have full combo'd.",
+			best: "Charts you have not played that look like your best scores.",
+		},
+		song: "Song",
+		level: "Level",
+		constant: "Constant",
+		like: "Like",
+		likeOf: "{song} {level}",
+	},
+	snapshot: {
+		open: "Open as image",
+		download: "Download image",
+		progress:
+			"An image of this grid with clears, FCs and APs per level, for sharing.",
+		targets: "An image of your ten closest targets, for sharing.",
+		progressLegend:
+			"Each cell: charts cleared out of charts, with FC and AP counts. The bar shows the cleared share.",
+		goal: "next {goal}",
+	},
+	search: {
+		open: "Search",
+		label: "Search songs and pages",
+		placeholder: "Song, nickname, composer or page",
+		close: "Close",
+		songs: "Songs",
+		pages: "Pages",
+		viaAlias: "Nickname: {alias}",
+		results: "{n} results",
+		none: "Nothing matches.",
+		loading: "Loading songs…",
+		keys: "↑ ↓ to move · Enter to open · Esc to close",
+	},
+	versions: {
+		title: "Version changes",
+		loading: "Loading version tables…",
+		lede: "What changed between two Phigros versions: new and removed songs, chart constant changes, and release notes. Signed in, you also see your RKS under each version's constants.",
+		from: "From",
+		to: "To",
+		submit: "Compare",
+		currentLabel: "{label} (current)",
+		coverage:
+			"{n} versions have song tables, from {first} to {last}. Tables up to 3.19.5 come from phi-plugin; later ones are saved by the site's game data pipeline as each build comes out, so a version between two listed ones is folded into the next.",
+		unavailable: "The version tables are unavailable right now.",
+		summaryTitle: "{from} to {to}",
+		added: "songs added",
+		removed: "songs removed",
+		changed: "constants changed",
+		newCharts: "new charts",
+		dates: "Released {from} and {to}.",
+		yoursTitle: "Your RKS",
+		yoursSignedOut: "Sign in to see your RKS under both versions' constants.",
+		yoursNotBound:
+			"Bind a Phigros save to see your RKS under both versions' constants.",
+		yoursNone: "None of your played charts are in both tables.",
+		yoursHint:
+			"Your current scores, rated with each version's constants. Charts a version does not have are left out of its total.",
+		delta: "Change",
+		yourRks: "Your RKS change",
+		notesTitle: "Release notes",
+		changedTitle: "Constant changes",
+		addedTitle: "Songs added",
+		removedTitle: "Songs removed",
+		chartsTitle: "Charts added or removed",
+		song: "Song",
+		level: "Level",
+		what: "Change",
+		constant: "Constant",
+		chartAdded: "Added",
+		chartRemoved: "Removed",
 	},
 };
 
@@ -647,6 +1026,13 @@ export const toolsZh: ToolsMessages = {
 		levelJacket: "{level} 曲绘",
 		description:
 			"{title}（{composer}）：谱面定数 {levels}、物量、谱师，以及各谱面的所有旧版本。",
+		history: "历史",
+		historyOne: "仅一条记录，{date}",
+		historySummary: "自 {date} 起记录了 {n} 次成绩，从 {from} 到 {to}",
+		filesTitle: "相关资源",
+		filesCollection: "收藏品",
+		filesPv: "PV",
+		filesPvHint: "先列出与本曲相关的 PV，再列出同一章节的其他 PV。",
 	},
 	chartVersions: {
 		title: "谱面版本",
@@ -693,6 +1079,7 @@ export const toolsZh: ToolsMessages = {
 		signin: "{label}：登录后才能用自己的存档对比。",
 		rks: "RKS",
 		challenge: "课题模式",
+		challengeColors: ["", "绿", "蓝", "红", "金", "彩"],
 		levelsTitle: "按难度",
 		played: "已玩",
 		clear: "通关",
@@ -718,6 +1105,14 @@ export const toolsZh: ToolsMessages = {
 		optInFailed: "无法更改，请重试。",
 		openCompare: "与他人对比",
 		compareWith: "与我对比",
+		pastName: "{name}（{date}）",
+		pastLabel: "或与过去的自己对比",
+		pastSubmit: "与这一天对比",
+		pastHint: "取存档记录中那一天结束时（北京时间）的成绩。",
+		pastNote:
+			"过去的成绩按现在的谱面定数计算，单曲 RKS 可能与当时游戏中显示的不同。顶部的 RKS 是游戏当时记录的数值。",
+		noHistory:
+			"{label}：那一天没有存档记录。存档记录从本站第一次读取你的存档时开始；未通过 TapTap 登录添加的账号没有存档记录。",
 	},
 	guess: {
 		title: "猜曲绘",
@@ -751,8 +1146,8 @@ export const toolsZh: ToolsMessages = {
 			"每日题对所有人都一样；练习题随机生成，可无限游玩。",
 			"第一条线索是曲绘的一小块放大特写：经过模糊、像素化、变色和反色处理，有时还会左右翻转。",
 			"每猜错一次，画面就会拉远，处理效果也随之减弱。第六条线索就是完整的原图。",
-			"登录后，每日题从你点击「开始」起就保存在 PhiBot 上，计时无法重来。练习题，以及未登录时玩的每日题，只保存在此浏览器中。",
-			"排行榜先比尝试次数，次数相同再比用时。",
+			"今天的每日题需要登录。从你点击「开始」起，记录就保存在 PhiBot 上，计时无法重来。练习题和往日的每日题无需登录，只保存在此浏览器中。",
+			"只有今天的题目计入排行榜：先比尝试次数，次数相同再比用时。",
 		],
 		shareLabel: "PhiBot 猜曲绘",
 		start: "开始",
@@ -761,7 +1156,9 @@ export const toolsZh: ToolsMessages = {
 		rankMe: "在排行榜上显示我",
 		rankHint:
 			"所有人都能看到你的显示名称、尝试次数和用时。随时取消勾选即可移除。",
-		signInToRank: "登录后即可参与每日排行榜。",
+		signInToPlay:
+			"登录后即可游玩今天的题目并参与排行榜。练习题和往日的每日题无需登录。",
+		pastUnranked: "往日的每日题不计入排行榜。",
 		signIn: "登录",
 		boardTitle: "今日排行榜",
 		boardTitleDay: "{date} 排行榜",
@@ -775,5 +1172,177 @@ export const toolsZh: ToolsMessages = {
 		boardMine: "你在 {total} 人中排第 {rank}。",
 		boardMore: "共有 {n} 人猜中。",
 		wonIn: "用 {n} 次、{time} 猜中。",
+	},
+	rankCurve: {
+		title: "准确率与排名",
+		signedOut: "登录后可查看各准确率在这张谱面上的排名。",
+		lede: "在 phib19.top 记录的所有玩家中，各准确率在这张谱面上排第几，以及再提升一点能前进多少名。",
+		level: "难度",
+		load: "显示曲线",
+		loading: "加载中…",
+		gathering: "正在收集这张谱面的全部记录，第一次可能需要一分钟。",
+		failed: "暂时无法获取排名数据。",
+		retry: "重试",
+		none: "这张谱面还没有记录。",
+		summary: "{n} 条记录 · {ap} 个 AP · {fc} 个 FC",
+		chartLabel: "{n} 条记录的排名与准确率曲线，从 {lo}% 到 100%",
+		topTick: "前 {p}%",
+		acc: "准确率",
+		rank: "排名",
+		top: "前",
+		gain: "前进名次",
+		ap: "AP",
+		you: "你",
+		tied: "与 {n} 人并列第一",
+		about: "约第 {rank} 名",
+		places: "+{n}",
+		source: "排名根据 phib19.top 截至 {date} 的记录估算。",
+	},
+	songFiles: {
+		music: "音乐",
+		art: "曲绘",
+		charts: "谱面",
+		chartsHint:
+			"PhiBot 保存的这首曲子的全部谱面：游戏的谱面 JSON 与 Phira 谱面包，包括当前版本以及所有旧版本和已移除的版本。",
+		download: "下载",
+		saving: "保存中…",
+		saveLabel: "下载 {name}，{size}",
+		listen: "试听 {name}",
+		full: "原图",
+		small: "小图",
+		blur: "模糊图",
+		sp: "SP",
+		json: "JSON",
+		pack: "Phira 谱面包",
+	},
+	chartPlayer: {
+		title: "谱面预览",
+		lede: "在浏览器里直接用游戏的谱面文件自动播放每张谱面。音符以游戏的配色画成简单形状，不是游戏原图。",
+		level: "难度",
+		start: "播放预览",
+		startLabel: "播放 {level} 谱面预览",
+		loadingChart: "正在加载谱面…",
+		loadingAudio: "正在加载音乐 {p}%",
+		failed: "谱面加载失败。",
+		retry: "重试",
+		noAudio: "此浏览器无法播放这首曲子的音频，预览将静音播放。",
+		noGl: "此浏览器无法显示预览：需要 WebGL 2。",
+		play: "播放",
+		pause: "暂停",
+		seek: "播放位置",
+		back: "后退 5 秒",
+		forward: "前进 5 秒",
+		hitSounds: "打击音",
+		hitVolume: "打击音音量",
+		hitKinds: { tap: "Tap", drag: "Drag", flick: "Flick" },
+		hitTest: "试听 {kind} 音效",
+		settings: "设置",
+		settingsTitle: "预览设置",
+		soundSection: "声音",
+		lookSection: "画面",
+		noteSize: "音符大小",
+		reset: "恢复默认",
+		close: "关闭",
+		speed: "播放速度",
+		video: "下载视频",
+		videoHint: "按当前设置把这张谱面渲染成带音乐和打击音的 1080p 60 帧 MP4。",
+		videoProgress: "正在生成视频：{p}%",
+		videoCancel: "取消",
+		videoFailed: "此浏览器无法生成视频，请使用较新的 Chrome、Edge 或 Safari。",
+		videoDone: "视频已保存到下载文件夹。",
+		version: "版本",
+		current: "当前版本",
+		removed: "已移除的谱面",
+		removedFrom: "已移除的谱面 · 来自 {version}",
+		fools: "愚人节",
+		noise: "噪域",
+		noiseHint: "显示谱面的噪域，即游戏中屏蔽触摸的红色区域。",
+		chordColors: "多押分色",
+		chordColorsHint: "相邻的多押或三押及以上的多押，各用不同颜色的光晕区分。",
+		fullscreen: "全屏",
+		exitFullscreen: "退出全屏",
+		canvas: "{title} {level} 谱面预览",
+		keys: "空格键播放或暂停，方向键前进或后退 5 秒，F 键切换全屏。",
+	},
+	similar: {
+		title: "相似谱面",
+		lede: "定数、物量密度、音符构成和 BPM 相近的谱面。",
+		level: "难度",
+		song: "曲目",
+		levelCol: "难度",
+		constant: "定数",
+		yours: "你的成绩",
+	},
+	suggest: {
+		title: "接下来可以试试",
+		basis: {
+			ap: "你还没玩过、与你 AP 过的最难谱面相似的谱面。",
+			fc: "你还没玩过、与你 Full Combo 过的最难谱面相似的谱面。",
+			best: "你还没玩过、与你的最佳成绩相似的谱面。",
+		},
+		song: "曲目",
+		level: "难度",
+		constant: "定数",
+		like: "类似",
+		likeOf: "{song} {level}",
+	},
+	snapshot: {
+		open: "以图片打开",
+		download: "下载图片",
+		progress: "把这张表做成图片分享，包含各难度的通关、FC 和 AP 数量。",
+		targets: "把离你最近的十个推分目标做成图片分享。",
+		progressLegend:
+			"每格：已通关 / 谱面数，以及 FC 和 AP 数量。色条表示通关比例。",
+		goal: "下一档 {goal}",
+	},
+	search: {
+		open: "搜索",
+		label: "搜索曲目和页面",
+		placeholder: "曲名、别名、曲师或页面",
+		close: "关闭",
+		songs: "曲目",
+		pages: "页面",
+		viaAlias: "别名：{alias}",
+		results: "{n} 个结果",
+		none: "没有匹配的结果。",
+		loading: "正在加载曲目…",
+		keys: "↑ ↓ 选择 · Enter 打开 · Esc 关闭",
+	},
+	versions: {
+		title: "版本变化",
+		loading: "正在加载版本曲目表…",
+		lede: "两个 Phigros 版本之间的变化：新增和移除的曲目、谱面定数调整，以及更新说明。登录后还能看到你在两个版本定数下的 RKS。",
+		from: "从",
+		to: "到",
+		submit: "对比",
+		currentLabel: "{label}（当前）",
+		coverage:
+			"共有 {n} 个版本有曲目表，从 {first} 到 {last}。3.19.5 及以前的表来自 phi-plugin；之后的由本站的游戏数据流程在每个版本发布时保存，因此两个已列出版本之间的版本会并入后一个。",
+		unavailable: "暂时无法获取版本曲目表。",
+		summaryTitle: "{from} 到 {to}",
+		added: "首新增曲目",
+		removed: "首移除曲目",
+		changed: "张谱面定数调整",
+		newCharts: "张新谱面",
+		dates: "发布于 {from} 和 {to}。",
+		yoursTitle: "你的 RKS",
+		yoursSignedOut: "登录后可查看你在两个版本定数下的 RKS。",
+		yoursNotBound: "绑定 Phigros 存档后可查看你在两个版本定数下的 RKS。",
+		yoursNone: "你玩过的谱面都不同时出现在两张表中。",
+		yoursHint:
+			"用你现在的成绩，分别按两个版本的定数计算。某个版本没有的谱面不计入该版本的总分。",
+		delta: "变化",
+		yourRks: "你的 RKS 变化",
+		notesTitle: "更新说明",
+		changedTitle: "定数调整",
+		addedTitle: "新增曲目",
+		removedTitle: "移除曲目",
+		chartsTitle: "新增或移除的谱面",
+		song: "曲目",
+		level: "难度",
+		what: "变化",
+		constant: "定数",
+		chartAdded: "新增",
+		chartRemoved: "移除",
 	},
 };

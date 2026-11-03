@@ -16,7 +16,7 @@ import Link from "@/components/LocaleLink";
 import { Announce, SteadyButton } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 import { GUESS_STEPS, practiceId, shareText } from "@/lib/guess";
-import { type BoardRow, formatClock } from "@/lib/guess-board";
+import { type BoardRow, formatClock, type GuessRun } from "@/lib/guess-board";
 import { readLocal, writeLocal } from "@/lib/local-store";
 import { localePath } from "@/lib/locale-path";
 import { rankSongs } from "@/lib/song-search";
@@ -25,18 +25,31 @@ import type { GuessAnswer } from "@/server/guess";
 
 type Saved = {
 	guesses: string[];
-	status: "playing" | "won" | "lost";
+	status: GuessRun["status"];
 	answer?: GuessAnswer;
 	t0?: number;
 	ms?: number;
+	clue?: string;
 };
 
-type ServerRun = {
-	t0: number;
-	guesses: string[];
-	status: Saved["status"];
-	ms?: number;
+type ServerReply = {
+	run?: GuessRun | null;
+	now?: number;
+	answer?: GuessAnswer;
+	ranked?: boolean;
+	clue?: string;
 };
+
+function fromRun(body: ServerReply & { run: GuessRun }): Saved {
+	return {
+		guesses: body.run.guesses,
+		status: body.run.status,
+		t0: body.run.t0,
+		ms: body.run.ms,
+		answer: body.answer,
+		clue: body.clue,
+	};
+}
 
 const keyOf = (puzzle: string) => `phi-guess:v1:${puzzle}`;
 
@@ -304,6 +317,7 @@ function GuessBoard({
 export function GuessGame({
 	puzzle,
 	daily,
+	live,
 	label,
 	boardTitle,
 	signedIn,
@@ -311,6 +325,7 @@ export function GuessGame({
 }: {
 	puzzle: string;
 	daily: boolean;
+	live: boolean;
 	label: string;
 	boardTitle: string;
 	signedIn: boolean;
@@ -321,7 +336,8 @@ export function GuessGame({
 	const router = useRouter();
 	const catalog = useChartCatalog();
 	const rankId = useId();
-	const remote = daily && signedIn;
+	const remote = live && signedIn;
+	const locked = live && !signedIn;
 	const day = daily ? puzzle.slice(2) : "";
 	const [state, setState] = useState<Saved>({ guesses: [], status: "playing" });
 	const [offset, setOffset] = useState(0);
@@ -333,29 +349,17 @@ export function GuessGame({
 	const [rank, setRank] = useState(true);
 	const [boardVersion, setBoardVersion] = useState(0);
 
-	const fromServer = useCallback(
-		(body: {
-			run?: ServerRun | null;
-			now?: number;
-			answer?: GuessAnswer;
-			ranked?: boolean;
-		}) => {
-			if (typeof body.now === "number") setOffset(body.now - Date.now());
-			if (body.run) {
-				setState({
-					guesses: body.run.guesses,
-					status: body.run.status,
-					t0: body.run.t0,
-					ms: body.run.ms,
-					answer: body.answer,
-				});
-			}
-			if (typeof body.ranked === "boolean") setRank(body.ranked);
-		},
-		[],
-	);
+	const fromServer = useCallback((body: ServerReply) => {
+		if (typeof body.now === "number") setOffset(body.now - Date.now());
+		if (body.run) setState(fromRun({ ...body, run: body.run }));
+		if (typeof body.ranked === "boolean") setRank(body.ranked);
+	}, []);
 
 	useEffect(() => {
+		if (locked) {
+			setLoaded(true);
+			return;
+		}
 		if (!remote) {
 			setState(load(puzzle));
 			setLoaded(true);
@@ -377,7 +381,7 @@ export function GuessGame({
 				}
 			});
 		return () => ac.abort();
-	}, [puzzle, remote, fromServer]);
+	}, [puzzle, remote, locked, fromServer]);
 
 	const names = useMemo(() => {
 		const out = new Map<string, string>();
@@ -432,20 +436,10 @@ export function GuessGame({
 				body: JSON.stringify({ p: puzzle, guess, step: misses, giveUp, rank }),
 			});
 			if (!res.ok) throw new Error(String(res.status));
-			const body = (await res.json()) as {
-				correct?: boolean;
-				answer?: GuessAnswer;
-				run?: ServerRun;
-			};
+			const body = (await res.json()) as ServerReply & { correct?: boolean };
 			let next: Saved;
 			if (body.run) {
-				next = {
-					guesses: body.run.guesses,
-					status: body.run.status,
-					t0: body.run.t0,
-					ms: body.run.ms,
-					answer: body.answer,
-				};
+				next = fromRun({ ...body, run: body.run });
 			} else {
 				const guesses = guess ? [...state.guesses, guess] : state.guesses;
 				const status = body.correct ? "won" : body.answer ? "lost" : "playing";
@@ -461,6 +455,9 @@ export function GuessGame({
 				save(puzzle, next);
 			}
 			setState(next);
+			if (next.status === "won" && typeof body.ranked === "boolean") {
+				setRank(body.ranked);
+			}
 			if (next.status === "won") setBoardVersion((v) => v + 1);
 			setSaid(
 				next.status === "won"
@@ -537,11 +534,26 @@ export function GuessGame({
 					</p>
 				</div>
 				<div className="guess-frame">
-					{loaded && started ? (
+					{locked ? (
+						<div className="guess-start">
+							<Link
+								className="btn btn-primary"
+								href={signInHref}
+								prefetch={false}
+							>
+								{t.signIn}
+							</Link>
+							<p>{t.signInToPlay}</p>
+						</div>
+					) : loaded && started && (!remote || state.clue) ? (
 						// biome-ignore lint/performance/noImgElement: generated per puzzle and clue by our own API
 						<img
 							key={`${puzzle}:${step}`}
-							src={`/api/guess/image?p=${encodeURIComponent(puzzle)}&s=${step}`}
+							src={
+								remote && state.clue
+									? state.clue
+									: `/api/guess/image?p=${encodeURIComponent(puzzle)}&s=${step}`
+							}
 							alt={fill(t.imageAlt, { n: step + 1, total: GUESS_STEPS })}
 							width={640}
 							height={360}
@@ -603,13 +615,8 @@ export function GuessGame({
 							{t.rankHint}
 						</p>
 					</div>
-				) : daily ? (
-					<p className="field-hint">
-						{t.signInToRank}{" "}
-						<Link href={signInHref} prefetch={false}>
-							{t.signIn}
-						</Link>
-					</p>
+				) : daily && !live ? (
+					<p className="field-hint">{t.pastUnranked}</p>
 				) : null}
 
 				{done && state.answer ? (

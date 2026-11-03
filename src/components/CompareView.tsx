@@ -4,6 +4,7 @@ import { useId, useMemo, useState } from "react";
 import Link from "@/components/LocaleLink";
 import { SegRadio } from "@/components/SegRadio";
 import { useI18n } from "@/i18n/provider";
+import { challengeTier } from "@/lib/badge";
 import type { CompareResult, CompareSide } from "@/lib/compare";
 import { localePath } from "@/lib/locale-path";
 import { songPath } from "@/lib/song-path";
@@ -12,16 +13,66 @@ import { fill } from "@/phi/lib/card-i18n";
 const STEP = 40;
 type Filter = "all" | "a" | "b";
 
+function PastForm({
+	days,
+	selected,
+}: {
+	days: { day: string; label: string }[];
+	selected: string;
+}) {
+	const { m, locale } = useI18n();
+	const t = m.compare;
+	const ids = useId();
+	return (
+		<form
+			className="cmp-past"
+			method="get"
+			action={localePath("/compare", locale)}
+		>
+			<input type="hidden" name="a" value="me" />
+			<div className="field field-col">
+				<label className="field-label" htmlFor={`${ids}-day`}>
+					{t.pastLabel}
+				</label>
+				<div className="cmp-row">
+					<select
+						id={`${ids}-day`}
+						className="input"
+						name="b"
+						defaultValue={
+							days.some((d) => `me@${d.day}` === selected)
+								? selected
+								: `me@${days[0]?.day ?? ""}`
+						}
+					>
+						{days.map((d) => (
+							<option key={d.day} value={`me@${d.day}`}>
+								{d.label}
+							</option>
+						))}
+					</select>
+					<button type="submit" className="btn btn-ghost">
+						{t.pastSubmit}
+					</button>
+				</div>
+				<p className="field-hint">{t.pastHint}</p>
+			</div>
+		</form>
+	);
+}
+
 export function CompareForm({
 	a,
 	b,
 	signedIn,
 	errors,
+	days,
 }: {
 	a: string;
 	b: string;
 	signedIn: boolean;
 	errors: string[];
+	days: { day: string; label: string }[];
 }) {
 	const { m, locale } = useI18n();
 	const t = m.compare;
@@ -29,63 +80,70 @@ export function CompareForm({
 	const [va, setA] = useState(a);
 	const [vb, setB] = useState(b);
 	return (
-		<form
-			className="cmp-form"
-			method="get"
-			action={localePath("/compare", locale)}
-		>
-			{(
-				[
-					["a", t.a, va, setA],
-					["b", t.b, vb, setB],
-				] as const
-			).map(([name, label, value, set]) => (
-				<div key={name} className="field field-col">
-					<label className="field-label" htmlFor={`${ids}-${name}`}>
-						{label}
-					</label>
-					<div className="cmp-row">
-						<input
-							id={`${ids}-${name}`}
-							className="input"
-							name={name}
-							value={value}
-							placeholder={t.placeholder}
-							autoComplete="off"
-							spellCheck={false}
-							onChange={(e) => set(e.target.value)}
-						/>
-						{signedIn ? (
-							<button
-								type="button"
-								className="btn btn-ghost"
-								onClick={() => set("me")}
-							>
-								{t.useMine}
-							</button>
-						) : null}
+		<>
+			<form
+				className="cmp-form"
+				method="get"
+				action={localePath("/compare", locale)}
+			>
+				{(
+					[
+						["a", t.a, va, setA],
+						["b", t.b, vb, setB],
+					] as const
+				).map(([name, label, value, set]) => (
+					<div key={name} className="field field-col">
+						<label className="field-label" htmlFor={`${ids}-${name}`}>
+							{label}
+						</label>
+						<div className="cmp-row">
+							<input
+								id={`${ids}-${name}`}
+								className="input"
+								name={name}
+								value={value}
+								placeholder={t.placeholder}
+								autoComplete="off"
+								spellCheck={false}
+								onChange={(e) => set(e.target.value)}
+							/>
+							{signedIn ? (
+								<button
+									type="button"
+									className="btn btn-ghost"
+									onClick={() => set("me")}
+								>
+									{t.useMine}
+								</button>
+							) : null}
+						</div>
 					</div>
-				</div>
-			))}
-			<button type="submit" className="btn btn-primary cmp-submit">
-				{t.submit}
-			</button>
-			<p className="field-hint cmp-hint">{t.hint}</p>
-			{errors.length ? (
-				<div className="callout cmp-errors" role="alert">
-					{errors.map((e) => (
-						<p key={e}>{e}</p>
-					))}
-				</div>
+				))}
+				<button type="submit" className="btn btn-primary cmp-submit">
+					{t.submit}
+				</button>
+				<p className="field-hint cmp-hint">{t.hint}</p>
+				{errors.length ? (
+					<div className="callout cmp-errors" role="alert">
+						{errors.map((e) => (
+							<p key={e}>{e}</p>
+						))}
+					</div>
+				) : null}
+			</form>
+			{signedIn && days.length ? (
+				<PastForm days={days} selected={b.toLowerCase()} />
 			) : null}
-		</form>
+		</>
 	);
 }
 
-function Player({ side, label }: { side: CompareSide; label: string }) {
+export type ComparePlayer = Pick<CompareSide, "name" | "rks" | "challenge">;
+
+function Player({ side, label }: { side: ComparePlayer; label: string }) {
 	const { m } = useI18n();
 	const t = m.compare;
-	const tier = Math.floor(side.challenge / 100);
+	const tier = challengeTier(side.challenge);
 	return (
 		<div className="cmp-player">
 			<p className="cmp-who">{label}</p>
@@ -98,8 +156,9 @@ function Player({ side, label }: { side: CompareSide; label: string }) {
 				{tier > 0 ? (
 					<span>
 						<span className="meta-label">{t.challenge} </span>
-						<span className="meta-value" data-tier={tier}>
-							{side.challenge % 100}
+						<span className="meta-value cmp-clg" data-tier={tier}>
+							<span className="cmp-clg-dot" aria-hidden="true" />
+							{t.challengeColors[tier]} {side.challenge % 100}
 						</span>
 					</span>
 				) : null}
@@ -114,8 +173,8 @@ export function CompareView({
 	result,
 	songs,
 }: {
-	a: CompareSide;
-	b: CompareSide;
+	a: ComparePlayer;
+	b: ComparePlayer;
 	result: CompareResult;
 	songs: Record<string, string>;
 }) {

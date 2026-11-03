@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 		on?: unknown;
 	};
 	const day = dayOf(body.day);
-	if (!day || typeof body.on !== "boolean") {
+	if (!day || day !== dayKey() || typeof body.on !== "boolean") {
 		return Response.json({ error: "bad_request" }, { status: 400 });
 	}
 	const ranked = await setRanked(day, user, session.user?.name ?? "", body.on);

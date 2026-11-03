@@ -21,7 +21,9 @@ function fakeRemote() {
 			data.delete(key);
 		},
 		listRaw: async (prefix) =>
-			[...data.keys()].filter((k) => k.startsWith(prefix)),
+			[...data.keys()]
+				.filter((k) => k.startsWith(prefix))
+				.map((name) => ({ name })),
 	};
 	return { remote, data, calls };
 }

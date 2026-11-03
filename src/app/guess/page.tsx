@@ -69,6 +69,7 @@ export default async function GuessPage({
 				key={puzzle}
 				puzzle={puzzle}
 				daily={daily}
+				live={daily && day === today}
 				label={label}
 				boardTitle={
 					day === today

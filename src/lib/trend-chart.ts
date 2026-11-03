@@ -71,3 +71,11 @@ export function signedDelta(n: number, places = 4): string {
 	if (abs < 0.5 * 10 ** -places) return (0).toFixed(places);
 	return `${n > 0 ? "+" : "−"}${abs.toFixed(places)}`;
 }
+
+export function stepKey(key: string, cur: number, last: number) {
+	if (key === "ArrowLeft") return Math.max(0, cur - 1);
+	if (key === "ArrowRight") return Math.min(last, cur + 1);
+	if (key === "Home") return 0;
+	if (key === "End") return last;
+	return undefined;
+}

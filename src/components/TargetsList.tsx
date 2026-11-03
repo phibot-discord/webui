@@ -7,25 +7,18 @@ import { useI18n } from "@/i18n/provider";
 import { songPath } from "@/lib/song-path";
 import { fill } from "@/phi/lib/card-i18n";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
-import { sortTargets, type Target, type TargetSort } from "@/phi/lib/targets";
-import type { TargetRow, TargetsView } from "@/server/save-views";
+import {
+	shownGoal,
+	sortTargets,
+	type TargetSort,
+	targetOfRow,
+} from "@/phi/lib/targets";
+import type { TargetsView } from "@/server/save-views";
 
 const STEP = 50;
 const SORTS: TargetSort[] = ["gap", "need", "constant", "ap"];
 
 const pct = (n: number) => `${n.toFixed(2)}%`;
-
-function asTarget(r: TargetRow): Target {
-	return {
-		id: r.id,
-		rank: r.rank,
-		difficulty: r.c,
-		acc: r.acc,
-		need: r.need,
-		viaAp: r.ap,
-		apGain: r.gain,
-	};
-}
 
 export function TargetsList({ view }: { view: TargetsView }) {
 	const { m } = useI18n();
@@ -37,7 +30,7 @@ export function TargetsList({ view }: { view: TargetsView }) {
 	const [sort, setSort] = useState<TargetSort>("gap");
 	const [shown, setShown] = useState(STEP);
 
-	const all = useMemo(() => view.rows.map(asTarget), [view.rows]);
+	const all = useMemo(() => view.rows.map(targetOfRow), [view.rows]);
 	const list = useMemo(
 		() =>
 			sortTargets(
@@ -46,7 +39,7 @@ export function TargetsList({ view }: { view: TargetsView }) {
 			),
 		[all, levels, unplayed, sort],
 	);
-	const shownStep = (Math.round(view.goal * 100) / 100).toFixed(2);
+	const shownStep = shownGoal(view.goal);
 
 	if (!view.rows.length && !view.stuck) {
 		return (
@@ -183,12 +176,10 @@ export function TargetsList({ view }: { view: TargetsView }) {
 											)}
 										</td>
 										<td className="num tgt-need">
-											{r.viaAp ? t.apOnly : r.need != null ? pct(r.need) : "—"}
+											{r.viaAp ? t.apOnly : pct(r.need)}
 										</td>
 										<td className="num">
-											{r.need != null && r.acc != null
-												? `+${(r.need - r.acc).toFixed(2)}`
-												: "—"}
+											{r.acc != null ? `+${(r.need - r.acc).toFixed(2)}` : "—"}
 										</td>
 										<td className="num">+{r.apGain.toFixed(4)}</td>
 									</tr>
