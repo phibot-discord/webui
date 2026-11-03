@@ -60,7 +60,7 @@ function frame(lines: unknown[], t: number) {
 	return { rows, kinds: rows.map((r) => r[0]), fb };
 }
 
-test("lines first, then drags, taps and flicks, holds on top, then effects", () => {
+test("lines, hold bodies, hold heads, drags, taps, flicks on top, then effects", () => {
 	const { kinds } = frame(
 		[
 			line({
@@ -77,10 +77,11 @@ test("lines first, then drags, taps and flicks, holds on top, then effects", () 
 	);
 	assert.deepEqual(kinds, [
 		K_LINE,
+		K_HOLD,
+		K_HOLD,
 		K_DRAG,
 		K_TAP,
 		K_FLICK,
-		K_HOLD,
 		K_RING,
 		K_SPARK,
 		K_SPARK,
@@ -122,12 +123,19 @@ test("a future note behind the line stays hidden", () => {
 
 test("a hold drops its head once started and vanishes at its end", () => {
 	const lines = [line({ notesAbove: [note(3, 64, { holdTime: 64 })] })];
-	const early = frame(lines, 0.5).rows.find((r) => r[0] === K_HOLD);
-	const mid = frame(lines, 1.5).rows.find((r) => r[0] === K_HOLD);
-	assert.ok(early && mid);
-	assert.equal(early[9], 1);
-	assert.equal(mid[9], 0);
-	assert.ok(Math.abs(mid[11]! - 0.5 * FLOOR_UNIT) < 1e-6);
+	const early = frame(lines, 0.5).rows.filter((r) => r[0] === K_HOLD);
+	const mid = frame(lines, 1.5).rows.filter((r) => r[0] === K_HOLD);
+	assert.deepEqual(
+		early.map((r) => r[9]),
+		[0, 1],
+	);
+	assert.ok(Math.abs(early[0]![11]! - 1 * FLOOR_UNIT) < 1e-6);
+	assert.ok(Math.abs(early[1]![2]! - 0.5 * FLOOR_UNIT) < 1e-6);
+	assert.deepEqual(
+		mid.map((r) => r[9]),
+		[0],
+	);
+	assert.ok(Math.abs(mid[0]![11]! - 0.5 * FLOOR_UNIT) < 1e-6);
 	assert.equal(frame(lines, 2).rows.filter((r) => r[0] === K_HOLD).length, 0);
 });
 
@@ -181,15 +189,19 @@ test("note size scales note bodies and hold heads, not hold lengths", () => {
 		Array.from(fb.data.subarray(i * STRIDE, (i + 1) * STRIDE)),
 	);
 	const tap = rows.find((r) => r[0] === K_TAP);
-	const hold = rows.find((r) => r[0] === K_HOLD);
-	assert.ok(tap && hold);
+	const body = rows.find((r) => r[0] === K_HOLD && r[9] === 0);
+	const head = rows.find((r) => r[0] === K_HOLD && r[9] === 1);
+	assert.ok(tap && body && head);
 	assert.ok(Math.abs(tap[5]! - NOTE_HW * 1.5) < 1e-6);
 	assert.ok(Math.abs(tap[6]! - TAP_HH * 1.5) < 1e-6);
-	assert.ok(Math.abs(hold[5]! - NOTE_HW * 1.5) < 1e-6);
-	assert.ok(Math.abs(hold[11]! - 0.5 * FLOOR_UNIT) < 1e-6);
-	const plain = frame(lines, 0.5).rows.find((r) => r[0] === K_HOLD);
+	assert.ok(Math.abs(body[5]! - NOTE_HW * 1.5) < 1e-6);
+	assert.ok(Math.abs(body[11]! - 0.5 * FLOOR_UNIT) < 1e-6);
+	assert.ok(Math.abs(head[6]! - TAP_HH * 1.5) < 1e-6);
+	const plain = frame(lines, 0.5).rows.find(
+		(r) => r[0] === K_HOLD && r[9] === 0,
+	);
 	assert.ok(plain);
-	assert.ok(hold[6]! > plain[6]!);
+	assert.ok(Math.abs(body[6]! - plain[6]!) < 1e-9);
 });
 
 test("a line that only moves forward stops at the first note past the screen", () => {

@@ -41,8 +41,14 @@ const HIDE_BELOW = -0.001;
 const X_LIM = 1 + 0.25;
 const Y_LIM = 1 / ASPECT + 0.25;
 const REACH_PAD = 0.06;
-const ORDER = [DRAG, TAP, FLICK, HOLD];
-const KIND_OF = [K_DRAG, K_TAP, K_FLICK, K_HOLD];
+// Holds (bodies, then heads) go under every other note, so a drag, tap or flick on a hold stays visible
+const PASSES = [
+	{ kind: HOLD, out: K_HOLD, head: false },
+	{ kind: HOLD, out: K_HOLD, head: true },
+	{ kind: DRAG, out: K_DRAG, head: false },
+	{ kind: TAP, out: K_TAP, head: false },
+	{ kind: FLICK, out: K_FLICK, head: false },
+];
 
 export type FrameStats = { lines: number; notes: number; fx: number };
 
@@ -78,7 +84,8 @@ export class FrameBuilder {
 	constructor(private readonly chart: CompiledChart) {
 		const { lines, notes } = chart;
 		const n = notes.time.length;
-		const cap = lines + n + chart.fx.peak * (1 + SPARKS) + 1;
+		const cap =
+			lines + n + chart.counts.hold + chart.fx.peak * (1 + SPARKS) + 1;
 		this.data = new Float32Array(cap * STRIDE);
 		this.lx = new Float64Array(lines);
 		this.ly = new Float64Array(lines);
@@ -208,9 +215,8 @@ export class FrameBuilder {
 		const scale = this.noteScale;
 		const hw = NOTE_HW * scale;
 		const headHH = TAP_HH * scale;
-		for (let k = 0; k < 4; k++) {
-			const kind = ORDER[k]!;
-			const outKind = KIND_OF[k]!;
+		for (const pass of PASSES) {
+			const { kind, head } = pass;
 			const hh = (kind === DRAG ? DRAG_HH : TAP_HH) * scale;
 			for (let li = 0; li < chart.lines; li++) {
 				if (la[li]! < 0) continue;
@@ -219,7 +225,7 @@ export class FrameBuilder {
 				const hi = off[b + 1]!;
 				if (lo === hi) continue;
 				const from =
-					kind === HOLD
+					kind === HOLD && !head
 						? firstAtOrAfter(times, t - maxHold[li]!, lo, hi)
 						: firstAfter(times, t, lo, hi);
 				if (from >= hi) continue;
@@ -236,35 +242,38 @@ export class FrameBuilder {
 					: Number.POSITIVE_INFINITY;
 				for (let j = from; j < hi; j++) {
 					const i = ids[j]!;
-					const head = (notes.floor[i]! - lineFloor) * FLOOR_UNIT;
-					if (head > limit) break;
+					const headAt = (notes.floor[i]! - lineFloor) * FLOOR_UNIT;
+					if (headAt > limit) break;
 					const flags = notes.flags[i]!;
 					const sg = flags & BELOW ? -1 : 1;
 					const multi = flags & MULTI ? 1 : 0;
 					const glow = multi && this.chordColors ? 1 + notes.tint[i]! : multi;
 					const xo = notes.x[i]!;
-					if (kind !== HOLD) {
-						const dy = head * notes.speed[i]!;
+					if (kind !== HOLD || head) {
+						const dy = head ? headAt : headAt * notes.speed[i]!;
 						if (dy <= HIDE_BELOW) continue;
 						const ly0 = sg * dy;
 						const px = ox + c * xo - s * ly0;
 						const py = oy + s * xo + c * ly0;
 						if (px > X_LIM || px < -X_LIM || py > Y_LIM || py < -Y_LIM)
 							continue;
-						this.put(outKind, px, py, c, s, hw, sg * hh, 1, glow, 0, 0, 0);
+						if (head) {
+							this.put(K_HOLD, px, py, c, s, hw, sg * headHH, 1, glow, 1, 0, 0);
+						} else {
+							this.put(pass.out, px, py, c, s, hw, sg * hh, 1, glow, 0, 0, 0);
+						}
 						continue;
 					}
 					if (t >= notes.end[i]!) continue;
 					const started = t >= notes.time[i]!;
-					if (!started && head <= HIDE_BELOW) continue;
-					const bottom = started ? 0 : head;
+					if (!started && headAt <= HIDE_BELOW) continue;
+					const bottom = started ? 0 : headAt;
 					const top = (notes.tail[i]! - lineFloor) * FLOOR_UNIT;
 					const len = top - bottom;
-					if (started && len <= 0) continue;
-					const y0 = bottom - (started ? 0 : headHH);
-					const y1 = (len > 0 ? top : bottom) + HOLD_CAP;
-					const mid = (y0 + y1) / 2;
-					const hhold = (y1 - y0) / 2;
+					if (len <= 0) continue;
+					const y1 = top + HOLD_CAP;
+					const mid = (bottom + y1) / 2;
+					const hhold = (y1 - bottom) / 2;
 					const ly0 = sg * mid;
 					const px = ox + c * xo - s * ly0;
 					const py = oy + s * xo + c * ly0;
@@ -287,9 +296,9 @@ export class FrameBuilder {
 						sg * hhold,
 						1,
 						glow,
-						started ? 0 : 1,
+						0,
 						bottom - mid,
-						Math.max(len, 0),
+						len,
 					);
 				}
 			}

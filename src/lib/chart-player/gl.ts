@@ -19,7 +19,7 @@ void main() {
 	float sg = a_i1.z < 0.0 ? -1.0 : 1.0;
 	vec2 ay = vec2(-ax.y, ax.x) * sg;
 	vec2 h = vec2(a_i1.y, abs(a_i1.z));
-	float glow = (kind > 0.5 && kind < 4.5 && a_i2.x > 0.5) ? 0.012 : 0.0;
+	float glow = (kind > 0.5 && kind < 4.5 && a_i2.x > 0.5) ? 0.009 : 0.0;
 	vec2 e = h + vec2(glow + 2.0 * u_px);
 	vec2 lp = a_corner * e;
 	vec2 w = a_i0.yz + ax * lp.x + ay * lp.y;
@@ -66,14 +66,14 @@ void bar(inout vec4 c, vec2 p, vec2 h, vec3 col, float multi, float kind) {
 	float d = box(p, h, h.y * 0.5);
 	vec3 gc = glowColor(multi);
 	if (multi > 0.5 && d > 0.0) {
-		float g = 1.0 - d / 0.012;
-		lay(c, gc, clamp(g, 0.0, 1.0) * clamp(g, 0.0, 1.0) * 0.8);
+		float g = 1.0 - d / 0.009;
+		lay(c, gc, clamp(g, 0.0, 1.0) * clamp(g, 0.0, 1.0) * 0.75);
 	}
 	float a = cover(d);
 	if (a <= 0.0) return;
 	float shade = smoothstep(-h.y, h.y, p.y);
 	vec3 body = mix(col * 0.78, min(col * 1.18 + 0.06, vec3(1.0)), shade);
-	float inner = cover(d + 1.6 * u_px);
+	float inner = cover(d + (multi > 0.5 ? 2.4 : 1.6) * u_px);
 	vec3 edge = multi > 0.5 ? gc : min(col + 0.35, vec3(1.0));
 	vec3 tone = mix(edge, body, inner);
 	if (kind > 3.5) {
@@ -248,7 +248,7 @@ void main() {
 	o = v_q;
 }`;
 
-const COMPOSE_VS = `#version 300 es
+const QUAD_VS = `#version 300 es
 layout(location = 0) in vec2 a_corner;
 out vec2 v_uv;
 void main() {
@@ -256,66 +256,227 @@ void main() {
 	gl_Position = vec4(a_corner, 0.0, 1.0);
 }`;
 
+// Field boundaries wobble with a slow cloud flow; a one-texel ring outside is the outline, the next four rings fade out as glow
+const EFFECT_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_mask;
+uniform sampler2D u_noise;
+uniform vec2 u_texel;
+uniform float u_time;
+out vec4 o;
+const float IDLE = ${DISABLED_LEVEL.toFixed(3)};
+const vec2 DIR = vec2(0.70710678);
+const vec2 PERP = vec2(-0.70710678, 0.70710678);
+float xr(float a, float b) {
+	return clamp(a + b - 2.0 * a * b, 0.0, 1.0);
+}
+float act(vec2 p) {
+	vec4 m = texture(u_mask, p);
+	return xr(m.r, m.g);
+}
+float ring(vec2 p, float r) {
+	vec2 d = u_texel * r;
+	float m = act(p + vec2(d.x, 0.0));
+	m = max(m, act(p - vec2(d.x, 0.0)));
+	m = max(m, act(p + vec2(0.0, d.y)));
+	m = max(m, act(p - vec2(0.0, d.y)));
+	m = max(m, act(p + d));
+	m = max(m, act(p - d));
+	m = max(m, act(p + vec2(d.x, -d.y)));
+	m = max(m, act(p + vec2(-d.x, d.y)));
+	return m;
+}
+void main() {
+	float s = u_time * 0.1295;
+	vec2 base = v_uv * vec2(2.13, 1.02);
+	float a = texture(u_noise, base + DIR * s).r - 0.5;
+	float b = texture(u_noise, base + PERP * s).r - 0.5;
+	vec2 p = v_uv + (DIR * a + PERP * b) * 0.1;
+	float inside = act(p);
+	float edge = 0.0;
+	float glow = 0.0;
+	if (inside <= 0.0) {
+		if (ring(p, 1.0) > 0.0) {
+			edge = 1.0;
+			glow = 0.459;
+		} else if (ring(p, 2.0) > 0.0) {
+			glow = 0.283;
+		} else if (ring(p, 3.0) > 0.0) {
+			glow = 0.157;
+		} else if (ring(p, 4.0) > 0.0) {
+			glow = 0.073;
+		} else if (ring(p, 5.0) > 0.0) {
+			glow = 0.025;
+		}
+	}
+	vec4 m = texture(u_mask, v_uv);
+	float level = m.a > 0.5 ? (m.b > 0.004 ? 0.0 : IDLE) : m.b;
+	o = vec4(inside, edge, glow, level);
+}`;
+
+// Active field: a pixelated, flow-warped copy of the chart under a dark red tint with sparks, a light red outline and a red glow; ready: a white flicker; disabled: an additive dark red with dim sparks
 const COMPOSE_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 uniform sampler2D u_chart;
-uniform sampler2D u_mask;
-uniform vec2 u_texel;
+uniform sampler2D u_effect;
+uniform sampler2D u_noise;
+uniform sampler2D u_scene;
+uniform vec2 u_size;
 uniform float u_time;
 out vec4 o;
-const vec3 RED = vec3(1.0, 0.16, 0.2);
 const float IDLE = ${DISABLED_LEVEL.toFixed(3)};
-float hash(vec2 p) {
-	vec3 q = fract(vec3(p.xyx) * 0.1031);
-	q += dot(q, q.yzx + 33.33);
-	return fract((q.x + q.y) * q.z);
+const vec2 DIR = vec2(0.70710678);
+const vec2 PERP = vec2(-0.70710678, 0.70710678);
+const vec3 FILL = vec3(0.713, 0.235, 0.235);
+const vec3 EDGE = vec3(1.0, 0.33, 0.33);
+const vec3 GLOW = vec3(1.0, 0.179, 0.179);
+const vec3 SPARK = vec3(5.69, 1.62, 1.62);
+const vec3 IDLE_FILL = vec3(0.199, 0.055, 0.055);
+const vec3 IDLE_SPARK = vec3(1.09, 0.272, 0.272);
+vec2 flow(vec2 uv, vec2 tile, float speed, out float avg) {
+	vec2 base = uv * tile;
+	float s = u_time * speed;
+	float a = texture(u_noise, base + DIR * s).r;
+	float b = texture(u_noise, base + PERP * s).r;
+	avg = (a + b) * 0.5;
+	return DIR * (a - 0.5) + PERP * (b - 0.5);
 }
-float xr(float a, float b) {
-	return clamp(a + b - 2.0 * a * b, 0.0, 1.0);
-}
-vec2 cover(vec2 uv) {
-	vec4 m = texture(u_mask, uv);
-	float act = xr(m.r, m.g);
-	float idle = xr(clamp(m.b * 8.0, 0.0, 1.0), m.a) * (1.0 - act);
-	return vec2(act, idle);
+vec3 overlay(vec3 b, vec3 s) {
+	return mix(2.0 * b * s, 1.0 - 2.0 * (1.0 - b) * (1.0 - s), step(0.5, b));
 }
 void main() {
-	vec4 m = texture(u_mask, v_uv);
-	vec2 c = cover(v_uv);
-	float act = c.x;
-	float idle = c.y;
-	float frame = floor(u_time * 24.0);
-	vec2 uv = v_uv;
-	if (act > 0.0) {
-		float band = floor(v_uv.y * 54.0);
-		float jump = step(0.7, hash(vec2(band, frame)));
-		uv.x += (hash(vec2(band + 7.0, frame)) - 0.5) * 0.035 * jump * act;
+	vec4 e = texture(u_effect, v_uv);
+	float inside = e.r;
+	float edge = e.g;
+	float glow = e.b;
+	float level = e.a;
+	vec3 col = texture(u_chart, v_uv).rgb;
+	if (level >= 0.9) {
+		col += vec3(0.12 * (1.0 + 0.5 * sin(u_time * 37.9)));
+	} else if (level > 0.0) {
+		float avg;
+		vec2 d = flow(v_uv, vec2(0.5, 0.2), 0.015, avg);
+		float sp = texture(u_noise, v_uv * vec2(3.0, 1.2) + d * 2.29).b * avg;
+		col += clamp(level / IDLE, 0.0, 1.0) * (IDLE_FILL + IDLE_SPARK * sp);
 	}
-	vec3 col = texture(u_chart, uv).rgb;
-	vec2 dx = vec2(u_texel.x * 1.5, 0.0);
-	vec2 dy = vec2(0.0, u_texel.y * 1.5);
-	vec2 l = cover(v_uv - dx);
-	vec2 r = cover(v_uv + dx);
-	vec2 d = cover(v_uv - dy);
-	vec2 t = cover(v_uv + dy);
-	float edgeA = clamp(length(vec2(r.x - l.x, t.x - d.x)) * 1.2, 0.0, 1.0);
-	float edgeI = clamp(length(vec2(r.y - l.y, t.y - d.y)) * 1.2, 0.0, 1.0);
-	if (act > 0.0) {
-		float grain = hash(floor(gl_FragCoord.xy / 3.0) + frame * 13.0);
-		float scan = 0.82 + 0.18 * step(0.5, fract(gl_FragCoord.y / 4.0));
-		vec3 tint = col * vec3(0.95, 0.3, 0.32) * scan + RED * (0.14 + 0.34 * grain * grain);
-		col = mix(col, tint, act);
+	if (inside + edge + glow > 0.0) {
+		float cell = max(1.0, floor(u_size.y / 180.0));
+		vec2 puv = (floor(v_uv * u_size / cell) + 0.5) * cell / u_size;
+		float avg;
+		vec2 d = flow(puv, vec2(0.8, 0.3), 0.075, avg);
+		vec3 inner = texture(u_scene, puv + d * 0.15).rgb;
+		vec3 sp = clamp(texture(u_noise, v_uv * vec2(3.0, 1.2) + d * 2.39).b * avg * SPARK, 0.0, 1.0);
+		inner = overlay(inner, sp);
+		vec3 fill = mix(max(FILL - avg * 0.411, 0.0), inner, 0.667);
+		float aEdge = edge * 0.8;
+		float aGlow = glow * clamp(1.0 - edge - inside, 0.0, 1.0) * 0.8;
+		float alpha = inside * 0.667 + aEdge + aGlow;
+		col = col * (1.0 - alpha) + fill * inside + EDGE * aEdge + GLOW * aGlow;
 	}
-	float ready = step(0.9, m.b);
-	float pulse = 0.5 + 0.5 * sin(u_time * 25.0);
-	float level = m.b > 0.004 ? clamp(m.b / IDLE, 0.0, 1.0) : 1.0;
-	col = mix(col, RED, idle * (ready > 0.5 ? 0.14 + 0.12 * pulse : 0.07 * level));
-	float flicker = 0.75 + 0.25 * hash(vec2(frame, floor((v_uv.x + v_uv.y) * 90.0)));
-	col += RED * edgeA * flicker;
-	col += RED * edgeI * (ready > 0.5 ? 0.35 + 0.45 * pulse : 0.3 * level);
 	o = vec4(col, 1.0);
 }`;
+
+const NOISE_SIZE = 256;
+const SPARK_COUNT = 560;
+
+function hash2(x: number, y: number, seed: number): number {
+	let h = Math.imul(x, 0x27d4eb2d) ^ Math.imul(y, 0x165667b1) ^ seed;
+	h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+	h ^= h >>> 13;
+	h = Math.imul(h, 0xc2b2ae35);
+	h ^= h >>> 16;
+	return (h >>> 0) / 4294967296;
+}
+
+function clouds(seed: number, out: Uint8Array, channel: number) {
+	const n = NOISE_SIZE;
+	const sum = new Float32Array(n * n);
+	let amp = 1;
+	for (let period = 4; period <= 64; period *= 2) {
+		const grid = new Float32Array(period * period);
+		for (let i = 0; i < grid.length; i++) {
+			grid[i] = hash2(i % period, (i / period) | 0, seed + period);
+		}
+		for (let y = 0; y < n; y++) {
+			const fy = (y / n) * period;
+			const iy = fy | 0;
+			const ty = (fy - iy) * (fy - iy) * (3 - 2 * (fy - iy));
+			const y1 = (iy + 1) % period;
+			for (let x = 0; x < n; x++) {
+				const fx = (x / n) * period;
+				const ix = fx | 0;
+				const tx = (fx - ix) * (fx - ix) * (3 - 2 * (fx - ix));
+				const x1 = (ix + 1) % period;
+				const a = grid[iy * period + ix]!;
+				const b = grid[iy * period + x1]!;
+				const c = grid[y1 * period + ix]!;
+				const d = grid[y1 * period + x1]!;
+				const top = a + (b - a) * tx;
+				sum[y * n + x]! += amp * (top + (c + (d - c) * tx - top) * ty);
+			}
+		}
+		amp *= 0.55;
+	}
+	let lo = Number.POSITIVE_INFINITY;
+	let hi = Number.NEGATIVE_INFINITY;
+	for (const v of sum) {
+		if (v < lo) lo = v;
+		if (v > hi) hi = v;
+	}
+	const span = hi - lo || 1;
+	for (let i = 0; i < sum.length; i++) {
+		out[i * 4 + channel] = Math.round(((sum[i]! - lo) / span) * 255);
+	}
+}
+
+function sparks(seed: number, out: Uint8Array, channel: number) {
+	const n = NOISE_SIZE;
+	const v = new Float32Array(n * n);
+	for (let k = 0; k < SPARK_COUNT; k++) {
+		const cx = hash2(k, 1, seed) * n;
+		const cy = hash2(k, 2, seed) * n;
+		const r = 0.8 + hash2(k, 3, seed);
+		const bright = 0.55 + hash2(k, 4, seed) * 0.45;
+		for (let y = Math.floor(cy - r - 1); y <= Math.ceil(cy + r + 1); y++) {
+			for (let x = Math.floor(cx - r - 1); x <= Math.ceil(cx + r + 1); x++) {
+				const f = Math.max(0, 1 - Math.hypot(x + 0.5 - cx, y + 0.5 - cy) / r);
+				if (f <= 0) continue;
+				const i = (((y % n) + n) % n) * n + (((x % n) + n) % n);
+				v[i] = Math.max(v[i]!, bright * f * f);
+			}
+		}
+	}
+	for (let i = 0; i < v.length; i++)
+		out[i * 4 + channel] = Math.round(v[i]! * 255);
+}
+
+function noiseTexture(gl: WebGL2RenderingContext): WebGLTexture {
+	const data = new Uint8Array(NOISE_SIZE * NOISE_SIZE * 4);
+	clouds(11, data, 0);
+	clouds(23, data, 1);
+	sparks(37, data, 2);
+	for (let i = 3; i < data.length; i += 4) data[i] = 255;
+	const tex = gl.createTexture();
+	gl.bindTexture(gl.TEXTURE_2D, tex);
+	gl.texImage2D(
+		gl.TEXTURE_2D,
+		0,
+		gl.RGBA,
+		NOISE_SIZE,
+		NOISE_SIZE,
+		0,
+		gl.RGBA,
+		gl.UNSIGNED_BYTE,
+		data,
+	);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+	return tex;
+}
 
 function shader(gl: WebGL2RenderingContext, type: number, src: string) {
 	const s = gl.createShader(type);
@@ -349,6 +510,14 @@ type Targets = {
 	mask: WebGLFramebuffer;
 	mw: number;
 	mh: number;
+	effectTex: WebGLTexture;
+	effect: WebGLFramebuffer;
+	ew: number;
+	eh: number;
+	sceneTex: WebGLTexture;
+	scene: WebGLFramebuffer;
+	sw: number;
+	sh: number;
 };
 
 type Res = {
@@ -361,6 +530,8 @@ type Res = {
 	uWmAlpha: WebGLUniformLocation | null;
 	area: WebGLProgram;
 	compose: WebGLProgram;
+	effect: WebGLProgram;
+	noiseTex: WebGLTexture | null;
 	vao: WebGLVertexArrayObject;
 	bgVao: WebGLVertexArrayObject;
 	areaVao: WebGLVertexArrayObject;
@@ -376,9 +547,15 @@ type Res = {
 	uUv: WebGLUniformLocation | null;
 	uDim: WebGLUniformLocation | null;
 	uAreaScale: WebGLUniformLocation | null;
+	uEffMask: WebGLUniformLocation | null;
+	uEffNoise: WebGLUniformLocation | null;
+	uEffTexel: WebGLUniformLocation | null;
+	uEffTime: WebGLUniformLocation | null;
 	uChart: WebGLUniformLocation | null;
-	uMask: WebGLUniformLocation | null;
-	uTexel: WebGLUniformLocation | null;
+	uEffect: WebGLUniformLocation | null;
+	uNoise: WebGLUniformLocation | null;
+	uScene: WebGLUniformLocation | null;
+	uSize: WebGLUniformLocation | null;
 	uTime: WebGLUniformLocation | null;
 };
 
@@ -390,12 +567,18 @@ export type AreaFrame = {
 	time: number;
 };
 
-function target(gl: WebGL2RenderingContext, w: number, h: number) {
+function target(
+	gl: WebGL2RenderingContext,
+	w: number,
+	h: number,
+	nearest = false,
+) {
 	const tex = gl.createTexture();
 	gl.bindTexture(gl.TEXTURE_2D, tex);
 	gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, w, h);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	const filter = nearest ? gl.NEAREST : gl.LINEAR;
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 	const fb = gl.createFramebuffer();
@@ -463,7 +646,8 @@ export class ChartRenderer {
 			? { tex: textTexture(gl, mark), aspect: mark.width / mark.height }
 			: null;
 		const area = program(gl, AREA_VS, AREA_FS);
-		const compose = program(gl, COMPOSE_VS, COMPOSE_FS);
+		const compose = program(gl, QUAD_VS, COMPOSE_FS);
+		const effect = program(gl, QUAD_VS, EFFECT_FS);
 		const quad = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, quad);
 		gl.bufferData(
@@ -507,6 +691,8 @@ export class ChartRenderer {
 			bg,
 			area,
 			compose,
+			effect,
+			noiseTex: null,
 			vao,
 			bgVao,
 			areaVao,
@@ -527,9 +713,15 @@ export class ChartRenderer {
 			uWmUv: gl.getUniformLocation(wm, "u_uv"),
 			uWmAlpha: gl.getUniformLocation(wm, "u_alpha"),
 			uAreaScale: gl.getUniformLocation(area, "u_scale"),
+			uEffMask: gl.getUniformLocation(effect, "u_mask"),
+			uEffNoise: gl.getUniformLocation(effect, "u_noise"),
+			uEffTexel: gl.getUniformLocation(effect, "u_texel"),
+			uEffTime: gl.getUniformLocation(effect, "u_time"),
 			uChart: gl.getUniformLocation(compose, "u_chart"),
-			uMask: gl.getUniformLocation(compose, "u_mask"),
-			uTexel: gl.getUniformLocation(compose, "u_texel"),
+			uEffect: gl.getUniformLocation(compose, "u_effect"),
+			uNoise: gl.getUniformLocation(compose, "u_noise"),
+			uScene: gl.getUniformLocation(compose, "u_scene"),
+			uSize: gl.getUniformLocation(compose, "u_size"),
 			uTime: gl.getUniformLocation(compose, "u_time"),
 		};
 	}
@@ -597,6 +789,7 @@ export class ChartRenderer {
 			return;
 		}
 		const tg = this.targets(res, w, h);
+		if (!res.noiseTex) res.noiseTex = noiseTexture(gl);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, tg.chart);
 		gl.viewport(0, 0, w, h);
 		this.scene(res, data, count, w, null);
@@ -605,24 +798,53 @@ export class ChartRenderer {
 		gl.clearColor(0, 0, 0, 0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
 		this.drawAreas(res, areas);
+		gl.disable(gl.BLEND);
+		gl.bindVertexArray(res.bgVao);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, tg.effect);
+		gl.viewport(0, 0, tg.ew, tg.eh);
+		// biome-ignore lint/correctness/useHookAtTopLevel: a WebGL call, not a React hook
+		gl.useProgram(res.effect);
+		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D, res.noiseTex);
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, tg.maskTex);
+		gl.uniform1i(res.uEffMask, 0);
+		gl.uniform1i(res.uEffNoise, 1);
+		gl.uniform2f(res.uEffTexel, 1 / tg.ew, 1 / tg.eh);
+		gl.uniform1f(res.uEffTime, areas.time);
+		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+		this.drawCalls++;
+		gl.bindFramebuffer(gl.FRAMEBUFFER, tg.scene);
+		gl.viewport(0, 0, tg.sw, tg.sh);
+		// biome-ignore lint/correctness/useHookAtTopLevel: a WebGL call, not a React hook
+		gl.useProgram(res.wm);
+		gl.uniform4f(res.uWmUv, 0, 0, 1, 1);
+		gl.uniform1f(res.uWmAlpha, 1);
+		gl.bindTexture(gl.TEXTURE_2D, tg.chartTex);
+		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+		this.drawCalls++;
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.viewport(x, y, w, h);
 		// biome-ignore lint/correctness/useHookAtTopLevel: a WebGL call, not a React hook
 		gl.useProgram(res.compose);
+		gl.activeTexture(gl.TEXTURE3);
+		gl.bindTexture(gl.TEXTURE_2D, tg.sceneTex);
+		gl.activeTexture(gl.TEXTURE2);
+		gl.bindTexture(gl.TEXTURE_2D, res.noiseTex);
 		gl.activeTexture(gl.TEXTURE1);
-		gl.bindTexture(gl.TEXTURE_2D, tg.maskTex);
+		gl.bindTexture(gl.TEXTURE_2D, tg.effectTex);
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindTexture(gl.TEXTURE_2D, tg.chartTex);
 		gl.uniform1i(res.uChart, 0);
-		gl.uniform1i(res.uMask, 1);
-		gl.uniform2f(res.uTexel, 1 / tg.mw, 1 / tg.mh);
+		gl.uniform1i(res.uEffect, 1);
+		gl.uniform1i(res.uNoise, 2);
+		gl.uniform1i(res.uScene, 3);
+		gl.uniform2f(res.uSize, w, h);
 		gl.uniform1f(res.uTime, areas.time);
-		gl.bindVertexArray(res.bgVao);
-		gl.disable(gl.BLEND);
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+		this.drawCalls++;
 		gl.enable(gl.BLEND);
 		gl.bindVertexArray(null);
-		this.drawCalls++;
 		this.labels(res, x, y, w, h);
 	}
 
@@ -684,15 +906,28 @@ export class ChartRenderer {
 		if (old && old.w === w && old.h === h) return old;
 		const gl = this.gl;
 		if (old) {
-			gl.deleteFramebuffer(old.chart);
-			gl.deleteFramebuffer(old.mask);
-			gl.deleteTexture(old.chartTex);
-			gl.deleteTexture(old.maskTex);
+			for (const fb of [old.chart, old.mask, old.effect, old.scene]) {
+				gl.deleteFramebuffer(fb);
+			}
+			for (const tex of [
+				old.chartTex,
+				old.maskTex,
+				old.effectTex,
+				old.sceneTex,
+			]) {
+				gl.deleteTexture(tex);
+			}
 		}
-		const mw = Math.max(1, w >> 1);
-		const mh = Math.max(1, h >> 1);
+		const mw = Math.max(1, w >> 3);
+		const mh = Math.max(1, h >> 3);
+		const ew = Math.max(1, w >> 2);
+		const eh = Math.max(1, h >> 2);
+		const sw = Math.max(1, Math.floor(w / 6));
+		const sh = Math.max(1, Math.floor(h / 6));
 		const chart = target(gl, w, h);
-		const mask = target(gl, mw, mh);
+		const mask = target(gl, mw, mh, true);
+		const effect = target(gl, ew, eh);
+		const scene = target(gl, sw, sh, true);
 		const next: Targets = {
 			w,
 			h,
@@ -702,6 +937,14 @@ export class ChartRenderer {
 			mask: mask.fb,
 			mw,
 			mh,
+			effectTex: effect.tex,
+			effect: effect.fb,
+			ew,
+			eh,
+			sceneTex: scene.tex,
+			scene: scene.fb,
+			sw,
+			sh,
 		};
 		res.targets = next;
 		return next;
