@@ -40,7 +40,6 @@ const SPARKS = 4;
 const HIDE_BELOW = -0.001;
 const X_LIM = 1 + 0.25;
 const Y_LIM = 1 / ASPECT + 0.25;
-const REACH_PAD = 0.06;
 // Holds (bodies, then heads) go under every other note, so a drag, tap or flick on a hold stays visible
 const PASSES = [
 	{ kind: HOLD, out: K_HOLD, head: false },
@@ -71,13 +70,9 @@ export class FrameBuilder {
 	private readonly ls: Float64Array;
 	private readonly la: Float64Array;
 	private readonly lf: Float64Array;
-	private readonly ld: Float64Array;
 	private readonly off: Int32Array;
 	private readonly ids: Int32Array;
 	private readonly times: Float64Array;
-	// A line whose floor never runs backwards lets the walk stop at the first note beyond the screen
-	private readonly fast: Uint8Array;
-	private readonly minSpeed: Float32Array;
 	private readonly maxHold: Float64Array;
 	private n = 0;
 
@@ -93,7 +88,6 @@ export class FrameBuilder {
 		this.ls = new Float64Array(lines);
 		this.la = new Float64Array(lines);
 		this.lf = new Float64Array(lines);
-		this.ld = new Float64Array(lines);
 		const off = new Int32Array(lines * 4 + 1);
 		for (let i = 0; i < n; i++) {
 			const k = notes.line[i]! * 4 + notes.kind[i]! + 1;
@@ -110,36 +104,15 @@ export class FrameBuilder {
 			ids[at] = i;
 			times[at] = notes.time[i]!;
 		}
-		const fast = new Uint8Array(lines).fill(1);
-		const minSpeed = new Float32Array(lines).fill(Number.POSITIVE_INFINITY);
 		const maxHold = new Float64Array(lines);
-		const sp = chart.speed;
-		for (let li = 0; li < lines; li++) {
-			for (let j = sp.off[li]!; j < sp.off[li + 1]!; j++) {
-				if (sp.v[j]! < 0) fast[li] = 0;
-			}
-		}
 		for (let i = 0; i < n; i++) {
+			if (notes.kind[i] !== HOLD) continue;
 			const li = notes.line[i]!;
-			const speed = notes.speed[i]!;
-			const hold = notes.kind[i] === HOLD;
-			if (!(speed > 0) || (hold && notes.tail[i]! < notes.floor[i]!)) {
-				fast[li] = 0;
-			} else if (speed < minSpeed[li]!) {
-				minSpeed[li] = speed;
-			}
-			if (hold) {
-				maxHold[li] = Math.max(maxHold[li]!, notes.end[i]! - notes.time[i]!);
-			}
-		}
-		for (let li = 0; li < lines; li++) {
-			if (!Number.isFinite(minSpeed[li])) minSpeed[li] = 1;
+			maxHold[li] = Math.max(maxHold[li]!, notes.end[i]! - notes.time[i]!);
 		}
 		this.off = off;
 		this.ids = ids;
 		this.times = times;
-		this.fast = fast;
-		this.minSpeed = minSpeed;
 		this.maxHold = maxHold;
 	}
 
@@ -176,7 +149,7 @@ export class FrameBuilder {
 
 	build(t: number): number {
 		const { chart } = this;
-		const { lx, ly, lc, ls, la, lf, ld } = this;
+		const { lx, ly, lc, ls, la, lf } = this;
 		this.n = 0;
 		for (let i = 0; i < chart.lines; i++) {
 			const x = segValue(chart.move, i, t, 0);
@@ -191,7 +164,6 @@ export class FrameBuilder {
 			ls[i] = s;
 			la[i] = a;
 			lf[i] = floorAt(chart.speed, i, t);
-			ld[i] = Math.hypot(X_LIM + Math.abs(x), Y_LIM + Math.abs(y));
 			if (a > 0) {
 				this.put(
 					K_LINE,
@@ -211,7 +183,7 @@ export class FrameBuilder {
 		}
 		this.stats.lines = this.n;
 		const notes = chart.notes;
-		const { off, ids, times, fast, minSpeed, maxHold } = this;
+		const { off, ids, times, maxHold } = this;
 		const scale = this.noteScale;
 		const hw = NOTE_HW * scale;
 		const headHH = TAP_HH * scale;
@@ -234,16 +206,9 @@ export class FrameBuilder {
 				const ox = lx[li]!;
 				const oy = ly[li]!;
 				const lineFloor = lf[li]!;
-				const reach = ld[li]! + REACH_PAD;
-				const limit = fast[li]
-					? kind === HOLD
-						? reach
-						: reach / minSpeed[li]!
-					: Number.POSITIVE_INFINITY;
 				for (let j = from; j < hi; j++) {
 					const i = ids[j]!;
 					const headAt = (notes.floor[i]! - lineFloor) * FLOOR_UNIT;
-					if (headAt > limit) break;
 					const flags = notes.flags[i]!;
 					const sg = flags & BELOW ? -1 : 1;
 					const multi = flags & MULTI ? 1 : 0;

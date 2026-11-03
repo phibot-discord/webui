@@ -18,6 +18,8 @@ import { useFullscreen } from "@/components/CutControls";
 import { SegRadio } from "@/components/SegRadio";
 import { useI18n } from "@/i18n/provider";
 import { saveBlob, shownVersion, versionSpan } from "@/lib/apk-version";
+import { WATERMARK } from "@/lib/chart-player/base";
+import type { CaptionText } from "@/lib/chart-player/gl";
 import type { AudioState, ChartPlayer } from "@/lib/chart-player/player";
 import { readLocal, writeLocal } from "@/lib/local-store";
 import { fill } from "@/phi/lib/card-i18n";
@@ -140,6 +142,7 @@ export function ChartPreview({
 		return versionSpan(v.versions?.length ? v.versions : v.rev ? [v.rev] : []);
 	};
 	const [phase, setPhase] = useState<Phase>("idle");
+	const [caption, setCaption] = useState<CaptionText | null>(null);
 	const [audio, setAudio] = useState<AudioState | null>(null);
 	const [playing, setPlaying] = useState(false);
 	const [volume, setVolume] = useState(1);
@@ -324,7 +327,9 @@ export function ChartPreview({
 			autoplay.current = true;
 		}
 		p.unlock();
-		p.setCaption(captionFor(want, tree));
+		const text = captionFor(want, tree);
+		setCaption(text);
+		p.setCaption(text);
 		const backdrop = want.source.cover ?? cover;
 		if (backdrop) void p.loadBackdrop(backdrop);
 		let music: Promise<boolean>;
@@ -484,6 +489,19 @@ export function ChartPreview({
 							if (ready) player.current?.toggle();
 						}}
 					/>
+					{phase === "loading" || phase === "ready" ? (
+						<div className="cp-labels" aria-hidden="true">
+							{caption ? (
+								<span className="cp-caption">
+									<span className="cp-caption-title">{caption.title}</span>
+									{caption.level ? (
+										<span className="cp-caption-level">{caption.level}</span>
+									) : null}
+								</span>
+							) : null}
+							<span className="cp-mark">{WATERMARK}</span>
+						</div>
+					) : null}
 					{phase === "idle" ? (
 						<div className="cp-cover">
 							{poster ? (

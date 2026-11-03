@@ -204,7 +204,7 @@ test("note size scales note bodies and hold heads, not hold lengths", () => {
 	assert.ok(Math.abs(body[6]! - plain[6]!) < 1e-9);
 });
 
-test("a line that only moves forward stops at the first note past the screen", () => {
+test("notes past the screen edge are not drawn", () => {
 	const far = Array.from({ length: 50 }, (_, i) => note(1, 640 + i * 32));
 	const lines = [line({ notesAbove: [note(1, 64), ...far] })];
 	const { rows, fb } = frame(lines, 0.5);

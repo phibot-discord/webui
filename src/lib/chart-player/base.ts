@@ -1,5 +1,7 @@
 export const ASPECT = 16 / 9;
 
+export const WATERMARK = "Rendered by PhiBot";
+
 export function corsUrl(url: string): string {
 	return `${url}${url.includes("?") ? "&" : "?"}cors=1`;
 }

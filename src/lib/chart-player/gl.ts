@@ -1,7 +1,8 @@
 import type { AreaCounts } from "./areas";
 import { DISABLED_LEVEL } from "./areas";
-import { ASPECT } from "./base";
+import { ASPECT, WATERMARK } from "./base";
 import { STRIDE, TAP_HH } from "./frame";
+import { NOISE_SIZE, noiseData } from "./noise";
 
 const NOTE_VS = `#version 300 es
 layout(location = 0) in vec2 a_corner;
@@ -152,58 +153,54 @@ void main() {
 	o = texture(u_tex, v_uv) * u_alpha;
 }`;
 
-const WATERMARK = "Rendered by PhiBot";
-const TEXT_PX = 64;
-const TEXT_MAX_W = 2048;
-
 export type CaptionText = { title: string; level: string };
 
 type TextRun = { text: string; weight: number; alpha: number };
 
-function textCanvas(runs: TextRun[]): HTMLCanvasElement | null {
+type Label = { tex: WebGLTexture; w: number; h: number };
+
+const TEXT_LINE = 1.5;
+
+function textCanvas(
+	runs: TextRun[],
+	height: number,
+	maxWidth: number,
+): HTMLCanvasElement | null {
 	const c = document.createElement("canvas");
 	const g = c.getContext("2d");
 	if (!g) return null;
 	const font = (px: number, weight: number) =>
 		`${weight} ${px}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-	const gap = TEXT_PX * 0.45;
+	const base = height / TEXT_LINE;
 	const widths = runs.map((r) => {
-		g.font = font(TEXT_PX, r.weight);
+		g.font = font(base, r.weight);
 		return g.measureText(r.text).width;
 	});
-	const total = widths.reduce((a, b) => a + b, 0) + gap * (runs.length - 1);
-	const px = Math.round(TEXT_PX * Math.min(1, (TEXT_MAX_W - TEXT_PX) / total));
-	const k = px / TEXT_PX;
-	c.width = Math.ceil(total * k) + TEXT_PX;
-	c.height = Math.round(TEXT_PX * 1.5);
+	const natural =
+		widths.reduce((a, b) => a + b, 0) + base * (0.45 * (runs.length - 1) + 1);
+	const k = Math.min(1, maxWidth / natural);
+	const px = base * k;
+	c.width = Math.max(1, Math.ceil(natural * k));
+	c.height = Math.max(1, Math.round(px * TEXT_LINE));
+	const shadow = Math.max(1, Math.round(px * 0.047));
 	g.textBaseline = "middle";
-	let x = TEXT_PX / 2;
+	let x = px / 2;
 	runs.forEach((r, i) => {
 		g.font = font(px, r.weight);
 		g.globalAlpha = r.alpha;
 		g.fillStyle = "rgba(0, 0, 0, 0.6)";
-		g.fillText(r.text, x + 3, c.height / 2 + 3);
+		g.fillText(r.text, x + shadow, c.height / 2 + shadow);
 		g.fillStyle = "#ffffff";
 		g.fillText(r.text, x, c.height / 2);
-		x += widths[i]! * k + gap * k;
+		x += widths[i]! * k + px * 0.45;
 	});
 	return c;
 }
 
-function watermarkCanvas(): HTMLCanvasElement | null {
-	return textCanvas([{ text: WATERMARK, weight: 600, alpha: 1 }]);
-}
-
-function captionCanvas(text: CaptionText): HTMLCanvasElement | null {
-	const runs: TextRun[] = [{ text: text.title, weight: 600, alpha: 1 }];
-	if (text.level) runs.push({ text: text.level, weight: 500, alpha: 0.78 });
-	return textCanvas(runs);
-}
-
-function textTexture(
+function labelTexture(
 	gl: WebGL2RenderingContext,
 	canvas: HTMLCanvasElement,
-): WebGLTexture {
+): Label {
 	const tex = gl.createTexture();
 	gl.bindTexture(gl.TEXTURE_2D, tex);
 	gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -211,19 +208,9 @@ function textTexture(
 	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
 	gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
 	gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-	gl.generateMipmap(gl.TEXTURE_2D);
-	gl.texParameteri(
-		gl.TEXTURE_2D,
-		gl.TEXTURE_MIN_FILTER,
-		gl.LINEAR_MIPMAP_LINEAR,
-	);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	return tex;
+	sampling(gl, gl.NEAREST, gl.CLAMP_TO_EDGE);
+	return { tex, w: canvas.width, h: canvas.height };
 }
-
-type Label = { tex: WebGLTexture; aspect: number };
 
 const AREA_VS = `#version 300 es
 layout(location = 0) in vec2 a_corner;
@@ -256,225 +243,178 @@ void main() {
 	gl_Position = vec4(a_corner, 0.0, 1.0);
 }`;
 
-// Field boundaries wobble with a slow cloud flow; a one-texel ring outside is the outline, the next four rings fade out as glow
-const EFFECT_FS = `#version 300 es
+// The field grid matches the game at 1920x1080: masks at 1/8, outline and glow at 1/4, the pixelated interior at 1/6
+const MASK_W = 240;
+const MASK_H = 135;
+const RING_W = MASK_W * 2;
+const RING_H = MASK_H * 2;
+const SCENE_W = 320;
+const SCENE_H = 180;
+const AREA_MARGIN = 0.11;
+
+const FLOW = `
+const vec2 DIR = vec2(0.70710678);
+const vec2 PERP = vec2(-0.70710678, 0.70710678);
+vec2 flow(float a, float b) {
+	return DIR * (a - 0.5) + PERP * (b - 0.5);
+}`;
+
+// Active fields: the active mask looked up through a slow flow, so blocks wobble; ready and disabled levels pass through
+const FIELD_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 uniform sampler2D u_mask;
 uniform sampler2D u_noise;
-uniform vec2 u_texel;
 uniform float u_time;
 out vec4 o;
 const float IDLE = ${DISABLED_LEVEL.toFixed(3)};
-const vec2 DIR = vec2(0.70710678);
-const vec2 PERP = vec2(-0.70710678, 0.70710678);
-float xr(float a, float b) {
-	return clamp(a + b - 2.0 * a * b, 0.0, 1.0);
-}
-float act(vec2 p) {
-	vec4 m = texture(u_mask, p);
-	return xr(m.r, m.g);
-}
-float ring(vec2 p, float r) {
-	vec2 d = u_texel * r;
-	float m = act(p + vec2(d.x, 0.0));
-	m = max(m, act(p - vec2(d.x, 0.0)));
-	m = max(m, act(p + vec2(0.0, d.y)));
-	m = max(m, act(p - vec2(0.0, d.y)));
-	m = max(m, act(p + d));
-	m = max(m, act(p - d));
-	m = max(m, act(p + vec2(d.x, -d.y)));
-	m = max(m, act(p + vec2(-d.x, d.y)));
-	return m;
-}
+${FLOW}
 void main() {
 	float s = u_time * 0.1295;
-	vec2 base = v_uv * vec2(2.13, 1.02);
-	float a = texture(u_noise, base + DIR * s).r - 0.5;
-	float b = texture(u_noise, base + PERP * s).r - 0.5;
-	vec2 p = v_uv + (DIR * a + PERP * b) * 0.1;
-	float inside = act(p);
-	float edge = 0.0;
-	float glow = 0.0;
-	if (inside <= 0.0) {
-		if (ring(p, 1.0) > 0.0) {
-			edge = 1.0;
-			glow = 0.459;
-		} else if (ring(p, 2.0) > 0.0) {
-			glow = 0.283;
-		} else if (ring(p, 3.0) > 0.0) {
-			glow = 0.157;
-		} else if (ring(p, 4.0) > 0.0) {
-			glow = 0.073;
-		} else if (ring(p, 5.0) > 0.0) {
-			glow = 0.025;
-		}
-	}
-	vec4 m = texture(u_mask, v_uv);
-	float level = m.a > 0.5 ? (m.b > 0.004 ? 0.0 : IDLE) : m.b;
-	o = vec4(inside, edge, glow, level);
+	vec2 p = v_uv * vec2(2.13, 1.02);
+	vec2 d = flow(texture(u_noise, p + DIR * s).r, texture(u_noise, p + PERP * s).r);
+	vec4 m = texture(u_mask, v_uv + d * 0.1);
+	vec4 h = texture(u_mask, v_uv);
+	float idle = h.a > 0.5 ? (h.b > 0.004 ? 0.0 : IDLE) : h.b;
+	float ready = step(0.9, idle);
+	o = vec4(abs(m.r - m.g), ready, idle * (1.0 - ready) / IDLE, 0.0);
 }`;
 
-// Active field: a pixelated, flow-warped copy of the chart under a dark red tint with sparks, a light red outline and a red glow; ready: a white flicker; disabled: an additive dark red with dim sparks
-const COMPOSE_FS = `#version 300 es
+// Distance in outline texels to the nearest active block, found per row here and per column in RINGS_FS; stored as 1 - d/8 so cleared texels read as far away
+const ROWS_FS = `#version 300 es
+precision highp float;
+precision highp int;
+uniform sampler2D u_field;
+out vec4 o;
+void main() {
+	ivec2 q = ivec2(gl_FragCoord.xy);
+	int c = q.x >> 1;
+	int w = textureSize(u_field, 0).x;
+	int d = 6;
+	for (int k = -3; k <= 3; k++) {
+		int b = c + k;
+		if (b < 0 || b >= w) continue;
+		if (texelFetch(u_field, ivec2(b, q.y), 0).r < 0.5) continue;
+		d = min(d, k == 0 ? 0 : (k > 0 ? 2 * b - q.x : q.x - 2 * b - 1));
+	}
+	o = vec4(1.0 - float(d) / 8.0, 0.0, 0.0, 1.0);
+}`;
+
+const RINGS_FS = `#version 300 es
+precision highp float;
+precision highp int;
+uniform sampler2D u_rows;
+out vec4 o;
+const float W[5] = float[5](0.45856798, 0.28286123, 0.15658922, 0.07305908, 0.02494781);
+void main() {
+	ivec2 q = ivec2(gl_FragCoord.xy);
+	int c = q.y >> 1;
+	int h = textureSize(u_rows, 0).y;
+	int d = 6;
+	for (int k = -3; k <= 3; k++) {
+		int b = c + k;
+		if (b < 0 || b >= h) continue;
+		int dy = k == 0 ? 0 : (k > 0 ? 2 * b - q.y : q.y - 2 * b - 1);
+		int dx = int((1.0 - texelFetch(u_rows, ivec2(q.x, b), 0).r) * 8.0 + 0.5);
+		d = min(d, max(dx, dy));
+	}
+	o = d >= 1 && d <= 5 ? vec4(d == 1 ? 1.0 : 0.0, W[d - 1], 0.0, 1.0) : vec4(0.0);
+}`;
+
+// Active: a pixelated, displaced copy of the chart, hue-shifted and overlaid with sparks, under a dark red fill, with a light red outline and red glow; ready: a white flicker; disabled: an additive dark red with dim sparks
+const OVERLAY_FS = `#version 300 es
 precision highp float;
 in vec2 v_uv;
-uniform sampler2D u_chart;
-uniform sampler2D u_effect;
+uniform sampler2D u_field;
+uniform sampler2D u_rings;
 uniform sampler2D u_noise;
 uniform sampler2D u_scene;
-uniform vec2 u_size;
 uniform float u_time;
 out vec4 o;
-const float IDLE = ${DISABLED_LEVEL.toFixed(3)};
-const vec2 DIR = vec2(0.70710678);
-const vec2 PERP = vec2(-0.70710678, 0.70710678);
-const vec3 FILL = vec3(0.713, 0.235, 0.235);
-const vec3 EDGE = vec3(1.0, 0.33, 0.33);
-const vec3 GLOW = vec3(1.0, 0.179, 0.179);
-const vec3 SPARK = vec3(5.69, 1.62, 1.62);
-const vec3 IDLE_FILL = vec3(0.199, 0.055, 0.055);
-const vec3 IDLE_SPARK = vec3(1.09, 0.272, 0.272);
-vec2 flow(vec2 uv, vec2 tile, float speed, out float avg) {
-	vec2 base = uv * tile;
-	float s = u_time * speed;
-	float a = texture(u_noise, base + DIR * s).r;
-	float b = texture(u_noise, base + PERP * s).r;
-	avg = (a + b) * 0.5;
-	return DIR * (a - 0.5) + PERP * (b - 0.5);
+const vec2 CELLS = vec2(${SCENE_W}.0, ${SCENE_H}.0);
+const vec3 FILL = vec3(0.7132, 0.2355, 0.2355);
+const vec3 EDGE = vec3(1.0, 0.3302, 0.3302);
+const vec3 GLOW = vec3(1.0, 0.1792, 0.1792);
+const vec3 SPARK = vec3(1.0, 0.2849, 0.2849) * 5.69;
+const vec3 IDLE_FILL = vec3(0.497, 0.1377, 0.1377) * 0.4;
+const vec3 IDLE_SPARK = vec3(0.3113, 0.0778, 0.0778) * 3.5;
+${FLOW}
+vec3 toHsv(vec3 c) {
+	vec4 k = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+	vec4 p = c.g < c.b ? vec4(c.bg, k.wz) : vec4(c.gb, k.xy);
+	vec4 q = c.r < p.x ? vec4(p.xyw, c.r) : vec4(c.r, p.yzx);
+	float d = q.x - min(q.w, q.y);
+	return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + 1e-10)), d / (q.x + 1e-10), q.x);
+}
+vec3 toRgb(vec3 c) {
+	vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
+	return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);
 }
 vec3 overlay(vec3 b, vec3 s) {
 	return mix(2.0 * b * s, 1.0 - 2.0 * (1.0 - b) * (1.0 - s), step(0.5, b));
 }
+float cloud(vec2 p) {
+	return texture(u_noise, p).r;
+}
 void main() {
-	vec4 e = texture(u_effect, v_uv);
-	float inside = e.r;
-	float edge = e.g;
-	float glow = e.b;
-	float level = e.a;
-	vec3 col = texture(u_chart, v_uv).rgb;
-	if (level >= 0.9) {
-		col += vec3(0.12 * (1.0 + 0.5 * sin(u_time * 37.9)));
-	} else if (level > 0.0) {
-		float avg;
-		vec2 d = flow(v_uv, vec2(0.5, 0.2), 0.015, avg);
-		float sp = texture(u_noise, v_uv * vec2(3.0, 1.2) + d * 2.29).b * avg;
-		col += clamp(level / IDLE, 0.0, 1.0) * (IDLE_FILL + IDLE_SPARK * sp);
+	vec4 f = texture(u_field, v_uv);
+	ivec2 rs = textureSize(u_rings, 0);
+	float edge = texelFetch(u_rings, min(ivec2(v_uv * vec2(rs)), rs - 1), 0).r;
+	float glow = texture(u_rings, v_uv).g;
+	float act = f.r;
+	if (act + edge + glow + f.g + f.b < 1e-4) discard;
+	vec3 c = vec3(0.0);
+	float alpha = 0.0;
+	if (act > 0.0) {
+		float s = u_time * 0.075;
+		vec2 p = v_uv * vec2(0.8, 0.3);
+		float a = cloud((floor((p + DIR * s) * CELLS) + 0.5) / CELLS);
+		float b = cloud((floor((p + PERP * s) * CELLS) + 0.5) / CELLS);
+		float avg = (a + b) * 0.5;
+		vec2 d = flow(a, b);
+		vec3 scene = texture(u_scene, (floor(v_uv * CELLS) + 0.5) / CELLS + d * 0.15).rgb;
+		vec3 sp = texture(u_noise, v_uv * vec2(1.5, 0.6) + d * 1.195).g * avg * SPARK;
+		vec3 lit = clamp(overlay(toRgb(toHsv(scene) + sp * 0.2), sp), 0.0, 1.0);
+		c = mix(FILL - avg * 0.411, lit, 0.667) * act;
+		alpha = act * 0.667;
 	}
-	if (inside + edge + glow > 0.0) {
-		float cell = max(1.0, floor(u_size.y / 180.0));
-		vec2 puv = (floor(v_uv * u_size / cell) + 0.5) * cell / u_size;
-		float avg;
-		vec2 d = flow(puv, vec2(0.8, 0.3), 0.075, avg);
-		vec3 inner = texture(u_scene, puv + d * 0.15).rgb;
-		vec3 sp = clamp(texture(u_noise, v_uv * vec2(3.0, 1.2) + d * 2.39).b * avg * SPARK, 0.0, 1.0);
-		inner = overlay(inner, sp);
-		vec3 fill = mix(max(FILL - avg * 0.411, 0.0), inner, 0.667);
-		float aEdge = edge * 0.8;
-		float aGlow = glow * clamp(1.0 - edge - inside, 0.0, 1.0) * 0.8;
-		float alpha = inside * 0.667 + aEdge + aGlow;
-		col = col * (1.0 - alpha) + fill * inside + EDGE * aEdge + GLOW * aGlow;
+	float g = glow * (1.0 - edge - act);
+	c += EDGE * (edge * 0.8) + GLOW * (g * 0.8);
+	alpha += edge * 0.8 + g * 0.8;
+	c += vec3(0.12 * (sin(u_time * 37.9) * 0.5 + 1.0)) * f.g;
+	if (f.b > 0.0) {
+		float s = u_time * 0.015;
+		vec2 p = v_uv * vec2(0.5, 0.2);
+		float a = cloud(p + DIR * s);
+		float b = cloud(p + PERP * s);
+		float sp = texture(u_noise, v_uv * vec2(1.5, 0.6) + flow(a, b) * 1.145).g * (a + b) * 0.5;
+		c += f.b * (IDLE_FILL + IDLE_SPARK * sp) * (1.0 - alpha);
 	}
-	o = vec4(col, 1.0);
+	o = vec4(c, alpha);
 }`;
 
-const NOISE_SIZE = 256;
-const SPARK_COUNT = 560;
-
-function hash2(x: number, y: number, seed: number): number {
-	let h = Math.imul(x, 0x27d4eb2d) ^ Math.imul(y, 0x165667b1) ^ seed;
-	h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
-	h ^= h >>> 13;
-	h = Math.imul(h, 0xc2b2ae35);
-	h ^= h >>> 16;
-	return (h >>> 0) / 4294967296;
-}
-
-function clouds(seed: number, out: Uint8Array, channel: number) {
-	const n = NOISE_SIZE;
-	const sum = new Float32Array(n * n);
-	let amp = 1;
-	for (let period = 4; period <= 64; period *= 2) {
-		const grid = new Float32Array(period * period);
-		for (let i = 0; i < grid.length; i++) {
-			grid[i] = hash2(i % period, (i / period) | 0, seed + period);
-		}
-		for (let y = 0; y < n; y++) {
-			const fy = (y / n) * period;
-			const iy = fy | 0;
-			const ty = (fy - iy) * (fy - iy) * (3 - 2 * (fy - iy));
-			const y1 = (iy + 1) % period;
-			for (let x = 0; x < n; x++) {
-				const fx = (x / n) * period;
-				const ix = fx | 0;
-				const tx = (fx - ix) * (fx - ix) * (3 - 2 * (fx - ix));
-				const x1 = (ix + 1) % period;
-				const a = grid[iy * period + ix]!;
-				const b = grid[iy * period + x1]!;
-				const c = grid[y1 * period + ix]!;
-				const d = grid[y1 * period + x1]!;
-				const top = a + (b - a) * tx;
-				sum[y * n + x]! += amp * (top + (c + (d - c) * tx - top) * ty);
-			}
-		}
-		amp *= 0.55;
-	}
-	let lo = Number.POSITIVE_INFINITY;
-	let hi = Number.NEGATIVE_INFINITY;
-	for (const v of sum) {
-		if (v < lo) lo = v;
-		if (v > hi) hi = v;
-	}
-	const span = hi - lo || 1;
-	for (let i = 0; i < sum.length; i++) {
-		out[i * 4 + channel] = Math.round(((sum[i]! - lo) / span) * 255);
-	}
-}
-
-function sparks(seed: number, out: Uint8Array, channel: number) {
-	const n = NOISE_SIZE;
-	const v = new Float32Array(n * n);
-	for (let k = 0; k < SPARK_COUNT; k++) {
-		const cx = hash2(k, 1, seed) * n;
-		const cy = hash2(k, 2, seed) * n;
-		const r = 0.8 + hash2(k, 3, seed);
-		const bright = 0.55 + hash2(k, 4, seed) * 0.45;
-		for (let y = Math.floor(cy - r - 1); y <= Math.ceil(cy + r + 1); y++) {
-			for (let x = Math.floor(cx - r - 1); x <= Math.ceil(cx + r + 1); x++) {
-				const f = Math.max(0, 1 - Math.hypot(x + 0.5 - cx, y + 0.5 - cy) / r);
-				if (f <= 0) continue;
-				const i = (((y % n) + n) % n) * n + (((x % n) + n) % n);
-				v[i] = Math.max(v[i]!, bright * f * f);
-			}
-		}
-	}
-	for (let i = 0; i < v.length; i++)
-		out[i * 4 + channel] = Math.round(v[i]! * 255);
+function sampling(gl: WebGL2RenderingContext, filter: number, wrap: number) {
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap);
 }
 
 function noiseTexture(gl: WebGL2RenderingContext): WebGLTexture {
-	const data = new Uint8Array(NOISE_SIZE * NOISE_SIZE * 4);
-	clouds(11, data, 0);
-	clouds(23, data, 1);
-	sparks(37, data, 2);
-	for (let i = 3; i < data.length; i += 4) data[i] = 255;
 	const tex = gl.createTexture();
 	gl.bindTexture(gl.TEXTURE_2D, tex);
 	gl.texImage2D(
 		gl.TEXTURE_2D,
 		0,
-		gl.RGBA,
+		gl.RG8,
 		NOISE_SIZE,
 		NOISE_SIZE,
 		0,
-		gl.RGBA,
+		gl.RG,
 		gl.UNSIGNED_BYTE,
-		data,
+		noiseData(),
 	);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+	sampling(gl, gl.LINEAR, gl.REPEAT);
 	return tex;
 }
 
@@ -501,86 +441,31 @@ function program(gl: WebGL2RenderingContext, vs: string, fs: string) {
 	return p;
 }
 
-type Targets = {
-	w: number;
-	h: number;
-	chartTex: WebGLTexture;
-	chart: WebGLFramebuffer;
-	maskTex: WebGLTexture;
-	mask: WebGLFramebuffer;
-	mw: number;
-	mh: number;
-	effectTex: WebGLTexture;
-	effect: WebGLFramebuffer;
-	ew: number;
-	eh: number;
-	sceneTex: WebGLTexture;
-	scene: WebGLFramebuffer;
-	sw: number;
-	sh: number;
-};
+function samplers(
+	gl: WebGL2RenderingContext,
+	p: WebGLProgram,
+	names: string[],
+) {
+	// biome-ignore lint/correctness/useHookAtTopLevel: a WebGL call, not a React hook
+	gl.useProgram(p);
+	names.forEach((n, i) => {
+		gl.uniform1i(gl.getUniformLocation(p, n), i);
+	});
+}
 
-type Res = {
-	notes: WebGLProgram;
-	bg: WebGLProgram;
-	wm: WebGLProgram;
-	wmLabel: Label | null;
-	caption: Label | null;
-	uWmUv: WebGLUniformLocation | null;
-	uWmAlpha: WebGLUniformLocation | null;
-	area: WebGLProgram;
-	compose: WebGLProgram;
-	effect: WebGLProgram;
-	noiseTex: WebGLTexture | null;
-	vao: WebGLVertexArrayObject;
-	bgVao: WebGLVertexArrayObject;
-	areaVao: WebGLVertexArrayObject;
-	inst: WebGLBuffer;
-	areaBuf: WebGLBuffer;
-	cap: number;
-	areaCap: number;
-	tex: WebGLTexture | null;
-	targets: Targets | null;
-	uScale: WebGLUniformLocation | null;
-	uPx: WebGLUniformLocation | null;
-	uNote: WebGLUniformLocation | null;
-	uUv: WebGLUniformLocation | null;
-	uDim: WebGLUniformLocation | null;
-	uAreaScale: WebGLUniformLocation | null;
-	uEffMask: WebGLUniformLocation | null;
-	uEffNoise: WebGLUniformLocation | null;
-	uEffTexel: WebGLUniformLocation | null;
-	uEffTime: WebGLUniformLocation | null;
-	uChart: WebGLUniformLocation | null;
-	uEffect: WebGLUniformLocation | null;
-	uNoise: WebGLUniformLocation | null;
-	uScene: WebGLUniformLocation | null;
-	uSize: WebGLUniformLocation | null;
-	uTime: WebGLUniformLocation | null;
-};
-
-export type Backdrop = TexImageSource & { width: number; height: number };
-
-export type AreaFrame = {
-	data: Float32Array;
-	counts: AreaCounts;
-	time: number;
-};
+type Target = { tex: WebGLTexture; fb: WebGLFramebuffer };
 
 function target(
 	gl: WebGL2RenderingContext,
 	w: number,
 	h: number,
-	nearest = false,
-) {
+	format: number,
+	filter: number,
+): Target {
 	const tex = gl.createTexture();
 	gl.bindTexture(gl.TEXTURE_2D, tex);
-	gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, w, h);
-	const filter = nearest ? gl.NEAREST : gl.LINEAR;
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+	gl.texStorage2D(gl.TEXTURE_2D, 1, format, w, h);
+	sampling(gl, filter, gl.CLAMP_TO_EDGE);
 	const fb = gl.createFramebuffer();
 	gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
 	gl.framebufferTexture2D(
@@ -594,18 +479,124 @@ function target(
 	return { tex, fb };
 }
 
+type Targets = {
+	scene: Target;
+	mask: Target;
+	field: Target;
+	rows: Target;
+	rings: Target;
+};
+
+type Res = {
+	notes: WebGLProgram;
+	bg: WebGLProgram;
+	wm: WebGLProgram;
+	area: WebGLProgram;
+	field: WebGLProgram;
+	rows: WebGLProgram;
+	rings: WebGLProgram;
+	overlay: WebGLProgram;
+	vao: WebGLVertexArrayObject;
+	bgVao: WebGLVertexArrayObject;
+	areaVao: WebGLVertexArrayObject;
+	inst: WebGLBuffer;
+	areaBuf: WebGLBuffer;
+	cap: number;
+	areaCap: number;
+	tex: WebGLTexture | null;
+	noiseTex: WebGLTexture | null;
+	targets: Targets | null;
+	mark: Label | null;
+	caption: Label | null;
+	labelsFor: number;
+	uScale: WebGLUniformLocation | null;
+	uPx: WebGLUniformLocation | null;
+	uNote: WebGLUniformLocation | null;
+	uUv: WebGLUniformLocation | null;
+	uDim: WebGLUniformLocation | null;
+	uWmUv: WebGLUniformLocation | null;
+	uWmAlpha: WebGLUniformLocation | null;
+	uAreaScale: WebGLUniformLocation | null;
+	uFieldTime: WebGLUniformLocation | null;
+	uOverlayTime: WebGLUniformLocation | null;
+};
+
+export type Backdrop = TexImageSource & { width: number; height: number };
+
+export type AreaFrame = {
+	data: Float32Array;
+	counts: AreaCounts;
+	time: number;
+};
+
+function clamp01(v: number) {
+	return Math.min(Math.max(v, 0), 1);
+}
+
+function areaBounds(areas: AreaFrame, out: Float32Array): Float32Array {
+	const { data, counts } = areas;
+	let x0 = Number.POSITIVE_INFINITY;
+	let y0 = Number.POSITIVE_INFINITY;
+	let x1 = Number.NEGATIVE_INFINITY;
+	let y1 = Number.NEGATIVE_INFINITY;
+	for (let i = 0; i < counts.total; i++) {
+		const o = i * STRIDE;
+		const c = Math.abs(data[o + 3]!);
+		const s = Math.abs(data[o + 4]!);
+		const hx = Math.abs(data[o + 5]!);
+		const hy = Math.abs(data[o + 6]!);
+		const ex = c * hx + s * hy;
+		const ey = (s * hx + c * hy) * ASPECT;
+		const x = data[o + 1]!;
+		const y = data[o + 2]! * ASPECT;
+		x0 = Math.min(x0, x - ex);
+		x1 = Math.max(x1, x + ex);
+		y0 = Math.min(y0, y - ey);
+		y1 = Math.max(y1, y + ey);
+	}
+	if (!(x1 >= x0 && y1 >= y0)) {
+		out.set([0, 0, 1, 1]);
+		return out;
+	}
+	out[0] = clamp01((x0 + 1) / 2 - AREA_MARGIN);
+	out[1] = clamp01((y0 + 1) / 2 - AREA_MARGIN);
+	out[2] = clamp01((x1 + 1) / 2 + AREA_MARGIN);
+	out[3] = clamp01((y1 + 1) / 2 + AREA_MARGIN);
+	return out;
+}
+
+function clip(
+	gl: WebGL2RenderingContext,
+	box: Float32Array,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+) {
+	const l = Math.floor(box[0]! * w);
+	const b = Math.floor(box[1]! * h);
+	gl.enable(gl.SCISSOR_TEST);
+	gl.scissor(
+		x + l,
+		y + b,
+		Math.ceil(box[2]! * w) - l,
+		Math.ceil(box[3]! * h) - b,
+	);
+}
+
 export class ChartRenderer {
 	private readonly gl: WebGL2RenderingContext;
+	private readonly withLabels: boolean;
 	private res: Res | null = null;
 	private backdrop: Backdrop | null = null;
 	private captionText: CaptionText | null = null;
 	private noteScale = 1;
 	private lost = false;
-	drawCalls = 0;
+	private readonly box = new Float32Array(4);
 
 	constructor(
 		private readonly canvas: HTMLCanvasElement,
-		opts: { preserve?: boolean } = {},
+		opts: { preserve?: boolean; labels?: boolean } = {},
 	) {
 		const gl = canvas.getContext("webgl2", {
 			alpha: false,
@@ -618,6 +609,7 @@ export class ChartRenderer {
 		});
 		if (!gl) throw new Error("webgl2");
 		this.gl = gl;
+		this.withLabels = opts.labels ?? false;
 		canvas.addEventListener("webglcontextlost", this.onLost);
 		canvas.addEventListener("webglcontextrestored", this.onRestored);
 		this.res = this.init();
@@ -633,7 +625,6 @@ export class ChartRenderer {
 		this.lost = false;
 		this.res = this.init();
 		if (this.backdrop) this.setBackdrop(this.backdrop);
-		if (this.captionText) this.setCaption(this.captionText);
 	};
 
 	private init(): Res {
@@ -641,13 +632,15 @@ export class ChartRenderer {
 		const notes = program(gl, NOTE_VS, NOTE_FS);
 		const bg = program(gl, BG_VS, BG_FS);
 		const wm = program(gl, BG_VS, WM_FS);
-		const mark = watermarkCanvas();
-		const wmLabel = mark
-			? { tex: textTexture(gl, mark), aspect: mark.width / mark.height }
-			: null;
 		const area = program(gl, AREA_VS, AREA_FS);
-		const compose = program(gl, QUAD_VS, COMPOSE_FS);
-		const effect = program(gl, QUAD_VS, EFFECT_FS);
+		const field = program(gl, QUAD_VS, FIELD_FS);
+		const rows = program(gl, QUAD_VS, ROWS_FS);
+		const rings = program(gl, QUAD_VS, RINGS_FS);
+		const overlay = program(gl, QUAD_VS, OVERLAY_FS);
+		samplers(gl, field, ["u_mask", "u_noise"]);
+		samplers(gl, rows, ["u_field"]);
+		samplers(gl, rings, ["u_rows"]);
+		samplers(gl, overlay, ["u_field", "u_rings", "u_noise", "u_scene"]);
 		const quad = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, quad);
 		gl.bufferData(
@@ -689,10 +682,12 @@ export class ChartRenderer {
 		return {
 			notes,
 			bg,
+			wm,
 			area,
-			compose,
-			effect,
-			noiseTex: null,
+			field,
+			rows,
+			rings,
+			overlay,
 			vao,
 			bgVao,
 			areaVao,
@@ -701,28 +696,21 @@ export class ChartRenderer {
 			cap: 0,
 			areaCap: 0,
 			tex: null,
+			noiseTex: null,
 			targets: null,
+			mark: null,
+			caption: null,
+			labelsFor: -1,
 			uScale: gl.getUniformLocation(notes, "u_scale"),
 			uPx: gl.getUniformLocation(notes, "u_px"),
 			uNote: gl.getUniformLocation(notes, "u_note"),
 			uUv: gl.getUniformLocation(bg, "u_uv"),
 			uDim: gl.getUniformLocation(bg, "u_dim"),
-			wm,
-			wmLabel,
-			caption: null,
 			uWmUv: gl.getUniformLocation(wm, "u_uv"),
 			uWmAlpha: gl.getUniformLocation(wm, "u_alpha"),
 			uAreaScale: gl.getUniformLocation(area, "u_scale"),
-			uEffMask: gl.getUniformLocation(effect, "u_mask"),
-			uEffNoise: gl.getUniformLocation(effect, "u_noise"),
-			uEffTexel: gl.getUniformLocation(effect, "u_texel"),
-			uEffTime: gl.getUniformLocation(effect, "u_time"),
-			uChart: gl.getUniformLocation(compose, "u_chart"),
-			uEffect: gl.getUniformLocation(compose, "u_effect"),
-			uNoise: gl.getUniformLocation(compose, "u_noise"),
-			uScene: gl.getUniformLocation(compose, "u_scene"),
-			uSize: gl.getUniformLocation(compose, "u_size"),
-			uTime: gl.getUniformLocation(compose, "u_time"),
+			uFieldTime: gl.getUniformLocation(field, "u_time"),
+			uOverlayTime: gl.getUniformLocation(overlay, "u_time"),
 		};
 	}
 
@@ -739,33 +727,21 @@ export class ChartRenderer {
 		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
 		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		sampling(gl, gl.LINEAR, gl.CLAMP_TO_EDGE);
 		res.tex = tex;
 	}
 
 	setCaption(text: CaptionText | null) {
 		this.captionText = text;
-		const res = this.res;
-		if (!res) return;
-		const gl = this.gl;
-		if (res.caption) gl.deleteTexture(res.caption.tex);
-		res.caption = null;
-		if (!text) return;
-		const c = captionCanvas(text);
-		if (c)
-			res.caption = { tex: textTexture(gl, c), aspect: c.width / c.height };
+		if (this.res) this.res.labelsFor = -1;
 	}
 
 	setNoteScale(scale: number) {
 		this.noteScale = scale;
 	}
 
-	draw(data: Float32Array, count: number, areas?: AreaFrame) {
+	draw(data: Float32Array, count: number, split: number, areas?: AreaFrame) {
 		const res = this.res;
-		this.drawCalls = 0;
 		if (!res || this.lost) return;
 		const gl = this.gl;
 		const cw = this.canvas.width;
@@ -778,181 +754,177 @@ export class ChartRenderer {
 		}
 		const x = Math.floor((cw - w) / 2);
 		const y = Math.floor((ch - h) / 2);
+		this.upload(res, data, count);
+		const fields = areas?.counts.total ? this.fields(res, areas, split) : null;
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.viewport(0, 0, cw, ch);
 		gl.clearColor(0, 0, 0, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT);
-		if (!areas?.counts.total) {
-			gl.viewport(x, y, w, h);
-			this.scene(res, data, count, w, [x, y, w, h]);
-			this.labels(res, x, y, w, h);
-			return;
+		gl.viewport(x, y, w, h);
+		if (!fields || !areas) {
+			this.scene(res, count, w, [x, y, w, h]);
+		} else {
+			this.scene(res, split, w, [x, y, w, h]);
+			this.overlay(res, areas.time, fields, x, y, w, h);
+			this.notes(res, split, count - split, w);
 		}
-		const tg = this.targets(res, w, h);
+		if (this.withLabels) this.labels(res, x, y, w, h);
+	}
+
+	private upload(res: Res, data: Float32Array, count: number) {
+		if (!count) return;
+		const gl = this.gl;
+		gl.bindBuffer(gl.ARRAY_BUFFER, res.inst);
+		if (res.cap < data.length) {
+			gl.bufferData(gl.ARRAY_BUFFER, data.byteLength, gl.DYNAMIC_DRAW);
+			res.cap = data.length;
+		}
+		gl.bufferSubData(gl.ARRAY_BUFFER, 0, data, 0, count * STRIDE);
+	}
+
+	private fields(res: Res, areas: AreaFrame, split: number): Float32Array {
+		const gl = this.gl;
+		const tg = res.targets ?? this.makeTargets(res);
 		if (!res.noiseTex) res.noiseTex = noiseTexture(gl);
-		gl.bindFramebuffer(gl.FRAMEBUFFER, tg.chart);
-		gl.viewport(0, 0, w, h);
-		this.scene(res, data, count, w, null);
-		gl.bindFramebuffer(gl.FRAMEBUFFER, tg.mask);
-		gl.viewport(0, 0, tg.mw, tg.mh);
+		const box = areaBounds(areas, this.box);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, tg.scene.fb);
+		gl.viewport(0, 0, SCENE_W, SCENE_H);
+		this.scene(res, split, SCENE_W, null);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, tg.mask.fb);
+		gl.viewport(0, 0, MASK_W, MASK_H);
 		gl.clearColor(0, 0, 0, 0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
 		this.drawAreas(res, areas);
 		gl.disable(gl.BLEND);
 		gl.bindVertexArray(res.bgVao);
-		gl.bindFramebuffer(gl.FRAMEBUFFER, tg.effect);
-		gl.viewport(0, 0, tg.ew, tg.eh);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, tg.field.fb);
 		// biome-ignore lint/correctness/useHookAtTopLevel: a WebGL call, not a React hook
-		gl.useProgram(res.effect);
+		gl.useProgram(res.field);
+		gl.uniform1f(res.uFieldTime, areas.time);
 		gl.activeTexture(gl.TEXTURE1);
 		gl.bindTexture(gl.TEXTURE_2D, res.noiseTex);
 		gl.activeTexture(gl.TEXTURE0);
-		gl.bindTexture(gl.TEXTURE_2D, tg.maskTex);
-		gl.uniform1i(res.uEffMask, 0);
-		gl.uniform1i(res.uEffNoise, 1);
-		gl.uniform2f(res.uEffTexel, 1 / tg.ew, 1 / tg.eh);
-		gl.uniform1f(res.uEffTime, areas.time);
+		gl.bindTexture(gl.TEXTURE_2D, tg.mask.tex);
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-		this.drawCalls++;
-		gl.bindFramebuffer(gl.FRAMEBUFFER, tg.scene);
-		gl.viewport(0, 0, tg.sw, tg.sh);
+		this.ringPass(res.rows, tg.rows, tg.field.tex, RING_W, MASK_H, box);
+		this.ringPass(res.rings, tg.rings, tg.rows.tex, RING_W, RING_H, box);
+		gl.enable(gl.BLEND);
+		gl.bindVertexArray(null);
+		return box;
+	}
+
+	private ringPass(
+		p: WebGLProgram,
+		to: Target,
+		from: WebGLTexture,
+		w: number,
+		h: number,
+		box: Float32Array,
+	) {
+		const gl = this.gl;
+		gl.bindFramebuffer(gl.FRAMEBUFFER, to.fb);
+		gl.viewport(0, 0, w, h);
+		gl.clear(gl.COLOR_BUFFER_BIT);
+		clip(gl, box, 0, 0, w, h);
 		// biome-ignore lint/correctness/useHookAtTopLevel: a WebGL call, not a React hook
-		gl.useProgram(res.wm);
-		gl.uniform4f(res.uWmUv, 0, 0, 1, 1);
-		gl.uniform1f(res.uWmAlpha, 1);
-		gl.bindTexture(gl.TEXTURE_2D, tg.chartTex);
+		gl.useProgram(p);
+		gl.bindTexture(gl.TEXTURE_2D, from);
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-		this.drawCalls++;
-		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-		gl.viewport(x, y, w, h);
+		gl.disable(gl.SCISSOR_TEST);
+	}
+
+	private overlay(
+		res: Res,
+		time: number,
+		box: Float32Array,
+		x: number,
+		y: number,
+		w: number,
+		h: number,
+	) {
+		const gl = this.gl;
+		const tg = res.targets;
+		if (!tg) return;
+		clip(gl, box, x, y, w, h);
 		// biome-ignore lint/correctness/useHookAtTopLevel: a WebGL call, not a React hook
-		gl.useProgram(res.compose);
+		gl.useProgram(res.overlay);
+		gl.uniform1f(res.uOverlayTime, time);
 		gl.activeTexture(gl.TEXTURE3);
-		gl.bindTexture(gl.TEXTURE_2D, tg.sceneTex);
+		gl.bindTexture(gl.TEXTURE_2D, tg.scene.tex);
 		gl.activeTexture(gl.TEXTURE2);
 		gl.bindTexture(gl.TEXTURE_2D, res.noiseTex);
 		gl.activeTexture(gl.TEXTURE1);
-		gl.bindTexture(gl.TEXTURE_2D, tg.effectTex);
+		gl.bindTexture(gl.TEXTURE_2D, tg.rings.tex);
 		gl.activeTexture(gl.TEXTURE0);
-		gl.bindTexture(gl.TEXTURE_2D, tg.chartTex);
-		gl.uniform1i(res.uChart, 0);
-		gl.uniform1i(res.uEffect, 1);
-		gl.uniform1i(res.uNoise, 2);
-		gl.uniform1i(res.uScene, 3);
-		gl.uniform2f(res.uSize, w, h);
-		gl.uniform1f(res.uTime, areas.time);
+		gl.bindTexture(gl.TEXTURE_2D, tg.field.tex);
+		gl.bindVertexArray(res.bgVao);
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-		this.drawCalls++;
-		gl.enable(gl.BLEND);
 		gl.bindVertexArray(null);
-		this.labels(res, x, y, w, h);
+		gl.disable(gl.SCISSOR_TEST);
+	}
+
+	private makeTargets(res: Res): Targets {
+		const gl = this.gl;
+		const t: Targets = {
+			scene: target(gl, SCENE_W, SCENE_H, gl.RGBA8, gl.NEAREST),
+			mask: target(gl, MASK_W, MASK_H, gl.RGBA8, gl.NEAREST),
+			field: target(gl, MASK_W, MASK_H, gl.RGBA8, gl.NEAREST),
+			rows: target(gl, RING_W, MASK_H, gl.R8, gl.NEAREST),
+			rings: target(gl, RING_W, RING_H, gl.RG8, gl.LINEAR),
+		};
+		res.targets = t;
+		return t;
 	}
 
 	private labels(res: Res, x: number, y: number, w: number, h: number) {
-		if (!res.wmLabel && !res.caption) return;
 		const gl = this.gl;
+		if (res.labelsFor !== h) this.makeLabels(res, w, h);
+		if (!res.mark && !res.caption) return;
 		const margin = Math.round(h * 0.02);
 		// biome-ignore lint/correctness/useHookAtTopLevel: a WebGL call, not a React hook
 		gl.useProgram(res.wm);
 		gl.uniform4f(res.uWmUv, 0, 0, 1, 1);
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindVertexArray(res.bgVao);
-		if (res.wmLabel) {
-			const th = Math.max(8, Math.round(h * 0.034));
-			const tw = Math.round(th * res.wmLabel.aspect);
-			this.label(
-				res,
-				res.wmLabel,
-				x + w - tw - margin,
-				y + margin,
-				tw,
-				th,
-				0.55,
-			);
+		if (res.mark) {
+			this.label(res, res.mark, x + w - res.mark.w - margin, y + margin, 0.55);
 		}
-		if (res.caption) {
-			let th = Math.max(10, Math.round(h * 0.046));
-			let tw = Math.round(th * res.caption.aspect);
-			const maxW = Math.round(w * 0.6);
-			if (tw > maxW) {
-				tw = maxW;
-				th = Math.max(8, Math.round(maxW / res.caption.aspect));
-			}
-			this.label(res, res.caption, x + margin, y + margin, tw, th, 0.92);
-		}
+		if (res.caption) this.label(res, res.caption, x + margin, y + margin, 0.92);
 		gl.bindVertexArray(null);
 		gl.viewport(x, y, w, h);
 	}
 
-	private label(
-		res: Res,
-		label: Label,
-		lx: number,
-		ly: number,
-		tw: number,
-		th: number,
-		alpha: number,
-	) {
+	private makeLabels(res: Res, w: number, h: number) {
 		const gl = this.gl;
-		gl.viewport(lx, ly, tw, th);
+		if (res.mark) gl.deleteTexture(res.mark.tex);
+		if (res.caption) gl.deleteTexture(res.caption.tex);
+		res.mark = null;
+		res.caption = null;
+		res.labelsFor = h;
+		const mark = textCanvas(
+			[{ text: WATERMARK, weight: 600, alpha: 1 }],
+			Math.max(8, Math.round(h * 0.034)),
+			w * 0.4,
+		);
+		if (mark) res.mark = labelTexture(gl, mark);
+		const text = this.captionText;
+		if (!text) return;
+		const runs: TextRun[] = [{ text: text.title, weight: 600, alpha: 1 }];
+		if (text.level) runs.push({ text: text.level, weight: 500, alpha: 0.78 });
+		const cap = textCanvas(runs, Math.max(10, Math.round(h * 0.046)), w * 0.6);
+		if (cap) res.caption = labelTexture(gl, cap);
+	}
+
+	private label(res: Res, label: Label, lx: number, ly: number, alpha: number) {
+		const gl = this.gl;
+		gl.viewport(lx, ly, label.w, label.h);
 		gl.uniform1f(res.uWmAlpha, alpha);
 		gl.bindTexture(gl.TEXTURE_2D, label.tex);
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-		this.drawCalls++;
-	}
-
-	private targets(res: Res, w: number, h: number): Targets {
-		const old = res.targets;
-		if (old && old.w === w && old.h === h) return old;
-		const gl = this.gl;
-		if (old) {
-			for (const fb of [old.chart, old.mask, old.effect, old.scene]) {
-				gl.deleteFramebuffer(fb);
-			}
-			for (const tex of [
-				old.chartTex,
-				old.maskTex,
-				old.effectTex,
-				old.sceneTex,
-			]) {
-				gl.deleteTexture(tex);
-			}
-		}
-		const mw = Math.max(1, w >> 3);
-		const mh = Math.max(1, h >> 3);
-		const ew = Math.max(1, w >> 2);
-		const eh = Math.max(1, h >> 2);
-		const sw = Math.max(1, Math.floor(w / 6));
-		const sh = Math.max(1, Math.floor(h / 6));
-		const chart = target(gl, w, h);
-		const mask = target(gl, mw, mh, true);
-		const effect = target(gl, ew, eh);
-		const scene = target(gl, sw, sh, true);
-		const next: Targets = {
-			w,
-			h,
-			chartTex: chart.tex,
-			chart: chart.fb,
-			maskTex: mask.tex,
-			mask: mask.fb,
-			mw,
-			mh,
-			effectTex: effect.tex,
-			effect: effect.fb,
-			ew,
-			eh,
-			sceneTex: scene.tex,
-			scene: scene.fb,
-			sw,
-			sh,
-		};
-		res.targets = next;
-		return next;
 	}
 
 	private scene(
 		res: Res,
-		data: Float32Array,
 		count: number,
 		w: number,
 		box: [number, number, number, number] | null,
@@ -972,7 +944,6 @@ export class ChartRenderer {
 			gl.disable(gl.BLEND);
 			gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 			gl.enable(gl.BLEND);
-			this.drawCalls++;
 		} else {
 			if (box) {
 				gl.enable(gl.SCISSOR_TEST);
@@ -982,7 +953,7 @@ export class ChartRenderer {
 			gl.clear(gl.COLOR_BUFFER_BIT);
 			gl.disable(gl.SCISSOR_TEST);
 		}
-		if (count) this.drawInstances(res, data, count, w);
+		this.notes(res, 0, count, w);
 	}
 
 	private drawAreas(res: Res, areas: AreaFrame) {
@@ -1011,7 +982,6 @@ export class ChartRenderer {
 				);
 			}
 			gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);
-			this.drawCalls++;
 		};
 		gl.blendEquation(gl.MAX);
 		gl.colorMask(true, false, true, false);
@@ -1028,28 +998,28 @@ export class ChartRenderer {
 		gl.bindVertexArray(null);
 	}
 
-	private drawInstances(
-		res: Res,
-		data: Float32Array,
-		count: number,
-		w: number,
-	) {
+	private notes(res: Res, first: number, n: number, w: number) {
+		if (n <= 0) return;
 		const gl = this.gl;
-		gl.bindBuffer(gl.ARRAY_BUFFER, res.inst);
-		if (res.cap < data.length) {
-			gl.bufferData(gl.ARRAY_BUFFER, data.byteLength, gl.DYNAMIC_DRAW);
-			res.cap = data.length;
-		}
-		gl.bufferSubData(gl.ARRAY_BUFFER, 0, data, 0, count * STRIDE);
 		// biome-ignore lint/correctness/useHookAtTopLevel: a WebGL call, not a React hook
 		gl.useProgram(res.notes);
 		gl.uniform2f(res.uScale, 1, ASPECT);
 		gl.uniform1f(res.uPx, 2 / w);
 		gl.uniform1f(res.uNote, this.noteScale);
 		gl.bindVertexArray(res.vao);
-		gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, count);
+		gl.bindBuffer(gl.ARRAY_BUFFER, res.inst);
+		for (let i = 0; i < 3; i++) {
+			gl.vertexAttribPointer(
+				1 + i,
+				4,
+				gl.FLOAT,
+				false,
+				STRIDE * 4,
+				first * STRIDE * 4 + i * 16,
+			);
+		}
+		gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);
 		gl.bindVertexArray(null);
-		this.drawCalls++;
 	}
 
 	dispose() {

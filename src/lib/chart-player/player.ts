@@ -23,16 +23,6 @@ export type PlayerSource = { chart: string; pack: boolean; music?: string };
 // Only the music in use stays decoded: a decoded song is tens of megabytes
 const DECODED_KEPT = 1;
 
-export type PlayerStats = {
-	cpuMs: number;
-	instances: number;
-	drawCalls: number;
-	notes: number;
-	effects: number;
-	areas: number;
-	scale: number;
-};
-
 const EMPTY = new Float32Array(0);
 const TAIL = 2;
 const SCALES = [1, 0.8, 0.65, 0.5];
@@ -72,15 +62,6 @@ export class ChartPlayer {
 	private raf = 0;
 	private job = 0;
 	private disposed = false;
-	readonly stats: PlayerStats = {
-		cpuMs: 0,
-		instances: 0,
-		drawCalls: 0,
-		notes: 0,
-		effects: 0,
-		areas: 0,
-		scale: 1,
-	};
 
 	constructor(
 		private readonly canvas: HTMLCanvasElement,
@@ -232,8 +213,6 @@ export class ChartPlayer {
 
 	setCaption(text: CaptionText | null) {
 		this.caption = text;
-		this.renderer.setCaption(text);
-		this.request();
 	}
 
 	async exportVideo(opts: {
@@ -344,7 +323,6 @@ export class ChartPlayer {
 	private fit() {
 		const dpr =
 			Math.min(2, window.devicePixelRatio || 1) * (SCALES[this.level] ?? 1);
-		this.stats.scale = SCALES[this.level] ?? 1;
 		const box = this.canvas.getBoundingClientRect();
 		const w = Math.max(1, Math.round(box.width * dpr));
 		const h = Math.max(1, Math.round(box.height * dpr));
@@ -408,26 +386,19 @@ export class ChartPlayer {
 	};
 
 	private render(pos: number) {
-		const start = performance.now();
-		const { chart, frame, areas, stats } = this;
-		let count = 0;
+		const { chart, frame, areas } = this;
 		const t = chart ? Math.max(0, pos - chart.offset) : 0;
-		if (chart && frame) {
-			count = frame.build(t);
-			stats.notes = frame.stats.notes;
-			stats.effects = frame.stats.fx;
-		}
-		stats.areas = areas && this.noise ? areas.build(t) : 0;
+		const count = chart && frame ? frame.build(t) : 0;
+		const split = frame ? frame.stats.lines + frame.stats.notes : 0;
+		const shown = areas && this.noise ? areas.build(t) : 0;
 		const af = this.areaFrame;
 		if (af) af.time = t;
 		this.renderer.draw(
 			frame ? frame.data : EMPTY,
 			count,
-			af && stats.areas ? af : undefined,
+			split,
+			af && shown ? af : undefined,
 		);
-		stats.instances = count;
-		stats.drawCalls = this.renderer.drawCalls;
-		stats.cpuMs = performance.now() - start;
 	}
 
 	dispose() {

@@ -752,7 +752,7 @@ export const toolsEn: ToolsMessages = {
 	},
 	chartPlayer: {
 		title: "Chart preview",
-		lede: "Each chart plays itself here, drawn in your browser from the game's own chart file. Notes are simple shapes in the game's colors, not its artwork.",
+		lede: "Each chart plays itself here, drawn in your browser from the game's own chart file. Not exactly same as in the game.",
 		level: "Difficulty",
 		start: "Play preview",
 		startLabel: "Play the {level} chart preview",
@@ -1217,7 +1217,7 @@ export const toolsZh: ToolsMessages = {
 	},
 	chartPlayer: {
 		title: "谱面预览",
-		lede: "在浏览器里直接用游戏的谱面文件自动播放每张谱面。音符以游戏的配色画成简单形状，不是游戏原图。",
+		lede: "在浏览器里直接用游戏的谱面文件自动播放每张谱面。不是游戏原图。",
 		level: "难度",
 		start: "播放预览",
 		startLabel: "播放 {level} 谱面预览",

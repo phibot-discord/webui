@@ -7,6 +7,7 @@
 .cp-stage {
 	position: relative;
 	aspect-ratio: 16 / 9;
+	container-type: size;
 	overflow: hidden;
 	border-radius: var(--radius-md);
 	background: oklch(0.12 0.015 256);
@@ -31,6 +32,57 @@
 .cp-canvas:focus-visible {
 	outline: 2px solid var(--focus);
 	outline-offset: -2px;
+}
+
+.cp-labels {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: min(100cqw, 100cqh * 16 / 9);
+	aspect-ratio: 16 / 9;
+	translate: -50% -50%;
+	container-type: size;
+	pointer-events: none;
+	color: #fff;
+	font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+	line-height: 1.5;
+	white-space: nowrap;
+	text-shadow: 0.047em 0.047em 0 rgb(0 0 0 / 0.6);
+}
+
+.cp-caption,
+.cp-mark {
+	position: absolute;
+	bottom: 2cqh;
+	padding-inline: 0.5em;
+	font-weight: 600;
+}
+
+.cp-caption {
+	left: 2cqh;
+	display: flex;
+	gap: 0.45em;
+	max-width: 60cqw;
+	font-size: max(10px, 3.07cqh);
+	opacity: 0.92;
+}
+
+.cp-caption-title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cp-caption-level {
+	flex: none;
+	font-weight: 500;
+	opacity: 0.78;
+}
+
+.cp-mark {
+	right: 2cqh;
+	font-size: max(8px, 2.27cqh);
+	opacity: 0.55;
 }
 
 .cp-cover,

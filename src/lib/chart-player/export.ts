@@ -97,7 +97,7 @@ export async function exportVideo(job: ExportJob): Promise<Blob> {
 	const canvas = document.createElement("canvas");
 	canvas.width = job.width;
 	canvas.height = job.height;
-	const renderer = new ChartRenderer(canvas, { preserve: true });
+	const renderer = new ChartRenderer(canvas, { preserve: true, labels: true });
 	renderer.setBackdrop(job.backdrop);
 	renderer.setCaption(job.caption);
 	renderer.setNoteScale(job.noteScale);
@@ -133,7 +133,12 @@ export async function exportVideo(job: ExportJob): Promise<Blob> {
 			const n = frame.build(t);
 			const shown = areas ? areas.build(t) : 0;
 			if (af) af.time = t;
-			renderer.draw(frame.data, n, af && shown ? af : undefined);
+			renderer.draw(
+				frame.data,
+				n,
+				frame.stats.lines + frame.stats.notes,
+				af && shown ? af : undefined,
+			);
 			await video.add(pos, 1 / job.fps);
 			if (i % 15 === 0) job.onProgress(i / total);
 		}
