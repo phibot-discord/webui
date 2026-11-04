@@ -228,7 +228,7 @@ test("the tag profile is worked out locally from the vote snapshot, never phib19
 	);
 	assert.match(
 		analysis.tagPoolNote,
-		/^\+\/- 为单曲等效 RKS 与同定数谱面相比的差值/,
+		/^\+\/- 为准确率（9 的个数）与同定数谱面相比的差值/,
 	);
 	assert.equal(analysis.histogramPhiSlots, true);
 	assert.equal(analysis.histogram.count, 30);

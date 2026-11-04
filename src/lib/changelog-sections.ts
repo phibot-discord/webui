@@ -14,8 +14,8 @@ export const CHANGELOG_RELEASES: ChangeRelease[] = [
 						href: "/tags",
 					},
 					{
-						en: "Each number compares your eq. RKS on charts with that tag with your other charts of the same constant: + is above your own baseline, − below. Gaps under ±0.10 are marked slight, and the card lists your top 3 each way.",
-						zh: "每个数值都是带该标签的谱面上，你的单曲等效 RKS 与同定数其他谱面相比的差值：+ 高于你自己的基准，− 低于基准。差值小于 ±0.10 的标记为「略」，成绩图各列出前 3 个。",
+						en: "Each number is in nines of accuracy against your own charts of the same constant, counting charts from 0.25 under your B27 floor upward: + is above your usual level there, − below. Tags are credited jointly, so one that only rides along with another gets no credit of its own, and a verdict needs its sign to hold in 98% of resamples. Nets under ±0.05 are marked slight, and the card lists your top 3 each way.",
+						zh: "每个数值以准确率的「9 的个数」计，与你自己同定数的谱面相比，样本从 B27 下限减 0.25 起、没有上限：+ 高于你在该定数的平常水平，− 低于。标签同时归因，只跟着别的标签出现的标签不会单独得分；判定需要在重抽中 98% 保持同号。净值小于 ±0.05 的标记为「略」，成绩图各列出前 3 个。",
 						href: "/tags",
 					},
 					{
@@ -29,8 +29,8 @@ export const CHANGELOG_RELEASES: ChangeRelease[] = [
 				heading: { en: "Player profile", zh: "玩家画像" },
 				items: [
 					{
-						en: "A new Profile tab under your cards: your B30 card as text, with every chart tag, its number, and the charts counted for it with their acc, eq. RKS and expected eq. RKS.",
-						zh: "成绩图下新增「画像」标签页：文字版 B30 成绩图，列出全部谱面标签、各自的数值，以及计入每个标签的谱面和它们的准确率、单曲等效 RKS 与预期值。",
+						en: "A new Profile tab under your cards: your B30 card as text, with every chart tag, its average, its net and how stably it holds, and the charts counted for it with their acc, expected acc and gap.",
+						zh: "成绩图下新增「画像」标签页：文字版 B30 成绩图，列出全部谱面标签的平均、净值与稳定度，以及计入每个标签的谱面和它们的准确率、预期准确率与差值。",
 						href: "/profile",
 					},
 				],

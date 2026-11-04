@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseTagVotes } from "./chart-tag-votes";
 import {
+	accOfNines,
+	nines,
 	PROFILE,
 	type ProfileRecord,
 	profileRecordsOf,
@@ -9,6 +11,7 @@ import {
 	signed,
 	tagProfile,
 	tagProfileDetail,
+	weightOf,
 } from "./tag-profile";
 
 const TREE = [
@@ -33,6 +36,8 @@ const TREE = [
 	{ id: 14, name: "多指", children: [{ id: 6, name: "5k" }] },
 ];
 
+type Charts = Record<string, { votes: Record<string, Record<number, number>> }>;
+
 function rand(seed: number) {
 	let x = seed >>> 0;
 	return () => {
@@ -50,36 +55,41 @@ function rksOf(acc: number, c: number) {
 	return acc < 70 ? 0 : c * ((acc - 55) / 45) ** 2;
 }
 
+function record(id: string, difficulty: number, acc: number): ProfileRecord {
+	return {
+		id: `${id}.0`,
+		level: "IN",
+		difficulty,
+		rks: rksOf(acc, difficulty),
+		acc,
+	};
+}
+
 function world(skill: number, planted: Record<number, number>, seed: number) {
 	const next = rand(seed);
 	const records: ProfileRecord[] = [];
-	const charts: Record<
-		string,
-		{ votes: Record<string, Record<number, number>> }
-	> = {};
-	const tags = [1, 2, 3, 4, 5, 6];
+	const charts: Charts = {};
+	const pick = () => 1 + Math.floor(next() * 6);
 	for (let i = 0; i < 160; i++) {
-		const difficulty = Math.round((12 + (i % 80) * 0.075) * 10) / 10;
-		const a = tags[i % 6]!;
-		const b = tags[(i * 7 + 3) % 6]!;
-		const votes = a === b ? { [a]: 6 } : { [a]: 6, [b]: 3 };
-		const bonus =
-			((planted[a] ?? 0) * 6 + (planted[b] ?? 0) * (a === b ? 0 : 3)) /
-			(a === b ? 6 : 9);
+		const difficulty = Math.round((12 + i * 0.0375) * 10) / 10;
+		const a = pick();
+		let b = pick();
+		while (b === a) b = pick();
+		let c = pick();
+		while (c === a || c === b) c = pick();
+		const votes: Record<number, number> = { [a]: 6 };
+		if (next() < 0.7) votes[b] = 3;
+		if (next() < 0.3) votes[c] = 2;
+		let total = 0;
+		for (const v of Object.values(votes)) total += v;
+		let bonus = 0;
+		for (const [t, v] of Object.entries(votes))
+			bonus += ((planted[Number(t)] ?? 0) * v) / total;
 		const m = skill + bonus - difficulty;
-		const acc = Math.min(
-			100,
-			Math.max(55, 100 - 2.5 * Math.exp(-1.2 * m) + 0.3 * gauss(next)),
-		);
-		const id = `s${i}`;
-		records.push({
-			id: `${id}.0`,
-			level: "IN",
-			difficulty,
-			rks: rksOf(acc, difficulty),
-			acc,
-		});
-		charts[id] = { votes: { IN: votes } };
+		const loss = 2.5 * Math.exp(-1.2 * m) * Math.exp(0.3 * gauss(next));
+		const acc = Math.min(100, Math.max(55, 100 - loss));
+		records.push(record(`s${i}`, difficulty, acc));
+		charts[`s${i}`] = { votes: { IN: votes } };
 	}
 	return { records, votes: parseTagVotes({ sha: "t", tree: TREE, charts }) };
 }
@@ -92,6 +102,10 @@ test("planted strengths and weaknesses come back on the right side", () => {
 	assert.equal(out.weak[0]?.name, "倒打");
 	assert.ok(out.strong[0]!.diff > 0);
 	assert.ok(out.weak[0]!.diff < 0);
+	assert.ok(out.strong[0]!.hold >= PROFILE.minHold);
+	assert.ok(out.weak[0]!.hold >= PROFILE.minHold);
+	assert.ok(out.strong[0]!.mean > 0);
+	assert.ok(out.weak[0]!.mean < 0);
 	assert.match(out.strong[0]!.shown, /^\+\d\.\d\d$/);
 	assert.match(out.weak[0]!.shown, /^-\d\.\d\d$/);
 	const cat = Object.fromEntries(out.categories.map((c) => [c.name, c.diff]));
@@ -102,18 +116,19 @@ test("planted strengths and weaknesses come back on the right side", () => {
 		out.weak.filter((t) => strong.has(t.name)),
 		[],
 	);
-	assert.ok(out.strong[0]!.best > out.strong[0]!.worst);
-	assert.ok(out.weak[0]!.worst > out.weak[0]!.best);
 });
 
-test("a player with no planted skill gets a flat profile, whatever the charts' constants", () => {
-	for (const seed of [1, 2, 3]) {
+test("a player with no planted skill gets a flat profile; a lucky listing is rare and small", () => {
+	const listed: string[] = [];
+	for (const seed of [1, 2, 3, 4, 5, 6]) {
 		const { records, votes } = world(15.5, {}, seed);
 		const out = tagProfile(records, votes);
-		for (const tag of out.tags) {
-			assert.ok(Math.abs(tag.diff) < 0.15, `${tag.name} ${tag.diff}`);
-		}
+		for (const tag of out.tags)
+			assert.ok(Math.abs(tag.diff) < 0.15, `${seed} ${tag.name} ${tag.diff}`);
+		for (const tag of [...out.strong, ...out.weak])
+			listed.push(`${seed} ${tag.name} ${tag.shown} ${tag.hold}`);
 	}
+	assert.ok(listed.length <= 3, listed.join("; "));
 });
 
 test("every tag on the pooled charts gets a row, best first, with its side", () => {
@@ -137,47 +152,54 @@ test("every tag on the pooled charts gets a row, best first, with its side", () 
 			.reverse()
 			.map((t) => t.name),
 	);
+	for (const t of out.tags) {
+		if (t.side === "even") continue;
+		assert.ok(t.charts >= PROFILE.minTagCharts);
+		assert.ok(t.hold >= PROFILE.minHold);
+		assert.ok(Math.abs(t.diff) >= PROFILE.minDiff);
+	}
 });
 
-test("a tag needs its charts in the best third to count as a strength, not just a positive mean", () => {
-	const plan: [tag: number, lean: number, n: number][] = [
-		[1, 0.3, 24],
-		[2, -0.3, 18],
-		[3, 0, 18],
-		[4, 0.1, 6],
-	];
+test("a tag that only rides along with a real strength gets no credit of its own", () => {
 	const records: ProfileRecord[] = [];
-	const charts: Record<
-		string,
-		{ votes: Record<string, Record<number, number>> }
-	> = {};
+	const charts: Charts = {};
 	let i = 0;
-	for (const [tag, lean, n] of plan) {
-		for (let k = 0; k < n; k++, i++) {
-			const difficulty = 15 + ((i * 7) % 20) * 0.1;
-			records.push({
-				id: `c${i}.0`,
-				level: "IN",
-				difficulty,
-				rks: difficulty - 0.5 + lean,
-			});
-			charts[`c${i}`] = { votes: { IN: { [tag]: 5 } } };
-		}
+	const put = (
+		difficulty: number,
+		acc: number,
+		votes: Record<number, number>,
+	) => {
+		records.push(record(`c${i}`, difficulty, acc));
+		charts[`c${i}`] = { votes: { IN: votes } };
+		i += 1;
+	};
+	const at = (y: number) => accOfNines(y);
+	for (let k = 0; k <= 10; k++) {
+		const c = 15 + k * 0.1;
+		put(c, at(2.5), { 6: 6 });
+		put(c, at(2.25), { 6: 5, 1: 5 });
+		put(c, at(2), { 1: 6 });
+		put(c, at(1.625), { 3: 6 });
+		put(c, at(1.625), { 4: 6 });
 	}
 	const out = tagProfile(
 		records,
 		parseTagVotes({ sha: "t", tree: TREE, charts }),
 	);
 	const row = (name: string) => out.tags.find((t) => t.name === name)!;
-	assert.equal(row("差速").side, "strong");
-	assert.equal(row("快交互").side, "weak");
-	assert.equal(row("锁手").side, "even");
-	assert.ok(row("倒打").diff >= PROFILE.minDiff);
-	assert.equal(row("倒打").best, 0);
-	assert.equal(row("倒打").side, "even");
+	assert.equal(row("5k").side, "strong");
+	assert.ok(row("差速").mean > PROFILE.minDiff);
+	assert.ok(Math.abs(row("差速").diff) < PROFILE.minDiff);
+	assert.equal(row("差速").side, "even");
+	assert.equal(row("锁手").side, "weak");
+	assert.equal(row("倒打").side, "weak");
+	assert.deepEqual(
+		out.strong.map((t) => t.name),
+		["5k"],
+	);
 });
 
-test("the detail lists every chart that counts toward a tag, with its share and third", () => {
+test("the detail lists every chart that counts toward a tag, with its share, weight and third", () => {
 	const { records, votes } = world(15.5, { 2: 0.8 }, 3);
 	const detail = tagProfileDetail(records, votes);
 	const row = detail.analysis.tags.find((t) => t.name === "快交互")!;
@@ -187,37 +209,89 @@ test("the detail lists every chart that counts toward a tag, with its share and 
 		list.filter((c) => detail.charts[c.chart]!.group === "best").length,
 		row.best,
 	);
+	let sw = 0;
+	let ss = 0;
 	for (const c of list) {
 		const chart = detail.charts[c.chart]!;
 		assert.ok(c.share >= PROFILE.minShare && c.share <= 1);
-		assert.ok(Number.isFinite(chart.expected));
+		assert.ok(chart.expected > 0 && chart.expected < 100);
+		assert.ok(chart.weight > 0 && chart.weight <= 1);
 		assert.equal(typeof chart.acc, "number");
+		sw += c.share * chart.weight;
+		ss += c.share * chart.weight * chart.diff;
 	}
-	const weighted =
-		list.reduce((s, c) => s + c.share * detail.charts[c.chart]!.diff, 0) /
-		(list.reduce((s, c) => s + c.share, 0) + PROFILE.prior);
-	assert.ok(Math.abs(weighted - row.diff) < 1e-12);
+	assert.ok(Math.abs(ss / (sw + PROFILE.prior) - row.mean) < 1e-12);
 	const groups = detail.charts.map((c) => c.group);
 	const third = Math.floor(detail.charts.length / 3);
 	assert.equal(groups.filter((g) => g === "best").length, third);
 	assert.equal(groups.filter((g) => g === "worst").length, third);
 	assert.ok(detail.byCategory.get("硬抗")!.length > 0);
+	const again = tagProfileDetail(records, votes);
+	assert.deepEqual(again.analysis, detail.analysis);
 });
 
-test("the pool runs from 1.0 below to 2.0 above the 27th-best chart RKS", () => {
+test("the pool starts 0.25 below the 27th-best chart RKS, has no top, and skips charts at or under 80%", () => {
 	const { records, votes } = world(15.5, {}, 4);
 	const out = tagProfile(records, votes);
 	const floor = records.map((r) => r.rks).sort((a, b) => b - a)[
 		PROFILE.floorSlot - 1
 	]!;
 	assert.ok(out.range);
-	assert.ok(Math.abs(out.range.min - (floor - 1)) <= 0.1 + 1e-9);
-	assert.ok(Math.abs(out.range.max - (floor + 2)) <= 0.1 + 1e-9);
+	assert.ok(out.range.min >= floor - PROFILE.below - 1e-9);
+	assert.ok(out.range.min < floor - PROFILE.below + 0.1);
 	const inPool = records.filter(
-		(r) => r.difficulty >= out.range!.min && r.difficulty <= out.range!.max,
+		(r) => r.difficulty >= out.range!.min - 1e-9 && weightOf(r.acc!) > 0,
 	);
 	assert.equal(out.recordCount, inPool.length);
-	assert.equal(out.chartCount, inPool.length);
+	assert.equal(out.range.max, Math.max(...inPool.map((r) => r.difficulty)));
+	assert.ok(records.some((r) => r.acc! <= PROFILE.rampFrom));
+	assert.ok(out.chartCount <= out.recordCount);
+});
+
+test("accuracy under 90% counts less, and 100% is read as 99.9%", () => {
+	assert.equal(weightOf(95), 1);
+	assert.equal(weightOf(85), 0.5);
+	assert.equal(weightOf(80), 0);
+	assert.equal(weightOf(70), 0);
+	assert.ok(Math.abs(nines(99) - 2) < 1e-12);
+	assert.ok(Math.abs(nines(99.9) - 3) < 1e-12);
+	assert.ok(Math.abs(nines(100) - 3) < 1e-12);
+	assert.ok(Math.abs(accOfNines(nines(97.25)) - 97.25) < 1e-9);
+	const records: ProfileRecord[] = [];
+	const charts: Charts = {};
+	for (let k = 0; k < 40; k++) {
+		const c = 15 + (k % 8) * 0.1;
+		const acc = k === 0 ? 100 : k === 1 ? 85 : 99.5;
+		records.push(record(`c${k}`, c, acc));
+		charts[`c${k}`] = { votes: { IN: { [1 + (k % 6)]: 5 } } };
+	}
+	const detail = tagProfileDetail(
+		records,
+		parseTagVotes({ sha: "t", tree: TREE, charts }),
+	);
+	const perfect = detail.charts.find((c) => c.acc === 100)!;
+	const rough = detail.charts.find((c) => c.acc === 85)!;
+	assert.ok(perfect.diff > 0.3);
+	assert.equal(rough.weight, 0.5);
+	assert.ok(rough.diff < 0);
+});
+
+test("a chart with fewer than two peers within 0.1 gives no evidence", () => {
+	const records: ProfileRecord[] = [];
+	const charts: Charts = {};
+	for (let k = 0; k < 30; k++) {
+		records.push(record(`c${k}`, 15 + (k % 5) * 0.1, 99 + (k % 4) * 0.2));
+		charts[`c${k}`] = { votes: { IN: { [1 + (k % 6)]: 5 } } };
+	}
+	records.push(record("lone", 16.2, 99.4));
+	charts.lone = { votes: { IN: { 2: 5 } } };
+	const out = tagProfile(
+		records,
+		parseTagVotes({ sha: "t", tree: TREE, charts }),
+	);
+	assert.equal(out.recordCount, 31);
+	assert.equal(out.chartCount, 30);
+	assert.equal(out.range?.max, 16.2);
 });
 
 test("a tag under two categories counts toward both", () => {
@@ -236,7 +310,7 @@ test("too few voted charts near the player's level is insufficient", () => {
 		tree: TREE,
 		charts: Object.fromEntries(
 			records.flatMap((r) =>
-				r.difficulty >= 16 && r.difficulty < 16.4
+				r.difficulty >= 15 && r.difficulty < 15.3
 					? [[r.id.replace(/\.0$/, ""), { votes: { IN: { 1: 5 } } }]]
 					: [],
 			),
@@ -266,6 +340,25 @@ test("charts with fewer than 3 votes are ignored", () => {
 	assert.equal(out.chartCount, 0);
 	assert.equal(out.totalVotes, 0);
 	assert.equal(out.insufficient, true);
+});
+
+test("a record without acc takes it back from its RKS", () => {
+	const records: ProfileRecord[] = [];
+	const charts: Charts = {};
+	for (let k = 0; k < 30; k++) {
+		const r = record(`c${k}`, 15 + (k % 5) * 0.1, 99 + (k % 4) * 0.2);
+		records.push(k % 2 ? { ...r, acc: undefined } : r);
+		charts[`c${k}`] = { votes: { IN: { [1 + (k % 6)]: 5 } } };
+	}
+	const detail = tagProfileDetail(
+		records,
+		parseTagVotes({ sha: "t", tree: TREE, charts }),
+	);
+	assert.equal(detail.charts.length, 30);
+	for (const c of detail.charts)
+		assert.ok(
+			Math.abs(c.acc - (99 + (Number(c.id.slice(1, -2)) % 4) * 0.2)) < 1e-6,
+		);
 });
 
 test("profileRecordsOf keeps scored EZ–AT charts with their acc, never Legacy or charts without a constant", () => {

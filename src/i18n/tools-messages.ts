@@ -92,8 +92,9 @@ export type ToolsMessages = {
 		category: string;
 		diff: string;
 		charts: string;
-		best: string;
-		worst: string;
+		mean: string;
+		net: string;
+		hold: string;
 		verdict: string;
 		sides: Record<"strong" | "weak" | "even", string>;
 		slight: Record<"strong" | "weak", string>;
@@ -566,32 +567,33 @@ export const toolsEn: ToolsMessages = {
 		tagsTitle: "Chart profile",
 		meta: "Constants {min}–{max} · {scores} scores · {charts} voted charts · {votes} votes",
 		baseline:
-			"Each +/- is your eq. RKS on charts with that tag compared with your other charts of the same constant, averaged.",
+			"Numbers are nines of accuracy against your own charts of the same constant: +0.30 is roughly half the lost accuracy, +1.00 one more nine (99.9% where you usually get 99%), 0.00 the same as the rest.",
 		howLink: "How the numbers are worked out",
 		source: "Votes from kyou.net.cn, copied {date}.",
 		categoriesTitle: "Categories",
 		allTagsTitle: "All tags",
 		allTagsHint:
-			"Open a tag to see the charts counted for it. A strength needs 3 of its charts in your best third, a weakness 3 in your worst third.",
+			"Open a tag to see the charts counted for it. Average is your gap on those charts. Net is what the tag adds once the other tags on the same charts are accounted for; the verdict uses it. Holds is how often the net keeps its sign when your charts are resampled: a verdict needs {hold}% and at least {n} charts.",
 		tag: "Tag",
 		category: "Category",
 		diff: "+/-",
 		charts: "Charts",
-		best: "Best third",
-		worst: "Worst third",
+		mean: "Average",
+		net: "Net",
+		hold: "Holds",
 		verdict: "Verdict",
 		sides: { strong: "Strength", weak: "Weakness", even: "–" },
 		slight: { strong: "Slight strength", weak: "Slight weakness" },
 		slightHint:
-			"Slight: the gap is under ±0.10. Ordinary score swings alone can reach that size, so treat it as a hint.",
+			"Slight: the net is under ±0.05. Ordinary score swings alone can reach that size, so treat it as a hint.",
 		few: "On fewer than {n} of your charts: not listed on the card.",
 		chartsFor: "Charts counted for {name}",
-		expected: "Expected",
+		expected: "Expected acc",
 		share: "Share",
 		third: "Third",
 		groups: { best: "Best", middle: "Middle", worst: "Worst" },
 		insufficient:
-			"Only {n} voted charts near your level so far; the card needs {min}. Vote on chart tags at kyou.net.cn/phigros.",
+			"Only {n} voted charts at or above your level so far; the card needs {min}. Vote on chart tags at kyou.net.cn/phigros.",
 		votesMissing: "Chart tag votes could not be loaded. Try again in a minute.",
 		empty: "No scored charts yet.",
 	},
@@ -1088,32 +1090,33 @@ export const toolsZh: ToolsMessages = {
 		tagsTitle: "谱面标签画像",
 		meta: "定数 {min}–{max} · 成绩 {scores} · 已投票谱面 {charts} · 选票 {votes}",
 		baseline:
-			"每个 +/- 是带该标签的谱面上，你的单曲等效 RKS 与同定数其他谱面相比的平均差值。",
+			"数值以准确率的「9 的个数」计，与你自己同定数的谱面相比：+0.30 约等于失误减半，+1.00 多一个 9（你平时 99% 的地方打到 99.9%），0.00 与其余谱面持平。",
 		howLink: "数值的计算方式",
 		source: "投票来自 kyou.net.cn，同步于 {date}。",
 		categoriesTitle: "分类",
 		allTagsTitle: "全部标签",
 		allTagsHint:
-			"展开标签可查看计入它的谱面。擅长需要至少 3 张谱面落在最佳三分之一，薄弱需要至少 3 张落在最差三分之一。",
+			"展开标签可查看计入它的谱面。「平均」是你在这些谱面上的差值；「净值」是扣除同一谱面上其他标签的影响后该标签自身的贡献，判定以它为准；「稳定」是重抽谱面时净值保持同号的比例，判定需要 {hold}% 且至少 {n} 张谱面。",
 		tag: "标签",
 		category: "分类",
 		diff: "+/-",
 		charts: "谱面",
-		best: "最佳三分之一",
-		worst: "最差三分之一",
+		mean: "平均",
+		net: "净值",
+		hold: "稳定",
 		verdict: "判定",
 		sides: { strong: "擅长", weak: "薄弱", even: "–" },
 		slight: { strong: "略擅长", weak: "略薄弱" },
 		slightHint:
-			"略：差值小于 ±0.10。正常的成绩波动也可能达到这个幅度，仅供参考。",
+			"略：净值小于 ±0.05。正常的成绩波动也可能达到这个幅度，仅供参考。",
 		few: "出现在你少于 {n} 张谱面上：不会列在成绩图上。",
 		chartsFor: "计入「{name}」的谱面",
-		expected: "预期",
+		expected: "预期准确率",
 		share: "权重",
 		third: "三等分",
 		groups: { best: "最佳", middle: "中间", worst: "最差" },
 		insufficient:
-			"你所在难度附近目前只有 {n} 张已投票谱面，成绩图需要 {min} 张。可前往 kyou.net.cn/phigros 为谱面标签投票。",
+			"你所在难度及以上目前只有 {n} 张已投票谱面，成绩图需要 {min} 张。可前往 kyou.net.cn/phigros 为谱面标签投票。",
 		votesMissing: "谱面标签数据暂时无法读取，请稍后再试。",
 		empty: "还没有已计分的谱面。",
 	},

@@ -1,4 +1,4 @@
-import type { TagAnalysis, TagRow } from "@/phi/lib/b30-analysis";
+import type { TagAnalysis } from "@/phi/lib/b30-analysis";
 import { slotsStddev } from "@/phi/lib/b30-analysis";
 import { localizeChartTagLabels, type PhiLocale } from "@/phi/lib/card-i18n";
 import {
@@ -9,6 +9,8 @@ import type { Save } from "@/phi/lib/save";
 import {
 	type ChartGroup,
 	PROFILE,
+	type ProfileCategory,
+	type ProfileTagRow,
 	profileRecordsOf,
 	type TagChart,
 	tagProfileDetail,
@@ -33,8 +35,9 @@ export type ProfileChartRow = {
 	song: string;
 	rank: string;
 	c: number;
-	acc: number | null;
+	acc: number;
 	rks: number;
+	weight: number;
 	expected: number;
 	diff: number;
 	group: ChartGroup;
@@ -43,11 +46,9 @@ export type ProfileChartRow = {
 
 export type ProfileTagUse = { chart: number; share: number; votes: number };
 
-export type ProfileTagView = TagRow & { uses: ProfileTagUse[] };
+export type ProfileTagView = ProfileTagRow & { uses: ProfileTagUse[] };
 
-export type ProfileCategoryView = TagAnalysis["categories"][number] & {
-	uses: ProfileTagUse[];
-};
+export type ProfileCategoryView = ProfileCategory & { uses: ProfileTagUse[] };
 
 export type TagProfileView = Pick<
 	TagAnalysis,
@@ -64,6 +65,8 @@ export type TagProfileView = Pick<
 	fetchedAt?: string;
 	source: string;
 	minTagCharts: number;
+	minHold: number;
+	minCharts: number;
 };
 
 export type PlayerProfileView = {
@@ -166,8 +169,9 @@ export function playerProfileView(
 				song: songs.get(c.id) ?? c.id.replace(/\.0$/, ""),
 				rank: c.level,
 				c: c.difficulty,
-				acc: c.acc ?? null,
+				acc: c.acc,
 				rks: c.rks,
+				weight: c.weight,
 				expected: c.expected,
 				diff: c.diff,
 				group: c.group,
@@ -176,6 +180,8 @@ export function playerProfileView(
 			fetchedAt: votes.fetchedAt,
 			source: CHART_TAG_VOTES_SOURCE,
 			minTagCharts: PROFILE.minTagCharts,
+			minHold: PROFILE.minHold,
+			minCharts: PROFILE.minCharts,
 		};
 	}
 	return {

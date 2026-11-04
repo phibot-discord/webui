@@ -34,9 +34,7 @@ function Diff({ value }: { value: number }) {
 	return (
 		<span
 			className="pp-diff"
-			data-sign={
-				Math.abs(value) < FAINT ? "flat" : value > 0 ? "up" : "down"
-			}
+			data-sign={Math.abs(value) < FAINT ? "flat" : value > 0 ? "up" : "down"}
 		>
 			{text}
 		</span>
@@ -159,9 +157,14 @@ function ChartsTable({
 								<td>
 									<Level rank={c.rank} c={c.c} />
 								</td>
-								<td className="num">{c.acc != null ? pct(c.acc) : "–"}</td>
+								<td className="num">
+									{pct(c.acc)}
+									{c.weight < 1 ? (
+										<span className="muted"> ×{c.weight.toFixed(1)}</span>
+									) : null}
+								</td>
 								<td className="num">{c.rks.toFixed(2)}</td>
-								<td className="num muted">{c.expected.toFixed(2)}</td>
+								<td className="num muted">{pct(c.expected)}</td>
 								<td className="num">
 									<Diff value={c.diff} />
 								</td>
@@ -217,10 +220,10 @@ function TagList({
 		<div className="pp-tags" role="list">
 			<div className="pp-tag-head" aria-hidden="true">
 				<span>{kind === "tags" ? t.tag : t.category}</span>
-				<span className="num">{t.diff}</span>
+				<span className="num">{t.mean}</span>
+				<span className="num">{t.net}</span>
 				<span className="num">{t.charts}</span>
-				<span className="num">{t.best}</span>
-				<span className="num">{t.worst}</span>
+				<span className="num">{t.hold}</span>
 				{kind === "tags" ? <span>{t.verdict}</span> : null}
 			</div>
 			{rows.map((row) => {
@@ -233,11 +236,15 @@ function TagList({
 							<>
 								<span className="pp-tag-name">{row.name}</span>
 								<span className="num">
-									<Diff value={row.diff} />
+									<Diff value={row.mean} />
+								</span>
+								<span className="num">
+									{side ? <Diff value={row.diff} /> : "–"}
 								</span>
 								<span className="num">{row.charts}</span>
-								<span className="num">{row.best}</span>
-								<span className="num">{row.worst}</span>
+								<span className="num">
+									{side ? `${Math.round(row.hold * 100)}%` : "–"}
+								</span>
 								{side ? (
 									<span
 										className="pp-side"
@@ -301,7 +308,7 @@ function TagSection({ view, t }: { view: PlayerProfileView; t: Copy }) {
 					</p>
 					{p.insufficient ? (
 						<p className="pp-note">
-							{fill(t.insufficient, { n: p.chartCount, min: 12 })}
+							{fill(t.insufficient, { n: p.chartCount, min: p.minCharts })}
 						</p>
 					) : null}
 					{p.categories.some((c) => c.hasVotes) ? (
@@ -313,7 +320,12 @@ function TagSection({ view, t }: { view: PlayerProfileView; t: Copy }) {
 					{p.tags.length ? (
 						<>
 							<h4>{t.allTagsTitle}</h4>
-							<p className="field-hint">{t.allTagsHint}</p>
+							<p className="field-hint">
+								{fill(t.allTagsHint, {
+									hold: Math.round(p.minHold * 100),
+									n: p.minTagCharts,
+								})}
+							</p>
 							<p className="field-hint">
 								<span className="pp-side" data-side="strong" data-slight="">
 									{t.slight.strong}
