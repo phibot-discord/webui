@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+	b30Under,
 	diffTables,
 	parseVersionMeta,
 	parseVersionTable,
 	pickVersions,
+	rksSeries,
 	rksUnder,
+	slotMoves,
+	yourChanges,
 } from "./versions";
 
 const OLD =
@@ -80,4 +84,50 @@ test("picking versions defaults to the newest and the one before", () => {
 	assert.deepEqual(pickVersions(codes, undefined, 92), { from: 92, to: 100 });
 	assert.deepEqual(pickVersions(codes, 7, 8), { from: 153, to: 160 });
 	assert.equal(pickVersions([160], undefined, undefined), undefined);
+});
+
+test("B30 under a table keeps 27 best plus 3 APs, and moves track slot changes", () => {
+	const a = parseVersionTable(
+		"id\tIN\tAT\nA.x\t15.0\t\nB.y\t14.0\t\nC.z\t13.0\t\n",
+	);
+	const b = parseVersionTable(
+		"id\tIN\tAT\nA.x\t15.0\t\nB.y\t12.0\t\nC.z\t13.5\t\n",
+	);
+	const records = [
+		{ id: "A.x.0", rank: "IN", acc: 100 },
+		{ id: "B.y.0", rank: "IN", acc: 99 },
+		{ id: "C.z.0", rank: "IN", acc: 98 },
+	];
+	const ua = b30Under(records, a);
+	const ub = b30Under(records, b);
+	assert.equal(ua.slots.size, 3);
+	assert.equal(ua.slots.get("A.x.0:IN")?.phi, true);
+	assert.ok(Math.abs(ua.rks - rksUnder(records, a).rks) < 1e-9);
+	const changed = diffTables(a, b).changed;
+	const mine = yourChanges(records, changed, ua, ub);
+	assert.deepEqual(
+		mine.map((c) => [c.id, c.move]),
+		[
+			["B.y.0", "stay"],
+			["C.z.0", "stay"],
+		],
+	);
+	assert.ok(mine[0]!.after < mine[0]!.before);
+	assert.deepEqual(slotMoves(ua, ub), { entered: [], left: [] });
+});
+
+test("an RKS series skips nothing and reports the change from the previous version", () => {
+	const records = [{ id: "A.x.0", rank: "IN", acc: 100 }];
+	const t1 = parseVersionTable("id\tIN\nA.x\t15.0\n");
+	const t2 = parseVersionTable("id\tIN\nA.x\t15.2\n");
+	const s = rksSeries(records, [
+		{ code: 2, label: "2", date: null, notes: "", table: t2 },
+		{ code: 1, label: "1", date: null, notes: "", table: t1 },
+	]);
+	assert.deepEqual(
+		s.map((p) => p.code),
+		[1, 2],
+	);
+	assert.equal(s[0]!.delta, null);
+	assert.ok((s[1]!.delta ?? 0) > 0);
 });

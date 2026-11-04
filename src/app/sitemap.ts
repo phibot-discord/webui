@@ -10,6 +10,7 @@ export const revalidate = 86400;
 const PAGES = [
 	"/",
 	"/songs",
+	"/charts",
 	"/score",
 	"/phira",
 	"/guess",

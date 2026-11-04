@@ -29,7 +29,7 @@ export async function ogMetadata(
 		openGraph: {
 			type: copy.type ?? "website",
 			siteName: m.brand,
-			locale: locale === "zh" ? "zh_CN" : "en_US",
+			locale: { en: "en_US", zh: "zh_CN", ja: "ja_JP" }[locale],
 			title,
 			description,
 			url: copy.url,

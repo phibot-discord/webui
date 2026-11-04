@@ -1,8 +1,12 @@
 import { type ChartStatus, chartStatus } from "@/lib/chart-status";
+import { type FormTarget, formTargets } from "@/lib/form-targets";
+import { type Milestones, milestonesOf } from "@/lib/milestones";
 import { type SimilarIndex, suggestFrom } from "@/lib/similar";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
+import type { TagVotes } from "@/phi/lib/chart-tag-votes";
 import type { Save } from "@/phi/lib/save";
 import { openHistory, type SaveHistory } from "@/phi/lib/save-history";
+import { profileRecordsOf } from "@/phi/lib/tag-profile";
 import {
 	type TargetChart,
 	type TargetRow,
@@ -43,6 +47,7 @@ export type TrendEvent = {
 export type TrendView = {
 	points: TrendPoint[];
 	events: TrendEvent[];
+	milestones: Milestones;
 	songs: SongNames;
 };
 
@@ -154,6 +159,23 @@ export function suggestionsView(
 	};
 }
 
+export type FormTargetsView = { rows: FormTarget[]; songs: SongNames };
+
+export function formTargetsView(
+	save: Save,
+	list: readonly ChartSummary[],
+	votes: TagVotes,
+): FormTargetsView {
+	const rows = formTargets(profileRecordsOf(save.gameRecord), votes);
+	return {
+		rows,
+		songs: namesFor(
+			list,
+			rows.map((r) => r.id),
+		),
+	};
+}
+
 export function progressView(
 	save: Save,
 	list: readonly ChartSummary[],
@@ -241,9 +263,22 @@ export function trendView(
 			: undefined,
 	);
 	const events = trendEvents(history);
+	const byId = new Map(list.map((song) => [song.id, song] as const));
+	const milestones = milestonesOf(
+		history.rks,
+		history.scoreHistory,
+		(id, rank) => byId.get(id)?.charts[rank as LevelKind]?.[0],
+	);
 	return {
 		points,
 		events,
-		songs: namesFor(list, new Set(events.map((e) => e.id))),
+		milestones,
+		songs: namesFor(
+			list,
+			new Set([
+				...events.map((e) => e.id),
+				...milestones.items.flatMap((m) => ("id" in m ? [m.id] : [])),
+			]),
+		),
 	};
 }

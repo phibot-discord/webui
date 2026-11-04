@@ -135,3 +135,19 @@ function flattenCssCached(path: string): string {
 export function stripScripts(html: string): string {
 	return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
 }
+
+const FONT_LIST = /(font-family\s*:\s*)([^;{}"]*(?:"[^"]*"[^;{}"]*)*)/gi;
+const JP = /\s*,?\s*["']?NotoSansJP["']?\s*(?=,|$)/g;
+const SC = /(["']?)NotoSansSC\1/;
+
+export function preferJapaneseFonts(css: string): string {
+	return css.replace(FONT_LIST, (m, head: string, list: string) => {
+		if (!SC.test(list)) return m;
+		const rest = list.replace(JP, "").replace(/^\s*,\s*/, "");
+		return `${head}${rest.replace(SC, (sc) => `NotoSansJP, ${sc}`)}`;
+	});
+}
+
+export function isJapaneseDocument(html: string): boolean {
+	return /<html\b[^>]*\blang=["']?ja\b/i.test(html);
+}

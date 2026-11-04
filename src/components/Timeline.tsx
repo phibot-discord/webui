@@ -1015,6 +1015,7 @@ export function Timeline({
 	crumbLabel,
 	tocLabel,
 	t,
+	aiNote,
 }: {
 	tab: TimelineTab;
 	kind?: TermKind;
@@ -1026,6 +1027,7 @@ export function Timeline({
 	crumbLabel: string;
 	tocLabel: string;
 	t: Copy;
+	aiNote?: string;
 }) {
 	const tabs: TimelineTab[] = [
 		"timeline",
@@ -1052,6 +1054,7 @@ export function Timeline({
 				<DocHead crumbs={crumbs} crumbLabel={crumbLabel} title={t.title}>
 					{t.lede}
 				</DocHead>
+				{aiNote ? <p className="callout tl-ai-note">{aiNote}</p> : null}
 				<div className="tl-bar">
 					<nav className="tl-tabs" aria-label={t.tabsLabel}>
 						<ul>

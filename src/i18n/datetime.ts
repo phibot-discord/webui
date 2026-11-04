@@ -11,7 +11,7 @@ export function formatDay(day: string, locale: Locale): string {
 export function formatDateTime(iso: string, locale: Locale): string {
 	const d = new Date(iso);
 	if (!Number.isFinite(d.getTime())) return iso;
-	return d.toLocaleString(locale === "zh" ? "zh-CN" : "en", {
+	return d.toLocaleString(localeTag(locale), {
 		timeZone: "Asia/Shanghai",
 		dateStyle: "medium",
 		timeStyle: "short",

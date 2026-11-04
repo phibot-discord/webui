@@ -109,6 +109,20 @@ export type ToolsMessages = {
 		insufficient: string;
 		votesMissing: string;
 		empty: string;
+		timeline: {
+			title: string;
+			lede: string;
+			loading: string;
+			none: string;
+			date: string;
+			now: string;
+			b27: string;
+			pool: string;
+			few: string;
+			partial: string;
+			noTags: string;
+			leaningHint: string;
+		};
 	};
 	trend: {
 		title: string;
@@ -131,6 +145,20 @@ export type ToolsMessages = {
 		empty: string;
 		one: string;
 		noImproved: string;
+		milestones: {
+			title: string;
+			lede: string;
+			start: string;
+			startNoRks: string;
+			none: string;
+			rks: string;
+			ap: string;
+			fc: string;
+			apCount: string;
+			fcCount: string;
+			bestDay: string;
+			more: string;
+		};
 	};
 	songPage: {
 		back: string;
@@ -356,6 +384,9 @@ export type ToolsMessages = {
 		play: string;
 		pause: string;
 		seek: string;
+		hardest: string;
+		hardestHint: string;
+		hardestNoise: string;
 		back: string;
 		forward: string;
 		hitSounds: string;
@@ -407,6 +438,49 @@ export type ToolsMessages = {
 		constant: string;
 		like: string;
 		likeOf: string;
+	};
+	charts: {
+		title: string;
+		lede: string;
+		search: string;
+		searchHint: string;
+		levels: string;
+		constant: string;
+		from: string;
+		to: string;
+		tag: string;
+		anyTag: string;
+		otherTags: string;
+		chapter: string;
+		anyChapter: string;
+		status: string;
+		statuses: Record<"all" | "none" | "notFc" | "notAp" | "played", string>;
+		signInHint: string;
+		count: string;
+		song: string;
+		level: string;
+		notes: string;
+		nps: string;
+		bpm: string;
+		length: string;
+		tags: string;
+		yours: string;
+		more: string;
+		none: string;
+		tagsNote: string;
+	};
+	formTargets: {
+		title: string;
+		lede: string;
+		song: string;
+		level: string;
+		constant: string;
+		acc: string;
+		expected: string;
+		gain: string;
+		weak: string;
+		none: string;
+		profileLink: string;
 	};
 	snapshot: {
 		open: string;
@@ -463,6 +537,21 @@ export type ToolsMessages = {
 		constant: string;
 		chartAdded: string;
 		chartRemoved: string;
+		acc: string;
+		chartRks: string;
+		b30: string;
+		move: Record<"in" | "out" | "stay", string>;
+		enteredTitle: string;
+		leftTitle: string;
+		movesNone: string;
+		yoursCharts: string;
+		yoursChartsHint: string;
+		seriesTitle: string;
+		seriesLede: string;
+		seriesLoading: string;
+		seriesVersion: string;
+		seriesReleased: string;
+		seriesCharts: string;
 	};
 };
 
@@ -598,6 +687,22 @@ export const toolsEn: ToolsMessages = {
 			"Only {n} voted charts at or above your level so far; the card needs {min}. Vote on chart tags at kyou.net.cn/phigros.",
 		votesMissing: "Chart tag votes could not be loaded. Try again in a minute.",
 		empty: "No scored charts yet.",
+		timeline: {
+			title: "Over time",
+			lede: "The same profile worked out from your scores on earlier days, using today's constants and votes. Only tags that were a strength or weakness at some point are shown.",
+			loading: "Working out your profile on earlier days…",
+			none: "Not enough save history yet. PhiBot needs scores from at least two different days.",
+			date: "Date",
+			now: "Now",
+			b27: "B27 average",
+			pool: "Charts counted",
+			few: "too few",
+			partial:
+				"Your save history holds {pct}% of the charts you have played, so earlier days miss some charts.",
+			noTags: "No tag was a strength or weakness on any of these days.",
+			leaningHint:
+				"Bold numbers are listed as a strength or weakness that day; faded ones are not.",
+		},
 	},
 	trend: {
 		title: "RKS trend",
@@ -621,6 +726,22 @@ export const toolsEn: ToolsMessages = {
 			"No history yet. PhiBot records your RKS each time it reads your save, so press Refresh after you play.",
 		one: "Only one reading so far. Refresh after your next session to start the line.",
 		noImproved: "No improved scores recorded yet.",
+		milestones: {
+			title: "Milestones",
+			lede: "Firsts and records since PhiBot started keeping your save history, newest first. Levels use today's constants.",
+			start:
+				"PhiBot started keeping your history on {date}. That day you had RKS {rks}, {ap} APs and {fc} FCs over {played} charts.",
+			startNoRks:
+				"PhiBot started keeping your history on {date}. That day you had {ap} APs and {fc} FCs over {played} charts.",
+			none: "No milestones since then yet.",
+			rks: "RKS reached {at}",
+			ap: "First AP on a {level}+ chart",
+			fc: "First FC on a {level}+ chart",
+			apCount: "{n} APs",
+			fcCount: "{n} FCs",
+			bestDay: "Best day so far: RKS {gain}",
+			more: "Show {n} more",
+		},
 	},
 	songPage: {
 		back: "Search songs",
@@ -868,6 +989,11 @@ export const toolsEn: ToolsMessages = {
 		play: "Play",
 		pause: "Pause",
 		seek: "Position",
+		hardest: "Hardest 10 s",
+		hardestHint:
+			"Jump to the hardest 10 seconds ({n} notes): note count weighted by note type, chords and falling speed",
+		hardestNoise:
+			"Jump to the hardest 10 seconds ({n} notes, with noise fields): note count weighted by note type, chords and falling speed, plus the noise fields",
 		back: "Back 5 seconds",
 		forward: "Forward 5 seconds",
 		hitSounds: "Hit sounds",
@@ -927,6 +1053,56 @@ export const toolsEn: ToolsMessages = {
 		constant: "Constant",
 		like: "Like",
 		likeOf: "{song} {level}",
+	},
+	charts: {
+		title: "Chart browser",
+		lede: "Every scored chart in one table. Filter by level, constant, chart tag or chapter and sort by any column; signed in, you can also filter by your own scores.",
+		search: "Title, composer or charter",
+		searchHint: "Type to filter",
+		levels: "Levels",
+		constant: "Constant",
+		from: "From",
+		to: "To",
+		tag: "Chart tag",
+		anyTag: "Any tag",
+		otherTags: "Other",
+		chapter: "Chapter",
+		anyChapter: "Any chapter",
+		status: "Your scores",
+		statuses: {
+			all: "All charts",
+			none: "Not played",
+			notFc: "Not FC'd yet",
+			notAp: "Not AP'd yet",
+			played: "Played",
+		},
+		signInHint: "Sign in and bind your save to filter by your own scores.",
+		count: "Showing {shown} of {total} charts.",
+		song: "Song",
+		level: "Level",
+		notes: "Notes",
+		nps: "Notes/s",
+		bpm: "BPM",
+		length: "Length",
+		tags: "Top tags",
+		yours: "Your acc",
+		more: "Show {n} more",
+		none: "No chart matches these filters.",
+		tagsNote:
+			"Tags come from the chart-tag votes on kyou.net.cn: a chart has a tag when it gets at least 5% of the chart's votes. Notes per second divide the note count by the song length.",
+	},
+	formTargets: {
+		title: "Below your usual form",
+		lede: "Charts you have played where your accuracy is under the expected accuracy from your profile, which is what you usually get on charts of the same constant. Reaching it would add the RKS shown. Weak tags are the profile weaknesses the chart carries.",
+		song: "Song",
+		level: "Level",
+		constant: "Constant",
+		acc: "Acc",
+		expected: "Expected",
+		gain: "RKS gain",
+		weak: "Weak tags",
+		none: "None of your charts sit far enough below your usual form to change your RKS.",
+		profileLink: "Open your profile",
 	},
 	snapshot: {
 		open: "Open as image",
@@ -988,6 +1164,23 @@ export const toolsEn: ToolsMessages = {
 		constant: "Constant",
 		chartAdded: "Added",
 		chartRemoved: "Removed",
+		acc: "Acc",
+		chartRks: "Chart RKS",
+		b30: "B30",
+		move: { in: "Enters", out: "Leaves", stay: "Stays" },
+		enteredTitle: "Enter your B30 under {to}",
+		leftTitle: "Leave your B30 under {to}",
+		movesNone: "Your B30 holds the same charts under both versions.",
+		yoursCharts: "Your charts with a new constant",
+		yoursChartsHint:
+			"Charts you have played whose constant changed, rated with your current accuracy. Charts that enter or leave your B30 come first.",
+		seriesTitle: "Your RKS in every version",
+		seriesLede:
+			"Your current scores rated with each version's constants, newest first. Versions that leave it unchanged are left out.",
+		seriesLoading: "Rating your scores under every version…",
+		seriesVersion: "Version",
+		seriesReleased: "Released",
+		seriesCharts: "Charts",
 	},
 };
 
@@ -1122,6 +1315,21 @@ export const toolsZh: ToolsMessages = {
 			"你所在难度及以上目前只有 {n} 张已投票谱面，成绩图需要 {min} 张。可前往 kyou.net.cn/phigros 为谱面标签投票。",
 		votesMissing: "谱面标签数据暂时无法读取，请稍后再试。",
 		empty: "还没有已计分的谱面。",
+		timeline: {
+			title: "随时间变化",
+			lede: "用你在之前某些日期的成绩计算同一份画像，定数和投票都按现在的。只列出曾经是强项或弱项的标签。",
+			loading: "正在计算你在之前日期的画像…",
+			none: "存档历史还不够。PhiBot 需要至少两个不同日期的成绩。",
+			date: "日期",
+			now: "现在",
+			b27: "B27 平均",
+			pool: "计入谱面",
+			few: "过少",
+			partial:
+				"你的存档历史包含你玩过谱面的 {pct}%，因此较早的日期会缺少一部分谱面。",
+			noTags: "这些日期里没有标签成为强项或弱项。",
+			leaningHint: "加粗的数值表示当天被列为强项或弱项，变淡的则没有。",
+		},
 	},
 	trend: {
 		title: "RKS 走势",
@@ -1145,6 +1353,22 @@ export const toolsZh: ToolsMessages = {
 			"还没有历史记录。PhiBot 每次读取存档都会记录 RKS，玩完后点一下「刷新」即可。",
 		one: "目前只有一次读数。下次游玩后刷新，即可开始绘制走势。",
 		noImproved: "还没有记录到提升的成绩。",
+		milestones: {
+			title: "里程碑",
+			lede: "PhiBot 开始保存你的存档历史以来的首次达成与纪录，最新的在前。难度按当前定数计算。",
+			start:
+				"PhiBot 从 {date} 开始保存你的历史。当天你的 RKS 为 {rks}，在 {played} 张谱面中有 {ap} 个 AP、{fc} 个 FC。",
+			startNoRks:
+				"PhiBot 从 {date} 开始保存你的历史。当天你在 {played} 张谱面中有 {ap} 个 AP、{fc} 个 FC。",
+			none: "此后还没有新的里程碑。",
+			rks: "RKS 达到 {at}",
+			ap: "首次 AP {level}+ 的谱面",
+			fc: "首次 FC {level}+ 的谱面",
+			apCount: "第 {n} 个 AP",
+			fcCount: "第 {n} 个 FC",
+			bestDay: "单日最大进步：RKS {gain}",
+			more: "再显示 {n} 条",
+		},
 	},
 	songPage: {
 		back: "搜索曲目",
@@ -1385,6 +1609,10 @@ export const toolsZh: ToolsMessages = {
 		play: "播放",
 		pause: "暂停",
 		seek: "播放位置",
+		hardest: "最难 10 秒",
+		hardestHint: "跳到最难的 10 秒（{n} 个音符）：按音符种类、多押和下落速度加权的物量",
+		hardestNoise:
+			"跳到最难的 10 秒（{n} 个音符，含噪域）：按音符种类、多押和下落速度加权的物量，并计入噪域",
 		back: "后退 5 秒",
 		forward: "前进 5 秒",
 		hitSounds: "打击音",
@@ -1440,6 +1668,56 @@ export const toolsZh: ToolsMessages = {
 		constant: "定数",
 		like: "类似",
 		likeOf: "{song} {level}",
+	},
+	charts: {
+		title: "谱面一览",
+		lede: "所有计分谱面集中在一张表里。可按难度、定数、谱面标签或章节筛选，并按任意一列排序；登录后还能按你自己的成绩筛选。",
+		search: "曲名、曲师或谱师",
+		searchHint: "输入以筛选",
+		levels: "难度",
+		constant: "定数",
+		from: "最低",
+		to: "最高",
+		tag: "谱面标签",
+		anyTag: "任意标签",
+		otherTags: "其他",
+		chapter: "章节",
+		anyChapter: "任意章节",
+		status: "你的成绩",
+		statuses: {
+			all: "全部谱面",
+			none: "未游玩",
+			notFc: "尚未 FC",
+			notAp: "尚未 AP",
+			played: "已游玩",
+		},
+		signInHint: "登录并绑定存档后，可按你自己的成绩筛选。",
+		count: "显示 {total} 张谱面中的 {shown} 张。",
+		song: "曲目",
+		level: "难度",
+		notes: "物量",
+		nps: "每秒物量",
+		bpm: "BPM",
+		length: "时长",
+		tags: "主要标签",
+		yours: "你的准确率",
+		more: "再显示 {n} 张",
+		none: "没有符合筛选条件的谱面。",
+		tagsNote:
+			"标签来自 kyou.net.cn 的谱面标签投票：一个标签获得该谱面至少 5% 的票数时，谱面即带有该标签。每秒物量为物量除以曲目时长。",
+	},
+	formTargets: {
+		title: "低于你平时水平的谱面",
+		lede: "你玩过、准确率低于画像中预期准确率的谱面。预期准确率是你在同定数谱面上通常能拿到的成绩，达到它可以增加表中所示的 RKS。弱项标签是这张谱面带有的画像弱项。",
+		song: "曲目",
+		level: "难度",
+		constant: "定数",
+		acc: "准确率",
+		expected: "预期",
+		gain: "RKS 增加",
+		weak: "弱项标签",
+		none: "你没有明显低于平时水平、足以影响 RKS 的谱面。",
+		profileLink: "打开玩家画像",
 	},
 	snapshot: {
 		open: "以图片打开",
@@ -1499,5 +1777,22 @@ export const toolsZh: ToolsMessages = {
 		constant: "定数",
 		chartAdded: "新增",
 		chartRemoved: "移除",
+		acc: "准确率",
+		chartRks: "单曲 RKS",
+		b30: "B30",
+		move: { in: "进入", out: "移出", stay: "保持" },
+		enteredTitle: "在 {to} 下进入你的 B30",
+		leftTitle: "在 {to} 下移出你的 B30",
+		movesNone: "两个版本下你的 B30 包含相同的谱面。",
+		yoursCharts: "你玩过且定数调整的谱面",
+		yoursChartsHint:
+			"你玩过、定数有调整的谱面，按你现在的准确率计算。进入或移出 B30 的谱面排在前面。",
+		seriesTitle: "你在每个版本下的 RKS",
+		seriesLede:
+			"用你现在的成绩，按每个版本的定数计算，最新的在前。RKS 没有变化的版本不列出。",
+		seriesLoading: "正在按每个版本的定数计算你的成绩…",
+		seriesVersion: "版本",
+		seriesReleased: "发布日期",
+		seriesCharts: "谱面数",
 	},
 };

@@ -1,4 +1,6 @@
-import type { Bilingual, Locale } from "@/i18n/config";
+import type { Locale } from "@/i18n/config";
+
+export type TextsText = { zh: string; en: string; ja?: string };
 import { COLLECTION_LANGS, type CollectionLang, localText } from "./collection";
 import { positiveInt, v1Body } from "./parse";
 
@@ -49,12 +51,15 @@ export function tipsIn(
 	return zh ? { lang: "zh-CN", tips: zh } : undefined;
 }
 
-function bilingual(v: unknown): Bilingual | undefined {
+function bilingual(v: unknown): TextsText | undefined {
 	const o = v as Partial<Record<Locale, unknown>> | null;
 	if (!o || typeof o !== "object") return undefined;
 	const zh = typeof o.zh === "string" ? o.zh : "";
 	const en = typeof o.en === "string" ? o.en : "";
-	return zh || en ? { zh: zh || en, en: en || zh } : undefined;
+	const ja = typeof o.ja === "string" ? o.ja : "";
+	return zh || en
+		? { zh: zh || en, en: en || zh, ...(ja ? { ja } : {}) }
+		: undefined;
 }
 
 /** Where a PV's captions are written out: a group of `texts/story.json` */
@@ -100,8 +105,8 @@ export type TextImage = { file: string; width: number; height: number };
 
 export type TextGroup = {
 	id: string;
-	title: Bilingual;
-	note: Bilingual | undefined;
+	title: TextsText;
+	note: TextsText | undefined;
 	chapter: string | undefined;
 	lines: TextLine[];
 	images: TextImage[];

@@ -39,6 +39,7 @@ export async function LandingView({
 					{signedIn ? null : (
 						<div className="hero-more">
 							<InviteLink className="hero-invite" />
+							<InviteLink className="hero-invite" kind="user" />
 							<AgreeNote />
 						</div>
 					)}

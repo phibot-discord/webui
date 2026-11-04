@@ -1,5 +1,6 @@
 "use client";
 
+import { localeTag } from "@/i18n/config";
 import type { ReactNode } from "react";
 import Link from "@/components/LocaleLink";
 import { RefreshButton } from "@/components/RefreshButton";
@@ -19,7 +20,7 @@ export function SyncTime({ iso }: { iso: string }) {
 	const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 	return (
 		<time dateTime={iso} title={m.me.timeZone.replaceAll("{zone}", zone)}>
-			{d.toLocaleString(locale === "zh" ? "zh-CN" : "en", {
+			{d.toLocaleString(localeTag(locale), {
 				dateStyle: "medium",
 				timeStyle: "short",
 			})}

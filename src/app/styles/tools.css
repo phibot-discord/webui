@@ -1192,6 +1192,38 @@ td > .pg-badge:first-child {
 	font-variant-numeric: tabular-nums;
 }
 
+.vd-moves {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+	gap: 0.75rem 1.5rem;
+	margin-block: 0.75rem;
+}
+
+.vd-slots {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 0.25rem;
+}
+
+.vd-move {
+	font-size: 0.85em;
+	font-weight: 600;
+}
+
+.vd-move[data-move="in"] {
+	color: var(--primary);
+}
+
+.vd-move[data-move="out"] {
+	color: var(--danger);
+}
+
+.vd-move[data-move="stay"] {
+	color: var(--muted);
+}
+
 .vd-note + .vd-note {
 	margin-top: var(--space-2);
 }
@@ -1227,4 +1259,119 @@ td > .pg-badge:first-child {
 
 .tg-suggest {
 	margin-top: var(--space-8);
+}
+
+.ms-list {
+	list-style: none;
+	margin: var(--space-3) 0 0;
+	padding: 0;
+	display: grid;
+	gap: var(--space-2);
+}
+
+.ms-list li {
+	display: grid;
+	grid-template-columns: 7.5rem minmax(0, 1fr);
+	gap: 0 var(--space-3);
+	align-items: baseline;
+}
+
+.ms-list time {
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+	grid-row: span 2;
+}
+
+.ms-what {
+	font-weight: 600;
+}
+
+.ms-what[data-kind="rks"],
+.ms-what[data-kind="bestDay"] {
+	color: var(--primary);
+}
+
+.ms-chart {
+	grid-column: 2;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+@media (max-width: 30rem) {
+	.ms-list li {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.ms-list time {
+		grid-row: auto;
+	}
+
+	.ms-chart {
+		grid-column: 1;
+	}
+}
+
+.cb-filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: var(--space-4) var(--space-5);
+	margin: 0 0 var(--space-4);
+}
+
+.cb-q {
+	flex: 1 1 16rem;
+	min-width: 0;
+}
+
+.cb-range {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.cb-range .input {
+	width: 5.5rem;
+}
+
+.cb-sort {
+	display: inline-flex;
+	align-items: baseline;
+	gap: var(--space-1);
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.cb-sort:focus-visible {
+	outline: 2px solid var(--focus);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+.cb-arrow {
+	display: inline-block;
+	min-width: 0.75em;
+	color: var(--primary);
+}
+
+.cb-sub {
+	display: block;
+	color: var(--muted);
+	font-size: var(--text-sm);
+	font-weight: 400;
+}
+
+.cb-tags {
+	min-width: 9rem;
+	color: var(--muted);
+	font-size: var(--text-sm);
+}
+
+.cb-note {
+	max-width: 44rem;
+	margin-top: var(--space-5);
 }

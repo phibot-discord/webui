@@ -63,12 +63,41 @@ const COPY = {
 		generated: "生成于",
 		level: "难度",
 	},
+	ja: {
+		kicker: "プレイヤープロフィール",
+		rks: "RKS",
+		challenge: "チャレンジ",
+		data: "Data",
+		intro: "自己紹介",
+		levels: "難易度別の進捗",
+		unlocked: "解放済み",
+		cleared: "クリア済み",
+		fc: "フルコンボ",
+		phi: "φ（All Perfect）",
+		phiShort: "φ",
+		score: "スコア",
+		best: "最高",
+		lowest: "最低",
+		charts: "推移",
+		rksTrend: "RKS の推移",
+		dataTrend: "Data の推移",
+		accTitle: "一定の精度未満のスコアをすべて除いた場合の RKS",
+		accNote: "各点: その精度以上のスコアだけで数えた RKS",
+		noTrend:
+			"履歴はまだありません。セーブデータを何度か更新すると表示されます。",
+		total: "合計",
+		charts_: "譜面",
+		clearRate: "クリア率",
+		tip: "ヒント",
+		generated: "生成日時",
+		level: "難易度",
+	},
 };
 
 export type InfoCopy = (typeof COPY)["en"];
 
 export function infoCopy(locale: PhiLocale): InfoCopy {
-	return locale === "zh" ? COPY.zh : COPY.en;
+	return COPY[locale] ?? COPY.en;
 }
 
 export type ChartBox = { w: number; h: number };

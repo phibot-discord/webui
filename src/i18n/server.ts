@@ -9,11 +9,15 @@ import {
 } from "./config";
 import { figuresEn, figuresZh } from "./figure-messages";
 import { filesEn, filesZh } from "./files-messages";
+import { figuresJa } from "./ja-figure-messages";
+import { filesJa } from "./ja-files-messages";
+import { ja } from "./ja-messages";
 import { en, type Messages, zh } from "./messages";
 
 export const catalogs: Record<Locale, Messages> = {
 	en: { ...en, ...filesEn, ...figuresEn },
 	zh: { ...zh, ...filesZh, ...figuresZh },
+	ja: { ...ja, ...filesJa, ...figuresJa },
 };
 
 const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;

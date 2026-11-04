@@ -232,3 +232,18 @@
 		font-size: var(--text-xs);
 	}
 }
+
+.pp-time .pp-diff:not([data-listed]) {
+	font-weight: 400;
+	opacity: 0.55;
+}
+
+.pp-time-meta th,
+.pp-time-meta td {
+	color: var(--muted);
+	font-weight: 400;
+}
+
+.pp-time tbody th {
+	white-space: nowrap;
+}

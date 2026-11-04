@@ -128,6 +128,149 @@ export function rksUnder(
 	return { rks: rows.length ? rankingScoreOf(rows) : 0, charts: rows.length };
 }
 
+export type SlotRow = {
+	id: string;
+	rank: string;
+	acc: number;
+	rks: number;
+	phi: boolean;
+};
+
+export type B30Under = RksUnder & { slots: Map<string, SlotRow> };
+
+export const slotKey = (id: string, rank: string) => `${id}:${rank}`;
+
+export function b30Under(
+	records: readonly RecordAcc[],
+	table: VersionTable,
+): B30Under {
+	const rows: Omit<SlotRow, "phi">[] = [];
+	for (const r of records) {
+		const c = table.get(r.id)?.levels[r.rank as VersionLevel];
+		if (!c || !(r.acc > 0)) continue;
+		rows.push({
+			id: r.id,
+			rank: r.rank,
+			acc: r.acc,
+			rks: fCompute.rks(r.acc, c),
+		});
+	}
+	rows.sort(
+		(a, b) =>
+			b.rks - a.rks || (slotKey(a.id, a.rank) < slotKey(b.id, b.rank) ? -1 : 1),
+	);
+	const slots = new Map<string, SlotRow>();
+	let sum = 0;
+	let phi = 0;
+	for (const r of rows) {
+		if (phi >= 3) break;
+		if (r.acc < 100) continue;
+		sum += r.rks;
+		phi += 1;
+		slots.set(slotKey(r.id, r.rank), { ...r, phi: true });
+	}
+	for (const r of rows.slice(0, 27)) {
+		sum += r.rks;
+		const key = slotKey(r.id, r.rank);
+		if (!slots.has(key)) slots.set(key, { ...r, phi: false });
+	}
+	return { rks: rows.length ? sum / 30 : 0, charts: rows.length, slots };
+}
+
+export type Movement = "in" | "out" | "stay" | "none";
+
+export type YourChange = {
+	id: string;
+	rank: VersionLevel;
+	acc: number;
+	from: number;
+	to: number;
+	before: number;
+	after: number;
+	move: Movement;
+};
+
+export function movementOf(key: string, a: B30Under, b: B30Under): Movement {
+	const was = a.slots.has(key);
+	const is = b.slots.has(key);
+	return was && is ? "stay" : is ? "in" : was ? "out" : "none";
+}
+
+export function yourChanges(
+	records: readonly RecordAcc[],
+	changed: readonly LevelChange[],
+	a: B30Under,
+	b: B30Under,
+): YourChange[] {
+	const acc = new Map(records.map((r) => [slotKey(r.id, r.rank), r.acc]));
+	const out: YourChange[] = [];
+	for (const c of changed) {
+		if (c.from == null || c.to == null) continue;
+		const key = slotKey(c.id, c.rank);
+		const mine = acc.get(key);
+		if (mine == null || !(mine > 0)) continue;
+		out.push({
+			id: c.id,
+			rank: c.rank,
+			acc: mine,
+			from: c.from,
+			to: c.to,
+			before: fCompute.rks(mine, c.from),
+			after: fCompute.rks(mine, c.to),
+			move: movementOf(key, a, b),
+		});
+	}
+	const rank = (m: Movement) => (m === "none" ? 2 : m === "stay" ? 1 : 0);
+	return out.sort(
+		(x, y) =>
+			rank(x.move) - rank(y.move) ||
+			Math.abs(y.after - y.before) - Math.abs(x.after - x.before) ||
+			(x.id < y.id ? -1 : x.id > y.id ? 1 : 0),
+	);
+}
+
+export function slotMoves(a: B30Under, b: B30Under) {
+	const entered = [...b.slots]
+		.filter(([key]) => !a.slots.has(key))
+		.map(([, row]) => row);
+	const left = [...a.slots]
+		.filter(([key]) => !b.slots.has(key))
+		.map(([, row]) => row);
+	return { entered, left };
+}
+
+export type SeriesPoint = {
+	code: number;
+	label: string;
+	date: number | null;
+	rks: number;
+	charts: number;
+	delta: number | null;
+};
+
+export function rksSeries(
+	records: readonly RecordAcc[],
+	versions: readonly (VersionMeta & { table: VersionTable })[],
+): SeriesPoint[] {
+	const out: SeriesPoint[] = [];
+	let prev: number | null = null;
+	for (const v of [...versions].sort((x, y) => x.code - y.code)) {
+		const { rks, charts } = rksUnder(records, v.table);
+		const shown = Number(rks.toFixed(4));
+		const delta = prev == null ? null : Number((shown - prev).toFixed(4));
+		prev = shown;
+		out.push({
+			code: v.code,
+			label: v.label,
+			date: v.date,
+			rks,
+			charts,
+			delta,
+		});
+	}
+	return out;
+}
+
 export function pickVersions(
 	codes: readonly number[],
 	from: number | undefined,

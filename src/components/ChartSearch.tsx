@@ -9,6 +9,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import type { Locale } from "@/i18n/config";
 import { useI18n } from "@/i18n/provider";
 import {
 	CHART_LEVELS,
@@ -49,7 +50,7 @@ export type ChartSearchText = {
 	noResults: string;
 };
 
-const FALLBACK_TEXT: Record<"en" | "zh", ChartSearchText> = {
+const FALLBACK_TEXT: Record<Locale, ChartSearchText> = {
 	en: {
 		label: "Search songs",
 		viaAlias: "Alias",
@@ -61,6 +62,12 @@ const FALLBACK_TEXT: Record<"en" | "zh", ChartSearchText> = {
 		viaAlias: "别名",
 		results: (n) => `找到 ${n} 首曲目`,
 		noResults: "没有匹配的曲目",
+	},
+	ja: {
+		label: "曲を検索",
+		viaAlias: "別名",
+		results: (n) => `${n} 曲が見つかりました`,
+		noResults: "一致する曲がありません",
 	},
 };
 
@@ -136,7 +143,7 @@ export function ChartSearch({
 	text?: Partial<ChartSearchText>;
 }) {
 	const { m, locale } = useI18n();
-	const t = { ...FALLBACK_TEXT[locale === "zh" ? "zh" : "en"], ...text };
+	const t = { ...FALLBACK_TEXT[locale], ...text };
 	const listId = useId();
 	const root = useRef<HTMLDivElement>(null);
 	const [query, setQuery] = useState("");

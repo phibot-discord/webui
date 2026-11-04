@@ -1,4 +1,6 @@
-import type { Bilingual, Locale } from "@/i18n/config";
+import type { Locale } from "@/i18n/config";
+
+export type TimelineText = { zh: string; en: string; ja?: string };
 import { fill } from "@/phi/lib/card-i18n";
 import {
 	type CollectionIndex,
@@ -129,7 +131,7 @@ export type TimelineRef =
 	| { kind: "pv"; clip: string };
 
 export type TimelineNote = {
-	text: Bilingual;
+	text: TimelineText;
 	effect: NoteEffect;
 	source: NoteSource;
 	wiki: WikiLink | undefined;
@@ -145,9 +147,9 @@ export type TimelineEvent = {
 	span: string | undefined;
 	source: Source;
 	inferred: boolean;
-	title: Bilingual;
-	summary: Bilingual;
-	note: Bilingual | undefined;
+	title: TimelineText;
+	summary: TimelineText;
+	note: TimelineText | undefined;
 	notes: TimelineNote[];
 	threads: string[];
 	chapters: string[];
@@ -158,26 +160,26 @@ export type TimelineEra = {
 	id: string;
 	from: number;
 	to: number;
-	name: Bilingual;
-	summary: Bilingual;
+	name: TimelineText;
+	summary: TimelineText;
 };
 
 export type TimelineNamed = {
 	id: string;
-	name: Bilingual;
-	summary: Bilingual;
-	when: Bilingual | undefined;
+	name: TimelineText;
+	summary: TimelineText;
+	when: TimelineText | undefined;
 	wiki: WikiLink[];
 };
 
-export type TimelineChapter = { id: string; span: string; synopsis: Bilingual };
+export type TimelineChapter = { id: string; span: string; synopsis: TimelineText };
 
 export type TimelineTerm = {
 	id: string;
 	kind: TermKind;
-	name: Bilingual;
+	name: TimelineText;
 	aliases: string[];
-	summary: Bilingual;
+	summary: TimelineText;
 	source: "official" | "community";
 	link: boolean;
 	wiki: WikiLink[];
@@ -195,12 +197,15 @@ export type TimelineData = {
 	terms: TimelineTerm[];
 };
 
-function bilingual(v: unknown): Bilingual | undefined {
+function bilingual(v: unknown): TimelineText | undefined {
 	const o = v as Partial<Record<Locale, unknown>> | null;
 	if (!o || typeof o !== "object") return undefined;
 	const zh = text(o.zh).trim();
 	const en = text(o.en).trim();
-	return zh || en ? { zh: zh || en, en: en || zh } : undefined;
+	const ja = text(o.ja).trim();
+	return zh || en
+		? { zh: zh || en, en: en || zh, ...(ja ? { ja } : {}) }
+		: undefined;
 }
 
 function strings(v: unknown): string[] {
@@ -706,7 +711,8 @@ export function buildTimeline(
 	terms: ViewTermGroup[];
 } {
 	const { locale } = opts;
-	const pick = (b: Bilingual) => b[locale] || b.zh;
+	const pick = (b: TimelineText) =>
+		b[locale] || (locale === "ja" ? b.en : b.zh);
 	const threadName = new Map(data.threads.map((t) => [t.id, pick(t.name)]));
 	const chapterOf = itemChapter(src.index);
 	const titleOf = (id: string) => {

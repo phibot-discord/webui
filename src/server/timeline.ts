@@ -68,7 +68,9 @@ function viewOf(
 	);
 	const storyInfo = new Map<string, StoryInfo>(
 		stories.flatMap((g) =>
-			g.chapter ? [[g.id, { chapter: g.chapter, title: g.title[locale] }]] : [],
+			g.chapter
+				? [[g.id, { chapter: g.chapter, title: g.title[locale] ?? g.title.en }]]
+				: [],
 		),
 	);
 	const built = buildTimeline(

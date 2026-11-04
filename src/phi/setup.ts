@@ -732,7 +732,7 @@ export async function setupPhi(
 						_imgPath: `${res}/html/otherimg/`,
 						...data,
 						locale,
-						lang: locale === "zh" ? "zh-cn" : "en",
+						lang: locale === "zh" ? "zh-cn" : locale === "ja" ? "ja" : "en",
 						t,
 						tips,
 						theme: screenshotTheme(d.theme),

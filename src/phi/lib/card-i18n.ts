@@ -1,9 +1,9 @@
-export const PHI_LOCALES = ["en", "zh"] as const;
+export const PHI_LOCALES = ["en", "zh", "ja"] as const;
 export type PhiLocale = (typeof PHI_LOCALES)[number];
 const DEFAULT_PHI_LOCALE: PhiLocale = "en";
 
 export function isPhiLocale(v: unknown): v is PhiLocale {
-	return v === "en" || v === "zh";
+	return v === "en" || v === "zh" || v === "ja";
 }
 
 export function parsePhiLocale(v: unknown): PhiLocale | undefined {
@@ -19,6 +19,14 @@ export function parsePhiLocale(v: unknown): PhiLocale | undefined {
 	)
 		return "zh";
 	if (t === "en" || t.startsWith("en-") || t === "english") return "en";
+	if (
+		t === "ja" ||
+		t.startsWith("ja-") ||
+		t === "jp" ||
+		t === "japanese" ||
+		t === "日本語"
+	)
+		return "ja";
 }
 
 export function resolvePhiLocale(...candidates: unknown[]): PhiLocale {
@@ -147,6 +155,7 @@ const en = {
 	langOpt: {
 		en: { title: "[0] English", description: "English UI and card copy." },
 		zh: { title: "[1] 中文", description: "Chinese UI and card copy." },
+		ja: { title: "[2] 日本語", description: "Japanese UI and card copy." },
 	},
 };
 
@@ -266,13 +275,140 @@ const zh: typeof en = {
 	langOpt: {
 		en: { title: "[0] English", description: "英文界面和成绩图。" },
 		zh: { title: "[1] 中文", description: "中文界面和成绩图。" },
+		ja: { title: "[2] 日本語", description: "日文界面和成绩图。" },
+	},
+};
+
+const ja: typeof en = {
+	lang: "ja",
+	noPush: "アップ不可",
+	accLimited: "精度の上限は {n}%",
+	apMode: "All Perfect モード",
+	fcMode: "FC30",
+	x30Mode: "x30",
+	analysisTitle: "B30 分析",
+	tagAbility: "譜面スキル",
+	validVotes: "有効票",
+	tagRecords: "スコア",
+	tagBallots: "投票",
+	tagConstants: "定数",
+	noData: "データなし",
+	tagPool:
+		"+/- は同定数の譜面と比べた精度ロス（+0.30 = 半分）、定数 {min}–{max}。",
+	categorySummary: "カテゴリ別",
+	strongTags: "得意",
+	weakTags: "苦手",
+	tagInsufficient:
+		"あなたのレベル付近で投票された譜面がまだ足りません。譜面タグの投票は https://kyou.net.cn/phigros から。",
+	tagUnavailable:
+		"譜面タグの投票を読み込めませんでした。カードを再読み込みしてやり直してください。",
+	tagTip: "譜面タグの投票は https://kyou.net.cn/phigros から。",
+	histTitle: "等価 RKS ヒストグラム",
+	avgRks: "平均 RKS",
+	histY: "譜面ごとの RKS",
+	histSlotsUnit: " 枠",
+	emptyBio: "このプレイヤーの自己紹介はフータオに食べられました…",
+	accFilterHint: "ACC が指定値（横軸）未満のスコアをすべて除いた場合の RKS。",
+	currentPrefix: "現在: ",
+	selected: "選択中",
+	signDaysBefore: "サインイン ",
+	signDaysAfter: " 日",
+	todayLuck: "今日の運",
+	good: "おすすめ",
+	bad: "避けたい",
+	dailyQuote: "今日の一言",
+	done: "完了",
+	guest: "ゲスト",
+	fortuneTitle: "— 今日の運勢 —",
+	selectedRange: "選択した定数範囲",
+	collectedOn: "収集日",
+	keeper: "保管者",
+	grade: "ランク",
+	song: "曲",
+	duration: "長さ",
+	difficulty: "難易度",
+	charter: "譜面作者",
+	chartLength: "譜面の長さ: ",
+	shipped: "実装バージョンと日付",
+	versionPrefix: "バージョン: v",
+	datePrefix: "日付: ",
+	constChart: "定数の推移",
+	taskList: "Phi タスク一覧",
+	suggestTitle: "RKS アップ提案",
+	rankingTitle: "Ranking Score",
+	newSongs: "新曲",
+	songName: "曲名",
+	constant: "定数",
+	combo: "コンボ",
+	chartEdits: "定数・譜面の変更",
+	field: "項目",
+	status: "変更",
+	updatedScores: "{n} 件のスコアを更新",
+	noNewScores: "新しいスコアなし",
+	invalidUser: "無効なユーザー",
+	calendarTitle: "{y}年{m}月",
+	weekdays: ["月", "火", "水", "木", "金", "土", "日"],
+	settingsTitle: "phi 設定",
+	settingsDesc: "ここでの選択は、生成されるカードに反映されます。",
+	themeTitle: "テーマ",
+	themeDesc: "カードページ全体の見た目。",
+	avgKindTitle: "B30 統計バー",
+	avgKindDesc: "B30 平均バーに表示する内容。",
+	avgColorTitle: "B30 バーの色",
+	avgColorDesc: "B30 平均バーのメインカラー。",
+	apiTitle: "API 照会",
+	apiDesc: "オフにするとオンラインのスコア照会を行いません。",
+	analysisSettingTitle: "B30 分析",
+	analysisSettingDesc: "B30 カード末尾の等価 RKS ヒストグラム。",
+	tagSettingTitle: "譜面スキル",
+	tagSettingDesc:
+		"B30 カードの 5 軸レーダーと得意・苦手タグ。API 照会が必要です。",
+	langTitle: "言語",
+	langDesc: "Web UI とすべてのカード。Discord ボットと共通です。",
+	theme: {
+		default: {
+			title: "[0] デフォルト",
+			description: "基本テーマ。背景はランダムなジャケット。",
+		},
+		snow: { title: "[1] 冬", description: "デフォルトに降る雪を加えたもの。" },
+		star: {
+			title: "[2] One heart spared from sorrow",
+			description: "夢のない夜に灯る蛍の火。",
+		},
+		dss2: {
+			title: "[3] マスターズ 2",
+			description: "マスターズ第 2 シーズンの配色。",
+		},
+	},
+	avgKind: {
+		all: { title: "[0] すべて", description: "全スコアの平均。" },
+		b30: { title: "[1] B30 のみ", description: "B30 のスコアのみの平均。" },
+		top: { title: "[2] 上位 %", description: "順位のパーセンタイルを表示。" },
+		none: { title: "[3] 非表示", description: "B30 平均の情報を隠す。" },
+	},
+	avgColor: {
+		red: { title: "[0] 赤", description: "高コントラストの暖色。" },
+		gold: { title: "[1] 金", description: "明るい金色。" },
+		blue: { title: "[2] 青", description: "寒色系の配色。" },
+		green: { title: "[3] 緑", description: "ニュートラルで明るい配色。" },
+	},
+	onOff: {
+		true: { title: "[0] オン", description: "有効にします。" },
+		false: { title: "[1] オフ", description: "無効にします。" },
+	},
+	langOpt: {
+		en: { title: "[0] English", description: "英語の UI とカード。" },
+		zh: { title: "[1] 中文", description: "中国語の UI とカード。" },
+		ja: { title: "[2] 日本語", description: "日本語の UI とカード。" },
 	},
 };
 
 type CardCopy = typeof en;
 
+const CARD_COPY: Record<PhiLocale, CardCopy> = { en, zh, ja };
+
 export function cardCopy(locale: PhiLocale): CardCopy {
-	return locale === "zh" ? zh : en;
+	return CARD_COPY[locale] ?? en;
 }
 
 const CHART_TAG_EN: Record<string, string> = {
@@ -363,8 +499,95 @@ const CHART_TAG_DESC_EN: Record<string, string> = {
 	"噪域/红区": "A Chapter 9 mechanic: touching the zone cuts your input",
 };
 
+const CHART_TAG_JA: Record<string, string> = {
+	读谱: "譜面読み",
+	硬抗: "体力",
+	拆谱: "配置",
+	定位: "位置取り",
+	多指: "多指",
+	差速: "速度差",
+	脑裂: "脳分裂",
+	多面下落: "多方向",
+	"变速/闪现": "変速/フラッシュ",
+	面海: "ノーツの海",
+	扫线: "スイープ",
+	长条藏键: "ホールド隠し",
+	慢流速: "低速",
+	非线性下落: "非線形",
+	判定线干扰: "判定線干渉",
+	复杂节奏: "ポリリズム",
+	长纵连: "長い縦連",
+	"长连点/交互": "長い交互",
+	快交互: "高速交互",
+	双押海: "同時押しの海",
+	宽排键: "広範囲",
+	连点爆发: "バースト",
+	全换: "全切替",
+	反手: "逆手",
+	锁手: "片手拘束",
+	锚键: "アンカー",
+	刹车: "ブレーキ",
+	频繁切轨: "レーン移動",
+	倒打: "逆打ち",
+	蓝夹黄: "青黄サンド",
+	蓝夹红: "青赤サンド",
+	浮现式: "出現型",
+	叠: "重ね",
+	乱: "乱打",
+	切: "カット",
+	楼梯: "階段",
+	拍砖: "レンガ",
+	对拍: "交互",
+	对切: "対切り",
+	"噪域/红区": "ノイズ領域",
+	"3k": "3K",
+	"4k": "4K",
+	"5k": "5K",
+	"6k": "6K",
+};
+
+const CHART_TAG_DESC_JA: Record<string, string> = {
+	读谱: "譜面読みに関する難しさ",
+	差速: "同時刻のノーツが異なる速度で落下する（例: Temporal Shifting）",
+	脑裂: "判定線が複数ある、または注意が分散する配置（例: FULI AUTO SHOOTER）",
+	"变速/闪现": "ノーツが落下中に速度を変える、または突然現れる",
+	面海: "ほぼすべてがホールド（例: ぱぴぷぴぷぴぱ）",
+	扫线: "Cytus のようなスキャンライン型の配置",
+	长条藏键: "ホールドの中にノーツが隠れる、または大きな移動を強いられる",
+	非线性下落: "ノーツが直線の等速で落下しない（例: 樱树街道）",
+	判定线干扰:
+		"判定線の揺れや移動が初見読みの妨げになる（例: IL-Artifact の終盤）",
+	复杂节奏: "BPM の変化や変拍子（例: Aleph-0, Opia）",
+	硬抗: "体力に関する難しさ",
+	快交互: "左右の交互打ちの難しさ",
+	双押海: "同時押しが連続する配置",
+	宽排键: "ノーツが画面の大部分に広がる",
+	连点爆发: "バースト的な連打",
+	拆谱: "配置の読み取りの難しさ",
+	全换: "全体を交互打ちに分けられる区間",
+	反手: "反対の手を越えて打つ",
+	锁手: "片手がホールドや連打に縛られ、残りを処理できない",
+	锚键: "固定レーンにノーツが連続して落ちる（例: G.V.N）",
+	刹车: "タイミングよく叩くのをやめないと余計に打ってしまう（例: 縦連からホールド）",
+	频繁切轨: "固定レーンではなく、頻繁な移動や 4-5-6K のレーン切り替え",
+	浮现式: "画面に現れ、重なった時点で判定される配置（例: 遅延する星）",
+	多指: "多指処理の難しさ",
+	叠: "短い時間に重なる同時押し",
+	乱: "密集した階段が重なり、向きが変わり続ける",
+	切: "片手で指を切り替える。階段と同時押しの組み合わせ",
+	楼梯: "階段状に並んだタップ",
+	拍砖: "固定の拍で繰り返される同時押し",
+	对拍: "両手が交互に素早い同時押しを行う",
+	对切: "両手で指の入れ替えを対称または同期して行う",
+	"3k": "3 レーンの配置",
+	"4k": "4 レーンの配置",
+	"5k": "5 レーンの配置",
+	"噪域/红区": "第9章のギミック: 領域に触れると入力が遮断される",
+};
+
 export function localizeChartTagName(name: string, locale: PhiLocale): string {
-	if (locale !== "en" || !name) return name;
+	if (locale === "zh" || !name) return name;
+	if (locale === "ja") return CHART_TAG_JA[name] ?? CHART_TAG_EN[name] ?? name;
 	return CHART_TAG_EN[name] ?? name;
 }
 
@@ -375,7 +598,9 @@ export function localizeChartTagDescription(
 ): string {
 	const src = description?.trim() ?? "";
 	if (!src) return "";
-	if (locale !== "en") return src;
+	if (locale === "zh") return src;
+	if (locale === "ja")
+		return CHART_TAG_DESC_JA[name] ?? CHART_TAG_DESC_EN[name] ?? src;
 	return CHART_TAG_DESC_EN[name] ?? src;
 }
 
@@ -395,7 +620,7 @@ export function localizeChartTagLabels<
 		tags?: { name: string }[];
 	},
 >(analysis: T, locale: PhiLocale): T {
-	if (locale !== "en") return analysis;
+	if (locale === "zh") return analysis;
 	return {
 		...analysis,
 		...(analysis.tags

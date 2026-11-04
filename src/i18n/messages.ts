@@ -13,10 +13,12 @@ export type ClientMessages = ToolsMessages & {
 	signIn: string;
 	signInTaptap: string;
 	invite: string;
+	inviteUser: string;
+	inviteUserHint: string;
 	signOut: string;
 	signedIn: string;
 	credit: { before: string; after: string; heart: string; name: string };
-	locale: { en: string; zh: string; label: string };
+	locale: { en: string; zh: string; ja: string; label: string };
 	theme: { label: string; light: string; dark: string; system: string };
 	footer: { credit: string; revision: string; more: string; source: string };
 	home: {
@@ -179,6 +181,7 @@ export type ClientMessages = ToolsMessages & {
 		timeline: string;
 		texts: string;
 		versions: string;
+		charts: string;
 		b30: string;
 		hisb30: string;
 		info: string;
@@ -791,6 +794,9 @@ export const en: ClientMessages = {
 	signIn: "Continue with Discord",
 	signInTaptap: "Continue with TapTap",
 	invite: "Add to Discord",
+	inviteUser: "Add to my apps",
+	inviteUserHint:
+		"Use PhiBot's commands in any server or DM, even where the bot is not a member",
 	signOut: "Sign out",
 	signedIn: "signed in",
 	credit: {
@@ -799,7 +805,7 @@ export const en: ClientMessages = {
 		heart: "love",
 		name: "MiyukiYue",
 	},
-	locale: { en: "EN", zh: "中文", label: "Language" },
+	locale: { en: "EN", zh: "中文", ja: "日本語", label: "Language" },
 	theme: {
 		label: "Color theme",
 		light: "Light",
@@ -1080,6 +1086,7 @@ export const en: ClientMessages = {
 		timeline: "Story timeline",
 		texts: "Other resources",
 		versions: "Version changes",
+		charts: "Chart browser",
 		b30: "B30",
 		hisb30: "History",
 		info: "Info",
@@ -1859,10 +1866,12 @@ export const zh: ClientMessages = {
 	signIn: "使用 Discord 继续",
 	signInTaptap: "使用 TapTap 继续",
 	invite: "邀请到 Discord",
+	inviteUser: "添加到我的应用",
+	inviteUserHint: "在任何服务器或私信里使用 PhiBot 的命令，即使机器人不在该服务器中",
 	signOut: "退出",
 	signedIn: "已登录",
 	credit: { before: "用", after: "打造 ·", heart: "心", name: "MiyukiYue" },
-	locale: { en: "EN", zh: "中文", label: "语言" },
+	locale: { en: "EN", zh: "中文", ja: "日本語", label: "语言" },
 	theme: {
 		label: "颜色主题",
 		light: "浅色",
@@ -2114,6 +2123,7 @@ export const zh: ClientMessages = {
 		timeline: "剧情时间线",
 		texts: "其他资源",
 		versions: "版本变化",
+		charts: "谱面一览",
 		b30: "B30",
 		hisb30: "历史",
 		info: "信息",

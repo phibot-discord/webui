@@ -58,11 +58,29 @@ test("every locale's URL plus x-default", () => {
 	assert.deepEqual(localeAlternates("/songs"), {
 		en: "/songs",
 		zh: "/zh/songs",
+		ja: "/ja/songs",
 		"x-default": "/songs",
 	});
 	assert.deepEqual(localeAlternates("/"), {
 		en: "/",
 		zh: "/zh",
+		ja: "/ja",
 		"x-default": "/",
 	});
+});
+
+test("/ja pages are Japanese and switch prefixes cleanly", () => {
+	assert.equal(pathLocale("/ja"), "ja");
+	assert.equal(pathLocale("/ja/songs?q=1"), "ja");
+	assert.equal(pathLocale("/jax"), "en");
+	assert.equal(stripLocale("/ja/songs"), "/songs");
+	assert.equal(stripLocale("/ja?next=%2Fme"), "/?next=%2Fme");
+	assert.equal(localePath("/zh/songs", "ja"), "/ja/songs");
+	assert.equal(localePath("/ja/songs", "zh"), "/zh/songs");
+	assert.equal(localePath("/ja/songs", "en"), "/songs");
+	assert.equal(localePath("/", "ja"), "/ja");
+	assert.equal(
+		localePath("/api/og/home?lang=ja", "ja"),
+		"/api/og/home?lang=ja",
+	);
 });

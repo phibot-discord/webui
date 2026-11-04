@@ -64,6 +64,7 @@ export const nonCardRoutes = [
 	"/api/charts",
 	"/api/chart-board",
 	"/api/chart-stats",
+	"/charts",
 	"/api/guess/**",
 	"/api/guess",
 	"/compare",

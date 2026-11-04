@@ -143,6 +143,31 @@ const COPY = {
 		tagsOtherList: "基于全部成绩，而非本列表",
 		tip: "提示",
 	},
+	ja: {
+		kindTitle: { b30: "BEST 30", x30: "x30", fc30: "FC30" },
+		rks: "RKS",
+		statsRows: ["クリア", "FC", "Phi"],
+		legendScore: "スコア · Acc",
+		legendScorePeer: "スコア · Acc · 平均",
+		legendScoreRank: "スコア · Acc · 順位",
+		legendRks: "RKS · 必要 Acc",
+		legendRksOnly: "RKS",
+		overflow: "枠外",
+		overflowNoteB30: "RKS に含まれない",
+		overflowNote: "上位 30 位以下",
+		emptySlot: "Phi (AP) のスコアはまだありません",
+		noCharts: "このモードに該当する譜面はまだありません",
+		peerAvg: "平均",
+		peerB30Avg: "B30 平均",
+		analysisB30: "B30 分析",
+		analysis: "上位 {n} 分析",
+		average: "譜面 RKS 平均",
+		stddev: "標準偏差",
+		charts: "譜面数",
+		legendAvg: "平均",
+		tagsOtherList: "このリストではなく、全スコアから算出",
+		tip: "ヒント",
+	},
 };
 
 export type PortraitCopy = (typeof COPY)["en"];
@@ -930,7 +955,7 @@ export function modeChips(raw: unknown): string[] {
 	if (!Array.isArray(raw)) return [];
 	// The older long labels too ("1 Good Mode", "Full Combo 模式")
 	const modes = new Set<string>(LEGACY_MODE_LABELS);
-	for (const copy of [cardCopy("en"), cardCopy("zh")]) {
+	for (const copy of [cardCopy("en"), cardCopy("zh"), cardCopy("ja")]) {
 		modes.add(copy.fcMode);
 		modes.add(copy.x30Mode);
 	}

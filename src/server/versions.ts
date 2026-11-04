@@ -23,7 +23,7 @@ const TABLE = /^info\/oldInfo\/(\d+)\/change\.csv$/;
 const LIST_TTL_MS = 60 * 60 * 1000;
 const PROBE_FROM = 90;
 const PROBE_PARALLEL = 8;
-const TABLES_KEPT = 8;
+const TABLES_KEPT = 160;
 
 export type VersionOption = VersionMeta & { current?: true; key?: string };
 
@@ -156,4 +156,15 @@ export async function versionTable(
 	tables.set(option.code, table);
 	evictOldest(tables, TABLES_KEPT);
 	return table;
+}
+
+export async function everyVersionTable(
+	options: readonly VersionOption[],
+): Promise<(VersionOption & { table: VersionTable })[]> {
+	const out: (VersionOption & { table: VersionTable })[] = [];
+	await poolAll([...options], PROBE_PARALLEL, async (option) => {
+		const table = await versionTable(option).catch(() => undefined);
+		if (table) out.push({ ...option, table });
+	});
+	return out.sort((a, b) => a.code - b.code);
 }

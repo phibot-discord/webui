@@ -89,6 +89,9 @@ export async function generateMetadata({
 	return pageMetadata(view, await filesPageMeta(m, locale, view, params));
 }
 
+const TIMELINE_AI_NOTE_JA =
+	"このタイムラインの日本語テキストは、中国語と英語の原文から AI が翻訳したものです。誤りが含まれる場合があります。";
+
 export default async function FilesPage({
 	searchParams,
 }: {
@@ -327,6 +330,7 @@ async function FilesBody({
 				crumbLabel={m.files.breadcrumb}
 				tocLabel={m.collection.onThisPage}
 				t={m.timeline}
+				aiNote={locale === "ja" ? TIMELINE_AI_NOTE_JA : undefined}
 			/>
 		);
 		return tab === "timeline"

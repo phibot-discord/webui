@@ -26,8 +26,9 @@ import {
 	timeTicks,
 	valueTicks,
 } from "@/lib/trend-chart";
+import type { Milestone, Milestones } from "@/lib/milestones";
 import { fill } from "@/phi/lib/card-i18n";
-import type { TrendPoint, TrendView } from "@/server/save-views";
+import type { SongNames, TrendPoint, TrendView } from "@/server/save-views";
 
 const H = 240;
 const PAD = { top: 12, right: 16, bottom: 28, left: 56 };
@@ -182,6 +183,104 @@ function TrendChart({
 	);
 }
 
+const MS_STEP = 12;
+
+function milestoneText(
+	item: Milestone,
+	t: ReturnType<typeof useI18n>["m"]["trend"]["milestones"],
+): string {
+	switch (item.kind) {
+		case "rks":
+			return fill(t.rks, { at: item.at.toFixed(2) });
+		case "ap":
+		case "fc":
+			return fill(t[item.kind], { level: item.level });
+		case "apCount":
+		case "fcCount":
+			return fill(t[item.kind], { n: item.n });
+		case "bestDay":
+			return fill(t.bestDay, { gain: signedDelta(item.gain, 4) });
+	}
+}
+
+function MilestoneList({
+	view,
+	songs,
+}: {
+	view: Milestones;
+	songs: SongNames;
+}) {
+	const { locale, m } = useI18n();
+	const t = m.trend.milestones;
+	const ids = useId();
+	const [shown, setShown] = useState(MS_STEP);
+	const fmt = useMemo(() => dayFormat(locale), [locale]);
+	if (!view.start) return null;
+	const start = view.start;
+	const rest = view.items.length - shown;
+	return (
+		<section className="trend-events" aria-labelledby={`${ids}-ms`}>
+			<h3 id={`${ids}-ms`} className="sim-list-title">
+				{t.title}
+			</h3>
+			<p className="field-hint">{t.lede}</p>
+			<p className="field-hint">
+				{fill(start.rks == null ? t.startNoRks : t.start, {
+					date: fmt.format(start.t),
+					rks: start.rks?.toFixed(4) ?? "",
+					ap: start.ap,
+					fc: start.fc,
+					played: start.played,
+				})}
+			</p>
+			{view.items.length ? (
+				<>
+					<ol className="ms-list">
+						{view.items.slice(0, shown).map((item) => (
+							<li key={`${item.kind}:${item.t}:${"id" in item ? item.id : ""}`}>
+								<time dateTime={new Date(item.t).toISOString()}>
+									{fmt.format(item.t)}
+								</time>
+								<span className="ms-what" data-kind={item.kind}>
+									{milestoneText(item, t)}
+								</span>
+								{"id" in item ? (
+									<span className="ms-chart">
+										<Link href={songPath(item.id)} prefetch={false}>
+											{songs[item.id] ?? item.id.replace(/\.0$/, "")}
+										</Link>{" "}
+										<span className={`chart-level chart-level-${item.rank}`}>
+											{item.rank}
+										</span>
+										{"c" in item ? (
+											<span className="muted"> {item.c.toFixed(1)}</span>
+										) : null}
+									</span>
+								) : item.kind === "rks" ? (
+									<span className="ms-chart muted">
+										{item.value.toFixed(4)}
+									</span>
+								) : null}
+							</li>
+						))}
+					</ol>
+					{rest > 0 ? (
+						<button
+							type="button"
+							className="btn btn-ghost data-more"
+							onClick={() => setShown((n) => n + MS_STEP)}
+						>
+							{fill(t.more, { n: String(Math.min(MS_STEP, rest)) })}
+						</button>
+					) : null}
+				</>
+			) : (
+				<p className="callout">{t.none}</p>
+			)}
+		</section>
+	);
+}
+
 export function RksTrend({ view }: { view: TrendView }) {
 	const { locale, m } = useI18n();
 	const t = m.trend;
@@ -270,6 +369,8 @@ export function RksTrend({ view }: { view: TrendView }) {
 					</details>
 				</section>
 			)}
+
+			<MilestoneList view={view.milestones} songs={view.songs} />
 
 			<section className="trend-events" aria-labelledby={`${ids}-ev`}>
 				<h3 id={`${ids}-ev`} className="sim-list-title">

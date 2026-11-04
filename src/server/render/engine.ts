@@ -20,6 +20,8 @@ import { readAssetCached } from "./asset-cache";
 import {
 	collectRootVars,
 	collectStylesheets,
+	isJapaneseDocument,
+	preferJapaneseFonts,
 	resolveCssVars,
 	stripScripts,
 	stripUnsupportedCss,
@@ -275,13 +277,14 @@ export class RenderEngine {
 			},
 		);
 
-		const prepared = html;
+		const ja = isJapaneseDocument(rawHtml);
+		const prepared = ja ? preferJapaneseFonts(html) : html;
 		// `<style>` blocks were pulled into `inline` above, so fromHtml() has no CSS to add
 		const rawSheets = [
 			...sheets.sheets,
 			`.help_box, .line { overflow: visible !important; max-height: none !important; }`,
 			...inline,
-		];
+		].map((sheet) => (ja ? preferJapaneseFonts(sheet) : sheet));
 		const vars = new Map<string, string>();
 		for (const s of rawSheets) collectRootVars(s, vars);
 		const varsKey = createHash("sha1")

@@ -23,6 +23,7 @@ export function Actions({
 					{m.home.openDesk}
 				</Link>
 				<InviteLink className="btn btn-ghost btn-lg" />
+				<InviteLink className="btn btn-ghost btn-lg" kind="user" />
 			</>
 		);
 	}

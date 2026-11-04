@@ -14,9 +14,10 @@ import {
 import { localePath, pathLocale, stripLocale } from "@/lib/locale-path";
 import { bumpCardReload } from "@/lib/save-refresh";
 import { LOCALE_COOKIE, type Locale, localeTag } from "./config";
+import { ja } from "./ja-messages";
 import { type ClientMessages, en, zh } from "./messages";
 
-const catalogs: Record<Locale, ClientMessages> = { en, zh };
+const catalogs: Record<Locale, ClientMessages> = { en, zh, ja };
 
 const I18nContext = createContext<{
 	locale: Locale;

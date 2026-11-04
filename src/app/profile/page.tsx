@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { auth } from "@/auth";
 import { CardNav } from "@/components/CardNav";
 import { Desk } from "@/components/Desk";
 import { PlayerProfile } from "@/components/PlayerProfile";
+import { ProfileTimeline } from "@/components/ProfileTimeline";
 import { getMessages, signInHref } from "@/i18n/server";
 import { loadTagVotes } from "@/phi/lib/chart-tag-votes";
 import { loadCardDesk } from "@/server/card-desk";
@@ -25,7 +27,7 @@ export default async function ProfilePage() {
 	const userId = session.user.id;
 	return withDiscordUid(userId, async () => {
 		const host = await getDataHost();
-		const [loaded, catalog, votes, { locale }] = await Promise.all([
+		const [loaded, catalog, votes, { locale, m }] = await Promise.all([
 			loadCardDesk(host, userId),
 			chartCatalog(),
 			loadTagVotes().catch(() => undefined),
@@ -36,11 +38,24 @@ export default async function ProfilePage() {
 			loaded.bound.save,
 			catalog.list,
 			votes,
-			locale === "zh" ? "zh" : "en",
+			locale,
 		);
 		return (
 			<Desk {...loaded.desk} nav={<CardNav current="profile" />}>
 				<PlayerProfile view={view} />
+				{votes && loaded.bound.token ? (
+					<Suspense
+						fallback={
+							<p className="field-hint">{m.profile.timeline.loading}</p>
+						}
+					>
+						<ProfileTimeline
+							save={loaded.bound.save}
+							token={loaded.bound.token}
+							votes={votes}
+						/>
+					</Suspense>
+				) : null}
 			</Desk>
 		);
 	});

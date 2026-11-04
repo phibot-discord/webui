@@ -13,13 +13,25 @@ import {
 	SpeakerSlash,
 	X,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useFullscreen } from "@/components/CutControls";
 import { SegRadio } from "@/components/SegRadio";
 import { useI18n } from "@/i18n/provider";
 import { saveBlob, shownVersion, versionSpan } from "@/lib/apk-version";
 import { WATERMARK } from "@/lib/chart-player/base";
 import type { CaptionText } from "@/lib/chart-player/gl";
+import {
+	densityOf,
+	type Hardest,
+	hardestWindow,
+} from "@/lib/chart-player/density";
 import type { AudioState, ChartPlayer } from "@/lib/chart-player/player";
 import { readLocal, writeLocal } from "@/lib/local-store";
 import { fill } from "@/phi/lib/card-i18n";
@@ -36,6 +48,9 @@ type VideoState =
 type PlayerModule = typeof import("@/lib/chart-player/player");
 
 const SKIP = 5;
+const DENSITY_BINS = 160;
+const HARD_WINDOW = 10;
+const LEAD_IN = 1;
 const VOLUME_KEY = "webChartHitVolume";
 const MIX_KEY = "webChartHitMix";
 const CHORD_KEY = "webChartChordColors";
@@ -153,6 +168,7 @@ export function ChartPreview({
 	const [noise, setNoise] = useState(true);
 	const [noteSize, setNoteSize] = useState(1);
 	const [hasNoise, setHasNoise] = useState(false);
+	const [timing, setTiming] = useState<ChartPlayer["timing"]>(null);
 	const [canVideo, setCanVideo] = useState(false);
 	const [video, setVideo] = useState<VideoState>({ state: "idle" });
 	const videoAbort = useRef<AbortController | null>(null);
@@ -249,6 +265,46 @@ export function ChartPreview({
 		player.current?.setSpeed(speed);
 	}, [speed]);
 
+	const strip = useMemo(() => {
+		if (!timing || !(duration > 0)) return null;
+		const { bins, peak } = densityOf(
+			timing.times,
+			timing.offset,
+			duration,
+			DENSITY_BINS,
+			timing.weights,
+		);
+		if (!peak) return null;
+		const w = 100 / bins.length;
+		let bars = "";
+		bins.forEach((v, i) => {
+			if (!v) return;
+			const h = Math.max(0.6, (v / peak) * 10);
+			bars += `M${(i * w).toFixed(2)} 10h${w.toFixed(2)}v-${h.toFixed(2)}h-${w.toFixed(2)}z`;
+		});
+		let noise = "";
+		for (const [a, b] of timing.spans) {
+			const x0 = Math.max(0, ((a + timing.offset) / duration) * 100);
+			const x1 = Math.min(100, ((b + timing.offset) / duration) * 100);
+			if (x1 > x0)
+				noise += `M${x0.toFixed(2)} 0h${(x1 - x0).toFixed(2)}v10h-${(x1 - x0).toFixed(2)}z`;
+		}
+		return { bars, noise };
+	}, [timing, duration]);
+	const hardest = useMemo<Hardest | null>(
+		() =>
+			timing
+				? hardestWindow(
+						timing.times,
+						timing.weights,
+						timing.spans,
+						timing.offset,
+						HARD_WINDOW,
+					)
+				: null,
+		[timing],
+	);
+
 	const onTime = useCallback((pos: number, dur: number) => {
 		const s = shown.current;
 		const bar = seekBar.current;
@@ -314,6 +370,7 @@ export function ChartPreview({
 
 	const open = async (want: PreviewLevel, tree: PreviewVersion["tree"]) => {
 		setPhase("loading");
+		setTiming(null);
 		let p = player.current;
 		if (!p) {
 			const mod = loadedModule ?? (await playerModule().catch(() => null));
@@ -342,6 +399,7 @@ export function ChartPreview({
 			return;
 		}
 		setHasNoise(p.hasNoise);
+		setTiming(p.timing);
 		setPhase("ready");
 		await music;
 		if (autoplay.current && player.current === p) {
@@ -585,32 +643,66 @@ export function ChartPreview({
 					>
 						<FastForward size={18} aria-hidden />
 					</button>
-					<input
-						ref={seekBar}
-						className="cp-seek"
-						type="range"
-						min={0}
-						max={duration || 1}
-						step={0.05}
-						defaultValue={0}
-						disabled={!ready}
-						aria-label={t.seek}
-						onPointerDown={() => {
-							dragging.current = true;
-						}}
-						onPointerUp={() => {
-							dragging.current = false;
-						}}
-						onPointerCancel={() => {
-							dragging.current = false;
-						}}
-						onInput={(event) =>
-							player.current?.seek(Number(event.currentTarget.value))
-						}
-					/>
+					<div className="cp-seekwrap">
+						{strip ? (
+							<svg
+								className="cp-density"
+								viewBox="0 0 100 10"
+								preserveAspectRatio="none"
+								aria-hidden="true"
+								focusable="false"
+							>
+								{strip.noise ? (
+									<path className="cp-density-noise" d={strip.noise} />
+								) : null}
+								<path d={strip.bars} />
+							</svg>
+						) : null}
+						<input
+							ref={seekBar}
+							className="cp-seek"
+							type="range"
+							min={0}
+							max={duration || 1}
+							step={0.05}
+							defaultValue={0}
+							disabled={!ready}
+							aria-label={t.seek}
+							onPointerDown={() => {
+								dragging.current = true;
+							}}
+							onPointerUp={() => {
+								dragging.current = false;
+							}}
+							onPointerCancel={() => {
+								dragging.current = false;
+							}}
+							onInput={(event) =>
+								player.current?.seek(Number(event.currentTarget.value))
+							}
+						/>
+					</div>
 					<span ref={time} className="cp-clock">
 						0:00 / 0:00
 					</span>
+					{hardest ? (
+						<button
+							type="button"
+							className="btn btn-ghost cp-dense"
+							disabled={!ready}
+							title={fill(hardest.noise ? t.hardestNoise : t.hardestHint, {
+								n: hardest.count,
+							})}
+							aria-label={fill(hardest.noise ? t.hardestNoise : t.hardestHint, {
+								n: hardest.count,
+							})}
+							onClick={() =>
+								player.current?.seek(Math.max(0, hardest.start - LEAD_IN))
+							}
+						>
+							{t.hardest}
+						</button>
+					) : null}
 					<select
 						className="cp-speed"
 						value={speed}

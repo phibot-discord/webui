@@ -56,7 +56,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 			composer: view.composer || "—",
 			levels: view.levels
 				.map((l) => `${l.rank} ${l.constant.toFixed(1)}`)
-				.join(locale === "zh" ? "、" : ", "),
+				.join(locale === "en" ? ", " : "、"),
 		}),
 	});
 }

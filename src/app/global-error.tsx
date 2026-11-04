@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { isLocale, LOCALE_COOKIE, type Locale, localeTag } from "@/i18n/config";
+import { ja } from "@/i18n/ja-messages";
 import { en, zh } from "@/i18n/messages";
 import { localePath, pathLocale } from "@/lib/locale-path";
 import { isTheme, THEME_COOKIE, type Theme } from "@/theme/config";
@@ -17,14 +18,18 @@ function readCookie(name: string): string | undefined {
 
 function readPrefs(): string {
 	const saved = readCookie(LOCALE_COOKIE);
+	const fromPath = pathLocale(location.pathname);
+	const nav = navigator.language.toLowerCase();
 	const locale: Locale =
-		pathLocale(location.pathname) === "zh"
-			? "zh"
+		fromPath !== "en"
+			? fromPath
 			: isLocale(saved)
 				? saved
-				: navigator.language.toLowerCase().startsWith("zh")
+				: nav.startsWith("zh")
 					? "zh"
-					: "en";
+					: nav.startsWith("ja")
+						? "ja"
+						: "en";
 	const theme = readCookie(THEME_COOKIE);
 	return `${locale}|${isTheme(theme) ? theme : ""}`;
 }
@@ -43,7 +48,7 @@ export default function GlobalError({
 	const prefs = useSyncExternalStore(subscribe, readPrefs, () => "en|");
 	const [locale, pick] = prefs.split("|") as [Locale, string];
 	const theme: Theme | undefined = isTheme(pick) ? pick : undefined;
-	const m = locale === "zh" ? zh : en;
+	const m = { en, zh, ja }[locale];
 
 	useEffect(() => {
 		console.error(error);

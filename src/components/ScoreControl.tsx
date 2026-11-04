@@ -1,5 +1,6 @@
 "use client";
 
+import { localeTag } from "@/i18n/config";
 import { X } from "@phosphor-icons/react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
@@ -493,7 +494,7 @@ function ChartRank({ chart, acc }: { chart: ChartRef; acc: number }) {
 	const t = m.score;
 	const [rank, retry] = useChartRank(chart, acc);
 	const box = useRef<HTMLDivElement>(null);
-	const num = (n: number) => n.toLocaleString(locale === "zh" ? "zh-CN" : "en");
+	const num = (n: number) => n.toLocaleString(localeTag(locale));
 	const result =
 		rank.status === "ok"
 			? t.rankResult

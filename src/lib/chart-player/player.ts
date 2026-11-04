@@ -1,3 +1,4 @@
+import { noiseSpans, noteWeights, type Span } from "./density";
 import { evictOldest } from "@/phi/lib/lru";
 import { AreaBuilder } from "./areas";
 import { AudioEngine } from "./audio";
@@ -95,6 +96,23 @@ export class ChartPlayer {
 
 	get ready(): boolean {
 		return this.chart !== null;
+	}
+
+	get timing(): {
+		times: Float64Array;
+		offset: number;
+		weights: Float32Array;
+		spans: Span[];
+	} | null {
+		const chart = this.chart;
+		return chart
+			? {
+					times: chart.notes.time,
+					offset: chart.offset,
+					weights: noteWeights(chart),
+					spans: noiseSpans(chart),
+				}
+			: null;
 	}
 
 	get hasNoise(): boolean {

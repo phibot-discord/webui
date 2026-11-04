@@ -19,20 +19,18 @@ function redirectTo(req: NextRequest, path: string) {
 	return res;
 }
 
-/** Picks each page's locale from its URL; bare URLs send readers who prefer Chinese to /zh */
+/** Picks each page's locale from its URL; bare URLs send readers who prefer Chinese or Japanese to /zh or /ja */
 export async function proxy(req: NextRequest) {
 	const { pathname, search } = req.nextUrl;
 	const locale = pathLocale(pathname);
 	const bare = stripLocale(pathname);
-	if (
-		locale === "en" &&
-		(req.method === "GET" || req.method === "HEAD") &&
-		negotiateLocale(
+	if (locale === "en" && (req.method === "GET" || req.method === "HEAD")) {
+		const want = negotiateLocale(
 			req.cookies.get(LOCALE_COOKIE)?.value,
 			req.headers.get("accept-language"),
-		) === "zh"
-	) {
-		return redirectTo(req, localePath(pathname + search, "zh"));
+		);
+		if (want !== "en")
+			return redirectTo(req, localePath(pathname + search, want));
 	}
 	const pass = () => {
 		const headers = new Headers(req.headers);

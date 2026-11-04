@@ -40,8 +40,8 @@ export function viewTextGroups(
 ): ViewTextGroup[] {
 	return groups.map((group) => ({
 		id: group.id,
-		title: group.title[locale],
-		note: group.note?.[locale],
+		title: group.title[locale] ?? group.title.en,
+		note: group.note ? (group.note[locale] ?? group.note.en) : undefined,
 		lines: linesIn(group.lines, lang),
 		images: group.images.flatMap((image) => {
 			const src = link(image.file);

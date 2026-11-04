@@ -139,6 +139,54 @@ const COPY = {
 		tip: "提示",
 		generated: "生成于",
 	},
+	ja: {
+		title: { b30: "Best 30", x30: "x30", fc30: "FC30" },
+		desc: {
+			b30: "Phi 3 譜面 + Best 27 で RKS が決まります",
+			x30: "",
+			fc30: "",
+		},
+		saved: "保存日",
+		rks: "RKS",
+		sdB30: "B30 SD",
+		mode: {
+			x30: "x30",
+			fc30: "FC30",
+			ap: "All Perfect モード",
+		},
+		statClear: "クリア",
+		statFc: "FC",
+		statPhi: "Phi",
+		colRank: "#",
+		colSong: "曲名",
+		colLevel: "難易度",
+		colScore: "スコア",
+		colAcc: "Acc",
+		colRks: "RKS",
+		colPush: "必要 Acc",
+		avgAll: "全体平均",
+		avgB30: "B30 平均",
+		avgTop: "上位 % · 全体 / B30",
+		avgRank: "順位",
+		pushKey: { easy: "易", mid: "中", hard: "難" },
+		bandPhi: "Phi · P1–P3",
+		bandPhiDesc: "最高の AP 譜面",
+		bandBest: "Best 27",
+		bandBestDesc: "譜面別 RKS の上位",
+		emptyPhi: "Phi 譜面はまだありません",
+		overflow: "枠外",
+		overflowB30: "RKS に含まれない",
+		overflowTop: "上位 30 位以下",
+		filled: "{cap} 枠中 {n} 枠使用",
+		noRows: "該当するスコアはありません",
+		analysis: "分析",
+		distribution: "RKS 分布",
+		stddev: "標準偏差",
+		avgTag: "平均",
+		legendOf: "上位 {n} 中の {range}",
+		tip: "ヒント",
+		generated: "生成日時",
+	},
 } satisfies Record<PhiLocale, unknown>;
 
 export type TableCopy = (typeof COPY)["en"];
@@ -338,7 +386,7 @@ export function pushTier(push: string): "easy" | "mid" | "hard" | "" {
 }
 
 const MODE_LABELS = [
-	...(["en", "zh"] as const).flatMap((locale) => {
+	...(["en", "zh", "ja"] as const).flatMap((locale) => {
 		const t = cardCopy(locale);
 		return [
 			[t.x30Mode, "x30"],

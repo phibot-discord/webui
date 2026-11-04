@@ -8,6 +8,7 @@ export type NavItemId =
 	| (typeof TOOL_PAGES)[number]["id"]
 	| "score"
 	| "songs"
+	| "charts"
 	| "phira"
 	| "guess"
 	| "compare"
@@ -34,6 +35,7 @@ export const NAV_GROUPS: NavGroup[] = [
 			page("score", "/score"),
 			...TOOL_PAGES.map((p) => page(p.id, p.href)),
 			page("songs", "/songs"),
+			page("charts", "/charts"),
 			page("phira", "/phira", ["/phira", "/phira-mp"]),
 			page("guess", "/guess"),
 		],

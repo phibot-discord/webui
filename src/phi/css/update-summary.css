@@ -1210,6 +1210,13 @@ body {
 .us-l-zh .us-cols p,
 .us-l-zh .us-move-t,
 .us-l-zh .us-foot-k p,
-.us-l-zh .us-newtag {
+.us-l-zh .us-newtag,
+.us-l-ja .us-k,
+.us-l-ja .us-sec-t,
+.us-l-ja .us-eyebrow p,
+.us-l-ja .us-cols p,
+.us-l-ja .us-move-t,
+.us-l-ja .us-foot-k p,
+.us-l-ja .us-newtag {
 	letter-spacing: 0.04em;
 }

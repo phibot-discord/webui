@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { type ReactNode, Suspense } from "react";
 import { auth } from "@/auth";
 import Link from "@/components/LocaleLink";
 import { localeTag } from "@/i18n/config";
@@ -7,13 +8,18 @@ import { localePath } from "@/lib/locale-path";
 import { songPath } from "@/lib/song-path";
 import { signedDelta } from "@/lib/trend-chart";
 import {
+	b30Under,
 	diffTables,
+	type Movement,
 	pickVersions,
 	type RecordAcc,
-	rksUnder,
+	rksSeries,
+	type SlotRow,
+	slotMoves,
 	VERSION_LEVELS,
 	type VersionLevel,
 	type VersionTable,
+	yourChanges,
 } from "@/lib/versions";
 import { fill } from "@/phi/lib/card-i18n";
 import { fCompute } from "@/phi/lib/fcompute";
@@ -21,7 +27,12 @@ import { loadBound } from "@/server/bound";
 import { chartCatalog } from "@/server/charts";
 import { getDataHost } from "@/server/data-host";
 import { pageMetadata } from "@/server/og-meta";
-import { versionOptions, versionTable } from "@/server/versions";
+import {
+	everyVersionTable,
+	type VersionOption,
+	versionOptions,
+	versionTable,
+} from "@/server/versions";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +67,104 @@ function Levels({ levels }: { levels: Partial<Record<VersionLevel, number>> }) {
 				</td>
 			))}
 		</>
+	);
+}
+
+type Copy = Awaited<ReturnType<typeof getMessages>>["m"]["versions"];
+
+function releasedOn(
+	date: number | null,
+	locale: Parameters<typeof localeTag>[0],
+) {
+	return date
+		? new Date(date).toLocaleDateString(localeTag(locale), {
+				timeZone: "Asia/Shanghai",
+				dateStyle: "medium",
+			})
+		: "";
+}
+
+async function YourSeries({
+	records,
+	options,
+}: {
+	records: RecordAcc[];
+	options: VersionOption[];
+}) {
+	const { m, locale } = await getMessages();
+	const t = m.versions;
+	const tables = await everyVersionTable(options);
+	const series = rksSeries(records, tables);
+	const shown = series.filter(
+		(p, i) => i === 0 || i === series.length - 1 || (p.delta ?? 0) !== 0,
+	);
+	if (shown.length < 2) return null;
+	return (
+		<section className="song-section" aria-labelledby="vd-series">
+			<h2 id="vd-series">{t.seriesTitle}</h2>
+			<p className="field-hint">{t.seriesLede}</p>
+			<div className="data-scroll">
+				<table className="data-table">
+					<thead>
+						<tr>
+							<th scope="col">{t.seriesVersion}</th>
+							<th scope="col">{t.seriesReleased}</th>
+							<th scope="col" className="num">
+								RKS
+							</th>
+							<th scope="col" className="num">
+								{t.delta}
+							</th>
+							<th scope="col" className="num">
+								{t.seriesCharts}
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{[...shown].reverse().map((p) => (
+							<tr key={p.code}>
+								<th scope="row">{p.label}</th>
+								<td>{releasedOn(p.date, locale)}</td>
+								<td className="num">{p.rks.toFixed(4)}</td>
+								<td className="num">
+									{p.delta == null ? "—" : signedDelta(p.delta, 4)}
+								</td>
+								<td className="num">{p.charts}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+		</section>
+	);
+}
+
+function MoveBadge({ move, t }: { move: Movement; t: Copy }) {
+	if (move === "none") return <span className="muted">—</span>;
+	return (
+		<span className="vd-move" data-move={move}>
+			{t.move[move]}
+		</span>
+	);
+}
+
+function SlotList({
+	rows,
+	titleOf,
+}: {
+	rows: SlotRow[];
+	titleOf: (id: string) => ReactNode;
+}) {
+	return (
+		<ul className="vd-slots">
+			{rows.map((r) => (
+				<li key={`${r.id}:${r.rank}`}>
+					{titleOf(r.id)}{" "}
+					<span className={`chart-level chart-level-${r.rank}`}>{r.rank}</span>{" "}
+					<span className="muted">{r.rks.toFixed(3)}</span>
+				</li>
+			))}
+		</ul>
 	);
 }
 
@@ -99,13 +208,7 @@ export default async function VersionsPage({
 		);
 	const label = (o: typeof from) =>
 		o ? (o.current ? fill(t.currentLabel, { label: o.label }) : o.label) : "";
-	const dateOf = (o: typeof from) =>
-		o?.date
-			? new Date(o.date).toLocaleDateString(localeTag(locale), {
-					timeZone: "Asia/Shanghai",
-					dateStyle: "medium",
-				})
-			: "";
+	const dateOf = (o: typeof from) => releasedOn(o?.date ?? null, locale);
 
 	const diff = ta && tb ? diffTables(ta, tb) : undefined;
 	const records = Array.isArray(mine) ? mine : [];
@@ -125,8 +228,11 @@ export default async function VersionsPage({
 		diff?.changed.filter((c) => c.from == null || c.to == null) ?? [];
 	const yours =
 		ta && tb && records.length
-			? { a: rksUnder(records, ta), b: rksUnder(records, tb) }
+			? { a: b30Under(records, ta), b: b30Under(records, tb) }
 			: undefined;
+	const moves = yours ? slotMoves(yours.a, yours.b) : undefined;
+	const mineChanged =
+		yours && diff ? yourChanges(records, diff.changed, yours.a, yours.b) : [];
 	const first = options[0];
 	const last = options.at(-1);
 
@@ -242,11 +348,93 @@ export default async function VersionsPage({
 									</span>
 								</p>
 								<p className="field-hint">{t.yoursHint}</p>
+								{moves && (moves.entered.length || moves.left.length) ? (
+									<div className="vd-moves">
+										{moves.entered.length ? (
+											<div>
+												<h3 className="sim-list-title">
+													{fill(t.enteredTitle, { to: to.label })}
+												</h3>
+												<SlotList rows={moves.entered} titleOf={songCell} />
+											</div>
+										) : null}
+										{moves.left.length ? (
+											<div>
+												<h3 className="sim-list-title">
+													{fill(t.leftTitle, { to: to.label })}
+												</h3>
+												<SlotList rows={moves.left} titleOf={songCell} />
+											</div>
+										) : null}
+									</div>
+								) : (
+									<p className="field-hint">{t.movesNone}</p>
+								)}
+								{mineChanged.length ? (
+									<>
+										<h3 className="sim-list-title">{t.yoursCharts}</h3>
+										<p className="field-hint">{t.yoursChartsHint}</p>
+										<div className="data-scroll">
+											<table className="data-table">
+												<thead>
+													<tr>
+														<th scope="col">{t.song}</th>
+														<th scope="col">{t.level}</th>
+														<th scope="col" className="num">
+															{t.acc}
+														</th>
+														<th scope="col" className="num">
+															{t.constant}
+														</th>
+														<th scope="col" className="num">
+															{t.chartRks}
+														</th>
+														<th scope="col">{t.b30}</th>
+													</tr>
+												</thead>
+												<tbody>
+													{mineChanged.map((c) => (
+														<tr key={`${c.id}:${c.rank}`}>
+															<th scope="row" className="data-song">
+																{songCell(c.id)}
+															</th>
+															<td>
+																<span
+																	className={`chart-level chart-level-${c.rank}`}
+																>
+																	{c.rank}
+																</span>
+															</td>
+															<td className="num">{c.acc.toFixed(2)}%</td>
+															<td className="num">
+																{c.from.toFixed(1)} → {c.to.toFixed(1)}
+															</td>
+															<td className="num" data-changed>
+																{signedDelta(c.after - c.before, 3)}
+															</td>
+															<td>
+																<MoveBadge move={c.move} t={t} />
+															</td>
+														</tr>
+													))}
+												</tbody>
+											</table>
+										</div>
+									</>
+								) : null}
 							</>
 						) : (
 							<p className="callout">{t.yoursNone}</p>
 						)}
 					</section>
+
+					{records.length ? (
+						<Suspense
+							fallback={<p className="field-hint">{t.seriesLoading}</p>}
+						>
+							<YourSeries records={records} options={options} />
+						</Suspense>
+					) : null}
 
 					{between.length ? (
 						<section className="song-section" aria-labelledby="vd-notes">

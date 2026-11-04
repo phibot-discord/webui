@@ -152,7 +152,7 @@ export function SongLookup({
 					shared > 1 ? fill(t.shared, { q: ranked.q, n: shared }) : "",
 				]
 					.filter(Boolean)
-					.join(locale === "zh" ? "。" : ". ")
+					.join(locale === "en" ? ". " : "。")
 			: pending;
 
 	useEffect(() => {
