@@ -1114,6 +1114,10 @@ body {
 	color: var(--b19p-down);
 }
 
+.b19p-tag-row .b19p-tag-rks.is-slight {
+	color: var(--b19p-muted);
+}
+
 .b19p-card .b19p-tags-note,
 .b19p-card .b19p-tags-empty {
 	margin-top: 12px;

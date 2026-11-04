@@ -432,7 +432,7 @@ test("buildAnalysis: titles, tags, pool note and failure message", () => {
 		showTags: true,
 		tagAnalysis: {
 			insufficient: false,
-			strong: [{ name: "Fast tapping", rks: 16.921 }],
+			strong: [{ name: "Fast tapping", shown: "+0.11" }],
 			weak: [{ name: "Stamina", rks: 15.1 }],
 		},
 		tagMeta: "RKS≥16.3 · Scores 41 · Votes 1234",
@@ -454,7 +454,8 @@ test("buildAnalysis: titles, tags, pool note and failure message", () => {
 	assert.deepEqual(fc.strong[0], {
 		rank: 1,
 		lines: ["Fast tapping"],
-		rks: "16.92",
+		value: "+0.11",
+		slight: false,
 	});
 	assert.equal(fc.tagPx, 22);
 	assert.equal(fc.tagNote, en.tagsOtherList);
@@ -477,7 +478,7 @@ test("buildAnalysis: titles, tags, pool note and failure message", () => {
 test("buildTags shares one size and wraps long names onto two lines", () => {
 	const short = buildTags([{ name: "Flick", rks: 16.7 }], [{ name: "耐力" }]);
 	assert.equal(short.px, 22);
-	assert.deepEqual(short.weak[0], { rank: 1, lines: ["耐力"], rks: "—" });
+	assert.deepEqual(short.weak[0], { rank: 1, lines: ["耐力"], value: "—", slight: false });
 	const long = buildTags(
 		[
 			{ name: "Flick", rks: 16.7 },
@@ -499,7 +500,7 @@ test("buildTags shares one size and wraps long names onto two lines", () => {
 		],
 	);
 	const mixed = buildTags(
-		[{ name: "Flash / BPM Change", rks: 16.92 }, { name: "Burst" }],
+		[{ name: "Flash / BPM Change", shown: "+0.12" }, { name: "Burst" }],
 		[{ name: "Nonlinear" }, { name: "Line noise" }, { name: "Locked finger" }],
 	);
 	assert.deepEqual(mixed.strong[0]!.lines, ["Flash /", "BPM Change"]);

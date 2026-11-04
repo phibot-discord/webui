@@ -578,7 +578,7 @@ type HistogramIn = {
 	count?: unknown;
 };
 
-type TagIn = { name?: unknown; rks?: unknown };
+type TagIn = { name?: unknown; shown?: unknown; slight?: unknown };
 
 type AnalysisIn = {
 	histogram?: HistogramIn;
@@ -601,7 +601,8 @@ function tagList(list: TagIn[] | undefined) {
 		.map((tag, i) => ({
 			rank: String(i + 1),
 			name: str(tag.name),
-			rks: num(tag.rks).toFixed(2),
+			value: str(tag.shown),
+			slight: tag.slight === true,
 		}));
 }
 

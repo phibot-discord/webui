@@ -395,7 +395,7 @@
                         <div class="tag-result-row">
                             <p class="tag-rank">{{$index + 1}}</p>
                             <p class="tag-name">{{tag.name}}</p>
-                            <p class="tag-rks">{{tag.rks.toFixed(2)}}</p>
+                            <p class="tag-rks{{if tag.slight}} is-slight{{/if}}">{{tag.shown}}</p>
                         </div>
                         {{/each}}
                         {{/if}}
@@ -407,7 +407,7 @@
                         <div class="tag-result-row">
                             <p class="tag-rank">{{$index + 1}}</p>
                             <p class="tag-name">{{tag.name}}</p>
-                            <p class="tag-rks">{{tag.rks.toFixed(2)}}</p>
+                            <p class="tag-rks{{if tag.slight}} is-slight{{/if}}">{{tag.shown}}</p>
                         </div>
                         {{/each}}
                         {{/if}}

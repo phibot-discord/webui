@@ -61,6 +61,53 @@ export type ToolsMessages = {
 		legend: string;
 		empty: string;
 	};
+	profile: {
+		title: string;
+		lede: string;
+		bestTitle: string;
+		extraTitle: string;
+		slot: string;
+		song: string;
+		level: string;
+		constant: string;
+		score: string;
+		acc: string;
+		rks: string;
+		push: string;
+		noPush: string;
+		fc: string;
+		ap: string;
+		analysisTitle: string;
+		average: string;
+		stddev: string;
+		tagsTitle: string;
+		meta: string;
+		baseline: string;
+		howLink: string;
+		source: string;
+		categoriesTitle: string;
+		allTagsTitle: string;
+		allTagsHint: string;
+		tag: string;
+		category: string;
+		diff: string;
+		charts: string;
+		best: string;
+		worst: string;
+		verdict: string;
+		sides: Record<"strong" | "weak" | "even", string>;
+		slight: Record<"strong" | "weak", string>;
+		slightHint: string;
+		few: string;
+		chartsFor: string;
+		expected: string;
+		share: string;
+		third: string;
+		groups: Record<"best" | "middle" | "worst", string>;
+		insufficient: string;
+		votesMissing: string;
+		empty: string;
+	};
 	trend: {
 		title: string;
 		lede: string;
@@ -496,6 +543,57 @@ export const toolsEn: ToolsMessages = {
 		score: "Score",
 		legend: "The fuller the cell, the closer that group is to done.",
 		empty: "No charts are loaded yet. Try again in a minute.",
+	},
+	profile: {
+		title: "Player profile",
+		lede: "Your B30 card as text: every slot, the B30 analysis, and the full chart profile with the charts behind each tag.",
+		bestTitle: "Best 30",
+		extraTitle: "Next in line (B28–B33)",
+		slot: "#",
+		song: "Song",
+		level: "Level",
+		constant: "Constant",
+		score: "Score",
+		acc: "Acc",
+		rks: "RKS",
+		push: "Push to",
+		noPush: "Can't push",
+		fc: "FC",
+		ap: "AP",
+		analysisTitle: "B30 analysis",
+		average: "Average RKS (P1–P3 + B1–B27)",
+		stddev: "Standard deviation",
+		tagsTitle: "Chart profile",
+		meta: "Constants {min}–{max} · {scores} scores · {charts} voted charts · {votes} votes",
+		baseline:
+			"Each +/- is your eq. RKS on charts with that tag compared with your other charts of the same constant, averaged.",
+		howLink: "How the numbers are worked out",
+		source: "Votes from kyou.net.cn, copied {date}.",
+		categoriesTitle: "Categories",
+		allTagsTitle: "All tags",
+		allTagsHint:
+			"Open a tag to see the charts counted for it. A strength needs 3 of its charts in your best third, a weakness 3 in your worst third.",
+		tag: "Tag",
+		category: "Category",
+		diff: "+/-",
+		charts: "Charts",
+		best: "Best third",
+		worst: "Worst third",
+		verdict: "Verdict",
+		sides: { strong: "Strength", weak: "Weakness", even: "–" },
+		slight: { strong: "Slight strength", weak: "Slight weakness" },
+		slightHint:
+			"Slight: the gap is under ±0.10. Ordinary score swings alone can reach that size, so treat it as a hint.",
+		few: "On fewer than {n} of your charts: not listed on the card.",
+		chartsFor: "Charts counted for {name}",
+		expected: "Expected",
+		share: "Share",
+		third: "Third",
+		groups: { best: "Best", middle: "Middle", worst: "Worst" },
+		insufficient:
+			"Only {n} voted charts near your level so far; the card needs {min}. Vote on chart tags at kyou.net.cn/phigros.",
+		votesMissing: "Chart tag votes could not be loaded. Try again in a minute.",
+		empty: "No scored charts yet.",
 	},
 	trend: {
 		title: "RKS trend",
@@ -967,6 +1065,57 @@ export const toolsZh: ToolsMessages = {
 		score: "分数",
 		legend: "格子越满，该组越接近完成。",
 		empty: "谱面数据尚未加载，请稍后再试。",
+	},
+	profile: {
+		title: "玩家画像",
+		lede: "文字版 B30 成绩图：每个槽位、B30 数据分析，以及完整的谱面标签画像和计入每个标签的谱面。",
+		bestTitle: "Best 30",
+		extraTitle: "候补（B28–B33）",
+		slot: "#",
+		song: "曲目",
+		level: "难度",
+		constant: "定数",
+		score: "分数",
+		acc: "准确率",
+		rks: "RKS",
+		push: "推分线",
+		noPush: "无法推分",
+		fc: "FC",
+		ap: "AP",
+		analysisTitle: "B30 数据分析",
+		average: "平均 RKS（P1–P3 + B1–B27）",
+		stddev: "标准差",
+		tagsTitle: "谱面标签画像",
+		meta: "定数 {min}–{max} · 成绩 {scores} · 已投票谱面 {charts} · 选票 {votes}",
+		baseline:
+			"每个 +/- 是带该标签的谱面上，你的单曲等效 RKS 与同定数其他谱面相比的平均差值。",
+		howLink: "数值的计算方式",
+		source: "投票来自 kyou.net.cn，同步于 {date}。",
+		categoriesTitle: "分类",
+		allTagsTitle: "全部标签",
+		allTagsHint:
+			"展开标签可查看计入它的谱面。擅长需要至少 3 张谱面落在最佳三分之一，薄弱需要至少 3 张落在最差三分之一。",
+		tag: "标签",
+		category: "分类",
+		diff: "+/-",
+		charts: "谱面",
+		best: "最佳三分之一",
+		worst: "最差三分之一",
+		verdict: "判定",
+		sides: { strong: "擅长", weak: "薄弱", even: "–" },
+		slight: { strong: "略擅长", weak: "略薄弱" },
+		slightHint:
+			"略：差值小于 ±0.10。正常的成绩波动也可能达到这个幅度，仅供参考。",
+		few: "出现在你少于 {n} 张谱面上：不会列在成绩图上。",
+		chartsFor: "计入「{name}」的谱面",
+		expected: "预期",
+		share: "权重",
+		third: "三等分",
+		groups: { best: "最佳", middle: "中间", worst: "最差" },
+		insufficient:
+			"你所在难度附近目前只有 {n} 张已投票谱面，成绩图需要 {min} 张。可前往 kyou.net.cn/phigros 为谱面标签投票。",
+		votesMissing: "谱面标签数据暂时无法读取，请稍后再试。",
+		empty: "还没有已计分的谱面。",
 	},
 	trend: {
 		title: "RKS 走势",

@@ -12,7 +12,7 @@ export type LegalDoc = {
 	sections: LegalSection[];
 };
 
-export const LEGAL_UPDATED = "2026-10-31";
+export const LEGAL_UPDATED = "2026-11-04";
 
 const GITHUB = "https://github.com/phibot-discord/webui";
 
@@ -105,7 +105,7 @@ export const terms: Record<Locale, LegalDoc> = {
 				title: "No guarantees",
 				tldr: "Free and as is: it can break, be wrong or shut down.",
 				body: [
-					"PhiBot is provided as is, for free. It may be slow or down, lose data, or show wrong numbers. RKS, rankings and estimates are worked out by PhiBot or come from third parties such as phib19.top, and can differ from the game.",
+					"PhiBot is provided as is, for free. It may be slow or down, lose data, or show wrong numbers. RKS, rankings and estimates are worked out by PhiBot or come from third parties such as phib19.top and kyou.net.cn, and can differ from the game.",
 					"Binding uses the same cloud login as the game. PhiBot only reads your save, but nobody can promise how Pigeon Games or TapTap treat third-party tools.",
 					"Features can change or stop at any time, the whole service included.",
 				],
@@ -226,7 +226,7 @@ export const terms: Record<Locale, LegalDoc> = {
 				title: "不作保证",
 				tldr: "免费、按现状提供：可能出错、宕机或停止服务。",
 				body: [
-					"PhiBot 免费提供，按现状提供。它可能变慢、宕机、丢失数据或显示错误的数字。RKS、排名和估算由 PhiBot 计算或来自 phib19.top 等第三方，可能与游戏内不同。",
+					"PhiBot 免费提供，按现状提供。它可能变慢、宕机、丢失数据或显示错误的数字。RKS、排名和估算由 PhiBot 计算或来自 phib19.top、kyou.net.cn 等第三方，可能与游戏内不同。",
 					"绑定使用与游戏相同的云端登录。PhiBot 只读取存档，但无法保证 Pigeon Games 或 TapTap 如何看待第三方工具。",
 					"功能可能随时变更或停止，包括整个服务。",
 				],
@@ -273,7 +273,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 				body: [
 					[
 						"PhiBot keeps what it needs to draw your cards: who you are signed in as, a session token for your Phigros save, and your card settings.",
-						"Some card features send scores to phib19.top to work out tags, ranks and comparisons. Your name and account are not sent.",
+						"Some card features send scores to phib19.top to work out ranks and comparisons. Your name and account are not sent. The tag profile is worked out by PhiBot itself and sends nothing.",
 						"Extras you switch on yourself (comparing, the RKS badge, the Guess the song leaderboard) show more to other people, and each can be switched off.",
 						"Nothing is sold, and there are no ads or tracking cookies.",
 						"You can unbind your save at any time, and ask for everything else to be deleted.",
@@ -317,7 +317,8 @@ export const privacy: Record<Locale, LegalDoc> = {
 					[
 						"**Phigros cloud (Pigeon Games, TapTap).** PhiBot uses your session token to download your save, the same way the game does.",
 						"**Discord**, for sign-in and for the bot's replies.",
-						"**phib19.top**, a community Phigros database. For the tag profile, peer comparisons and song rank, PhiBot sends it the scores those features need: song, difficulty and accuracy, without your name or account. Card options let you turn the tag profile and comparisons off.",
+						"**phib19.top**, a community Phigros database. For peer comparisons and song rank, PhiBot sends it the scores those features need: song, difficulty and accuracy, without your name or account. Card options let you turn comparisons off.",
+						"**kyou.net.cn**, where players vote on chart tags. PhiBot copies the public vote counts once a day and works out your tag profile itself. Nothing about you is sent there.",
 						"**Vercel** hosts the site and its logs. **Cloudflare** stores your data (KV) and cached card images (R2).",
 						"**Anyone with your share link** can see the cards it shows. If you turn on Allow compare, they can also see every score in your save next to theirs. The RKS badge shows your player name, RKS and Challenge level to anyone who sees it.",
 						"**Everyone** can see the Guess the song leaderboard: the display name, tries and time of players who chose to be listed.",
@@ -393,7 +394,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 				body: [
 					[
 						"PhiBot 只保存生成成绩图所需的数据：你的登录身份、Phigros 存档的会话令牌，以及你的成绩图设置。",
-						"部分成绩图功能会把成绩发送到 phib19.top，用于计算标签、排名和对比，不会发送你的名字或账号。",
+						"部分成绩图功能会把成绩发送到 phib19.top，用于计算排名和对比，不会发送你的名字或账号。标签画像由 PhiBot 自行计算，不会发送任何数据。",
 						"你自己打开的附加功能（对比、RKS 徽章、猜曲绘排行榜）会向他人展示更多信息，每一项都可以关闭。",
 						"不出售数据，没有广告，也没有追踪 Cookie。",
 						"你可以随时解绑存档，也可以要求删除其余所有数据。",
@@ -437,7 +438,8 @@ export const privacy: Record<Locale, LegalDoc> = {
 					[
 						"**Phigros 云端（Pigeon Games、TapTap）**：PhiBot 用你的会话令牌下载存档，方式与游戏相同。",
 						"**Discord**：用于登录和机器人回复。",
-						"**phib19.top**：社区 Phigros 数据库。生成标签分析、同分段对比和单曲排名时，PhiBot 会发送这些功能所需的成绩（曲目、难度和准确率），不包含你的名字或账号。你可以在成绩图选项中关闭标签分析和对比。",
+						"**phib19.top**：社区 Phigros 数据库。生成同分段对比和单曲排名时，PhiBot 会发送这些功能所需的成绩（曲目、难度和准确率），不包含你的名字或账号。你可以在成绩图选项中关闭对比。",
+						"**kyou.net.cn**：玩家为谱面标签投票的网站。PhiBot 每天同步一次公开的投票数，并自行计算你的标签画像，不会向它发送任何关于你的信息。",
 						"**Vercel** 托管网站和日志，**Cloudflare** 存储你的数据（KV）和成绩图缓存（R2）。",
 						"**拿到你分享链接的人**可以看到链接里的成绩图。如果你打开了允许对比，他们还能把你存档中的每一项成绩与自己的并排查看。RKS 徽章会向看到它的人展示你的玩家名、RKS 和课题等级。",
 						"**所有人**都能看到猜曲绘排行榜：选择上榜的玩家的显示名称、尝试次数和用时。",

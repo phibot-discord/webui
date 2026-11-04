@@ -30,48 +30,59 @@ test("chart tag glossary localizes names and official descriptions", () => {
 	assert.equal(localizeChartTagDescription("慢流速", "", "en"), "");
 });
 
-test("tag meta line follows upstream f908bb31: pool, records, ballots", () => {
+test("tag meta line names the constant range, scores and votes", () => {
 	const zh = cardCopy("zh");
 	const en = cardCopy("en");
-	const pool = { threshold: 15.9, recordCount: 20, totalVotes: 499 };
-	assert.equal(tagAnalysisMeta(pool, zh), "RKS≥15.9 · 成绩 20 · 选票 499");
-	assert.equal(tagAnalysisMeta(pool, en), "RKS≥15.9 · Scores 20 · Votes 499");
+	const pool = {
+		range: { min: 15.2, max: 18.2 },
+		recordCount: 120,
+		totalVotes: 2499,
+	};
 	assert.equal(
-		tagAnalysisMeta({ ...pool, threshold: 16 }, zh),
-		"RKS≥16.0 · 成绩 20 · 选票 499",
+		tagAnalysisMeta(pool, zh),
+		"定数 15.2–18.2 · 成绩 120 · 选票 2499",
+	);
+	assert.equal(
+		tagAnalysisMeta(pool, en),
+		"Constants 15.2–18.2 · Scores 120 · Votes 2499",
+	);
+	assert.equal(
+		tagAnalysisMeta({ ...pool, range: { min: 15, max: 18 } }, zh),
+		"定数 15.0–18.0 · 成绩 120 · 选票 2499",
 	);
 	assert.equal(tagAnalysisMeta({ totalVotes: 12 }, zh), "有效票 12");
 	assert.equal(tagAnalysisMeta({ totalVotes: 12 }, en), "Valid votes 12");
-	// null is a failed lookup: no data, never "0 votes"
 	assert.equal(tagAnalysisMeta(null, zh), "暂无数据");
 	assert.equal(tagAnalysisMeta(undefined, en), "No data");
 });
 
-test("tag pool note says the server pools every score at the threshold", () => {
-	const pool = { threshold: 15.9, recordCount: 20, totalVotes: 499 };
+test("tag pool note names the baseline the +/- compares with", () => {
+	const pool = {
+		range: { min: 15.2, max: 18.2 },
+		recordCount: 120,
+		totalVotes: 2499,
+	};
 	assert.equal(
 		tagPoolNote(pool, cardCopy("zh")),
-		"统计全部单曲 RKS≥15.9 的成绩，而非 B30 槽位",
+		"+/- 为单曲等效 RKS 与同定数谱面相比的差值，定数 15.2–18.2",
 	);
 	assert.match(
 		tagPoolNote(pool, cardCopy("en")),
-		/every score with chart RKS ≥ 15\.9, not the B30 slots/,
+		/^\+\/- is eq\. RKS vs your same-constant charts, 15\.2–18\.2\.$/,
 	);
 	assert.equal(tagPoolNote({ totalVotes: 3 }, cardCopy("en")), "");
 	assert.equal(tagPoolNote(null, cardCopy("zh")), "");
 });
 
-test("tag panel wording matches upstream f908bb31 without /settag", () => {
+test("tag panel points voters at kyou.net.cn", () => {
 	const zh = cardCopy("zh");
 	const en = cardCopy("en");
 	assert.equal(zh.tagAbility, "谱面实力分析");
-	assert.match(zh.tagInsufficient, /^有效选票或逐标签成绩样本不足/);
-	assert.equal(zh.tagTip, "谱面投票可前往 https://www.phib19.top 提交");
-	assert.match(en.tagInsufficient, /votes or per-tag score samples/);
+	assert.equal(zh.tagTip, "谱面投票可前往 https://kyou.net.cn/phigros 提交");
 	for (const copy of [zh, en]) {
 		for (const text of [copy.tagInsufficient, copy.tagTip]) {
-			assert.match(text, /https:\/\/www\.phib19\.top/);
-			assert.doesNotMatch(text, /settag/);
+			assert.match(text, /https:\/\/kyou\.net\.cn\/phigros/);
+			assert.doesNotMatch(text, /phib19|settag/);
 		}
 		assert.notEqual(copy.tagUnavailable, copy.tagInsufficient);
 	}
@@ -80,7 +91,7 @@ test("tag panel wording matches upstream f908bb31 without /settag", () => {
 test("localized tag labels keep the pool fields", () => {
 	const out = localizeChartTagLabels(
 		{
-			threshold: 15.9,
+			range: { min: 15.2, max: 18.2 },
 			recordCount: 20,
 			categories: [{ name: "读谱" }],
 			radar: { categories: [{ name: "多指" }] },
@@ -89,7 +100,7 @@ test("localized tag labels keep the pool fields", () => {
 		},
 		"en",
 	);
-	assert.equal(out.threshold, 15.9);
+	assert.deepEqual(out.range, { min: 15.2, max: 18.2 });
 	assert.equal(out.recordCount, 20);
 	assert.equal(out.categories[0]?.name, "Reading");
 	assert.equal(out.strong[0]?.name, "Mixed speed");

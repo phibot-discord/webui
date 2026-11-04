@@ -130,7 +130,7 @@ export async function setUserLocale(db: Kv, userId: string, locale: PhiLocale) {
 }
 
 export function tagAnalysisEnabled(notes: UserNotes) {
-	return notes.showTagAnalysis !== false && notes.allowApiUsage !== false;
+	return notes.showTagAnalysis !== false;
 }
 
 export async function setShowTagAnalysis(db: Kv, userId: string, on: boolean) {

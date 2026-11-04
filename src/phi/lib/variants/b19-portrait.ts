@@ -754,7 +754,7 @@ export function buildHistogram(h: HistogramIn, kind: CardKind) {
 	};
 }
 
-type TagIn = { name?: unknown; rks?: unknown };
+type TagIn = { name?: unknown; shown?: unknown; slight?: unknown };
 
 export function tagNameLines(name: string, px: number): string[] {
 	const text = name.replace(/\s+/g, " ").trim() || "—";
@@ -764,14 +764,21 @@ export function tagNameLines(name: string, px: number): string[] {
 	return split ? [split.head, split.tail] : fillTwoLines(text, lineEm);
 }
 
-type TagRow = { rank: number; lines: string[]; rks: string };
+type TagRow = {
+	rank: number;
+	lines: string[];
+	value: string;
+	slight: boolean;
+};
 
 // Paired so a wrapped name keeps both columns level
 export function buildTags(strongRaw: unknown, weakRaw: unknown) {
 	const list = (raw: unknown) =>
-		(Array.isArray(raw) ? (raw as TagIn[]) : [])
-			.slice(0, 5)
-			.map((tag) => ({ name: String(tag?.name ?? ""), rks: tag?.rks }));
+		(Array.isArray(raw) ? (raw as TagIn[]) : []).slice(0, 5).map((tag) => ({
+			name: String(tag?.name ?? ""),
+			shown: String(tag?.shown ?? ""),
+			slight: tag?.slight === true,
+		}));
 	const strongIn = list(strongRaw);
 	const weakIn = list(weakRaw);
 	const widest = Math.max(
@@ -783,7 +790,8 @@ export function buildTags(strongRaw: unknown, weakRaw: unknown) {
 		tags.map((tag, i) => ({
 			rank: i + 1,
 			lines: tagNameLines(tag.name, px),
-			rks: fixed(tag.rks, 2),
+			value: tag.shown || "—",
+			slight: tag.slight,
 		}));
 	const strong = rows(strongIn);
 	const weak = rows(weakIn);

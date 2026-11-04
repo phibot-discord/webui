@@ -99,6 +99,7 @@ export const nonCardRoutes = [
 	"/status",
 	"/tags",
 	"/targets",
+	"/profile",
 	"/progress",
 	"/trend",
 	"/tos",

@@ -85,7 +85,8 @@
 			"writer": "phi-unpackd",
 			"contents": "info.csv, notesInfo.json, tips.txt, avatar.txt and avatars.json (each avatar's display name and addressable key; its file under html/avatar/ is named after the key) from the APK",
 			"except": {
-				"info/": "ill-sync mirrors the rest of phi-plugin's info/ (spinfo.json, aliases, oldInfo/, DLC/, help/ …)"
+				"info/": "ill-sync mirrors the rest of phi-plugin's info/ (spinfo.json, aliases, oldInfo/, DLC/, help/ …)",
+				"info/chartTags.json": "ill-sync, once a day: kyou.net.cn's tag tree and per-chart tag votes keyed by catalog id (no .0), read by the webui and the bot for the tag profile"
 			}
 		},
 		{

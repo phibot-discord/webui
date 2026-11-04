@@ -45,7 +45,8 @@ function radarFixture(
 			label.x < cx - 8 ? "end" : label.x > cx + 8 ? "start" : "middle";
 		return {
 			...category,
-			displayRks: category.hasVotes ? category.rks.toFixed(2) : "—",
+			diff: category.rks - averageRks,
+			shown: category.hasVotes ? category.rks.toFixed(2) : "—",
 			pointX: round(point.x),
 			pointY: round(point.y),
 			labelX: round(label.x),

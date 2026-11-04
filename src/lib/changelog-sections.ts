@@ -3,6 +3,41 @@ import type { ChangeRelease } from "./changelog";
 /** Every release's items, newest first, loaded only when the dialog opens */
 export const CHANGELOG_RELEASES: ChangeRelease[] = [
 	{
+		date: "2026-11-04",
+		sections: [
+			{
+				heading: { en: "Chart profile", zh: "谱面标签画像" },
+				items: [
+					{
+						en: "PhiBot now works out the chart profile on your B30 card itself. It uses the chart-tag votes on kyou.net.cn, copied once a day, so your scores are no longer sent to phib19.top for it.",
+						zh: "B30 成绩图上的谱面标签画像现在由 PhiBot 自己计算，使用每天同步一次的 kyou.net.cn 谱面标签投票，计算时不再把你的成绩发送到 phib19.top。",
+						href: "/tags",
+					},
+					{
+						en: "Each number compares your eq. RKS on charts with that tag with your other charts of the same constant: + is above your own baseline, − below. Gaps under ±0.10 are marked slight, and the card lists your top 3 each way.",
+						zh: "每个数值都是带该标签的谱面上，你的单曲等效 RKS 与同定数其他谱面相比的差值：+ 高于你自己的基准，− 低于基准。差值小于 ±0.10 的标记为「略」，成绩图各列出前 3 个。",
+						href: "/tags",
+					},
+					{
+						en: "The chart tags page now shows the formula and how to read the numbers, above the tag glossary.",
+						zh: "谱面标签页面在标签说明上方新增了计算公式和数值解读。",
+						href: "/tags",
+					},
+				],
+			},
+			{
+				heading: { en: "Player profile", zh: "玩家画像" },
+				items: [
+					{
+						en: "A new Profile tab under your cards: your B30 card as text, with every chart tag, its number, and the charts counted for it with their acc, eq. RKS and expected eq. RKS.",
+						zh: "成绩图下新增「画像」标签页：文字版 B30 成绩图，列出全部谱面标签、各自的数值，以及计入每个标签的谱面和它们的准确率、单曲等效 RKS 与预期值。",
+						href: "/profile",
+					},
+				],
+			},
+		],
+	},
+	{
 		date: "2026-11-03",
 		sections: [
 			{

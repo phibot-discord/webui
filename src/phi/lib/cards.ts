@@ -19,13 +19,9 @@ import {
 	tagPoolNote,
 } from "./card-i18n";
 import { type Catalog, chosenIll } from "./catalog";
-import { CHART_TAG_RENDER_BUDGET_MS, tagAnalysisFor } from "./chart-tags-api";
+import { loadTagVotes } from "./chart-tag-votes";
 import { tagRadarHtml } from "./charts";
-import {
-	type CardMissing,
-	type ExternalWatch,
-	watchExternal,
-} from "./external";
+import { type CardMissing, watchExternal } from "./external";
 import {
 	accRksLines,
 	challengeOf,
@@ -44,8 +40,9 @@ import {
 } from "./notes";
 import type { PhiRuntime } from "./runtime";
 import type { Save } from "./save";
-import { getToken, moneyText, saveIdentity } from "./saves";
+import { getToken, moneyText } from "./saves";
 import { type AvgOutcome, attachB19AccAvg } from "./score-avg";
+import { profileRecordsOf, tagProfile } from "./tag-profile";
 
 function htmlImage(rt: PhiRuntime, rel: string) {
 	return join(rt.getInfo.resources, "html", rel);
@@ -84,10 +81,7 @@ async function b30AnalysisFor(
 	notes: UserNotes,
 	nnum: number,
 	locale: PhiLocale,
-	db: Kv,
 	save: Save,
-	tagBudgetMs: number,
-	external?: ExternalWatch,
 ) {
 	if (notes.showB30Analysis === false || nnum !== 33) return null;
 	const t = cardCopy(locale);
@@ -99,21 +93,17 @@ async function b30AnalysisFor(
 	let tagLookupFailed = false;
 	if (showTags && records.length) {
 		try {
-			const lookup = tagAnalysisFor(save, {
-				saveRevision: saveIdentity(save.saveInfo),
-				db,
-				budgetMs: tagBudgetMs,
-				wait: notes.peerWait === true,
-			});
+			const votes = await loadTagVotes();
+			if (!votes) throw new Error("chart-tag votes not loaded");
 			tagAnalysis = localizeChartTagLabels(
-				await (external ? external.track(lookup) : lookup),
+				tagProfile(profileRecordsOf(save.gameRecord), votes),
 				locale,
 			);
 		} catch (err) {
 			tagAnalysis = null;
 			tagLookupFailed = true;
 			logger.warn(
-				`tag lookup failed: ${err instanceof Error ? `${err.name} ${err.message}` : err}`,
+				`tag profile failed: ${err instanceof Error ? `${err.name} ${err.message}` : err}`,
 			);
 		}
 	}
@@ -250,10 +240,7 @@ export async function b19Card(
 			notes,
 			nnum,
 			locale,
-			db,
 			save,
-			lookupBudgetMs(notes, extra.peerDeadline, CHART_TAG_RENDER_BUDGET_MS),
-			external,
 		),
 		avgJob,
 	]);

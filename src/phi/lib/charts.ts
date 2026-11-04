@@ -86,7 +86,7 @@ function radarNameHtml(
 function radarLabels(radar: TagRadar) {
 	return radar.categories
 		.map((category) => {
-			const score = esc(category.displayRks);
+			const score = esc(category.shown);
 			return (
 				`<div class="tag-radar-html-label is-${category.anchor}" style="position:absolute;left:${category.labelX}px;top:${category.labelY}px;transform:${labelShift(category.anchor)};text-align:${radarNameAlign(category.anchor)};">` +
 				radarNameHtml(category.name, category.anchor) +

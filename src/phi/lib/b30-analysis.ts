@@ -146,17 +146,23 @@ export type ChartTagTreeNode = {
 
 export type TagScore = {
 	name: string;
-	rks: number;
+	diff: number;
+	shown: string;
 	votes: number;
 	charts: number;
+	best: number;
+	worst: number;
+	slight: boolean;
 };
+
+export type TagRow = TagScore & { side: "strong" | "weak" | "even" };
 
 export type RadarCategory = {
 	name: string;
-	rks: number;
+	diff: number;
 	votes: number;
 	hasVotes: boolean;
-	displayRks: string;
+	shown: string;
 	pointX: number;
 	pointY: number;
 	labelX: number;
@@ -172,19 +178,15 @@ export type TagRadar = {
 };
 
 export type TagAnalysis = {
-	threshold?: number;
+	range?: { min: number; max: number };
 	recordCount: number;
+	chartCount: number;
 	totalVotes: number;
-	minimumVotes: number;
 	averageRks: number;
-	categories: {
-		name: string;
-		rks: number;
-		votes: number;
-		hasVotes: boolean;
-	}[];
+	categories: (Omit<TagScore, "name"> & { name: string; hasVotes: boolean })[];
 	radar: TagRadar;
 	strong: TagScore[];
 	weak: TagScore[];
+	tags: TagRow[];
 	insufficient: boolean;
 };

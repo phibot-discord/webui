@@ -21,13 +21,9 @@ for (const k of [
 	delete process.env[k];
 }
 const { b19Card, isPartialResult, lookupBudgetMs } = await import("./cards");
-const {
-	chartTagAnalysisKvKey,
-	chartTagCacheId,
-	parseB30TagAnalysis,
-	resetChartTagVoteMemForTest,
-} = await import("./chart-tags-api");
-const { saveIdentity } = await import("./saves");
+const { loadTagVotes, resetTagVotesForTest } = await import(
+	"./chart-tag-votes"
+);
 const { cardCopy } = await import("./card-i18n");
 
 test.after(() => server.close());
@@ -53,6 +49,47 @@ const bestRows: Row[] = [
 	})),
 ];
 
+function scoredRecords() {
+	return Object.fromEntries(
+		Array.from({ length: 40 }, (_, i) => {
+			const difficulty = 15 + i * 0.05;
+			const lean = i % 3 === 0 ? 0.4 : i % 3 === 1 ? -0.4 : 0;
+			return [
+				`c${i}.0`,
+				[null, null, { rank: "IN", difficulty, rks: difficulty - 0.6 + lean }],
+			];
+		}),
+	);
+}
+
+const snapshot = {
+	sha: "votes-1",
+	tree: [
+		{ id: 10, name: "读谱", children: [{ id: 1, name: "差速" }] },
+		{ id: 11, name: "多指", children: [{ id: 2, name: "5k" }] },
+		{ id: 12, name: "硬抗", children: [{ id: 3, name: "快交互" }] },
+	],
+	charts: Object.fromEntries(
+		Array.from({ length: 40 }, (_, i) => [
+			`c${i}`,
+			{ votes: { IN: { [i % 3 === 0 ? 1 : i % 3 === 1 ? 2 : 3]: 5 } } },
+		]),
+	),
+};
+
+async function seedVotes() {
+	resetTagVotesForTest();
+	await loadTagVotes({
+		read: async () => Buffer.from(JSON.stringify(snapshot)),
+		now: Date.now,
+	});
+}
+
+async function dropVotes() {
+	resetTagVotesForTest();
+	await loadTagVotes({ read: async () => undefined, now: Date.now });
+}
+
 function fakeSave(rev: string) {
 	const copy = (rows: Row[]) => rows.map((row) => ({ ...row }));
 	return {
@@ -68,7 +105,7 @@ function fakeSave(rev: string) {
 		},
 		gameuser: { avatar: "Introduction", selfIntro: "", background: "" },
 		gameProgress: { money: [0, 0, 0, 0, 0] },
-		gameRecord: { b0: [null, null, { acc: 99, score: 990_000, fc: false }] },
+		gameRecord: scoredRecords(),
 		getB19() {
 			return { phi: copy(phiRows), b19_list: copy(bestRows), com_rks: 16 };
 		},
@@ -137,26 +174,10 @@ const notes = {
 	cardQuality: "fast" as const,
 };
 
-const pool = parseB30TagAnalysis({
-	data: {
-		threshold: 15.9,
-		recordCount: 20,
-		totalVotes: 499,
-		minimumVotes: 30,
-		averageRks: 16.19,
-		categories: [],
-		radar: { grids: [], axes: [], points: "", categories: [] },
-		strong: [{ name: "长纵连", rks: 16.21, votes: 46, sampleCount: 8 }],
-		weak: [{ name: "倒打", rks: 16.16, votes: 30, sampleCount: 5 }],
-		insufficient: false,
-	},
-});
-
 async function card(
 	rev: string,
 	mode: "b30" | "x30" | "fc30",
 	opts: {
-		cached?: boolean;
 		tags?: boolean;
 		locale?: "en" | "zh";
 		peerWait?: boolean;
@@ -164,13 +185,6 @@ async function card(
 ) {
 	const save = fakeSave(rev);
 	const { db } = memoryDb();
-	if (opts.cached) {
-		const id = chartTagCacheId(saveIdentity(save.saveInfo));
-		await db.set(
-			chartTagAnalysisKvKey(id),
-			JSON.stringify({ at: Date.now(), analysis: pool }),
-		);
-	}
 	return b19Card(rt as never, save as never, db, "u1", catalog as never, {
 		nnum: 33,
 		mode,
@@ -184,24 +198,37 @@ async function card(
 type Analysis = {
 	histogram: { stddev: number; count: number };
 	histogramPhiSlots: boolean;
-	tagAnalysis: { threshold?: number } | null;
+	tagAnalysis: {
+		range?: { min: number; max: number };
+		strong: { name: string }[];
+		weak: { name: string }[];
+		insufficient: boolean;
+	} | null;
 	tagMeta: string;
 	tagPoolNote: string;
 	tagMessage: string;
 	tagLookupFailed: boolean;
 };
 
-test("a cached pool analysis renders the upstream meta line and is cacheable", async () => {
-	resetChartTagVoteMemForTest();
+test("the tag profile is worked out locally from the vote snapshot, never phib19", async () => {
+	await seedVotes();
 	posts.length = 0;
-	const data = await card("rev-ok", "b30", { cached: true, locale: "zh" });
+	const data = await card("rev-ok", "b30", { locale: "zh" });
 	const analysis = data.b30Analysis as unknown as Analysis;
 	assert.equal(posts.length, 0);
 	assert.equal(data.renderPartial, false);
-	assert.equal(analysis.tagMeta, "RKS≥15.9 · 成绩 20 · 选票 499");
+	assert.equal(analysis.tagLookupFailed, false);
+	assert.equal(analysis.tagAnalysis?.insufficient, false);
+	assert.equal(analysis.tagAnalysis?.strong[0]?.name, "差速");
+	assert.equal(analysis.tagAnalysis?.weak[0]?.name, "5k");
+	const { min, max } = analysis.tagAnalysis?.range ?? { min: 0, max: 0 };
 	assert.equal(
+		analysis.tagMeta,
+		`定数 ${min.toFixed(1)}–${max.toFixed(1)} · 成绩 40 · 选票 200`,
+	);
+	assert.match(
 		analysis.tagPoolNote,
-		"统计全部单曲 RKS≥15.9 的成绩，而非 B30 槽位",
+		/^\+\/- 为单曲等效 RKS 与同定数谱面相比的差值/,
 	);
 	assert.equal(analysis.histogramPhiSlots, true);
 	assert.equal(analysis.histogram.count, 30);
@@ -250,12 +277,12 @@ test("leaving P3 out of the SD drops only the P slots, in the header and the his
 	assert.equal(analysis(without).histogram.count, 30);
 });
 
-test("a failed tag lookup renders 'No data' and marks the card partial", async () => {
-	resetChartTagVoteMemForTest();
+test("a missing vote snapshot renders 'No data' and marks the card partial", async () => {
+	await dropVotes();
 	posts.length = 0;
 	const data = await card("rev-down", "b30");
 	const analysis = data.b30Analysis as unknown as Analysis;
-	assert.deepEqual(posts, ["POST /chartsTag/get/b30Analysis"]);
+	assert.deepEqual(posts, []);
 	assert.equal(analysis.tagLookupFailed, true);
 	assert.equal(analysis.tagAnalysis, null);
 	assert.equal(analysis.tagMeta, "No data");
@@ -263,7 +290,7 @@ test("a failed tag lookup renders 'No data' and marks the card partial", async (
 	assert.equal(data.renderPartial, true);
 });
 
-test("Wait for every badge gives the tag lookup the time left until the peer deadline", () => {
+test("Wait for every badge gives slow phib19 lookups the time left until the peer deadline", () => {
 	const floor = 8_000;
 	const deadline = Date.now() + 50_000;
 	const waiting = { ...notes, peerWait: true };
@@ -274,29 +301,10 @@ test("Wait for every badge gives the tag lookup the time left until the peer dea
 	assert.equal(lookupBudgetMs(waiting, Date.now() - 1, floor), floor);
 });
 
-test("after phib19 fails, only 'Wait for every badge' cards ask again", async () => {
-	resetChartTagVoteMemForTest();
-	posts.length = 0;
-	await card("rev-trip", "b30");
-	assert.equal(posts.length, 1);
-	const skipped = await card("rev-skip", "b30");
-	const analysis = skipped.b30Analysis as unknown as Analysis;
-	assert.equal(posts.length, 1);
-	assert.equal(analysis.tagLookupFailed, true);
-	assert.equal(analysis.tagMeta, "No data");
-	assert.equal(skipped.renderPartial, true);
-	const cached = await card("rev-cached", "b30", { cached: true });
-	assert.equal(posts.length, 1);
-	assert.equal(cached.renderPartial, false);
-	const waited = await card("rev-wait", "b30", { peerWait: true });
-	assert.equal(posts.length, 2);
-	assert.equal(waited.renderPartial, true);
-});
-
 test("x30/fc30 keep the histogram without P slots", async () => {
-	resetChartTagVoteMemForTest();
+	await seedVotes();
 	for (const mode of ["x30", "fc30"] as const) {
-		const data = await card(`rev-${mode}`, mode, { cached: true });
+		const data = await card(`rev-${mode}`, mode);
 		const analysis = data.b30Analysis as unknown as Analysis;
 		assert.equal(analysis.histogramPhiSlots, false);
 		assert.equal(analysis.histogram.count, 27);
@@ -306,7 +314,7 @@ test("x30/fc30 keep the histogram without P slots", async () => {
 });
 
 test("tags off: no lookup, insufficient copy, not partial", async () => {
-	resetChartTagVoteMemForTest();
+	await dropVotes();
 	posts.length = 0;
 	const data = await card("rev-off", "b30", { tags: false });
 	const analysis = data.b30Analysis as unknown as Analysis;

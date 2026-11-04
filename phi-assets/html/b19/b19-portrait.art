@@ -229,7 +229,7 @@
 					<div class="b19p-tag-row is-strong">
 						<p class="b19p-tag-rank">{{pair.strong.rank}}</p>
 						<div class="b19p-tag-name" style="font-size:{{pv.analysis.tagPx}}px;">{{each pair.strong.lines line}}<p>{{line}}</p>{{/each}}</div>
-						<p class="b19p-tag-rks">{{pair.strong.rks}}</p>
+						<p class="b19p-tag-rks{{if pair.strong.slight}} is-slight{{/if}}">{{pair.strong.value}}</p>
 					</div>
 					{{else}}
 					<div class="b19p-tag-row"></div>
@@ -238,7 +238,7 @@
 					<div class="b19p-tag-row is-weak">
 						<p class="b19p-tag-rank">{{pair.weak.rank}}</p>
 						<div class="b19p-tag-name" style="font-size:{{pv.analysis.tagPx}}px;">{{each pair.weak.lines line}}<p>{{line}}</p>{{/each}}</div>
-						<p class="b19p-tag-rks">{{pair.weak.rks}}</p>
+						<p class="b19p-tag-rks{{if pair.weak.slight}} is-slight{{/if}}">{{pair.weak.value}}</p>
 					</div>
 					{{else}}
 					<div class="b19p-tag-row"></div>

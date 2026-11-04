@@ -37,6 +37,7 @@ export type ClientMessages = ToolsMessages & {
 			| "tags"
 			| "simulate"
 			| "targets"
+			| "profile"
 			| "progress"
 			| "trend",
 			{ name: string; blurb: string }
@@ -165,6 +166,7 @@ export type ClientMessages = ToolsMessages & {
 		score: string;
 		simulate: string;
 		targets: string;
+		profile: string;
 		progress: string;
 		trend: string;
 		account: string;
@@ -362,6 +364,13 @@ export type ClientMessages = ToolsMessages & {
 		empty: string;
 		index: string;
 		count: string;
+		howTitle: string;
+		how: { term: string; formula?: string; text: string }[];
+		readTitle: string;
+		read: string[];
+		profileLink: string;
+		guide: string;
+		loading: string;
 	};
 	songs: {
 		title: string;
@@ -840,6 +849,11 @@ export const en: ClientMessages = {
 				name: "Next targets",
 				blurb: "The accuracy each chart needs to push your RKS up a step.",
 			},
+			profile: {
+				name: "Player profile",
+				blurb:
+					"Your B30 card as text, with every chart tag and the charts behind it.",
+			},
 			progress: {
 				name: "Progress",
 				blurb: "Clears, full combos and APs by difficulty and constant.",
@@ -1053,6 +1067,7 @@ export const en: ClientMessages = {
 		score: "Score control",
 		simulate: "Simulation",
 		targets: "Targets",
+		profile: "Profile",
 		progress: "Progress",
 		trend: "Trend",
 		account: "Account",
@@ -1266,10 +1281,68 @@ export const en: ClientMessages = {
 	},
 	tags: {
 		title: "Chart tags",
-		lede: "Labels on the B30 tag profile. Descriptions come from phib19.",
+		lede: "Labels on the B30 tag profile. The labels, their descriptions and the votes come from kyou.net.cn.",
 		empty: "The tag list is not available right now.",
 		index: "Categories",
 		count: "{n} tags",
+		howTitle: "How the profile is worked out",
+		how: [
+			{
+				term: "Votes",
+				text: "Players vote on what makes each chart hard at kyou.net.cn/phigros. PhiBot copies the votes once a day.",
+			},
+			{
+				term: "Pool",
+				formula: "F − 1.0 ≤ C ≤ F + 2.0",
+				text: "Every chart you have played whose constant C is in this range, where F is your 27th-best chart RKS.",
+			},
+			{
+				term: "Eq. RKS",
+				formula: "r = C × ((acc − 55) / 45)²",
+				text: "Your single-chart RKS: 0 below 70% acc, the constant itself at 100%.",
+			},
+			{
+				term: "Expected",
+				formula: "r̂ = local straight-line fit of r against C",
+				text: "Fitted through your other pooled charts, each weighted by how close its constant is (Gaussian, width 0.4). The chart itself is left out.",
+			},
+			{
+				term: "Difference",
+				formula: "d = clip(r − r̂, ±1.5) − mean(d)",
+				text: "Centred on your own average, so 0 is your baseline.",
+			},
+			{
+				term: "Share",
+				formula: "w = tag votes ÷ chart votes",
+				text: "A chart needs at least 3 votes, and a tag at least 10% of them.",
+			},
+			{
+				term: "Tag score",
+				formula: "S = Σ(w × d) ÷ (Σw + 2)",
+				text: "The + 2 pulls a tag with few charts toward 0. Categories work the same way, with each category's share of the votes.",
+			},
+			{
+				term: "Thirds",
+				text: "Your voted charts sorted by d: the top third is your best third, the bottom third your worst third.",
+			},
+			{
+				term: "Strength",
+				formula: "S ≥ +0.03",
+				text: "It also needs at least 3 of its charts, and more than a third of its weight, in your best third. A weakness is the same with S ≤ −0.03 and your worst third. Tags on fewer than 4 of your charts are never listed, and gaps under ±0.10 are marked slight.",
+			},
+		],
+		readTitle: "How to read the numbers",
+		read: [
+			"+0.11 next to a tag: on charts with that tag, your eq. RKS is 0.11 higher on average than on your other charts of the same constant.",
+			"−0.23: 0.23 lower. 0.00: those charts play like the rest of your charts.",
+			"Gaps under ±0.10 are marked slight: dimmer on the card, labelled Slight strength or Slight weakness on the player profile page. Ordinary score swings alone can reach that size, so read them as hints. Bigger gaps are worth acting on.",
+			"The baseline is you, never other players. A chart that is hard for everyone does not count against you, because it is compared with charts of the same constant.",
+			"Tags that sit on the same charts share their gaps. If your cross-hand charts are usually also voted 4K, a real cross-hand weakness makes 4K look weak too. Before practising a tag, open it on the player profile and check which charts it comes from.",
+		],
+		profileLink:
+			"See every tag and the charts behind it on your player profile",
+		guide: "Guide",
+		loading: "Loading chart tags…",
 	},
 	songs: {
 		title: "Songs",
@@ -1593,7 +1666,7 @@ export const en: ClientMessages = {
 		rendering: "Rendering card…",
 		waitingPhib19: "Waiting for phib19.top…",
 		missingData:
-			"phib19.top didn't answer in time, so this card is missing {list}. Try again in a minute to fill them in.",
+			"Some lookups didn't finish in time, so this card is missing {list}. Try again in a minute to fill them in.",
 		missingParts: {
 			peers: "some comparison badges",
 			tags: "the chart tag analysis",
@@ -1668,7 +1741,7 @@ export const en: ClientMessages = {
 		statsHintPaint: "Measure, raster, and encode together.",
 		statsHintServer: "Server time for this request.",
 		statsHintExternal:
-			"Time the card waited for phib19.top: comparison badges, ranks and chart tags.",
+			"Time the card waited for phib19.top: comparison badges and ranks.",
 		statsHintWait: "Your wait, including download.",
 		statsHintStoreR2: "Served from R2 object storage.",
 		statsHintStoreKv: "Served from KV.",
@@ -1818,6 +1891,10 @@ export const zh: ClientMessages = {
 			targets: {
 				name: "推分目标",
 				blurb: "每张谱面把 RKS 推高一档所需的准确率",
+			},
+			profile: {
+				name: "玩家画像",
+				blurb: "文字版 B30 成绩图，列出全部谱面标签和计入它们的谱面",
 			},
 			progress: {
 				name: "完成度",
@@ -2018,6 +2095,7 @@ export const zh: ClientMessages = {
 		score: "控分",
 		simulate: "模拟",
 		targets: "推分目标",
+		profile: "画像",
 		progress: "完成度",
 		trend: "走势",
 		account: "账号",
@@ -2222,10 +2300,67 @@ export const zh: ClientMessages = {
 	},
 	tags: {
 		title: "谱面标签",
-		lede: "B30 标签画像用的分类。说明来自 phib19。",
+		lede: "B30 标签画像用的分类。标签、说明和投票来自 kyou.net.cn。",
 		empty: "暂时无法加载标签列表。",
 		index: "分类",
 		count: "{n} 个标签",
+		howTitle: "标签画像的计算方式",
+		how: [
+			{
+				term: "投票",
+				text: "玩家在 kyou.net.cn/phigros 为每张谱面的难点投票，PhiBot 每天同步一次。",
+			},
+			{
+				term: "统计范围",
+				formula: "F − 1.0 ≤ C ≤ F + 2.0",
+				text: "你玩过的、定数 C 在此范围内的全部谱面，F 为你第 27 好的单曲 RKS。",
+			},
+			{
+				term: "单曲等效 RKS",
+				formula: "r = C × ((acc − 55) / 45)²",
+				text: "准确率低于 70% 时为 0，100% 时等于定数。",
+			},
+			{
+				term: "预期值",
+				formula: "r̂ = r 对 C 的局部直线拟合",
+				text: "用统计范围内你的其他谱面拟合，定数越接近权重越大（高斯核，宽度 0.4），不含该谱面本身。",
+			},
+			{
+				term: "差值",
+				formula: "d = clip(r − r̂, ±1.5) − mean(d)",
+				text: "减去你自己的平均值，因此 0 即你的基准。",
+			},
+			{
+				term: "权重",
+				formula: "w = 该标签票数 ÷ 谱面总票数",
+				text: "谱面至少要有 3 票，标签至少占其中 10%。",
+			},
+			{
+				term: "标签得分",
+				formula: "S = Σ(w × d) ÷ (Σw + 2)",
+				text: "+ 2 让谱面较少的标签向 0 收拢。分类用同样的方法，按各分类所占票数计算。",
+			},
+			{
+				term: "三等分",
+				text: "按 d 排序你的已投票谱面：最高的三分之一为最佳三分之一，最低的三分之一为最差三分之一。",
+			},
+			{
+				term: "擅长",
+				formula: "S ≥ +0.03",
+				text: "且该标签至少 3 张谱面、超过三分之一的权重落在最佳三分之一。薄弱同理：S ≤ −0.03 且落在最差三分之一。出现在你少于 4 张谱面上的标签不会列出，差值小于 ±0.10 的标记为「略」。",
+			},
+		],
+		readTitle: "如何理解这些数值",
+		read: [
+			"标签旁的 +0.11：在带有该标签的谱面上，你的单曲等效 RKS 平均比同定数的其他谱面高 0.11。",
+			"−0.23：低 0.23。0.00：这些谱面和你的其他谱面表现一样。",
+			"差值小于 ±0.10 的标签标记为「略」：成绩图上颜色较暗，玩家画像页面标为略擅长或略薄弱。正常的成绩波动也可能达到这个幅度，只作参考；差值更大的标签更值得关注。",
+			"基准是你自己，而不是其他玩家。对所有人都难的谱面不会算作你的弱项，因为它只和同定数的谱面比较。",
+			"经常出现在同一批谱面上的标签会共享差值。如果你的反手谱面大多也被投了 4k，真正的反手弱项也会让 4k 看起来偏弱。练习某个标签前，先在玩家画像里展开它，看看它来自哪些谱面。",
+		],
+		profileLink: "在玩家画像中查看每个标签以及计入它的谱面",
+		guide: "说明",
+		loading: "正在加载谱面标签…",
 	},
 	songs: {
 		title: "曲目别名",
@@ -2539,7 +2674,7 @@ export const zh: ClientMessages = {
 			"B30 分析里的 ± 数值只统计 B1–B27，并以它们自己的平均值计算。柱状图和平均值仍包含 P1–P3。",
 		rendering: "正在出图…",
 		waitingPhib19: "正在等待 phib19.top…",
-		missingData: "phib19.top 未及时响应，这张图缺少{list}。请稍后重试以补全。",
+		missingData: "部分数据未及时取得，这张图缺少{list}。请稍后重试以补全。",
 		missingParts: {
 			peers: "部分对比标记",
 			tags: "谱面标签分析",
@@ -2610,8 +2745,7 @@ export const zh: ClientMessages = {
 		statsHintEncode: "编码 JPEG。",
 		statsHintPaint: "测量、栅格和编码合计。",
 		statsHintServer: "本次请求的服务端耗时。",
-		statsHintExternal:
-			"出图时等待 phib19.top 的时间：对比标记、排名与谱面标签。",
+		statsHintExternal: "出图时等待 phib19.top 的时间：对比标记与排名。",
 		statsHintWait: "等到图片的总时间，含下载。",
 		statsHintStoreR2: "从 R2 对象存储读取。",
 		statsHintStoreKv: "从 KV 读取。",

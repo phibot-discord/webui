@@ -11,6 +11,7 @@ export type CardKind = (typeof CARD_KINDS)[number];
 
 /** The Cards page's other tabs, after the card kinds: pages of their own that work from the same bound save */
 export const CARD_PAGES = [
+	{ id: "profile", href: "/profile" },
 	{ id: "progress", href: "/progress" },
 	{ id: "trend", href: "/trend" },
 ] as const;

@@ -1298,6 +1298,10 @@ body {
 	color: var(--tbl-text-2);
 }
 
+.tbl-tag-v.is-slight {
+	color: var(--tbl-muted);
+}
+
 .tbl-tags-empty {
 	flex: 1;
 	display: flex;

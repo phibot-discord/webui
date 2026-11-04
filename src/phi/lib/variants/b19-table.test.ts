@@ -523,7 +523,7 @@ test("analysisView sizes bars in px and pads sparse histograms", () => {
 			tagAnalysis: {
 				totalVotes: 12.4,
 				insufficient: false,
-				strong: [{ name: "Stairs", rks: 15.554 }, { name: "" }],
+				strong: [{ name: "Stairs", shown: "+0.06", slight: true }, { name: "" }],
 				weak: [{ name: "One hand locked", rks: 15.17 }],
 			},
 			tagPoolNote: "Pools every score with chart RKS ≥ 16.3",
@@ -542,7 +542,7 @@ test("analysisView sizes bars in px and pads sparse histograms", () => {
 	);
 	assert.equal(full.title, en.analysis);
 	assert.deepEqual(full.tags?.strong, [
-		{ rank: "1", name: "Stairs", rks: "15.55" },
+		{ rank: "1", name: "Stairs", value: "+0.06", slight: true },
 	]);
 	assert.equal(full.tags?.meta, "Valid votes 12");
 	assert.equal(full.tags?.px, tagFontPx(["Stairs", "One hand locked"]));

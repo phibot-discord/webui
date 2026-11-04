@@ -20,6 +20,7 @@ import {
 	Tag,
 	Target,
 	TrendUp,
+	UserList,
 } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { useFormStatus } from "react-dom";
@@ -41,6 +42,7 @@ const LOOKUPS: { kind: LookupKind; href: string }[] = [
 	...TOOL_PAGES.map((page) => ({ kind: page.id, href: page.href })),
 ];
 const NEW_KINDS: ReadonlySet<LookupKind | ExploreKind> = new Set([
+	"profile",
 	"targets",
 	"progress",
 	"trend",
@@ -56,6 +58,7 @@ const ICONS: Record<LookupKind | ExploreKind, typeof ArrowRight> = {
 	tags: Tag,
 	simulate: Flask,
 	targets: Target,
+	profile: UserList,
 	progress: GridFour,
 	trend: TrendUp,
 	songs: MagnifyingGlass,

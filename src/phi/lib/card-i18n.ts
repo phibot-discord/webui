@@ -41,16 +41,17 @@ const en = {
 	validVotes: "Valid votes",
 	tagRecords: "Scores",
 	tagBallots: "Votes",
+	tagConstants: "Constants",
 	noData: "No data",
-	tagPool: "Pools every score with chart RKS ≥ {threshold}, not the B30 slots.",
+	tagPool: "+/- is eq. RKS vs your same-constant charts, {min}–{max}.",
 	categorySummary: "Categories",
 	strongTags: "Strengths",
 	weakTags: "Weaknesses",
 	tagInsufficient:
-		"Not enough valid votes or per-tag score samples. Vote on chart tags at https://www.phib19.top.",
+		"Not enough voted charts near your level yet. Vote on chart tags at https://kyou.net.cn/phigros.",
 	tagUnavailable:
-		"The chart-tag service did not answer in time. Reload the card to try again.",
-	tagTip: "Vote on chart tags at https://www.phib19.top.",
+		"Chart tag votes could not be loaded. Reload the card to try again.",
+	tagTip: "Vote on chart tags at https://kyou.net.cn/phigros.",
 	histTitle: "Equivalent RKS histogram",
 	avgRks: "Average RKS",
 	histY: "Per-chart RKS",
@@ -160,15 +161,16 @@ const zh: typeof en = {
 	validVotes: "有效票",
 	tagRecords: "成绩",
 	tagBallots: "选票",
+	tagConstants: "定数",
 	noData: "暂无数据",
-	tagPool: "统计全部单曲 RKS≥{threshold} 的成绩，而非 B30 槽位",
+	tagPool: "+/- 为单曲等效 RKS 与同定数谱面相比的差值，定数 {min}–{max}",
 	categorySummary: "分类汇总",
 	strongTags: "擅长词条",
 	weakTags: "薄弱词条",
 	tagInsufficient:
-		"有效选票或逐标签成绩样本不足，请前往 https://www.phib19.top 进行谱面标签投票",
-	tagUnavailable: "谱面标签服务暂未响应，请稍后重新生成",
-	tagTip: "谱面投票可前往 https://www.phib19.top 提交",
+		"你所在难度附近的谱面标签票数不足，请前往 https://kyou.net.cn/phigros 进行谱面标签投票",
+	tagUnavailable: "谱面标签数据暂时无法读取，请稍后重新生成",
+	tagTip: "谱面投票可前往 https://kyou.net.cn/phigros 提交",
 	histTitle: "等效 RKS 直方图",
 	avgRks: "平均 RKS",
 	histY: "等效单曲 RKS",
@@ -311,6 +313,7 @@ const CHART_TAG_EN: Record<string, string> = {
 	拍砖: "Bricks",
 	对拍: "Alternating",
 	对切: "Split cut",
+	"噪域/红区": "Noise zone",
 	"3k": "3K",
 	"4k": "4K",
 	"5k": "5K",
@@ -355,6 +358,7 @@ const CHART_TAG_DESC_EN: Record<string, string> = {
 	"3k": "Three-lane patterns",
 	"4k": "Four-lane patterns",
 	"5k": "Five-lane patterns",
+	"噪域/红区": "A Chapter 9 mechanic: touching the zone cuts your input",
 };
 
 export function localizeChartTagName(name: string, locale: PhiLocale): string {
@@ -386,11 +390,15 @@ export function localizeChartTagLabels<
 		radar: { categories: { name: string }[] };
 		strong: { name: string }[];
 		weak: { name: string }[];
+		tags?: { name: string }[];
 	},
 >(analysis: T, locale: PhiLocale): T {
 	if (locale !== "en") return analysis;
 	return {
 		...analysis,
+		...(analysis.tags
+			? { tags: analysis.tags.map((row) => withLocalizedName(row, locale)) }
+			: {}),
 		categories: analysis.categories.map((row) =>
 			withLocalizedName(row, locale),
 		),
@@ -405,6 +413,11 @@ export function localizeChartTagLabels<
 	};
 }
 
+export function signed(n: number): string {
+	const v = Math.abs(n) < 0.005 ? 0 : n;
+	return `${v > 0 ? "+" : ""}${v.toFixed(2)}`;
+}
+
 export function fill(
 	template: string,
 	vars: Record<string, string | number>,
@@ -416,14 +429,16 @@ export function fill(
 }
 
 type TagPoolInfo = {
-	threshold?: number;
+	range?: { min: number; max: number };
 	recordCount?: number;
 	totalVotes: number;
 };
 
-function poolThreshold(analysis: TagPoolInfo | null | undefined) {
-	const n = analysis?.threshold;
-	return typeof n === "number" && Number.isFinite(n) ? n : undefined;
+function poolRange(analysis: TagPoolInfo | null | undefined) {
+	const r = analysis?.range;
+	return r && Number.isFinite(r.min) && Number.isFinite(r.max)
+		? { min: r.min.toFixed(1), max: r.max.toFixed(1) }
+		: undefined;
 }
 
 /** Tag panel meta line, as upstream b19.art (f908bb31) */
@@ -432,19 +447,17 @@ export function tagAnalysisMeta(
 	t: CardCopy,
 ): string {
 	if (!analysis) return t.noData;
-	const threshold = poolThreshold(analysis);
-	if (threshold == null) return `${t.validVotes} ${analysis.totalVotes}`;
-	return `RKS≥${threshold.toFixed(1)} · ${t.tagRecords} ${analysis.recordCount ?? 0} · ${t.tagBallots} ${analysis.totalVotes}`;
+	const range = poolRange(analysis);
+	if (!range) return `${t.validVotes} ${analysis.totalVotes}`;
+	return `${t.tagConstants} ${range.min}–${range.max} · ${t.tagRecords} ${analysis.recordCount ?? 0} · ${t.tagBallots} ${analysis.totalVotes}`;
 }
 
 export function tagPoolNote(
 	analysis: TagPoolInfo | null | undefined,
 	t: CardCopy,
 ): string {
-	const threshold = poolThreshold(analysis);
-	return threshold == null
-		? ""
-		: fill(t.tagPool, { threshold: threshold.toFixed(1) });
+	const range = poolRange(analysis);
+	return range ? fill(t.tagPool, range) : "";
 }
 
 function isNoPushSuggest(s: string | undefined): boolean {

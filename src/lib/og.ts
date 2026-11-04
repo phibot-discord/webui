@@ -20,6 +20,7 @@ export const OG_PAGES = [
 	"tags",
 	"simulate",
 	"targets",
+	"profile",
 	"progress",
 	"trend",
 	"compare",

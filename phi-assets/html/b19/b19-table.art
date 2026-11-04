@@ -247,13 +247,13 @@
 						<div class="tbl-tags-col is-strong">
 							<p class="tbl-tags-k">{{bt.tagCopy.strong}}</p>
 							{{each bt.analysis.tags.strong tag}}
-							<div class="tbl-tag"><p class="tbl-tag-i">{{tag.rank}}</p><p class="tbl-tag-n" style="font-size:{{bt.analysis.tags.px}}px;">{{tag.name}}</p><p class="tbl-tag-v">{{tag.rks}}</p></div>
+							<div class="tbl-tag"><p class="tbl-tag-i">{{tag.rank}}</p><p class="tbl-tag-n" style="font-size:{{bt.analysis.tags.px}}px;">{{tag.name}}</p><p class="tbl-tag-v{{if tag.slight}} is-slight{{/if}}">{{tag.value}}</p></div>
 							{{/each}}
 						</div>
 						<div class="tbl-tags-col is-weak">
 							<p class="tbl-tags-k">{{bt.tagCopy.weak}}</p>
 							{{each bt.analysis.tags.weak tag}}
-							<div class="tbl-tag"><p class="tbl-tag-i">{{tag.rank}}</p><p class="tbl-tag-n" style="font-size:{{bt.analysis.tags.px}}px;">{{tag.name}}</p><p class="tbl-tag-v">{{tag.rks}}</p></div>
+							<div class="tbl-tag"><p class="tbl-tag-i">{{tag.rank}}</p><p class="tbl-tag-n" style="font-size:{{bt.analysis.tags.px}}px;">{{tag.name}}</p><p class="tbl-tag-v{{if tag.slight}} is-slight{{/if}}">{{tag.value}}</p></div>
 							{{/each}}
 						</div>
 					</div>
