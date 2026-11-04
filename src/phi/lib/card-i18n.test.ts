@@ -64,11 +64,11 @@ test("tag pool note names the baseline the +/- compares with", () => {
 	};
 	assert.equal(
 		tagPoolNote(pool, cardCopy("zh")),
-		"+/- 为准确率（9 的个数）与同定数谱面相比的差值，定数 15.2–18.2",
+		"+/- 为准确率损失与同定数谱面相比（+0.30 = 少一半），定数 15.2–18.2",
 	);
 	assert.match(
 		tagPoolNote(pool, cardCopy("en")),
-		/^\+\/- is acc in nines vs your same-constant charts, 15\.2–18\.2\.$/,
+		/^\+\/- is lost acc vs your same-constant charts \(\+0\.30 = half as much\), 15\.2–18\.2\.$/,
 	);
 	assert.equal(tagPoolNote({ totalVotes: 3 }, cardCopy("en")), "");
 	assert.equal(tagPoolNote(null, cardCopy("zh")), "");

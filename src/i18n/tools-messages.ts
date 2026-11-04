@@ -568,7 +568,7 @@ export const toolsEn: ToolsMessages = {
 		tagsTitle: "Chart profile",
 		meta: "Constants {min}–{max} · {scores} scores · {charts} voted charts · {votes} votes",
 		baseline:
-			"Numbers are nines of accuracy against your own charts of the same constant: +0.30 is roughly half the lost accuracy, +1.00 one more nine (99.9% where you usually get 99%), 0.00 the same as the rest.",
+			"Each number compares the accuracy you lose on charts with that tag, to goods and bads alike, with what you lose on your other charts of the same constant: +0.30 is about half as much lost, −0.30 about twice as much, +1.00 a tenth (99.9% where you usually get 99%), 0.00 the same as the rest.",
 		howLink: "How the numbers are worked out",
 		source: "Votes from kyou.net.cn, copied {date}.",
 		categoriesTitle: "Categories",
@@ -1092,7 +1092,7 @@ export const toolsZh: ToolsMessages = {
 		tagsTitle: "谱面标签画像",
 		meta: "定数 {min}–{max} · 成绩 {scores} · 已投票谱面 {charts} · 选票 {votes}",
 		baseline:
-			"数值以准确率的「9 的个数」计，与你自己同定数的谱面相比：+0.30 约等于失误减半，+1.00 多一个 9（你平时 99% 的地方打到 99.9%），0.00 与其余谱面持平。",
+			"每个数值把带该标签的谱面上你损失的准确率（Good 与 Bad 都算）与自己同定数的其他谱面相比：+0.30 约为损失减半，−0.30 约为两倍，+1.00 只剩十分之一（你平时 99% 的地方打到 99.9%），0.00 与其余谱面持平。",
 		howLink: "数值的计算方式",
 		source: "投票来自 kyou.net.cn，同步于 {date}。",
 		categoriesTitle: "分类",

@@ -1297,9 +1297,9 @@ export const en: ClientMessages = {
 				text: "Every chart you have played whose constant C is at most 0.25 under F, your 27th-best chart RKS, with no upper limit. Accuracy over 90% counts fully, 85% half, 80% or less not at all.",
 			},
 			{
-				term: "Nines",
+				term: "Lost accuracy",
 				formula: "y = −log10(1 − acc)",
-				text: "Accuracy as a count of nines: 99% is 2.0, 99.9% is 3.0, and 100% is read as 99.9%. Each extra nine counts the same, so a 100% on a hard chart is evidence rather than a wall.",
+				text: "Accuracy becomes how much of it you lost, to goods and bads alike, on a log scale: 90% is 1.0, 99% is 2.0, 99.9% is 3.0, and 100% is read as 99.9%. Each step of 1 is ten times less lost accuracy, so 99% to 99.9% counts as much as 90% to 99%, and a 100% on a hard chart shows how far above your norm you played instead of hitting a ceiling.",
 			},
 			{
 				term: "Expected",
@@ -1338,8 +1338,8 @@ export const en: ClientMessages = {
 		],
 		readTitle: "How to read the numbers",
 		read: [
-			"+0.11 next to a tag: on charts with that tag, your accuracy sits 0.11 nines above your other charts of the same constant, roughly a quarter less lost accuracy. +0.30 is about half the lost accuracy; +1.00 is a whole nine, 99.9% where you usually get 99%.",
-			"−0.23: 0.23 nines below. 0.00: those charts play like the rest of your charts.",
+			"+0.11 next to a tag: on charts with that tag you lose about a fifth less accuracy than on your other charts of the same constant, whether to goods or bads. +0.30 is about half the loss; +1.00 is a tenth of it, 99.9% where you usually get 99%.",
+			"−0.23: about 1.7 times the loss. 0.00: those charts play like the rest of your charts.",
 			"Dimmed entries on the card are slight: the net is under ±0.05. The player profile page also labels an entry leaning when its net holds in under 98% of resamples. Ordinary score swings alone can produce either, so read them as hints.",
 			"The baseline is you, never other players, and only charts at or above your level count. A chart that is hard for everyone does not count against you, because it is compared with your charts of the same constant.",
 			"Tags that always sit on the same charts cannot be told apart, so the net splits the credit between them. Where a tag also appears without its usual companions, those charts decide. Open a tag on the player profile to see which charts it comes from.",
@@ -2322,9 +2322,9 @@ export const zh: ClientMessages = {
 				text: "你玩过的、定数 C 不低于 F 减 0.25 的全部谱面，F 为你第 27 好的单曲 RKS，没有上限。准确率高于 90% 全额计入，85% 计一半，80% 及以下不计。",
 			},
 			{
-				term: "9 的个数",
+				term: "准确率损失",
 				formula: "y = −log10(1 − acc)",
-				text: "把准确率换算成 9 的个数：99% 为 2.0，99.9% 为 3.0，100% 按 99.9% 计。每多一个 9 的分量相同，所以难谱上的 100% 是实打实的证据，而不是上限。",
+				text: "把准确率换算成损失了多少（Good 与 Bad 都算）并取对数：90% 为 1.0，99% 为 2.0，99.9% 为 3.0，100% 按 99.9% 计。每差 1 代表损失少十倍，所以 99% 到 99.9% 与 90% 到 99% 分量相同，难谱上的 100% 能显示你高出平常多少，而不是碰到上限。",
 			},
 			{
 				term: "预期值",
@@ -2363,8 +2363,8 @@ export const zh: ClientMessages = {
 		],
 		readTitle: "如何理解这些数值",
 		read: [
-			"标签旁的 +0.11：在带有该标签的谱面上，你的准确率比同定数的其他谱面高 0.11 个 9，大约少失误四分之一。+0.30 约为失误减半；+1.00 是整整一个 9，你平时 99% 的地方打到 99.9%。",
-			"−0.23：低 0.23 个 9。0.00：这些谱面和你的其他谱面表现一样。",
+			"标签旁的 +0.11：在带有该标签的谱面上，你的准确率损失（Good 与 Bad 都算）比同定数的其他谱面少约五分之一。+0.30 约为损失减半；+1.00 是只剩十分之一，你平时 99% 的地方打到 99.9%。",
+			"−0.23：损失约为 1.7 倍。0.00：这些谱面和你的其他谱面表现一样。",
 			"成绩图上变暗的条目是「略」：净值小于 ±0.05。玩家画像页面还会把稳定不足 98% 的条目标为「倾向」。正常的成绩波动也可能造成，只作参考。",
 			"基准是你自己，而不是其他玩家，并且只计入你所在难度及以上的谱面。对所有人都难的谱面不会算作你的弱项，因为它只和你同定数的谱面比较。",
 			"总是出现在同一批谱面上的标签无法区分，净值会把功劳平分。当某个标签也单独出现在别的谱面上时，就由那些谱面来判断。在玩家画像里展开标签可查看它来自哪些谱面。",

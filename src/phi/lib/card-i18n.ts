@@ -43,7 +43,8 @@ const en = {
 	tagBallots: "Votes",
 	tagConstants: "Constants",
 	noData: "No data",
-	tagPool: "+/- is acc in nines vs your same-constant charts, {min}–{max}.",
+	tagPool:
+		"+/- is lost acc vs your same-constant charts (+0.30 = half as much), {min}–{max}.",
 	categorySummary: "Categories",
 	strongTags: "Strengths",
 	weakTags: "Weaknesses",
@@ -163,7 +164,8 @@ const zh: typeof en = {
 	tagBallots: "选票",
 	tagConstants: "定数",
 	noData: "暂无数据",
-	tagPool: "+/- 为准确率（9 的个数）与同定数谱面相比的差值，定数 {min}–{max}",
+	tagPool:
+		"+/- 为准确率损失与同定数谱面相比（+0.30 = 少一半），定数 {min}–{max}",
 	categorySummary: "分类汇总",
 	strongTags: "擅长词条",
 	weakTags: "薄弱词条",
