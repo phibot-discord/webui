@@ -21,9 +21,10 @@ export const PROFILE = {
 	prior: 2,
 	ridge: 0.5,
 	resamples: 400,
-	minHold: 0.98,
+	minHold: 0.9,
+	firmHold: 0.98,
 	minChartVotes: 3,
-	minShare: 0.1,
+	minShare: 0.05,
 	minTagCharts: 4,
 	minDiff: 0.03,
 	slight: 0.05,
@@ -56,7 +57,11 @@ export type PooledChart = ProfileRecord & {
 
 export type TagChart = { chart: number; share: number; votes: number };
 
-export type ProfileTagScore = TagScore & { mean: number; hold: number };
+export type ProfileTagScore = TagScore & {
+	mean: number;
+	hold: number;
+	firm: boolean;
+};
 
 export type ProfileTagRow = ProfileTagScore & { side: TagRow["side"] };
 
@@ -287,11 +292,13 @@ function scoreOf(
 ): ProfileTagScore {
 	const mean = a.s / (a.w + PROFILE.prior);
 	const diff = beta == null ? mean : a.w > 0 ? beta * (a.w2 / a.w) : 0;
+	const firm = hold >= PROFILE.firmHold;
 	return {
 		name,
 		diff,
 		mean,
 		hold,
+		firm,
 		shown: signed(diff),
 		votes: a.votes,
 		charts: a.charts,
@@ -516,15 +523,18 @@ export function tagProfileDetail(
 		})
 		.sort((a, b) => b.diff - a.diff || a.name.localeCompare(b.name));
 	const strip = ({ side: _s, ...tag }: ProfileTagRow): ProfileTagScore => tag;
-	const strong = rows
-		.filter((t) => t.side === "strong")
-		.slice(0, PROFILE.listMax)
-		.map(strip);
-	const weak = rows
-		.filter((t) => t.side === "weak")
-		.reverse()
-		.slice(0, PROFILE.listMax)
-		.map(strip);
+	const listed = (side: TagRow["side"]) =>
+		rows
+			.filter((t) => t.side === side)
+			.sort(
+				(a, b) =>
+					Number(b.firm) - Number(a.firm) ||
+					Math.abs(b.diff) - Math.abs(a.diff),
+			)
+			.slice(0, PROFILE.listMax)
+			.map(strip);
+	const strong = listed("strong");
+	const weak = listed("weak");
 	const categories: ProfileCategory[] = votes.categories.map((cat) => {
 		const a = byCat.get(cat.id);
 		const score: ProfileTagScore = a
@@ -534,6 +544,7 @@ export function tagProfileDetail(
 					diff: 0,
 					mean: 0,
 					hold: 0,
+					firm: false,
 					shown: "–",
 					votes: 0,
 					charts: 0,

@@ -102,8 +102,10 @@ test("planted strengths and weaknesses come back on the right side", () => {
 	assert.equal(out.weak[0]?.name, "倒打");
 	assert.ok(out.strong[0]!.diff > 0);
 	assert.ok(out.weak[0]!.diff < 0);
-	assert.ok(out.strong[0]!.hold >= PROFILE.minHold);
-	assert.ok(out.weak[0]!.hold >= PROFILE.minHold);
+	assert.ok(out.strong[0]!.hold >= PROFILE.firmHold);
+	assert.ok(out.weak[0]!.hold >= PROFILE.firmHold);
+	assert.equal(out.strong[0]!.firm, true);
+	assert.equal(out.weak[0]!.firm, true);
 	assert.ok(out.strong[0]!.mean > 0);
 	assert.ok(out.weak[0]!.mean < 0);
 	assert.match(out.strong[0]!.shown, /^\+\d\.\d\d$/);
@@ -118,40 +120,46 @@ test("planted strengths and weaknesses come back on the right side", () => {
 	);
 });
 
-test("a player with no planted skill gets a flat profile; a lucky listing is rare and small", () => {
-	const listed: string[] = [];
+test("a player with no planted skill gets a flat profile; a firm listing is rare and small", () => {
+	const firm: string[] = [];
 	for (const seed of [1, 2, 3, 4, 5, 6]) {
 		const { records, votes } = world(15.5, {}, seed);
 		const out = tagProfile(records, votes);
 		for (const tag of out.tags)
 			assert.ok(Math.abs(tag.diff) < 0.15, `${seed} ${tag.name} ${tag.diff}`);
-		for (const tag of [...out.strong, ...out.weak])
-			listed.push(`${seed} ${tag.name} ${tag.shown} ${tag.hold}`);
+		for (const tag of [...out.strong, ...out.weak]) {
+			assert.ok(tag.hold >= PROFILE.minHold);
+			assert.ok(Math.abs(tag.diff) >= PROFILE.minDiff);
+			if (tag.firm) firm.push(`${seed} ${tag.name} ${tag.shown} ${tag.hold}`);
+		}
 	}
-	assert.ok(listed.length <= 3, listed.join("; "));
+	assert.ok(firm.length <= 3, firm.join("; "));
 });
 
 test("every tag on the pooled charts gets a row, best first, with its side", () => {
 	const { records, votes } = world(15.5, { 2: 0.8, 4: -0.8 }, 7);
 	const out = tagProfile(records, votes);
 	assert.equal(out.tags.length, 6);
-	for (const t of out.tags)
+	for (const t of out.tags) {
+		assert.equal(t.firm, t.hold >= PROFILE.firmHold, t.name);
 		assert.equal(t.slight, Math.abs(Number(t.shown)) < PROFILE.slight, t.name);
+	}
 	assert.ok(out.strong[0]!.diff >= PROFILE.slight);
 	assert.equal(out.strong[0]!.slight, false);
 	for (let i = 1; i < out.tags.length; i++)
 		assert.ok(out.tags[i - 1]!.diff >= out.tags[i]!.diff);
+	const names = (rows: { name: string }[]) => rows.map((t) => t.name).sort();
 	assert.deepEqual(
-		out.strong.map((t) => t.name),
-		out.tags.filter((t) => t.side === "strong").map((t) => t.name),
+		names(out.strong),
+		names(out.tags.filter((t) => t.side === "strong")),
 	);
 	assert.deepEqual(
-		out.weak.map((t) => t.name),
-		out.tags
-			.filter((t) => t.side === "weak")
-			.reverse()
-			.map((t) => t.name),
+		names(out.weak),
+		names(out.tags.filter((t) => t.side === "weak")),
 	);
+	for (const list of [out.strong, out.weak])
+		for (let i = 1; i < list.length; i++)
+			assert.ok(Number(list[i - 1]!.firm) >= Number(list[i]!.firm));
 	for (const t of out.tags) {
 		if (t.side === "even") continue;
 		assert.ok(t.charts >= PROFILE.minTagCharts);

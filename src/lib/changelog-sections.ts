@@ -14,8 +14,8 @@ export const CHANGELOG_RELEASES: ChangeRelease[] = [
 						href: "/tags",
 					},
 					{
-						en: "Each number is in nines of accuracy against your own charts of the same constant, counting charts from 0.25 under your B27 floor upward: + is above your usual level there, − below. Tags are credited jointly, so one that only rides along with another gets no credit of its own, and a verdict needs its sign to hold in 98% of resamples. Nets under ±0.05 are marked slight, and the card lists your top 3 each way.",
-						zh: "每个数值以准确率的「9 的个数」计，与你自己同定数的谱面相比，样本从 B27 下限减 0.25 起、没有上限：+ 高于你在该定数的平常水平，− 低于。标签同时归因，只跟着别的标签出现的标签不会单独得分；判定需要在重抽中 98% 保持同号。净值小于 ±0.05 的标记为「略」，成绩图各列出前 3 个。",
+						en: "Each number is in nines of accuracy against your own charts of the same constant, counting charts from 0.25 under your B27 floor upward: + is above your usual level there, − below. Tags are credited jointly, so one that only rides along with another gets no credit of its own, and a listing needs its sign to hold in 90% of resamples; the profile page marks those under 98% as leaning. Nets under ±0.05 are dimmed as slight, and the card lists your top 3 each way.",
+						zh: "每个数值以准确率的「9 的个数」计，与你自己同定数的谱面相比，样本从 B27 下限减 0.25 起、没有上限：+ 高于你在该定数的平常水平，− 低于。标签同时归因，只跟着别的标签出现的标签不会单独得分；列出需要在重抽中 90% 保持同号，玩家画像会把不足 98% 的标为「倾向」。净值小于 ±0.05 的标记为「略」并变暗，成绩图各列出前 3 个。",
 						href: "/tags",
 					},
 					{

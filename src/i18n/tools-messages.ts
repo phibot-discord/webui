@@ -98,6 +98,7 @@ export type ToolsMessages = {
 		verdict: string;
 		sides: Record<"strong" | "weak" | "even", string>;
 		slight: Record<"strong" | "weak", string>;
+		leaning: Record<"strong" | "weak", string>;
 		slightHint: string;
 		few: string;
 		chartsFor: string;
@@ -573,7 +574,7 @@ export const toolsEn: ToolsMessages = {
 		categoriesTitle: "Categories",
 		allTagsTitle: "All tags",
 		allTagsHint:
-			"Open a tag to see the charts counted for it. Average is your gap on those charts. Net is what the tag adds once the other tags on the same charts are accounted for; the verdict uses it. Holds is how often the net keeps its sign when your charts are resampled: a verdict needs {hold}% and at least {n} charts.",
+			"Open a tag to see the charts counted for it. Average is your gap on those charts. Net is what the tag adds once the other tags on the same charts are accounted for; the verdict uses it. Holds is how often the net keeps its sign when your charts are resampled: a listing needs {hold}% and at least {n} charts, and counts as established from {firm}%.",
 		tag: "Tag",
 		category: "Category",
 		diff: "+/-",
@@ -584,8 +585,9 @@ export const toolsEn: ToolsMessages = {
 		verdict: "Verdict",
 		sides: { strong: "Strength", weak: "Weakness", even: "–" },
 		slight: { strong: "Slight strength", weak: "Slight weakness" },
+		leaning: { strong: "Leaning strength", weak: "Leaning weakness" },
 		slightHint:
-			"Slight: the net is under ±0.05. Ordinary score swings alone can reach that size, so treat it as a hint.",
+			"Leaning: the net holds in under 98% of resamples; shown in full on the card. Slight: it is under ±0.05; dimmed on the card. Ordinary score swings alone can produce either, so treat them as hints.",
 		few: "On fewer than {n} of your charts: not listed on the card.",
 		chartsFor: "Charts counted for {name}",
 		expected: "Expected acc",
@@ -1096,7 +1098,7 @@ export const toolsZh: ToolsMessages = {
 		categoriesTitle: "分类",
 		allTagsTitle: "全部标签",
 		allTagsHint:
-			"展开标签可查看计入它的谱面。「平均」是你在这些谱面上的差值；「净值」是扣除同一谱面上其他标签的影响后该标签自身的贡献，判定以它为准；「稳定」是重抽谱面时净值保持同号的比例，判定需要 {hold}% 且至少 {n} 张谱面。",
+			"展开标签可查看计入它的谱面。「平均」是你在这些谱面上的差值；「净值」是扣除同一谱面上其他标签的影响后该标签自身的贡献，判定以它为准；「稳定」是重抽谱面时净值保持同号的比例，列出需要 {hold}% 且至少 {n} 张谱面，达到 {firm}% 才算确定。",
 		tag: "标签",
 		category: "分类",
 		diff: "+/-",
@@ -1107,8 +1109,9 @@ export const toolsZh: ToolsMessages = {
 		verdict: "判定",
 		sides: { strong: "擅长", weak: "薄弱", even: "–" },
 		slight: { strong: "略擅长", weak: "略薄弱" },
+		leaning: { strong: "倾向擅长", weak: "倾向薄弱" },
 		slightHint:
-			"略：净值小于 ±0.05。正常的成绩波动也可能达到这个幅度，仅供参考。",
+			"倾向：净值的稳定不足 98%，成绩图上正常显示。略：净值小于 ±0.05，成绩图上变暗。正常的成绩波动也可能造成，仅供参考。",
 		few: "出现在你少于 {n} 张谱面上：不会列在成绩图上。",
 		chartsFor: "计入「{name}」的谱面",
 		expected: "预期准确率",

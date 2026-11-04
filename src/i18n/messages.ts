@@ -1314,7 +1314,7 @@ export const en: ClientMessages = {
 			{
 				term: "Share",
 				formula: "w = tag votes ÷ chart votes × chart weight",
-				text: "A chart needs at least 3 votes, and a tag at least 10% of them.",
+				text: "A chart needs at least 3 votes, and a tag at least 5% of them.",
 			},
 			{
 				term: "Average",
@@ -1332,18 +1332,18 @@ export const en: ClientMessages = {
 			},
 			{
 				term: "Strength",
-				formula: "net ≥ +0.03 and holds ≥ 98%",
-				text: "A weakness is the same with net ≤ −0.03. Tags on fewer than 4 of your charts are never listed, and nets under ±0.05 are marked slight.",
+				formula: "net ≥ +0.03 and holds ≥ 90%",
+				text: "A weakness is the same with net ≤ −0.03. Tags on fewer than 4 of your charts are never listed. Nets under ±0.05 are dimmed on the card as slight. An entry that holds in under 98% of resamples still shows in full on the card, but the player profile page labels it leaning.",
 			},
 		],
 		readTitle: "How to read the numbers",
 		read: [
 			"+0.11 next to a tag: on charts with that tag, your accuracy sits 0.11 nines above your other charts of the same constant, roughly a quarter less lost accuracy. +0.30 is about half the lost accuracy; +1.00 is a whole nine, 99.9% where you usually get 99%.",
 			"−0.23: 0.23 nines below. 0.00: those charts play like the rest of your charts.",
-			"Nets under ±0.05 are marked slight: dimmer on the card, labelled Slight strength or Slight weakness on the player profile page. Ordinary score swings alone can reach that size, so read them as hints.",
+			"Dimmed entries on the card are slight: the net is under ±0.05. The player profile page also labels an entry leaning when its net holds in under 98% of resamples. Ordinary score swings alone can produce either, so read them as hints.",
 			"The baseline is you, never other players, and only charts at or above your level count. A chart that is hard for everyone does not count against you, because it is compared with your charts of the same constant.",
 			"Tags that always sit on the same charts cannot be told apart, so the net splits the credit between them. Where a tag also appears without its usual companions, those charts decide. Open a tag on the player profile to see which charts it comes from.",
-			"Even at the 98% bar about one listed tag in twenty is still luck. Treat a single listing as a hint, and a tag that stays listed across saves as a pattern.",
+			"An entry that holds at 98% can still be luck about one time in twenty, a leaning one about one in five. Treat a single listing as a hint, and a tag that stays listed across saves as a pattern.",
 		],
 		profileLink:
 			"See every tag and the charts behind it on your player profile",
@@ -2339,7 +2339,7 @@ export const zh: ClientMessages = {
 			{
 				term: "权重",
 				formula: "w = 该标签票数 ÷ 谱面总票数 × 谱面权重",
-				text: "谱面至少要有 3 票，标签至少占其中 10%。",
+				text: "谱面至少要有 3 票，标签至少占其中 5%。",
 			},
 			{
 				term: "平均",
@@ -2357,18 +2357,18 @@ export const zh: ClientMessages = {
 			},
 			{
 				term: "擅长",
-				formula: "净值 ≥ +0.03 且稳定 ≥ 98%",
-				text: "薄弱同理：净值 ≤ −0.03。出现在你少于 4 张谱面上的标签不会列出，净值小于 ±0.05 的标记为「略」。",
+				formula: "净值 ≥ +0.03 且稳定 ≥ 90%",
+				text: "薄弱同理：净值 ≤ −0.03。出现在你少于 4 张谱面上的标签不会列出。净值小于 ±0.05 的在成绩图上变暗，标为「略」。稳定不足 98% 的条目在成绩图上仍正常显示，但玩家画像页面会标为「倾向」。",
 			},
 		],
 		readTitle: "如何理解这些数值",
 		read: [
 			"标签旁的 +0.11：在带有该标签的谱面上，你的准确率比同定数的其他谱面高 0.11 个 9，大约少失误四分之一。+0.30 约为失误减半；+1.00 是整整一个 9，你平时 99% 的地方打到 99.9%。",
 			"−0.23：低 0.23 个 9。0.00：这些谱面和你的其他谱面表现一样。",
-			"净值小于 ±0.05 的标签标记为「略」：成绩图上颜色较暗，玩家画像页面标为略擅长或略薄弱。正常的成绩波动也可能达到这个幅度，只作参考。",
+			"成绩图上变暗的条目是「略」：净值小于 ±0.05。玩家画像页面还会把稳定不足 98% 的条目标为「倾向」。正常的成绩波动也可能造成，只作参考。",
 			"基准是你自己，而不是其他玩家，并且只计入你所在难度及以上的谱面。对所有人都难的谱面不会算作你的弱项，因为它只和你同定数的谱面比较。",
 			"总是出现在同一批谱面上的标签无法区分，净值会把功劳平分。当某个标签也单独出现在别的谱面上时，就由那些谱面来判断。在玩家画像里展开标签可查看它来自哪些谱面。",
-			"即使按 98% 的稳定门槛，列出的标签仍有约二十分之一只是运气。单次出现当作提示，多次存档都在列才算规律。",
+			"稳定达到 98% 的条目仍有约二十分之一只是运气，「倾向」的条目约五分之一。单次出现当作提示，多次存档都在列才算规律。",
 		],
 		profileLink: "在玩家画像中查看每个标签以及计入它的谱面",
 		guide: "说明",

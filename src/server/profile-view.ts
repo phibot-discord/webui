@@ -66,6 +66,7 @@ export type TagProfileView = Pick<
 	source: string;
 	minTagCharts: number;
 	minHold: number;
+	firmHold: number;
 	minCharts: number;
 };
 
@@ -181,6 +182,7 @@ export function playerProfileView(
 			source: CHART_TAG_VOTES_SOURCE,
 			minTagCharts: PROFILE.minTagCharts,
 			minHold: PROFILE.minHold,
+			firmHold: PROFILE.firmHold,
 			minCharts: PROFILE.minCharts,
 		};
 	}

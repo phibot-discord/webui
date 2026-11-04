@@ -243,17 +243,25 @@ function TagList({
 								</span>
 								<span className="num">{row.charts}</span>
 								<span className="num">
-									{side ? `${Math.round(row.hold * 100)}%` : "–"}
+									{side ? `${Math.floor(row.hold * 100)}%` : "–"}
 								</span>
 								{side ? (
 									<span
 										className="pp-side"
 										data-side={side}
-										data-slight={side !== "even" && row.slight ? "" : undefined}
+										data-slight={
+											side !== "even" && (row.slight || !row.firm)
+												? ""
+												: undefined
+										}
 									>
-										{side !== "even" && row.slight
-											? t.slight[side]
-											: t.sides[side]}
+										{side === "even"
+											? t.sides.even
+											: !row.firm
+												? t.leaning[side]
+												: row.slight
+													? t.slight[side]
+													: t.sides[side]}
 									</span>
 								) : null}
 							</>
@@ -323,12 +331,16 @@ function TagSection({ view, t }: { view: PlayerProfileView; t: Copy }) {
 							<p className="field-hint">
 								{fill(t.allTagsHint, {
 									hold: Math.round(p.minHold * 100),
+									firm: Math.round(p.firmHold * 100),
 									n: p.minTagCharts,
 								})}
 							</p>
 							<p className="field-hint">
 								<span className="pp-side" data-side="strong" data-slight="">
-									{t.slight.strong}
+									{t.leaning.strong}
+								</span>{" "}
+								<span className="pp-side" data-side="weak" data-slight="">
+									{t.slight.weak}
 								</span>{" "}
 								{t.slightHint}
 							</p>
