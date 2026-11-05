@@ -8,23 +8,37 @@ export type ChartFeature = {
 	kinds: NoteKinds | null;
 	length: number | null;
 	bpm: number | null;
+	tags?: ReadonlyMap<number, number> | null;
 };
 
 export type SimilarHit = { id: string; rank: string; c: number; d: number };
 
 export type Suggestion = SimilarHit & { seed: { id: string; rank: string } };
 
-type Vec = (number | null)[];
+type Tags = { v: ReadonlyMap<number, number>; norm: number };
 
-type Row = { f: ChartFeature; v: Vec };
+type Row = {
+	f: ChartFeature;
+	density: number | null;
+	mix: number[] | null;
+	bpm: number | null;
+	tags: Tags | null;
+};
+
+type Scale = { density: number; mix: number; tags: number };
 
 export type SimilarIndex = {
 	rows: Row[];
 	at: Map<string, number>;
+	scale: Scale;
 };
 
-const WEIGHTS = [2, 1.5, 1, 1, 1, 1, 0.5];
-const MAX_GAP = 1.5;
+const WEIGHT = { c: 2, density: 1, mix: 1.5, bpm: 0.3, tags: 2.5 };
+const C_SCALE = 0.35;
+const BPM_SCALE = 0.25;
+const UNTAGGED = 1;
+const SCALE_GAP = 1;
+const MAX_GAP = 1;
 const SIMILAR_MAX = 6;
 const SUGGEST_ABOVE = 0.5;
 const SUGGEST_BELOW = 1;
@@ -44,61 +58,101 @@ export function parseBpm(raw: string | undefined): number | null {
 
 const keyOf = (id: string, rank: string) => `${id}\u0000${rank}`;
 
-function raw(f: ChartFeature): Vec {
-	const total = f.kinds
-		? f.kinds.tap + f.kinds.drag + f.kinds.hold + f.kinds.flick
-		: 0;
-	const share = (n: number) => (total > 0 ? n / total : null);
+function rowOf(f: ChartFeature): Row {
+	const k = f.kinds;
+	const total = k ? k.tap + k.drag + k.hold + k.flick : 0;
 	const notes = f.notes ?? (total || null);
-	return [
-		f.c,
-		notes && f.length ? Math.log(notes / f.length) : null,
-		f.kinds ? share(f.kinds.tap) : null,
-		f.kinds ? share(f.kinds.drag) : null,
-		f.kinds ? share(f.kinds.hold) : null,
-		f.kinds ? share(f.kinds.flick) : null,
-		f.bpm ? Math.log(f.bpm) : null,
-	];
+	let tags: Tags | null = null;
+	if (f.tags?.size) {
+		let sum = 0;
+		for (const v of f.tags.values()) sum += v * v;
+		if (sum > 0) tags = { v: f.tags, norm: Math.sqrt(sum) };
+	}
+	return {
+		f,
+		density: notes && f.length ? Math.log(notes / f.length) : null,
+		mix:
+			k && total > 0
+				? [k.tap, k.drag, k.hold, k.flick].map((n) => Math.sqrt(n / total))
+				: null,
+		bpm: f.bpm ? Math.log(f.bpm) : null,
+		tags,
+	};
+}
+
+function mixGap(a: number[], b: number[]): number {
+	let s = 0;
+	for (let i = 0; i < a.length; i++) s += ((a[i] ?? 0) - (b[i] ?? 0)) ** 2;
+	return s;
+}
+
+function tagGap(a: Tags, b: Tags): number {
+	let dot = 0;
+	for (const [tag, v] of a.v) dot += v * (b.v.get(tag) ?? 0);
+	return 1 - dot / (a.norm * b.norm);
+}
+
+function median(values: number[], fallback: number): number {
+	if (!values.length) return fallback;
+	values.sort((a, b) => a - b);
+	return values[Math.floor(values.length / 2)] || fallback;
 }
 
 export function buildSimilarIndex(
 	features: readonly ChartFeature[],
 ): SimilarIndex {
-	const rows = features.map(raw);
-	const dims = WEIGHTS.length;
-	const mean: number[] = [];
-	const sd: number[] = [];
-	for (let k = 0; k < dims; k++) {
-		const vals = rows.flatMap((r) => (r[k] == null ? [] : [r[k] as number]));
-		const mu = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-		const v = vals.length
-			? vals.reduce((a, b) => a + (b - mu) ** 2, 0) / vals.length
-			: 0;
-		mean.push(mu);
-		sd.push(Math.sqrt(v) || 1);
+	const rows = features.map(rowOf);
+	const dens = rows.flatMap((r) => (r.density == null ? [] : [r.density]));
+	const mu = dens.length ? dens.reduce((a, b) => a + b, 0) / dens.length : 0;
+	const sd = dens.length
+		? Math.sqrt(dens.reduce((a, b) => a + (b - mu) ** 2, 0) / dens.length)
+		: 0;
+	const mixes: number[] = [];
+	const tagGaps: number[] = [];
+	const byC = [...rows].sort((a, b) => a.f.c - b.f.c);
+	for (let i = 0; i < byC.length; i++) {
+		const a = byC[i]!;
+		for (let j = i + 1; j < byC.length; j++) {
+			const b = byC[j]!;
+			if (b.f.c - a.f.c > SCALE_GAP) break;
+			if (a.f.id === b.f.id) continue;
+			if (a.mix && b.mix) mixes.push(mixGap(a.mix, b.mix));
+			if (a.tags && b.tags) tagGaps.push(tagGap(a.tags, b.tags));
+		}
 	}
-	const out: Row[] = features.map((f, i) => ({
-		f,
-		v: (rows[i] ?? []).map((x, k) =>
-			x == null ? null : (x - (mean[k] ?? 0)) / (sd[k] ?? 1),
-		),
-	}));
 	const at = new Map(features.map((f, i) => [keyOf(f.id, f.rank), i] as const));
-	return { rows: out, at };
+	return {
+		rows,
+		at,
+		scale: {
+			density: sd || 1,
+			mix: median(mixes, 0.1),
+			tags: median(tagGaps, 0.85),
+		},
+	};
 }
 
-function distance(a: Vec, b: Vec): number {
-	let sum = 0;
-	let weight = 0;
-	for (let k = 0; k < WEIGHTS.length; k++) {
-		const x = a[k];
-		const y = b[k];
-		if (x == null || y == null) continue;
-		const w = WEIGHTS[k] ?? 1;
-		sum += w * (x - y) ** 2;
-		weight += w;
+function distance(scale: Scale, a: Row, b: Row): number {
+	let sum = WEIGHT.c * ((a.f.c - b.f.c) / C_SCALE) ** 2;
+	let weight = WEIGHT.c;
+	if (a.density != null && b.density != null) {
+		sum += WEIGHT.density * ((a.density - b.density) / scale.density) ** 2;
+		weight += WEIGHT.density;
 	}
-	return weight ? Math.sqrt(sum / weight) : Number.POSITIVE_INFINITY;
+	if (a.mix && b.mix) {
+		sum += (WEIGHT.mix * mixGap(a.mix, b.mix)) / scale.mix;
+		weight += WEIGHT.mix;
+	}
+	if (a.bpm != null && b.bpm != null) {
+		sum += WEIGHT.bpm * ((a.bpm - b.bpm) / BPM_SCALE) ** 2;
+		weight += WEIGHT.bpm;
+	}
+	if (a.tags) {
+		sum +=
+			WEIGHT.tags * (b.tags ? tagGap(a.tags, b.tags) / scale.tags : UNTAGGED);
+		weight += WEIGHT.tags;
+	}
+	return Math.sqrt(sum / weight);
 }
 
 const round = (n: number) => Math.round(n * 1000) / 1000;
@@ -111,9 +165,10 @@ export function similarTo(
 	const self = index.rows[index.at.get(keyOf(id, rank)) ?? -1];
 	if (!self) return [];
 	const hits: SimilarHit[] = [];
-	for (const { f, v } of index.rows) {
+	for (const row of index.rows) {
+		const { f } = row;
 		if (f.id === id || Math.abs(f.c - self.f.c) > MAX_GAP) continue;
-		const d = distance(self.v, v);
+		const d = distance(index.scale, self, row);
 		if (Number.isFinite(d))
 			hits.push({ id: f.id, rank: f.rank, c: f.c, d: round(d) });
 	}
@@ -133,14 +188,15 @@ export function suggestFrom(
 	});
 	if (!seedRows.length) return [];
 	const out: Suggestion[] = [];
-	for (const { f, v } of index.rows) {
+	for (const row of index.rows) {
+		const { f } = row;
 		if (!want(f)) continue;
 		let best: { d: number; seed: ChartFeature } | undefined;
 		for (const seed of seedRows) {
 			if (seed.f.id === f.id) continue;
 			if (f.c > seed.f.c + SUGGEST_ABOVE || f.c < seed.f.c - SUGGEST_BELOW)
 				continue;
-			const d = distance(seed.v, v);
+			const d = distance(index.scale, seed, row);
 			if (!best || d < best.d) best = { d, seed: seed.f };
 		}
 		if (!best || !Number.isFinite(best.d)) continue;

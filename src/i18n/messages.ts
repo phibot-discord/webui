@@ -374,6 +374,30 @@ export type ClientMessages = ToolsMessages & {
 		profileLink: string;
 		guide: string;
 		loading: string;
+		clipIntro: string;
+		clipFor: string;
+		clipNote: string;
+		clipVotes: string;
+		clipSong: string;
+		clipReplay: string;
+		exampleTitle: string;
+		exampleLede: string;
+		exampleCaption: string;
+		exampleChart: string;
+		exampleAcc: string;
+		exampleSteps: Record<
+			| "pool"
+			| "lost"
+			| "gap"
+			| "share"
+			| "average"
+			| "net"
+			| "centre"
+			| "shown"
+			| "read"
+			| "listed",
+			{ term: string; text: string }
+		>;
 	};
 	songs: {
 		title: string;
@@ -1361,6 +1385,63 @@ export const en: ClientMessages = {
 			"See every tag and the charts behind it on your player profile",
 		guide: "Guide",
 		loading: "Loading chart tags…",
+		clipIntro:
+			"Under each tag is a short clip from a chart players voted the tag onto, drawn by the chart preview.",
+		clipFor: "Watch {tag} in {title} {level}",
+		clipNote:
+			"The clip loops {n} seconds of this chart where the pattern shows.",
+		clipVotes: "{votes} of {total} kyou votes on this chart name this tag.",
+		clipSong: "Whole chart",
+		clipReplay: "Replay",
+		exampleTitle: "Worked example",
+		exampleLede:
+			"Three IN charts and two tags, one step at a time. The accuracies are made up; the constants and kyou votes are real (votes of {date}).",
+		exampleCaption:
+			"Three charts with accuracy, lost accuracy y, curve g(C), gap d and tag shares",
+		exampleChart: "Chart",
+		exampleAcc: "Acc",
+		exampleSteps: {
+			pool: {
+				term: "Pool",
+				text: "Say F, your 27th-best chart RKS, is {floor}. All three constants are {min} or more and every accuracy is over 90%, so each chart counts fully.",
+			},
+			lost: {
+				term: "Lost accuracy",
+				text: "Each accuracy becomes the accuracy lost, on the log scale. The y column has all three.",
+			},
+			gap: {
+				term: "Gap",
+				text: "g(C) is your curve at that constant, from the fit over all your charts. {a} beats it, {b} is about level with it, {c} falls short.",
+			},
+			share: {
+				term: "Share",
+				text: "A tag's share is its votes over the chart's votes. {b} carries both tags. On {c}, {tag} has {v} of {n} votes, under 5%, so it does not count there.",
+			},
+			average: {
+				term: "Average",
+				text: "The plain average per tag. The + 2 keeps three charts from saying much. Categories use this number.",
+			},
+			net: {
+				term: "Net",
+				text: "The card uses the fit instead: how far each tag moves y off the curve, with the ridge of 0.5 pulling both toward 0. {b} has both tags and a small gap, so the loss on {c} lands on {y} and the gain on {a} on {x}.",
+			},
+			centre: {
+				term: "Re-centred",
+				text: "Both move by the same amount, so that the average chart sits at 0.",
+			},
+			shown: {
+				term: "Shown",
+				text: "β times the tag's mean share on your charts. These are the numbers on the card.",
+			},
+			read: {
+				term: "Reading",
+				text: "{y} {ny}: about {more}% more accuracy lost on its charts than your curve predicts. {x} {nx}: about {less}% less.",
+			},
+			listed: {
+				term: "Listed?",
+				text: "Not yet: a tag needs at least 4 of your charts, and its net has to keep its sign in 90% of 400 resamples. A real profile has dozens of charts.",
+			},
+		},
 	},
 	songs: {
 		title: "Songs",
@@ -2394,6 +2475,62 @@ export const zh: ClientMessages = {
 		profileLink: "在玩家画像中查看每个标签以及计入它的谱面",
 		guide: "说明",
 		loading: "正在加载谱面标签…",
+		clipIntro:
+			"每个标签都附有一段短片，取自玩家投给该标签的谱面，由谱面预览绘制。",
+		clipFor: "观看{tag}：{title} {level}",
+		clipNote: "短片循环播放这张谱面中体现该配置的 {n} 秒。",
+		clipVotes: "这张谱面在 kyou 的 {total} 票中有 {votes} 票投给了这个标签。",
+		clipSong: "完整谱面",
+		clipReplay: "重播",
+		exampleTitle: "计算示例",
+		exampleLede:
+			"三张 IN 谱面、两个标签，一步步算一遍。准确率是假设的；定数和 kyou 投票是真实数据（{date} 的投票）。",
+		exampleCaption:
+			"三张谱面的准确率、准确率损失 y、曲线 g(C)、差值 d 和标签占比",
+		exampleChart: "谱面",
+		exampleAcc: "准确率",
+		exampleSteps: {
+			pool: {
+				term: "统计范围",
+				text: "假设你第 27 好的单曲 RKS F 为 {floor}。三张谱面的定数都不低于 {min}，准确率都高于 90%，所以每张都全额计入。",
+			},
+			lost: {
+				term: "准确率损失",
+				text: "每个准确率换算成对数尺度上的损失，三张谱面的值见 y 列。",
+			},
+			gap: {
+				term: "差值",
+				text: "g(C) 是你的曲线在该定数处的值，由你全部谱面的拟合得出。{a} 高于曲线，{b} 基本持平，{c} 低于曲线。",
+			},
+			share: {
+				term: "占比",
+				text: "标签占比 = 该标签票数 ÷ 谱面总票数。{b} 同时带有两个标签。{c} 上的{tag}只有 {n} 票中的 {v} 票，不到 5%，所以在这张谱面上不计入。",
+			},
+			average: {
+				term: "平均",
+				text: "每个标签的简单平均。+ 2 让三张谱面说明不了太多。分类使用这个数值。",
+			},
+			net: {
+				term: "净值",
+				text: "成绩图用的是拟合：每个标签让 y 偏离曲线多少，岭惩罚 0.5 把两者都拉向 0。{b} 带有两个标签且差值很小，所以 {c} 的损失落在{y}上，{a} 的优势落在{x}上。",
+			},
+			centre: {
+				term: "居中",
+				text: "两个值平移同样的量，使平均谱面为 0。",
+			},
+			shown: {
+				term: "显示值",
+				text: "β 乘以该标签在你的谱面上的平均占比，即成绩图上的数字。",
+			},
+			read: {
+				term: "解读",
+				text: "{y} {ny}：在带这个标签的谱面上，比你的曲线预测多损失约 {more}% 的准确率。{x} {nx}：少损失约 {less}%。",
+			},
+			listed: {
+				term: "会列出吗",
+				text: "还不会：标签至少要出现在你的 4 张谱面上，且在 400 次重抽样中至少 90% 保持同号。真实的画像会有几十张谱面。",
+			},
+		},
 	},
 	songs: {
 		title: "曲目别名",

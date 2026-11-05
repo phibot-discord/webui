@@ -6,11 +6,35 @@ import {
 	parseLength,
 	type SimilarIndex,
 } from "@/lib/similar";
+import {
+	chartVoteKey,
+	loadTagVotes,
+	type TagVotes,
+} from "@/phi/lib/chart-tag-votes";
 import { LEVEL } from "@/phi/lib/const";
 import { getInfo } from "@/phi/lib/get-info";
+import { PROFILE } from "@/phi/lib/tag-profile";
 import { type ChartSummary, chartCatalog } from "./charts";
 
-let memo: { list: readonly ChartSummary[]; index: SimilarIndex } | undefined;
+let memo:
+	| { list: readonly ChartSummary[]; sha: string; index: SimilarIndex }
+	| undefined;
+
+export function tagSharesOf(
+	votes: TagVotes | undefined,
+	id: string,
+	rank: string,
+): Map<number, number> | null {
+	const row = votes?.charts.get(chartVoteKey(id, rank));
+	if (!row) return null;
+	let total = 0;
+	for (const v of row.values()) total += v;
+	if (total < PROFILE.minChartVotes) return null;
+	const out = new Map<number, number>();
+	for (const [tag, v] of row)
+		if (v / total >= PROFILE.minShare) out.set(tag, v / total);
+	return out.size ? out : null;
+}
 
 export function kindsOf(
 	chart:
@@ -32,7 +56,10 @@ export function kindsOf(
 	return kinds.tap + kinds.drag + kinds.hold + kinds.flick ? kinds : null;
 }
 
-export function featuresOf(list: readonly ChartSummary[]): ChartFeature[] {
+export function featuresOf(
+	list: readonly ChartSummary[],
+	votes?: TagVotes,
+): ChartFeature[] {
 	const out: ChartFeature[] = [];
 	for (const song of list) {
 		const info = getInfo.raw(song.id);
@@ -49,6 +76,7 @@ export function featuresOf(list: readonly ChartSummary[]): ChartFeature[] {
 				kinds: kindsOf(info?.chart?.[rank]),
 				length,
 				bpm,
+				tags: tagSharesOf(votes, song.id, rank),
 			});
 		}
 	}
@@ -56,9 +84,13 @@ export function featuresOf(list: readonly ChartSummary[]): ChartFeature[] {
 }
 
 export async function similarIndex(): Promise<SimilarIndex> {
-	const { list } = await chartCatalog();
-	if (memo?.list !== list) {
-		memo = { list, index: buildSimilarIndex(featuresOf(list)) };
+	const [{ list }, votes] = await Promise.all([
+		chartCatalog(),
+		loadTagVotes().catch(() => undefined),
+	]);
+	const sha = votes?.sha ?? "";
+	if (memo?.list !== list || memo.sha !== sha) {
+		memo = { list, sha, index: buildSimilarIndex(featuresOf(list, votes)) };
 	}
 	return memo.index;
 }

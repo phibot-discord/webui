@@ -1,16 +1,34 @@
 "use client";
 
+import { Play } from "@phosphor-icons/react";
+import { useState } from "react";
 import Link from "@/components/LocaleLink";
+import { type ActiveClip, TagClipDialog } from "@/components/TagClipDialog";
+import { TagExample } from "@/components/TagExample";
 import { useI18n } from "@/i18n/provider";
+import type { TagExample as Example } from "@/lib/tag-example";
 import type { ChartTagTreeNode } from "@/phi/lib/b30-analysis";
 import {
+	fill,
 	localizeChartTagDescription,
 	localizeChartTagName,
 } from "@/phi/lib/card-i18n";
+import type { TagClipView } from "@/server/tag-clips";
 
-export function TagGlossary({ tree }: { tree: ChartTagTreeNode[] }) {
+export function TagGlossary({
+	tree,
+	clips,
+	example,
+	voted,
+}: {
+	tree: ChartTagTreeNode[];
+	clips: Record<string, TagClipView>;
+	example: Example;
+	voted: string;
+}) {
 	const { locale, m } = useI18n();
 	const t = m.tags;
+	const [active, setActive] = useState<ActiveClip | null>(null);
 	const cats = tree.map((cat, i) => ({
 		id: `cat-${i + 1}`,
 		name: localizeChartTagName(cat.name, locale),
@@ -28,7 +46,12 @@ export function TagGlossary({ tree }: { tree: ChartTagTreeNode[] }) {
 	return (
 		<>
 			<h1>{t.title}</h1>
-			<p className="lede">{t.lede}</p>
+			<p className="lede">
+				{t.lede}
+				{Object.keys(clips).length
+					? `${locale === "en" ? " " : ""}${t.clipIntro}`
+					: null}
+			</p>
 			<div className="tag-layout">
 				<nav className="tag-index" aria-label={t.index}>
 					<p className="tag-index-label">{t.guide}</p>
@@ -36,6 +59,11 @@ export function TagGlossary({ tree }: { tree: ChartTagTreeNode[] }) {
 						<li>
 							<a href="#formula">
 								<span>{t.howTitle}</span>
+							</a>
+						</li>
+						<li>
+							<a href="#example">
+								<span>{t.exampleTitle}</span>
 							</a>
 						</li>
 						<li>
@@ -83,6 +111,7 @@ export function TagGlossary({ tree }: { tree: ChartTagTreeNode[] }) {
 							))}
 						</dl>
 					</section>
+					<TagExample example={example} voted={voted} />
 					<section
 						className="tag-cat tag-guide"
 						id="read"
@@ -121,12 +150,62 @@ export function TagGlossary({ tree }: { tree: ChartTagTreeNode[] }) {
 								) : null}
 								{cat.tags.length ? (
 									<dl className="tag-list">
-										{cat.tags.map((tag) => (
-											<div key={tag.key}>
-												<dt>{tag.name}</dt>
-												{tag.description ? <dd>{tag.description}</dd> : null}
-											</div>
-										))}
+										{cat.tags.map((tag) => {
+											const clip = clips[tag.key];
+											return (
+												<div key={tag.key}>
+													<dt>{tag.name}</dt>
+													{tag.description ? <dd>{tag.description}</dd> : null}
+													{clip ? (
+														<dd className="tag-clip-row">
+															<button
+																type="button"
+																className="tag-clip"
+																aria-haspopup="dialog"
+																aria-label={fill(t.clipFor, {
+																	tag: tag.name,
+																	title: clip.title,
+																	level: clip.level,
+																})}
+																onClick={() =>
+																	setActive({
+																		name: tag.name,
+																		...(tag.description
+																			? { description: tag.description }
+																			: {}),
+																		clip,
+																	})
+																}
+															>
+																<span
+																	className="tag-clip-thumb"
+																	aria-hidden="true"
+																>
+																	{clip.source.cover ? (
+																		// biome-ignore lint/performance/noImgElement: R2 object, loaded straight from the public domain
+																		<img
+																			src={clip.source.cover}
+																			alt=""
+																			loading="lazy"
+																			decoding="async"
+																		/>
+																	) : null}
+																	<Play size={14} weight="fill" />
+																</span>
+																<span className="tag-clip-text">
+																	<span className="tag-clip-title">
+																		{clip.title}
+																	</span>
+																	<span className="tag-clip-level">
+																		{`${clip.level} ${clip.constant.toFixed(1)}`}
+																	</span>
+																</span>
+															</button>
+														</dd>
+													) : null}
+												</div>
+											);
+										})}
 									</dl>
 								) : null}
 							</section>
@@ -136,6 +215,7 @@ export function TagGlossary({ tree }: { tree: ChartTagTreeNode[] }) {
 					)}
 				</div>
 			</div>
+			<TagClipDialog active={active} onClose={() => setActive(null)} />
 		</>
 	);
 }

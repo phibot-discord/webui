@@ -58,6 +58,30 @@ test("the nearest chart shares the note mix and level", () => {
 	assert.deepEqual(similarTo(index, "Nope", "IN"), []);
 });
 
+test("shared tags pull a chart ahead of one with a closer note mix", () => {
+	const tagged = (f: ChartFeature, tags: [number, number][]) => ({
+		...f,
+		tags: new Map(tags),
+	});
+	const index = buildSimilarIndex([
+		tagged(chart("Seed", 15, [800, 100, 60, 40]), [
+			[1, 0.6],
+			[2, 0.4],
+		]),
+		tagged(chart("SameTags", 15.1, [700, 160, 90, 50]), [
+			[1, 0.5],
+			[2, 0.3],
+		]),
+		tagged(chart("OtherTags", 15.1, [790, 105, 60, 45]), [[3, 0.9]]),
+		chart("Untagged", 15.1, [790, 105, 60, 45]),
+		tagged(chart("Far", 16.3, [800, 100, 60, 40]), [[1, 1]]),
+	]);
+	const hits = similarTo(index, "Seed", "IN").map((h) => h.id);
+	assert.equal(hits[0], "SameTags");
+	assert.ok(hits.indexOf("SameTags") < hits.indexOf("OtherTags"));
+	assert.ok(!hits.includes("Far"), "over 1.0 constant away is left out");
+});
+
 test("suggestions pick wanted charts close to a seed", () => {
 	const index = buildSimilarIndex(LIST);
 	const got = suggestFrom(

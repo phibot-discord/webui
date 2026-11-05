@@ -489,7 +489,7 @@ export const toolsJa: ToolsMessages = {
 	},
 	similar: {
 		title: "似た譜面",
-		lede: "定数、ノーツ密度、ノーツの構成、BPM が近い譜面です。",
+		lede: "定数、ノーツ密度、ノーツの構成、BPM が近い譜面です。両方に kyou の投票があれば、同じタグの譜面ほど上に来ます。",
 		level: "難易度",
 		song: "曲",
 		levelCol: "難易度",

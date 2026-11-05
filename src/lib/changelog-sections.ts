@@ -85,6 +85,29 @@ export const CHANGELOG_RELEASES: ChangeRelease[] = [
 						ja: "正味は小さいものの安定しているタグを、ほかのタグの後に薄く表示するようにしました。プロフィールの譜面がすべて 99.9% 以上のときは、まだ 99.9% 未満の譜面があった最後の日のスコアを使います。スコア履歴がない場合は、それらの譜面の難しさでタグを並べ、薄く表示して数値は出しません。",
 						href: "/profile",
 					},
+					{
+						en: "The chart tags page works one example through by hand: three real charts and two tags, from lost accuracy to the number on the card.",
+						zh: "谱面标签页面新增计算示例：用三张真实谱面和两个标签，从准确率损失一步步算到成绩图上的数字。",
+						ja: "譜面タグのページに計算例を追加しました。実在の 3 譜面とタグ 2 つで、失った精度からカードに出る数値までを 1 段階ずつ計算します。",
+						href: "/tags",
+					},
+					{
+						en: "Every tag on that page has a short clip from a chart players voted it onto, played by the chart preview. Each clip shows a part of that chart where the pattern appears: stairs, fixed lanes, jacks, holds, noise fields and so on.",
+						zh: "该页面的每个标签都附有一段短片，取自玩家投给该标签的谱面，由谱面预览播放。每段短片都选自谱面中出现该配置的部分：楼梯、定轨、纵连、长条、噪域等。",
+						ja: "そのページの各タグに、プレイヤーがそのタグに投票した譜面の短いクリップを付け、譜面プレビューで再生します。各クリップは、階段、固定レーン、縦連、ホールド、ノイズ領域など、その配置が現れる部分を流します。",
+						href: "/tags",
+					},
+				],
+			},
+			{
+				heading: { en: "Song pages", zh: "曲目页面", ja: "曲ページ" },
+				items: [
+					{
+						en: "Similar charts stay within 1.0 of the chart's constant and weigh constant far more than before, and where players have voted tags on both charts, charts with the same tags come first.",
+						zh: "「相似谱面」现在只列出定数相差 1.0 以内的谱面，定数的权重也比以前高得多；两张谱面都有玩家投票的标签时，标签相同的谱面排在前面。",
+						ja: "「似た譜面」は譜面定数の差が 1.0 以内のものに限り、定数を以前よりずっと重く見るようにしました。両方の譜面にプレイヤーのタグ投票がある場合は、同じタグを持つ譜面が先に並びます。",
+						href: "/songs",
+					},
 				],
 			},
 			{

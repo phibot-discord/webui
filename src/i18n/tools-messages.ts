@@ -1044,7 +1044,7 @@ export const toolsEn: ToolsMessages = {
 	},
 	similar: {
 		title: "Similar charts",
-		lede: "Charts close in constant, note density, note mix and BPM.",
+		lede: "Charts close in constant, note density, note mix and BPM, weighted toward the same kyou tags where players have voted on both.",
 		level: "Difficulty",
 		song: "Song",
 		levelCol: "Level",
@@ -1666,7 +1666,7 @@ export const toolsZh: ToolsMessages = {
 	},
 	similar: {
 		title: "相似谱面",
-		lede: "定数、物量密度、音符构成和 BPM 相近的谱面。",
+		lede: "定数、物量密度、音符构成和 BPM 相近的谱面；两张谱面都有 kyou 投票时，标签相同的更靠前。",
 		level: "难度",
 		song: "曲目",
 		levelCol: "难度",

@@ -1,0 +1,279 @@
+{
+	"v": 1,
+	"length": 8,
+	"clips": {
+		"3k": {
+			"id": "EradicationCatastrophe.NceS.0",
+			"level": "IN",
+			"start": 47.25,
+			"votes": 3,
+			"total": 4
+		},
+		"4k": {
+			"id": "Radiance.Nhato.0",
+			"level": "AT",
+			"start": 31.94,
+			"votes": 9,
+			"total": 17
+		},
+		"5k": {
+			"id": "Stasis.Maozon.0",
+			"level": "AT",
+			"start": 13.33,
+			"votes": 23,
+			"total": 61
+		},
+		"6k": {
+			"id": "DesultorySignals.technoplanet.0",
+			"level": "AT",
+			"start": 92.9,
+			"votes": 29,
+			"total": 107
+		},
+		"乱": {
+			"id": "Archidoxen.Se_IRA.0",
+			"level": "AT",
+			"start": 52.5,
+			"votes": 8,
+			"total": 61
+		},
+		"倒打": {
+			"id": "Igallta.SeURa.0",
+			"level": "IN",
+			"start": 45.91,
+			"votes": 40,
+			"total": 70
+		},
+		"全换": {
+			"id": "ExoplanetaryMirage.かめりあ.0",
+			"level": "IN",
+			"start": 90.75,
+			"votes": 25,
+			"total": 82
+		},
+		"切": {
+			"id": "ATHAZA.LeaF.0",
+			"level": "AT",
+			"start": 137.49,
+			"votes": 14,
+			"total": 22
+		},
+		"判定线干扰": {
+			"id": "PRAGMATISMRESURRECTION.Laur.0",
+			"level": "IN",
+			"start": 85.86,
+			"votes": 11,
+			"total": 74
+		},
+		"刹车": {
+			"id": "ReEndofaDream.umavsモリモリあつし.0",
+			"level": "AT",
+			"start": 46.58,
+			"votes": 10,
+			"total": 66
+		},
+		"双押海": {
+			"id": "DistortedFate.Sakuzyo.0",
+			"level": "HD",
+			"start": 126.6,
+			"votes": 10,
+			"total": 30
+		},
+		"反手": {
+			"id": "彼方へ名もなき海辺より.打打だいず&月乃.0",
+			"level": "IN",
+			"start": 140.76,
+			"votes": 19,
+			"total": 33
+		},
+		"变速/闪现": {
+			"id": "BreakOver.Kforest.0",
+			"level": "AT",
+			"start": 17.51,
+			"votes": 23,
+			"total": 63
+		},
+		"叠": {
+			"id": "Concvssion.Halv.0",
+			"level": "IN",
+			"start": 127.58,
+			"votes": 9,
+			"total": 25
+		},
+		"噪域/红区": {
+			"id": "DesultorySignals.technoplanet.0",
+			"level": "AT",
+			"start": 65.63,
+			"votes": 21,
+			"total": 69
+		},
+		"复杂节奏": {
+			"id": "Implexrough.Silentroommommy.0",
+			"level": "IN",
+			"start": 93.98,
+			"votes": 8,
+			"total": 14
+		},
+		"多面下落": {
+			"id": "Shadow.SumaiLightvs姜米條.0",
+			"level": "AT",
+			"start": 24.07,
+			"votes": 16,
+			"total": 33
+		},
+		"宽排键": {
+			"id": "RetributionCycleofRedemption.ArdolfvsDaily天利.0",
+			"level": "IN",
+			"start": 133.73,
+			"votes": 30,
+			"total": 67
+		},
+		"对切": {
+			"id": "SATELLITE.かめりあ.0",
+			"level": "AT",
+			"start": 170.4,
+			"votes": 7,
+			"total": 56
+		},
+		"对拍": {
+			"id": "AbsoluTedisoRdeR.AcuteDisarray.0",
+			"level": "AT",
+			"start": 186.09,
+			"votes": 13,
+			"total": 50
+		},
+		"差速": {
+			"id": "TemporalShifting.LureRabbitVC.0",
+			"level": "IN",
+			"start": 38.76,
+			"votes": 6,
+			"total": 13
+		},
+		"快交互": {
+			"id": "WhatdoyouwantmorethanaHappyending.Apo11oHALOprogramft安月名莉子大瀬良あい.0",
+			"level": "IN",
+			"start": 123.97,
+			"votes": 13,
+			"total": 26
+		},
+		"慢流速": {
+			"id": "996.李化禹.0",
+			"level": "IN",
+			"start": 123.15,
+			"votes": 11,
+			"total": 18
+		},
+		"扫线": {
+			"id": "TheWholeRest.KIVΛ.0",
+			"level": "HD",
+			"start": 102.8,
+			"votes": 21,
+			"total": 43
+		},
+		"拍砖": {
+			"id": "SATELLITE.かめりあ.0",
+			"level": "AT",
+			"start": 75.4,
+			"votes": 18,
+			"total": 56
+		},
+		"楼梯": {
+			"id": "Spasmodic.姜米條颶風元力上人.0",
+			"level": "AT",
+			"start": 26.7,
+			"votes": 21,
+			"total": 62
+		},
+		"浮现式": {
+			"id": "ArtificialExistence.JunKuroda.0",
+			"level": "IN",
+			"start": 67.38,
+			"votes": 5,
+			"total": 16
+		},
+		"脑裂": {
+			"id": "INFiNiTEENERZYOverdoze.RekuMochizuki.0",
+			"level": "AT",
+			"start": 73.5,
+			"votes": 30,
+			"total": 80
+		},
+		"蓝夹红": {
+			"id": "Protoflicker.Silentroom.0",
+			"level": "IN",
+			"start": 131.72,
+			"votes": 11,
+			"total": 25
+		},
+		"蓝夹黄": {
+			"id": "CROSSSOUL.HyuNfeatSyepias.0",
+			"level": "IN",
+			"start": 111.49,
+			"votes": 26,
+			"total": 126
+		},
+		"连点爆发": {
+			"id": "夢の降る日に.seatrus.0",
+			"level": "IN",
+			"start": 7.05,
+			"votes": 23,
+			"total": 57
+		},
+		"锁手": {
+			"id": "DerSchneid.Ωμεγα.0",
+			"level": "AT",
+			"start": 48.65,
+			"votes": 2,
+			"total": 79
+		},
+		"锚键": {
+			"id": "GVNGlitterVomitusandNeon.SaltySaltUnfold33.0",
+			"level": "IN",
+			"start": 151.89,
+			"votes": 10,
+			"total": 34
+		},
+		"长条藏键": {
+			"id": "GungnirFracture.Kryexe.0",
+			"level": "IN",
+			"start": 120.13,
+			"votes": 59,
+			"total": 161
+		},
+		"长纵连": {
+			"id": "BetterGraphicAnimation.ルゼ.0",
+			"level": "IN",
+			"start": 91.42,
+			"votes": 12,
+			"total": 23
+		},
+		"长连点/交互": {
+			"id": "ClassMemories.AntistarfeatCtymax.0",
+			"level": "IN",
+			"start": 81.1,
+			"votes": 9,
+			"total": 13
+		},
+		"非线性下落": {
+			"id": "Luminescence.米虾Fomiki初云CLoudie.0",
+			"level": "IN",
+			"start": 16.14,
+			"votes": 6,
+			"total": 15
+		},
+		"面海": {
+			"id": "ぱぴぷぴぷぴぱ.ころねぽちWith立秋.0",
+			"level": "IN",
+			"start": 156.45,
+			"votes": 29,
+			"total": 84
+		},
+		"频繁切轨": {
+			"id": "Archidoxen.Se_IRA.0",
+			"level": "AT",
+			"start": 9,
+			"votes": 11,
+			"total": 61
+		}
+	}
+}
