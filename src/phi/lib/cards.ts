@@ -42,7 +42,12 @@ import type { PhiRuntime } from "./runtime";
 import type { Save } from "./save";
 import { getToken, moneyText } from "./saves";
 import { type AvgOutcome, attachB19AccAvg } from "./score-avg";
-import { profileRecordsOf, tagProfile } from "./tag-profile";
+import {
+	historyProfileDetail,
+	profileRecordsOf,
+	type ScoreHistoryRows,
+	tagProfile,
+} from "./tag-profile";
 
 function htmlImage(rt: PhiRuntime, rel: string) {
 	return join(rt.getInfo.resources, "html", rel);
@@ -82,6 +87,8 @@ async function b30AnalysisFor(
 	nnum: number,
 	locale: PhiLocale,
 	save: Save,
+	pastScores: () => Promise<ScoreHistoryRows | undefined>,
+	constantOf: (id: string, level: string) => number | undefined,
 ) {
 	if (notes.showB30Analysis === false || nnum !== 33) return null;
 	const t = cardCopy(locale);
@@ -95,10 +102,15 @@ async function b30AnalysisFor(
 		try {
 			const votes = await loadTagVotes();
 			if (!votes) throw new Error("chart-tag votes not loaded");
-			tagAnalysis = localizeChartTagLabels(
-				tagProfile(profileRecordsOf(save.gameRecord), votes),
-				locale,
-			);
+			let analysis = tagProfile(profileRecordsOf(save.gameRecord), votes);
+			if (analysis.basis === "aps") {
+				const history = await pastScores().catch(() => undefined);
+				const past = history
+					? historyProfileDetail(history, constantOf, votes)
+					: undefined;
+				if (past) analysis = past.analysis;
+			}
+			tagAnalysis = localizeChartTagLabels(analysis, locale);
 		} catch (err) {
 			tagAnalysis = null;
 			tagLookupFailed = true;
@@ -241,6 +253,13 @@ export async function b19Card(
 			nnum,
 			locale,
 			save,
+			async () =>
+				!save.session || save.session.startsWith("manual:")
+					? undefined
+					: (await loadSaveHistory(rt, db, save.session)).scoreHistory,
+			(id, level) =>
+				Number(rt.getInfo.ori_info[id]?.chart?.[level]?.difficulty) ||
+				undefined,
 		),
 		avgJob,
 	]);

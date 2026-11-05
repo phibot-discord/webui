@@ -52,7 +52,11 @@ const en = {
 	tagConstants: "Constants",
 	noData: "No data",
 	tagPool:
-		"+/- is lost acc vs your same-constant charts (+0.30 = half as much), {min}–{max}.",
+		"+/- is lost acc vs what your other charts predict (+0.30 = half as much), {min}–{max}.",
+	tagPoolAps:
+		"All 99.9%+, so there is no gap to measure: ranked by how hard the charts are, {min}–{max}.",
+	tagPoolHistory:
+		"All 99.9%+ now: from your scores on {date} (+0.30 = half as much lost), {min}–{max}.",
 	categorySummary: "Categories",
 	strongTags: "Strengths",
 	weakTags: "Weaknesses",
@@ -174,7 +178,11 @@ const zh: typeof en = {
 	tagConstants: "定数",
 	noData: "暂无数据",
 	tagPool:
-		"+/- 为准确率损失与同定数谱面相比（+0.30 = 少一半），定数 {min}–{max}",
+		"+/- 为准确率损失与你其他谱面的预期相比（+0.30 = 少一半），定数 {min}–{max}",
+	tagPoolAps:
+		"所有谱面均在 99.9% 以上，没有差距可比：按所在谱面的难度排序，定数 {min}–{max}",
+	tagPoolHistory:
+		"现在所有谱面均在 99.9% 以上：以下来自 {date} 的成绩（+0.30 = 损失少一半），定数 {min}–{max}",
 	categorySummary: "分类汇总",
 	strongTags: "擅长词条",
 	weakTags: "薄弱词条",
@@ -294,7 +302,11 @@ const ja: typeof en = {
 	tagConstants: "定数",
 	noData: "データなし",
 	tagPool:
-		"+/- は同定数の譜面と比べた精度ロス（+0.30 = 半分）、定数 {min}–{max}。",
+		"+/- は他の譜面から予想した精度ロスとの比較（+0.30 = 半分）、定数 {min}–{max}。",
+	tagPoolAps:
+		"すべて 99.9% 以上で差を測れないため、譜面の難しさ順、定数 {min}–{max}。",
+	tagPoolHistory:
+		"現在はすべて 99.9% 以上のため、{date} 時点のスコアから（+0.30 = 半分）、定数 {min}–{max}。",
 	categorySummary: "カテゴリ別",
 	strongTags: "得意",
 	weakTags: "苦手",
@@ -659,7 +671,16 @@ type TagPoolInfo = {
 	range?: { min: number; max: number };
 	recordCount?: number;
 	totalVotes: number;
+	basis?: "scores" | "history" | "aps";
+	asOf?: string;
 };
+
+function shanghaiDate(iso: string): string {
+	const t = Date.parse(iso);
+	return Number.isFinite(t)
+		? new Date(t + 8 * 3_600_000).toISOString().slice(0, 10)
+		: "";
+}
 
 function poolRange(analysis: TagPoolInfo | null | undefined) {
 	const r = analysis?.range;
@@ -684,7 +705,12 @@ export function tagPoolNote(
 	t: CardCopy,
 ): string {
 	const range = poolRange(analysis);
-	return range ? fill(t.tagPool, range) : "";
+	if (!range) return "";
+	if (analysis?.basis === "aps") return fill(t.tagPoolAps, range);
+	const date = analysis?.asOf ? shanghaiDate(analysis.asOf) : "";
+	if (analysis?.basis === "history" && date)
+		return fill(t.tagPoolHistory, { ...range, date });
+	return fill(t.tagPool, range);
 }
 
 function isNoPushSuggest(s: string | undefined): boolean {

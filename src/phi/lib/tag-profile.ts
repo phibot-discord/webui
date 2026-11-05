@@ -7,34 +7,37 @@ import type {
 } from "./b30-analysis";
 import { signed } from "./card-i18n";
 import { chartVoteKey, type TagVotes } from "./chart-tag-votes";
+import { fCompute } from "./fcompute";
 
 export const PROFILE = {
 	below: 0.25,
 	rampFrom: 80,
 	rampTo: 90,
 	cap: 99.9,
-	bandwidth: 0.1,
-	peerWindow: 0.1,
-	reach: 0.2,
-	minPeers: 2,
-	clip: 1,
+	step: 0.1,
+	smooth: 30,
+	flat: 0.01,
+	rounds: 30,
 	prior: 2,
 	ridge: 0.5,
 	resamples: 400,
 	minHold: 0.9,
-	firmHold: 0.98,
+	firmHold: 0.99,
 	minChartVotes: 3,
 	minShare: 0.05,
 	minTagCharts: 4,
 	minDiff: 0.03,
+	minFaint: 0.005,
 	slight: 0.05,
 	minCharts: 12,
+	minFree: 3,
 	listMax: 3,
 	floorSlot: 27,
 } as const;
 
 const LEVELS = new Set(["EZ", "HD", "IN", "AT"]);
 const EPS = 1e-9;
+const CAP_Y = -Math.log10(1 - PROFILE.cap / 100);
 
 export type ProfileRecord = {
 	id: string;
@@ -43,6 +46,8 @@ export type ProfileRecord = {
 	rks: number;
 	acc?: number;
 };
+
+export type ProfileBasis = "scores" | "history" | "aps";
 
 export type ChartGroup = "best" | "middle" | "worst";
 
@@ -61,6 +66,7 @@ export type ProfileTagScore = TagScore & {
 	mean: number;
 	hold: number;
 	firm: boolean;
+	faint: boolean;
 };
 
 export type ProfileTagRow = ProfileTagScore & { side: TagRow["side"] };
@@ -69,12 +75,14 @@ export type ProfileCategory = ProfileTagScore & { hasVotes: boolean };
 
 export type ProfileAnalysis = Omit<
 	TagAnalysis,
-	"strong" | "weak" | "tags" | "categories"
+	"strong" | "weak" | "tags" | "categories" | "basis"
 > & {
 	strong: ProfileTagScore[];
 	weak: ProfileTagScore[];
 	tags: ProfileTagRow[];
 	categories: ProfileCategory[];
+	basis: ProfileBasis;
+	asOf?: string;
 };
 
 export type ProfileDetail = {
@@ -137,80 +145,217 @@ export function weightOf(acc: number): number {
 	return Math.max(0, Math.min(1, w));
 }
 
-type Pooled = { r: ProfileRecord; acc: number; y: number; w: number };
-
-function expectedAt(pool: readonly Pooled[], at: number): number | undefined {
-	const x0 = pool[at]!.r.difficulty;
-	let peers = 0;
-	let sw = 0;
-	let sx = 0;
-	let sy = 0;
-	let sxx = 0;
-	let sxy = 0;
-	for (let i = 0; i < pool.length; i++) {
-		if (i === at) continue;
-		const q = pool[i]!;
-		const d = q.r.difficulty - x0;
-		const dist = Math.abs(d);
-		if (dist > PROFILE.reach + EPS) continue;
-		if (dist <= PROFILE.peerWindow + EPS) peers += 1;
-		const k = Math.exp(-0.5 * (d / PROFILE.bandwidth) ** 2) * q.w;
-		sw += k;
-		sx += k * d;
-		sy += k * q.y;
-		sxx += k * d * d;
-		sxy += k * d * q.y;
-	}
-	if (peers < PROFILE.minPeers || sw < EPS) return undefined;
-	const det = sw * sxx - sx * sx;
-	if (det <= 1e-6 * sw * sw) return sy / sw;
-	return (sxx * sy - sx * sxy) / det;
-}
-
 export { signed };
 
-type Term = { w: number; r: number; shares: [number, number][] };
+type Pooled = {
+	r: ProfileRecord;
+	acc: number;
+	y: number;
+	w: number;
+	capped: boolean;
+};
 
-function solve(a: number[][], b: number[]): number[] {
-	const n = b.length;
-	for (let c = 0; c < n; c++) {
-		let p = c;
-		for (let k = c + 1; k < n; k++)
-			if (Math.abs(a[k]![c]!) > Math.abs(a[p]![c]!)) p = k;
-		if (p !== c) {
-			[a[c], a[p]] = [a[p]!, a[c]!];
-			[b[c], b[p]] = [b[p]!, b[c]!];
+type Pool = {
+	pool: Pooled[];
+	min: number;
+	averageRks: number;
+	free: number;
+};
+
+function poolOf(records: readonly ProfileRecord[]): Pool | undefined {
+	const scored = records.filter(
+		(r) =>
+			LEVELS.has(r.level) &&
+			Number.isFinite(r.difficulty) &&
+			r.difficulty > 0 &&
+			Number.isFinite(r.rks),
+	);
+	if (!scored.length) return undefined;
+	const best = scored.map((r) => r.rks).sort((a, b) => b - a);
+	const top = best.slice(0, PROFILE.floorSlot);
+	const floor = top.at(-1)!;
+	const averageRks = top.reduce((s, v) => s + v, 0) / top.length;
+	const min = Math.max(0, ceil1(floor - PROFILE.below));
+	const pool: Pooled[] = [];
+	let free = 0;
+	for (const r of scored) {
+		if (r.difficulty < min - EPS) continue;
+		const acc = accOf(r);
+		if (acc == null) continue;
+		const w = weightOf(acc);
+		if (w <= 0) continue;
+		const capped = acc >= PROFILE.cap - EPS;
+		if (!capped) free += 1;
+		pool.push({ r, acc, y: nines(acc), w, capped });
+	}
+	return { pool, min, averageRks, free };
+}
+
+type Row = {
+	p: Pooled;
+	curve: [number, number][];
+	shares: [number, number][];
+	x: [number, number][];
+};
+
+type Knobs = { smooth: number; flat: number; ridge: number };
+
+type Fit = { theta: number[]; l: Float64Array };
+
+function cholesky(a: Float64Array, n: number): Float64Array {
+	const l = new Float64Array(n * n);
+	const first = new Int32Array(n);
+	for (let i = 0; i < n; i++) {
+		let k = 0;
+		while (k < i && a[i * n + k] === 0) k++;
+		first[i] = k;
+	}
+	for (let j = 0; j < n; j++) {
+		const rj = j * n;
+		const fj = first[j]!;
+		let s = a[rj + j]!;
+		for (let k = fj; k < j; k++) s -= l[rj + k]! * l[rj + k]!;
+		const d = Math.sqrt(Math.max(s, 1e-12));
+		l[rj + j] = d;
+		for (let i = j + 1; i < n; i++) {
+			const fi = first[i]!;
+			if (fi > j) continue;
+			const ri = i * n;
+			let t = a[ri + j]!;
+			for (let k = Math.max(fi, fj); k < j; k++) t -= l[ri + k]! * l[rj + k]!;
+			l[ri + j] = t / d;
 		}
-		const pivot = a[c]![c]!;
-		if (Math.abs(pivot) < 1e-12) continue;
-		for (let k = c + 1; k < n; k++) {
-			const f = a[k]![c]! / pivot;
-			if (!f) continue;
-			for (let j = c; j < n; j++) a[k]![j]! -= f * a[c]![j]!;
-			b[k]! -= f * b[c]!;
-		}
+	}
+	return l;
+}
+
+function solveWith(
+	l: Float64Array,
+	n: number,
+	b: ArrayLike<number>,
+): number[] {
+	const y = new Float64Array(n);
+	for (let i = 0; i < n; i++) {
+		const ri = i * n;
+		let s = b[i]!;
+		for (let k = 0; k < i; k++) s -= l[ri + k]! * y[k]!;
+		y[i] = s / l[ri + i]!;
 	}
 	const x = new Array<number>(n).fill(0);
 	for (let i = n - 1; i >= 0; i--) {
-		let s = b[i]!;
-		for (let j = i + 1; j < n; j++) s -= a[i]![j]! * x[j]!;
-		x[i] = Math.abs(a[i]![i]!) < 1e-12 ? 0 : s / a[i]![i]!;
+		let s = y[i]!;
+		for (let k = i + 1; k < n; k++) s -= l[k * n + i]! * x[k]!;
+		x[i] = s / l[i * n + i]!;
 	}
 	return x;
 }
 
-function fit(terms: readonly Term[], n: number): number[] {
-	const a = Array.from({ length: n }, () => new Array<number>(n).fill(0));
-	const b = new Array<number>(n).fill(0);
-	for (const t of terms) {
-		for (const [i, si] of t.shares) {
-			b[i]! += t.w * si * t.r;
-			const row = a[i]!;
-			for (const [j, sj] of t.shares) row[j]! += t.w * si * sj;
+function fit(
+	rows: readonly Row[],
+	targets: readonly number[],
+	knots: number,
+	tags: number,
+	knobs: Knobs,
+): Fit {
+	const n = knots + tags;
+	const a = new Float64Array(n * n);
+	const b = new Float64Array(n);
+	rows.forEach((row, i) => {
+		const t = targets[i]!;
+		const w = row.p.w;
+		for (const [p, fp] of row.x) {
+			b[p]! += w * fp * t;
+			const rp = p * n;
+			for (const [q, fq] of row.x) a[rp + q]! += w * fp * fq;
 		}
+	});
+	const c = [1, -2, 1];
+	for (let k = 1; k + 1 < knots; k++) {
+		for (let p = 0; p < 3; p++)
+			for (let q = 0; q < 3; q++)
+				a[(k - 1 + p) * n + (k - 1 + q)]! += knobs.smooth * c[p]! * c[q]!;
 	}
-	for (let i = 0; i < n; i++) a[i]![i]! += PROFILE.ridge;
-	return solve(a, b);
+	for (let k = 0; k + 1 < knots; k++) {
+		a[k * n + k]! += knobs.flat;
+		a[(k + 1) * n + k + 1]! += knobs.flat;
+		a[k * n + k + 1]! -= knobs.flat;
+		a[(k + 1) * n + k]! -= knobs.flat;
+	}
+	for (let k = 0; k < knots; k++) a[k * n + k]! += 1e-6;
+	for (let t = 0; t < tags; t++) a[(knots + t) * n + knots + t]! += knobs.ridge;
+	const l = cholesky(a, n);
+	return { theta: solveWith(l, n, b), l };
+}
+
+function curveAt(row: Row, theta: readonly number[]): number {
+	let g = 0;
+	for (const [k, f] of row.curve) g += theta[k]! * f;
+	return g;
+}
+
+function tagPart(row: Row, theta: readonly number[], knots: number): number {
+	let s = 0;
+	for (const [j, sh] of row.shares) s += theta[knots + j]! * sh;
+	return s;
+}
+
+function shiftOf(
+	rows: readonly Row[],
+	theta: readonly number[],
+	knots: number,
+) {
+	let sw = 0;
+	let st = 0;
+	for (const row of rows) {
+		if (!row.shares.length) continue;
+		sw += row.p.w;
+		st += row.p.w * tagPart(row, theta, knots);
+	}
+	return sw > 0 ? st / sw : 0;
+}
+
+function predict(row: Row, theta: readonly number[]): number {
+	let v = 0;
+	for (const [k, f] of row.x) v += theta[k]! * f;
+	return v;
+}
+
+function fitCensored(
+	rows: readonly Row[],
+	start: readonly number[],
+	knots: number,
+	tags: number,
+	knobs: Knobs,
+	censor: boolean,
+): Fit & { targets: number[]; used: boolean[] } {
+	if (!censor) {
+		const f = fit(rows, start, knots, tags, knobs);
+		return { ...f, targets: [...start], used: rows.map(() => true) };
+	}
+	const fitActive = (active: readonly boolean[]) => {
+		const pick = rows.filter((_, i) => active[i]);
+		return fit(
+			pick,
+			pick.map((row) => (row.p.capped ? CAP_Y : row.p.y)),
+			knots,
+			tags,
+			knobs,
+		);
+	};
+	let active = rows.map((row, i) => !row.p.capped || start[i]! <= CAP_Y + EPS);
+	let f = fitActive(active);
+	for (let round = 1; round < PROFILE.rounds; round++) {
+		const next = rows.map(
+			(row) => !row.p.capped || predict(row, f.theta) < CAP_Y,
+		);
+		if (next.every((v, i) => v === active[i])) break;
+		active = next;
+		f = fitActive(active);
+	}
+	const targets = rows.map((row) =>
+		row.p.capped ? Math.max(CAP_Y, predict(row, f.theta)) : row.p.y,
+	);
+	return { ...f, targets, used: active };
 }
 
 function rng(seed: number) {
@@ -223,22 +368,42 @@ function rng(seed: number) {
 	};
 }
 
-function holdsOf(terms: readonly Term[], n: number, betas: number[]) {
-	const counts = new Array<number>(n).fill(0);
-	if (!terms.length) return counts;
-	const next = rng(terms.length * 2654435761 + n);
+function holdsOf(
+	rows: readonly Row[],
+	start: readonly number[],
+	knots: number,
+	tags: number,
+	knobs: Knobs,
+	censor: boolean,
+	betas: readonly number[],
+) {
+	const counts = new Array<number>(tags).fill(0);
+	if (!rows.length || !tags) return counts;
+	const next = rng(rows.length * 2654435761 + tags);
 	for (let round = 0; round < PROFILE.resamples; round++) {
-		const sample: Term[] = [];
+		const sample: Row[] = [];
+		const sampleStart: number[] = [];
 		const present = new Set<number>();
-		for (let k = 0; k < terms.length; k++) {
-			const t = terms[Math.floor(next() * terms.length)]!;
-			sample.push(t);
-			for (const [i] of t.shares) present.add(i);
+		for (let k = 0; k < rows.length; k++) {
+			const i = Math.floor(next() * rows.length);
+			const row = rows[i]!;
+			sample.push(row);
+			sampleStart.push(start[i]!);
+			for (const [j] of row.shares) present.add(j);
 		}
-		const b = fit(sample, n);
-		for (let i = 0; i < n; i++) {
-			if (!present.has(i) || betas[i] === 0) continue;
-			if (Math.sign(b[i]!) === Math.sign(betas[i]!)) counts[i]! += 1;
+		const { theta } = fitCensored(
+			sample,
+			sampleStart,
+			knots,
+			tags,
+			knobs,
+			censor,
+		);
+		const shift = shiftOf(sample, theta, knots);
+		for (let t = 0; t < tags; t++) {
+			if (!present.has(t) || betas[t] === 0) continue;
+			if (Math.sign(theta[knots + t]! - shift) === Math.sign(betas[t]!))
+				counts[t]! += 1;
 		}
 	}
 	return counts.map((c) => c / PROFILE.resamples);
@@ -289,45 +454,33 @@ function scoreOf(
 	a: Acc,
 	beta: number | undefined,
 	hold: number,
+	aps: boolean,
 ): ProfileTagScore {
-	const mean = a.s / (a.w + PROFILE.prior);
+	const mean = aps ? 0 : a.s / (a.w + PROFILE.prior);
 	const diff = beta == null ? mean : a.w > 0 ? beta * (a.w2 / a.w) : 0;
-	const firm = hold >= PROFILE.firmHold;
+	const firm = !aps && hold >= PROFILE.firmHold;
 	return {
 		name,
 		diff,
 		mean,
 		hold,
 		firm,
-		shown: signed(diff),
+		faint: aps || Math.abs(diff) < PROFILE.minDiff,
+		shown: aps ? "" : signed(diff),
 		votes: a.votes,
 		charts: a.charts,
 		best: a.best,
 		worst: a.worst,
-		slight: Math.round(Math.abs(diff) * 100) < PROFILE.slight * 100,
+		slight: aps || Math.round(Math.abs(diff) * 100) < PROFILE.slight * 100,
 	};
 }
 
 function sideOf(score: ProfileTagScore): TagRow["side"] {
 	if (score.charts < PROFILE.minTagCharts) return "even";
 	if (score.hold < PROFILE.minHold) return "even";
-	if (score.diff >= PROFILE.minDiff) return "strong";
-	if (score.diff <= -PROFILE.minDiff) return "weak";
+	if (score.diff >= PROFILE.minFaint) return "strong";
+	if (score.diff <= -PROFILE.minFaint) return "weak";
 	return "even";
-}
-
-function attribute(
-	byKey: Map<number, Acc>,
-	terms: readonly Term[],
-	keys: readonly number[],
-): Map<number, { beta: number; hold: number }> {
-	const betas = fit(terms, keys.length);
-	const holds = holdsOf(terms, keys.length, betas);
-	const out = new Map<number, { beta: number; hold: number }>();
-	keys.forEach((key, i) => {
-		if (byKey.has(key)) out.set(key, { beta: betas[i]!, hold: holds[i]! });
-	});
-	return out;
 }
 
 const CX = 100;
@@ -405,7 +558,26 @@ export function emptyProfile(): ProfileAnalysis {
 		weak: [],
 		tags: [],
 		insufficient: true,
+		basis: "scores",
 	};
+}
+
+function curveRows(pool: readonly Pooled[]) {
+	const xs = pool.map((p) => p.r.difficulty);
+	const lo = Math.floor(Math.min(...xs) / PROFILE.step + EPS) * PROFILE.step;
+	const hi = Math.ceil(Math.max(...xs) / PROFILE.step - EPS) * PROFILE.step;
+	const knots = Math.max(1, Math.round((hi - lo) / PROFILE.step) + 1);
+	const curve = (x: number): [number, number][] => {
+		if (knots === 1) return [[0, 1]];
+		const u = (x - lo) / PROFILE.step;
+		const k = Math.min(knots - 2, Math.max(0, Math.floor(u + EPS)));
+		const f = Math.max(0, Math.min(1, u - k));
+		return [
+			[k, 1 - f],
+			[k + 1, f],
+		];
+	};
+	return { knots, curve };
 }
 
 export function tagProfileDetail(
@@ -417,117 +589,151 @@ export function tagProfileDetail(
 		byTag: new Map<string, TagChart[]>(),
 		byCategory: new Map<string, TagChart[]>(),
 	};
-	const scored = records.filter(
-		(r) =>
-			LEVELS.has(r.level) &&
-			Number.isFinite(r.difficulty) &&
-			r.difficulty > 0 &&
-			Number.isFinite(r.rks),
-	);
-	if (!scored.length) return { analysis: emptyProfile(), ...none };
-	const best = scored.map((r) => r.rks).sort((a, b) => b - a);
-	const top = best.slice(0, PROFILE.floorSlot);
-	const floor = top.at(-1)!;
-	const averageRks = top.reduce((s, v) => s + v, 0) / top.length;
-	const min = Math.max(0, ceil1(floor - PROFILE.below));
-	const pool: Pooled[] = [];
-	for (const r of scored) {
-		if (r.difficulty < min - EPS) continue;
-		const acc = accOf(r);
-		if (acc == null) continue;
-		const w = weightOf(acc);
-		if (w <= 0) continue;
-		pool.push({ r, acc, y: nines(acc), w });
-	}
+	const built = poolOf(records);
+	if (!built) return { analysis: emptyProfile(), ...none };
+	const { pool, min, averageRks, free } = built;
 	const range = {
 		min,
 		max: pool.reduce((m, p) => Math.max(m, p.r.difficulty), min),
 	};
-	const voted = pool.flatMap((p, i) => {
-		const tags = votes.charts.get(chartVoteKey(p.r.id, p.r.level));
-		if (!tags) return [];
-		let total = 0;
-		for (const v of tags.values()) total += v;
-		if (total < PROFILE.minChartVotes) return [];
-		const expected = expectedAt(pool, i);
-		if (expected == null) return [];
-		const raw = Math.max(-PROFILE.clip, Math.min(PROFILE.clip, p.y - expected));
-		return [{ p, expected, raw, tags, total }];
-	});
-	let sumW = 0;
-	let sumWR = 0;
-	for (const c of voted) {
-		sumW += c.p.w;
-		sumWR += c.p.w * c.raw;
-	}
-	const mean = sumW > 0 ? sumWR / sumW : 0;
-	const third = Math.floor(voted.length / 3);
-	const group = new Map<number, ChartGroup>();
-	const order = voted
-		.map((c, i) => ({ i, d: c.raw }))
-		.sort((a, b) => a.d - b.d);
-	order.forEach(({ i }, k) => {
-		group.set(
-			i,
-			k < third ? "worst" : k >= voted.length - third ? "best" : "middle",
-		);
-	});
-	const charts: PooledChart[] = voted.map((c, i) => ({
-		...c.p.r,
-		acc: c.p.acc,
-		weight: c.p.w,
-		expected: accOfNines(c.expected),
-		diff: c.raw - mean,
-		group: group.get(i) ?? "middle",
-		votes: c.total,
-	}));
-	const byTag = new Map<number, Acc>();
-	const byCat = new Map<number, Acc>();
+	const aps = free < PROFILE.minFree;
 	const tagKeys: number[] = [];
 	const tagIndex = new Map<number, number>();
-	const tagTerms: Term[] = [];
+	const { knots, curve } =
+		pool.length && !aps
+			? curveRows(pool)
+			: { knots: 1, curve: (): [number, number][] => [[0, 1]] };
+	const rows: Row[] = [];
+	const voted: { row: number; tags: Map<number, number>; total: number }[] = [];
+	for (const p of pool) {
+		const tags = votes.charts.get(chartVoteKey(p.r.id, p.r.level));
+		let total = 0;
+		for (const v of tags?.values() ?? []) total += v;
+		const shares: [number, number][] = [];
+		if (tags && total >= PROFILE.minChartVotes) {
+			for (const [tag, v] of tags) {
+				const share = v / total;
+				if (share < PROFILE.minShare) continue;
+				let index = tagIndex.get(tag);
+				if (index == null) {
+					index = tagKeys.length;
+					tagKeys.push(tag);
+					tagIndex.set(tag, index);
+				}
+				shares.push([index, share]);
+			}
+			voted.push({ row: rows.length, tags, total });
+		}
+		rows.push({ p, curve: curve(p.r.difficulty), shares, x: [] });
+	}
+	const T = tagKeys.length;
+	for (const row of rows)
+		row.x = [
+			...row.curve,
+			...row.shares.map(([j, sh]): [number, number] => [knots + j, sh]),
+		];
+	const knobs: Knobs = {
+		smooth: PROFILE.smooth,
+		flat: PROFILE.flat,
+		ridge: PROFILE.ridge,
+	};
+	let centre = 0;
+	if (aps) {
+		let sw = 0;
+		let sx = 0;
+		for (const p of pool) {
+			sw += p.w;
+			sx += p.w * p.r.difficulty;
+		}
+		centre = sw > 0 ? sx / sw : 0;
+	}
+	const start = pool.map((p) => (aps ? p.r.difficulty - centre : p.y));
+	const main = fitCensored(rows, start, knots, T, knobs, !aps);
+	const mainShift = shiftOf(rows, main.theta, knots);
+	const betas = main.theta.slice(knots).map((b) => b - mainShift);
+	const holds = holdsOf(rows, main.targets, knots, T, knobs, !aps, betas);
+	const n = knots + T;
+	const own = voted.map(({ row }) => {
+		const r = rows[row]!;
+		if (aps) return { expected: r.p.acc, gap: 0 };
+		let theta = main.theta;
+		if (main.used[row]) {
+			const unit = new Float64Array(n);
+			for (const [k, f] of r.x) unit[k] = f;
+			const z = solveWith(main.l, n, unit);
+			let h = 0;
+			for (const [k, f] of r.x) h += f * z[k]!;
+			h *= r.p.w;
+			const e = (r.p.capped ? CAP_Y : r.p.y) - predict(r, main.theta);
+			const step = (r.p.w * e) / Math.max(1 - h, 1e-9);
+			theta = main.theta.map((v, i) => v - z[i]! * step);
+		}
+		const rest = rows.filter((_, i) => i !== row);
+		const g = curveAt(r, theta) + shiftOf(rest, theta, knots);
+		return {
+			expected: accOfNines(curveAt(r, theta) + tagPart(r, theta, knots)),
+			gap: r.p.capped ? Math.max(0, CAP_Y - g) : r.p.y - g,
+		};
+	});
+	const third = Math.floor(voted.length / 3);
+	const group = new Map<number, ChartGroup>();
+	voted
+		.map((v, i) => ({ i, d: aps ? start[v.row]! : own[i]!.gap }))
+		.sort((a, b) => a.d - b.d)
+		.forEach(({ i }, k) => {
+			group.set(
+				i,
+				k < third ? "worst" : k >= voted.length - third ? "best" : "middle",
+			);
+		});
+	const charts: PooledChart[] = voted.map((v, i) => {
+		const row = rows[v.row]!;
+		return {
+			...row.p.r,
+			acc: row.p.acc,
+			weight: row.p.w,
+			expected: own[i]!.expected,
+			diff: own[i]!.gap,
+			group: group.get(i) ?? "middle",
+			votes: v.total,
+		};
+	});
+	const byTag = new Map<number, Acc>();
+	const byCat = new Map<number, Acc>();
 	voted.forEach(({ tags, total }, i) => {
 		const pc = charts[i]!;
 		const perCat = new Map<number, number>();
-		const shares: [number, number][] = [];
 		for (const [tag, v] of tags) {
 			for (const p of votes.tags.get(tag)?.parents ?? [])
 				perCat.set(p, (perCat.get(p) ?? 0) + v);
 			const share = v / total;
 			if (share < PROFILE.minShare) continue;
 			add(byTag, tag, i, share, v, pc);
-			let index = tagIndex.get(tag);
-			if (index == null) {
-				index = tagKeys.length;
-				tagKeys.push(tag);
-				tagIndex.set(tag, index);
-			}
-			shares.push([index, share]);
 		}
-		tagTerms.push({ w: pc.weight, r: pc.diff, shares });
 		let catTotal = 0;
 		for (const v of perCat.values()) catTotal += v;
 		for (const [cat, v] of perCat) add(byCat, cat, i, v / catTotal, v, pc);
 	});
-	const tagFit = attribute(byTag, tagTerms, tagKeys);
-	const rows: ProfileTagRow[] = [...byTag]
+	const tagRows: ProfileTagRow[] = [...byTag]
 		.map(([id, a]) => {
-			const f = tagFit.get(id) ?? { beta: 0, hold: 0 };
+			const index = tagIndex.get(id);
 			const score = scoreOf(
 				votes.tags.get(id)?.name ?? String(id),
 				a,
-				f.beta,
-				f.hold,
+				index == null ? 0 : betas[index]!,
+				index == null ? 0 : holds[index]!,
+				aps,
 			);
 			return { ...score, side: sideOf(score) };
 		})
 		.sort((a, b) => b.diff - a.diff || a.name.localeCompare(b.name));
 	const strip = ({ side: _s, ...tag }: ProfileTagRow): ProfileTagScore => tag;
 	const listed = (side: TagRow["side"]) =>
-		rows
+		tagRows
 			.filter((t) => t.side === side)
 			.sort(
 				(a, b) =>
+					Number(a.faint) - Number(b.faint) ||
 					Number(b.firm) - Number(a.firm) ||
 					Math.abs(b.diff) - Math.abs(a.diff),
 			)
@@ -536,15 +742,16 @@ export function tagProfileDetail(
 	const strong = listed("strong");
 	const weak = listed("weak");
 	const categories: ProfileCategory[] = votes.categories.map((cat) => {
-		const a = byCat.get(cat.id);
+		const a = aps ? undefined : byCat.get(cat.id);
 		const score: ProfileTagScore = a
-			? scoreOf(cat.name, a, undefined, 1)
+			? scoreOf(cat.name, a, undefined, 1, false)
 			: {
 					name: cat.name,
 					diff: 0,
 					mean: 0,
 					hold: 0,
 					firm: false,
+					faint: true,
 					shown: "–",
 					votes: 0,
 					charts: 0,
@@ -573,8 +780,9 @@ export function tagProfileDetail(
 			radar: radarGeometry(categories),
 			strong,
 			weak,
-			tags: rows,
+			tags: tagRows,
 			insufficient: voted.length < PROFILE.minCharts,
+			basis: aps ? "aps" : "scores",
 		},
 		charts,
 		byTag: tagLists,
@@ -587,4 +795,99 @@ export function tagProfile(
 	votes: TagVotes,
 ): ProfileAnalysis {
 	return tagProfileDetail(records, votes).analysis;
+}
+
+export type ScoreHistoryRow = readonly [
+	acc: unknown,
+	score: unknown,
+	date: unknown,
+	fc?: unknown,
+];
+
+export type ScoreHistoryRows = Readonly<
+	Record<
+		string,
+		Partial<Record<string, readonly ScoreHistoryRow[]>> | undefined
+	>
+>;
+
+function timeOf(v: unknown): number {
+	if (v instanceof Date) return v.getTime();
+	if (typeof v === "string" || typeof v === "number")
+		return new Date(v).getTime();
+	return Number.NaN;
+}
+
+type Point = { t: number; acc: number; score: number };
+
+export function pastRecords(
+	history: ScoreHistoryRows,
+	constantOf: (id: string, level: string) => number | undefined,
+): { records: ProfileRecord[]; t: number } | undefined {
+	const series: { id: string; level: string; c: number; points: Point[] }[] =
+		[];
+	const times = new Set<number>();
+	for (const [id, levels] of Object.entries(history)) {
+		for (const [level, rows] of Object.entries(levels ?? {})) {
+			if (!LEVELS.has(level)) continue;
+			const c = constantOf(id, level);
+			if (!c || !(c > 0)) continue;
+			const points: Point[] = [];
+			for (const row of rows ?? []) {
+				const t = timeOf(row[2]);
+				const acc = Number(row[0]);
+				const score = Number(row[1]);
+				if (!Number.isFinite(t) || !Number.isFinite(acc)) continue;
+				if (!(score > 0)) continue;
+				points.push({ t, acc, score });
+				times.add(t);
+			}
+			if (!points.length) continue;
+			points.sort((a, b) => a.t - b.t);
+			series.push({ id, level, c, points });
+		}
+	}
+	const order = [...times].sort((a, b) => b - a);
+	for (const cutoff of order) {
+		const records: ProfileRecord[] = [];
+		for (const s of series) {
+			let last: Point | undefined;
+			for (const p of s.points) {
+				if (p.t > cutoff) break;
+				last = p;
+			}
+			if (!last) continue;
+			const acc = Number(last.acc.toFixed(4));
+			records.push({
+				id: s.id,
+				level: s.level,
+				difficulty: s.c,
+				rks: fCompute.rks(acc, s.c),
+				acc,
+			});
+		}
+		const built = poolOf(records);
+		if (built && built.free >= PROFILE.minFree) return { records, t: cutoff };
+	}
+	return undefined;
+}
+
+export function historyProfileDetail(
+	history: ScoreHistoryRows,
+	constantOf: (id: string, level: string) => number | undefined,
+	votes: TagVotes,
+): ProfileDetail | undefined {
+	const past = pastRecords(history, constantOf);
+	if (!past) return undefined;
+	const detail = tagProfileDetail(past.records, votes);
+	if (detail.analysis.basis !== "scores" || detail.analysis.insufficient)
+		return undefined;
+	return {
+		...detail,
+		analysis: {
+			...detail.analysis,
+			basis: "history",
+			asOf: new Date(past.t).toISOString(),
+		},
+	};
 }

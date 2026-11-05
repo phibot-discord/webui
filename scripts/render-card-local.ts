@@ -99,7 +99,7 @@ const save = new Save(
 const notes = {
 	...(await getNotes(db, "local")),
 	allowApiUsage: false,
-	showTagAnalysis: false,
+	showTagAnalysis: process.env.TAGS === "1",
 	locale,
 	cardBackground: process.env.BG || undefined,
 	stddevExcludeP3: process.env.SD_NO_P3 === "1",
@@ -266,7 +266,7 @@ if (KIND === "info") {
 			nnum: Number(process.env.COUNT || 33),
 			mode: KIND as "b30" | "x30" | "fc30",
 			locale,
-			showTagAnalysis: false,
+			showTagAnalysis: process.env.TAGS === "1",
 			notes,
 		})),
 		hideRecordStats: process.env.HIDE_STATS === "1",

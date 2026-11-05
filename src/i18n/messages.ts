@@ -1293,6 +1293,7 @@ export const en: ClientMessages = {
 		index: "Categories",
 		count: "{n} tags",
 		howTitle: "How the profile is worked out",
+
 		how: [
 			{
 				term: "Votes",
@@ -1306,17 +1307,17 @@ export const en: ClientMessages = {
 			{
 				term: "Lost accuracy",
 				formula: "y = −log10(1 − acc)",
-				text: "Accuracy becomes how much of it you lost, to goods and bads alike, on a log scale: 90% is 1.0, 99% is 2.0, 99.9% is 3.0, and 100% is read as 99.9%. Each step of 1 is ten times less lost accuracy, so 99% to 99.9% counts as much as 90% to 99%, and a 100% on a hard chart shows how far above your norm you played instead of hitting a ceiling.",
+				text: "Accuracy becomes how much of it you lost, to goods and bads alike, on a log scale: 90% is 1.0, 99% is 2.0, 99.9% is 3.0. Each step of 1 is ten times less lost accuracy, so 99% to 99.9% counts as much as 90% to 99%. 99.9% or more is read as at least 3.0: it only counts where the fit expects less, so an easy 100% never counts against you.",
 			},
 			{
 				term: "Expected",
-				formula: "ŷ = local straight-line fit of y against C",
-				text: "Fitted through your other pooled charts within 0.2 of the same constant, weighted toward the nearest (Gaussian, width 0.1), and read at this chart's constant. A chart needs at least two others within 0.1 to count.",
+				formula: "ŷ = g(C) + Σ β × share",
+				text: "One smooth curve g over constant, with a point every 0.1 and kept close to a straight line, fitted together with the tag effects β on all your pooled charts. There is no window and no minimum number of neighbours, so your hardest charts count too. A chart's own expected value comes from the fit without that chart.",
 			},
 			{
 				term: "Gap",
-				formula: "d = clip(y − ŷ, ±1) − mean(d)",
-				text: "Centred on your own average, so 0 is your baseline and + is better than you usually do at that constant.",
+				formula: "d = y − g(C)",
+				text: "Measured against the curve from the fit without that chart, so 0 is your baseline at that constant and + is better. A 99.9%+ chart only counts as far as that curve expects less than 99.9%.",
 			},
 			{
 				term: "Share",
@@ -1330,27 +1331,31 @@ export const en: ClientMessages = {
 			},
 			{
 				term: "Net",
-				formula: "d ≈ Σ β × share, ridge 0.5",
-				text: "One fit over all tags at once: each chart's gap is explained as the sum of its tags' effects, with a ridge penalty standing in for the prior. A tag only earns what its co-tags do not already explain. The number shown is β times the tag's mean share.",
+				formula: "β, ridge 0.5",
+				text: "The tag effects from the same fit as the curve, with a ridge penalty standing in for the prior. A tag only earns what the constant and its co-tags do not already explain. The number shown is β times the tag's mean share.",
 			},
 			{
 				term: "Holds",
-				text: "Your charts are resampled 400 times and the fit repeated. Holds is how often the net keeps its sign.",
+				text: "Your charts are resampled 400 times and the whole fit repeated, 99.9%+ charts included. Holds is how often the net keeps its sign.",
 			},
 			{
 				term: "Strength",
 				formula: "net ≥ +0.03 and holds ≥ 90%",
-				text: "A weakness is the same with net ≤ −0.03. Tags on fewer than 4 of your charts are never listed. Nets under ±0.05 are dimmed on the card as slight. An entry that holds in under 98% of resamples still shows in full on the card, but the player profile page labels it leaning.",
+				text: "A weakness is the same with net ≤ −0.03. Tags on fewer than 4 of your charts are never listed. A net under ±0.03 that still holds is listed after the others as faint and dimmed on the card; under ±0.05 its number is dimmed. An entry that holds in under 99% of resamples still shows in full on the card, but the player profile page labels it leaning.",
+			},
+			{
+				term: "All 99.9%+",
+				text: "With fewer than 3 pooled charts under 99.9% there is no gap to measure. If PhiBot has your score history, the profile comes from the last day some charts were still under 99.9%, and the date is shown. Otherwise tags are ranked by how hard the 99.9%+ charts carrying them are, dimmed and without numbers: that shows which charts you have cleared at the top, not a skill difference.",
 			},
 		],
 		readTitle: "How to read the numbers",
 		read: [
-			"+0.11 next to a tag: on charts with that tag you lose about a fifth less accuracy than on your other charts of the same constant, whether to goods or bads. +0.30 is about half the loss; +1.00 is a tenth of it, 99.9% where you usually get 99%.",
-			"−0.23: about 1.7 times the loss. 0.00: those charts play like the rest of your charts.",
-			"Dimmed entries on the card are slight: the net is under ±0.05. The player profile page also labels an entry leaning when its net holds in under 98% of resamples. Ordinary score swings alone can produce either, so read them as hints.",
-			"The baseline is you, never other players, and only charts at or above your level count. A chart that is hard for everyone does not count against you, because it is compared with your charts of the same constant.",
+			"+0.11 next to a tag: on charts with that tag you lose about a fifth less accuracy than the rest of your charts predict for them, whether to goods or bads. +0.30 is about half the loss; +1.00 is a tenth of it, 99.9% where you would usually get 99%.",
+			"−0.23: about 1.7 times the loss. 0.00: those charts play as predicted.",
+			"Dimmed entries on the card are faint (net under ±0.03, listed last) or slight (number dimmed, net under ±0.05). The player profile page also labels an entry leaning when its net holds in under 99% of resamples. Ordinary score swings alone can produce any of these, so read them as hints.",
+			"The baseline is you, never other players, and only charts at or above your level count. A chart that is hard for everyone does not count against you on its own, because it is compared with what your own curve expects at its constant.",
 			"Tags that always sit on the same charts cannot be told apart, so the net splits the credit between them. Where a tag also appears without its usual companions, those charts decide. Open a tag on the player profile to see which charts it comes from.",
-			"An entry that holds at 98% can still be luck about one time in twenty, a leaning one about one in five. Treat a single listing as a hint, and a tag that stays listed across saves as a pattern.",
+			"An entry that holds at 99% can still be luck about one time in twenty, a leaning one about one in five. Treat a single listing as a hint, and a tag that stays listed across saves as a pattern.",
 		],
 		profileLink:
 			"See every tag and the charts behind it on your player profile",
@@ -1867,7 +1872,8 @@ export const zh: ClientMessages = {
 	signInTaptap: "使用 TapTap 继续",
 	invite: "邀请到 Discord",
 	inviteUser: "添加到我的应用",
-	inviteUserHint: "在任何服务器或私信里使用 PhiBot 的命令，即使机器人不在该服务器中",
+	inviteUserHint:
+		"在任何服务器或私信里使用 PhiBot 的命令，即使机器人不在该服务器中",
 	signOut: "退出",
 	signedIn: "已登录",
 	credit: { before: "用", after: "打造 ·", heart: "心", name: "MiyukiYue" },
@@ -2321,6 +2327,7 @@ export const zh: ClientMessages = {
 		index: "分类",
 		count: "{n} 个标签",
 		howTitle: "标签画像的计算方式",
+
 		how: [
 			{
 				term: "投票",
@@ -2334,17 +2341,17 @@ export const zh: ClientMessages = {
 			{
 				term: "准确率损失",
 				formula: "y = −log10(1 − acc)",
-				text: "把准确率换算成损失了多少（Good 与 Bad 都算）并取对数：90% 为 1.0，99% 为 2.0，99.9% 为 3.0，100% 按 99.9% 计。每差 1 代表损失少十倍，所以 99% 到 99.9% 与 90% 到 99% 分量相同，难谱上的 100% 能显示你高出平常多少，而不是碰到上限。",
+				text: "把准确率换算成损失了多少（Good 与 Bad 都算）并取对数：90% 为 1.0，99% 为 2.0，99.9% 为 3.0。每差 1 代表损失少十倍，所以 99% 到 99.9% 与 90% 到 99% 分量相同。99.9% 及以上按「至少 3.0」处理：只在拟合预期更低的地方计入，所以简单谱面上的 100% 不会算作你的弱项。",
 			},
 			{
 				term: "预期值",
-				formula: "ŷ = y 对 C 的局部直线拟合",
-				text: "用你同定数 ±0.2 内的其他谱面拟合，越近权重越大（高斯核，宽度 0.1），取这张谱面定数处的值。谱面需要在 ±0.1 内至少有两张其他谱面才会计入。",
+				formula: "ŷ = g(C) + Σ β × 占比",
+				text: "一条随定数变化的平滑曲线 g（每 0.1 一个点，尽量接近直线）与各标签效应 β 一起，用你统计范围内的全部谱面拟合。没有定数窗口，也不要求附近有多少谱面，所以最难的谱面同样计入。每张谱面自己的预期值来自不含该谱面的拟合。",
 			},
 			{
 				term: "差值",
-				formula: "d = clip(y − ŷ, ±1) − mean(d)",
-				text: "减去你自己的平均值，因此 0 即你的基准，+ 表示比你在该定数的平常水平更好。",
+				formula: "d = y − g(C)",
+				text: "与不含该谱面的拟合曲线相比，因此 0 即你在该定数的基准，+ 表示更好。99.9% 以上的谱面只按曲线预期低于 99.9% 的部分计入。",
 			},
 			{
 				term: "权重",
@@ -2358,27 +2365,31 @@ export const zh: ClientMessages = {
 			},
 			{
 				term: "净值",
-				formula: "d ≈ Σ β × 占比，岭回归 0.5",
-				text: "对全部标签同时拟合：每张谱面的差值被解释为它各标签效应之和，岭回归惩罚起到先验的作用。标签只能获得其他同谱标签解释不了的部分。显示值为 β 乘以该标签的平均占比。",
+				formula: "β，岭回归 0.5",
+				text: "与曲线在同一次拟合中得到的标签效应，岭回归惩罚起到先验的作用。标签只能获得定数和同谱其他标签解释不了的部分。显示值为 β 乘以该标签的平均占比。",
 			},
 			{
 				term: "稳定",
-				text: "把你的谱面重抽 400 次并重复拟合，稳定是净值保持同号的比例。",
+				text: "把你的谱面重抽 400 次并重复整个拟合（包括 99.9% 以上的谱面），稳定是净值保持同号的比例。",
 			},
 			{
 				term: "擅长",
 				formula: "净值 ≥ +0.03 且稳定 ≥ 90%",
-				text: "薄弱同理：净值 ≤ −0.03。出现在你少于 4 张谱面上的标签不会列出。净值小于 ±0.05 的在成绩图上变暗，标为「略」。稳定不足 98% 的条目在成绩图上仍正常显示，但玩家画像页面会标为「倾向」。",
+				text: "薄弱同理：净值 ≤ −0.03。出现在你少于 4 张谱面上的标签不会列出。净值小于 ±0.03 但仍稳定的，排在其他标签之后，标为「微弱」并在成绩图上变暗；小于 ±0.05 的数值变暗。稳定不足 99% 的条目在成绩图上仍正常显示，但玩家画像页面会标为「倾向」。",
+			},
+			{
+				term: "全部 99.9%+",
+				text: "统计范围内低于 99.9% 的谱面少于 3 张时，没有差距可比。若 PhiBot 有你的成绩历史，画像取自最后一次仍有谱面低于 99.9% 的那天，并显示日期。否则按带该标签的 99.9%+ 谱面有多难来排序，变暗且不显示数值：它说明你在高处打过哪些谱面，而不是能力差异。",
 			},
 		],
 		readTitle: "如何理解这些数值",
 		read: [
-			"标签旁的 +0.11：在带有该标签的谱面上，你的准确率损失（Good 与 Bad 都算）比同定数的其他谱面少约五分之一。+0.30 约为损失减半；+1.00 是只剩十分之一，你平时 99% 的地方打到 99.9%。",
-			"−0.23：损失约为 1.7 倍。0.00：这些谱面和你的其他谱面表现一样。",
-			"成绩图上变暗的条目是「略」：净值小于 ±0.05。玩家画像页面还会把稳定不足 98% 的条目标为「倾向」。正常的成绩波动也可能造成，只作参考。",
-			"基准是你自己，而不是其他玩家，并且只计入你所在难度及以上的谱面。对所有人都难的谱面不会算作你的弱项，因为它只和你同定数的谱面比较。",
+			"标签旁的 +0.11：在带有该标签的谱面上，你的准确率损失（Good 与 Bad 都算）比其余谱面对它的预期少约五分之一。+0.30 约为损失减半；+1.00 是只剩十分之一，你平时 99% 的地方打到 99.9%。",
+			"−0.23：损失约为 1.7 倍。0.00：这些谱面与预期一致。",
+			"成绩图上变暗的条目是「微弱」（净值小于 ±0.03，排在最后）或「略」（数值变暗，净值小于 ±0.05）。玩家画像页面还会把稳定不足 99% 的条目标为「倾向」。正常的成绩波动也可能造成这些，只作参考。",
+			"基准是你自己，而不是其他玩家，并且只计入你所在难度及以上的谱面。对所有人都难的谱面本身不会算作你的弱项，因为它与你自己的曲线在该定数的预期相比。",
 			"总是出现在同一批谱面上的标签无法区分，净值会把功劳平分。当某个标签也单独出现在别的谱面上时，就由那些谱面来判断。在玩家画像里展开标签可查看它来自哪些谱面。",
-			"稳定达到 98% 的条目仍有约二十分之一只是运气，「倾向」的条目约五分之一。单次出现当作提示，多次存档都在列才算规律。",
+			"稳定达到 99% 的条目仍有约二十分之一只是运气，「倾向」的条目约五分之一。单次出现当作提示，多次存档都在列才算规律。",
 		],
 		profileLink: "在玩家画像中查看每个标签以及计入它的谱面",
 		guide: "说明",

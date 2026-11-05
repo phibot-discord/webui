@@ -99,6 +99,10 @@ export type ToolsMessages = {
 		sides: Record<"strong" | "weak" | "even", string>;
 		slight: Record<"strong" | "weak", string>;
 		leaning: Record<"strong" | "weak", string>;
+		faint: Record<"strong" | "weak", string>;
+		aps: Record<"strong" | "weak", string>;
+		apsNote: string;
+		historyNote: string;
 		slightHint: string;
 		few: string;
 		chartsFor: string;
@@ -657,7 +661,7 @@ export const toolsEn: ToolsMessages = {
 		tagsTitle: "Chart profile",
 		meta: "Constants {min}–{max} · {scores} scores · {charts} voted charts · {votes} votes",
 		baseline:
-			"Each number compares the accuracy you lose on charts with that tag, to goods and bads alike, with what you lose on your other charts of the same constant: +0.30 is about half as much lost, −0.30 about twice as much, +1.00 a tenth (99.9% where you usually get 99%), 0.00 the same as the rest.",
+			"Each number compares the accuracy you lose on charts with that tag, to goods and bads alike, with what the rest of your charts predict for them: one curve over constant plus the other tags on the chart, worked out without the chart itself. +0.30 is about half as much lost, −0.30 about twice as much, +1.00 a tenth (99.9% where you would usually get 99%), 0.00 as predicted.",
 		howLink: "How the numbers are worked out",
 		source: "Votes from kyou.net.cn, copied {date}.",
 		categoriesTitle: "Categories",
@@ -675,8 +679,14 @@ export const toolsEn: ToolsMessages = {
 		sides: { strong: "Strength", weak: "Weakness", even: "–" },
 		slight: { strong: "Slight strength", weak: "Slight weakness" },
 		leaning: { strong: "Leaning strength", weak: "Leaning weakness" },
+		faint: { strong: "Faint strength", weak: "Faint weakness" },
+		aps: { strong: "Harder APs", weak: "Easier APs" },
+		apsNote:
+			"Every chart here is 99.9%+, so your scores show no gap to measure. Tags are ranked by how hard the 99.9%+ charts carrying them are instead, with no numbers. This says which charts you have cleared at the top, not what you are better or worse at.",
+		historyNote:
+			"Every chart here is 99.9%+ now, so this profile uses your scores from {date}, the last time some of them were still under 99.9%.",
 		slightHint:
-			"Leaning: the net holds in under 98% of resamples; shown in full on the card. Slight: it is under ±0.05; dimmed on the card. Ordinary score swings alone can produce either, so treat them as hints.",
+			"Leaning: the net holds in under 99% of resamples; shown in full on the card. Slight: it is under ±0.05; its number is dimmed on the card. Faint: under ±0.03; listed after the others and dimmed on the card. Ordinary score swings alone can produce any of these, so treat them as hints.",
 		few: "On fewer than {n} of your charts: not listed on the card.",
 		chartsFor: "Charts counted for {name}",
 		expected: "Expected acc",
@@ -1093,7 +1103,7 @@ export const toolsEn: ToolsMessages = {
 	},
 	formTargets: {
 		title: "Below your usual form",
-		lede: "Charts you have played where your accuracy is under the expected accuracy from your profile, which is what you usually get on charts of the same constant. Reaching it would add the RKS shown. Weak tags are the profile weaknesses the chart carries.",
+		lede: "Charts you have played where your accuracy is under the expected accuracy from your profile, which is what the rest of your charts predict for it from its constant and tags. Reaching it would add the RKS shown. Weak tags are the profile weaknesses the chart carries.",
 		song: "Song",
 		level: "Level",
 		constant: "Constant",
@@ -1285,7 +1295,7 @@ export const toolsZh: ToolsMessages = {
 		tagsTitle: "谱面标签画像",
 		meta: "定数 {min}–{max} · 成绩 {scores} · 已投票谱面 {charts} · 选票 {votes}",
 		baseline:
-			"每个数值把带该标签的谱面上你损失的准确率（Good 与 Bad 都算）与自己同定数的其他谱面相比：+0.30 约为损失减半，−0.30 约为两倍，+1.00 只剩十分之一（你平时 99% 的地方打到 99.9%），0.00 与其余谱面持平。",
+			"每个数值把带该标签的谱面上你损失的准确率（Good 与 Bad 都算）与其余谱面对它的预期相比：预期由一条随定数变化的曲线加上该谱面其他标签的影响组成，计算时不含该谱面本身。+0.30 约为损失减半，−0.30 约为两倍，+1.00 只剩十分之一（你平时 99% 的地方打到 99.9%），0.00 与预期持平。",
 		howLink: "数值的计算方式",
 		source: "投票来自 kyou.net.cn，同步于 {date}。",
 		categoriesTitle: "分类",
@@ -1303,8 +1313,14 @@ export const toolsZh: ToolsMessages = {
 		sides: { strong: "擅长", weak: "薄弱", even: "–" },
 		slight: { strong: "略擅长", weak: "略薄弱" },
 		leaning: { strong: "倾向擅长", weak: "倾向薄弱" },
+		faint: { strong: "微弱擅长", weak: "微弱薄弱" },
+		aps: { strong: "较难的 AP", weak: "较易的 AP" },
+		apsNote:
+			"这里所有谱面都在 99.9% 以上，成绩中没有差距可比。改为按带该标签的 99.9%+ 谱面有多难来排序，不显示数值。它说明你在高处打过哪些谱面，而不是你更擅长或更薄弱什么。",
+		historyNote:
+			"这里所有谱面现在都在 99.9% 以上，因此画像使用 {date} 的成绩，那是最后一次仍有谱面低于 99.9% 的时候。",
 		slightHint:
-			"倾向：净值的稳定不足 98%，成绩图上正常显示。略：净值小于 ±0.05，成绩图上变暗。正常的成绩波动也可能造成，仅供参考。",
+			"倾向：净值的稳定不足 99%，成绩图上正常显示。略：净值小于 ±0.05，成绩图上数值变暗。微弱：净值小于 ±0.03，排在其他标签之后，成绩图上变暗。正常的成绩波动也可能造成这些，仅供参考。",
 		few: "出现在你少于 {n} 张谱面上：不会列在成绩图上。",
 		chartsFor: "计入「{name}」的谱面",
 		expected: "预期准确率",
@@ -1610,7 +1626,8 @@ export const toolsZh: ToolsMessages = {
 		pause: "暂停",
 		seek: "播放位置",
 		hardest: "最难 10 秒",
-		hardestHint: "跳到最难的 10 秒（{n} 个音符）：按音符种类、多押和下落速度加权的物量",
+		hardestHint:
+			"跳到最难的 10 秒（{n} 个音符）：按音符种类、多押和下落速度加权的物量",
 		hardestNoise:
 			"跳到最难的 10 秒（{n} 个音符，含噪域）：按音符种类、多押和下落速度加权的物量，并计入噪域",
 		back: "后退 5 秒",
@@ -1708,7 +1725,7 @@ export const toolsZh: ToolsMessages = {
 	},
 	formTargets: {
 		title: "低于你平时水平的谱面",
-		lede: "你玩过、准确率低于画像中预期准确率的谱面。预期准确率是你在同定数谱面上通常能拿到的成绩，达到它可以增加表中所示的 RKS。弱项标签是这张谱面带有的画像弱项。",
+		lede: "你玩过、准确率低于画像中预期准确率的谱面。预期准确率是你的其余谱面按它的定数和标签给出的预期，达到它可以增加表中所示的 RKS。弱项标签是这张谱面带有的画像弱项。",
 		song: "曲目",
 		level: "难度",
 		constant: "定数",

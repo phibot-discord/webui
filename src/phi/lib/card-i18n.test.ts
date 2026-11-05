@@ -64,11 +64,22 @@ test("tag pool note names the baseline the +/- compares with", () => {
 	};
 	assert.equal(
 		tagPoolNote(pool, cardCopy("zh")),
-		"+/- 为准确率损失与同定数谱面相比（+0.30 = 少一半），定数 15.2–18.2",
+		"+/- 为准确率损失与你其他谱面的预期相比（+0.30 = 少一半），定数 15.2–18.2",
 	);
 	assert.match(
 		tagPoolNote(pool, cardCopy("en")),
-		/^\+\/- is lost acc vs your same-constant charts \(\+0\.30 = half as much\), 15\.2–18\.2\.$/,
+		/^\+\/- is lost acc vs what your other charts predict \(\+0\.30 = half as much\), 15\.2–18\.2\.$/,
+	);
+	assert.match(
+		tagPoolNote({ ...pool, basis: "aps" }, cardCopy("en")),
+		/^All 99\.9%\+, so there is no gap to measure: .*15\.2–18\.2\.$/,
+	);
+	assert.equal(
+		tagPoolNote(
+			{ ...pool, basis: "history", asOf: "2026-10-10T17:00:00.000Z" },
+			cardCopy("en"),
+		),
+		"All 99.9%+ now: from your scores on 2026-10-11 (+0.30 = half as much lost), 15.2–18.2.",
 	);
 	assert.equal(tagPoolNote({ totalVotes: 3 }, cardCopy("en")), "");
 	assert.equal(tagPoolNote(null, cardCopy("zh")), "");

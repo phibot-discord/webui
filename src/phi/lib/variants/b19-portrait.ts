@@ -779,7 +779,12 @@ export function buildHistogram(h: HistogramIn, kind: CardKind) {
 	};
 }
 
-type TagIn = { name?: unknown; shown?: unknown; slight?: unknown };
+type TagIn = {
+	name?: unknown;
+	shown?: unknown;
+	slight?: unknown;
+	faint?: unknown;
+};
 
 export function tagNameLines(name: string, px: number): string[] {
 	const text = name.replace(/\s+/g, " ").trim() || "—";
@@ -794,6 +799,7 @@ type TagRow = {
 	lines: string[];
 	value: string;
 	slight: boolean;
+	faint: boolean;
 };
 
 // Paired so a wrapped name keeps both columns level
@@ -803,6 +809,7 @@ export function buildTags(strongRaw: unknown, weakRaw: unknown) {
 			name: String(tag?.name ?? ""),
 			shown: String(tag?.shown ?? ""),
 			slight: tag?.slight === true,
+			faint: tag?.faint === true,
 		}));
 	const strongIn = list(strongRaw);
 	const weakIn = list(weakRaw);
@@ -817,6 +824,7 @@ export function buildTags(strongRaw: unknown, weakRaw: unknown) {
 			lines: tagNameLines(tag.name, px),
 			value: tag.shown || "—",
 			slight: tag.slight,
+			faint: tag.faint,
 		}));
 	const strong = rows(strongIn);
 	const weak = rows(weakIn);

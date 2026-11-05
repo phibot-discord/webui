@@ -1302,6 +1302,10 @@ body {
 	color: var(--tbl-muted);
 }
 
+.tbl-tag.is-faint .tbl-tag-n {
+	color: var(--tbl-muted);
+}
+
 .tbl-tags-empty {
 	flex: 1;
 	display: flex;

@@ -8,14 +8,17 @@ import {
 import type { Save } from "@/phi/lib/save";
 import {
 	type ChartGroup,
+	historyProfileDetail,
 	PROFILE,
+	type ProfileBasis,
 	type ProfileCategory,
 	type ProfileTagRow,
 	profileRecordsOf,
+	type ScoreHistoryRows,
 	type TagChart,
 	tagProfileDetail,
 } from "@/phi/lib/tag-profile";
-import type { ChartSummary } from "./charts";
+import { type ChartSummary, chartCell } from "./charts";
 
 export type ProfileB30Row = {
 	slot: string;
@@ -62,6 +65,8 @@ export type TagProfileView = Pick<
 	categories: ProfileCategoryView[];
 	tags: ProfileTagView[];
 	charts: ProfileChartRow[];
+	basis: ProfileBasis;
+	asOf?: string;
 	fetchedAt?: string;
 	source: string;
 	minTagCharts: number;
@@ -123,6 +128,7 @@ export function playerProfileView(
 	list: readonly ChartSummary[],
 	votes: TagVotes | undefined,
 	locale: PhiLocale,
+	history?: ScoreHistoryRows,
 ): PlayerProfileView {
 	const songs = new Map(list.map((s) => [s.id, s.song] as const));
 	const b19 = save.getB19(33);
@@ -144,7 +150,14 @@ export function playerProfileView(
 	);
 	let profile: TagProfileView | null = null;
 	if (votes) {
-		const detail = tagProfileDetail(profileRecordsOf(save.gameRecord), votes);
+		let detail = tagProfileDetail(profileRecordsOf(save.gameRecord), votes);
+		if (detail.analysis.basis === "aps" && history)
+			detail =
+				historyProfileDetail(
+					history,
+					(id, rank) => chartCell(id, rank)?.[0],
+					votes,
+				) ?? detail;
 		const a = localizeChartTagLabels(detail.analysis, locale);
 		const tagUses = [...detail.byTag].map(
 			([name, list]) => [name, list] as const,
@@ -178,6 +191,8 @@ export function playerProfileView(
 				group: c.group,
 				votes: c.votes,
 			})),
+			basis: a.basis,
+			...(a.asOf ? { asOf: a.asOf } : {}),
 			fetchedAt: votes.fetchedAt,
 			source: CHART_TAG_VOTES_SOURCE,
 			minTagCharts: PROFILE.minTagCharts,

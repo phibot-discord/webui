@@ -3,6 +3,7 @@ import test from "node:test";
 import { parseTagVotes } from "./chart-tag-votes";
 import {
 	accOfNines,
+	historyProfileDetail,
 	nines,
 	PROFILE,
 	type ProfileRecord,
@@ -129,8 +130,10 @@ test("a player with no planted skill gets a flat profile; a firm listing is rare
 			assert.ok(Math.abs(tag.diff) < 0.15, `${seed} ${tag.name} ${tag.diff}`);
 		for (const tag of [...out.strong, ...out.weak]) {
 			assert.ok(tag.hold >= PROFILE.minHold);
-			assert.ok(Math.abs(tag.diff) >= PROFILE.minDiff);
-			if (tag.firm) firm.push(`${seed} ${tag.name} ${tag.shown} ${tag.hold}`);
+			assert.equal(tag.faint, Math.abs(tag.diff) < PROFILE.minDiff);
+			assert.ok(Math.abs(tag.diff) >= PROFILE.minFaint);
+			if (tag.firm && !tag.faint)
+				firm.push(`${seed} ${tag.name} ${tag.shown} ${tag.hold}`);
 		}
 	}
 	assert.ok(firm.length <= 3, firm.join("; "));
@@ -284,7 +287,7 @@ test("accuracy under 90% counts less, and 100% is read as 99.9%", () => {
 	assert.ok(rough.diff < 0);
 });
 
-test("a chart with fewer than two peers within 0.1 gives no evidence", () => {
+test("the hardest chart counts even with no other chart near its constant", () => {
 	const records: ProfileRecord[] = [];
 	const charts: Charts = {};
 	for (let k = 0; k < 30; k++) {
@@ -293,13 +296,133 @@ test("a chart with fewer than two peers within 0.1 gives no evidence", () => {
 	}
 	records.push(record("lone", 16.2, 99.4));
 	charts.lone = { votes: { IN: { 2: 5 } } };
+	const detail = tagProfileDetail(
+		records,
+		parseTagVotes({ sha: "t", tree: TREE, charts }),
+	);
+	assert.equal(detail.analysis.recordCount, 31);
+	assert.equal(detail.analysis.chartCount, 31);
+	assert.equal(detail.analysis.range?.max, 16.2);
+	const lone = detail.charts.find((c) => c.id === "lone.0")!;
+	assert.ok(lone.expected > 0 && lone.expected < 100);
+	assert.ok(Number.isFinite(lone.diff));
+});
+
+test("a chart's expected accuracy comes from the other charts, not itself", () => {
+	const records: ProfileRecord[] = [];
+	const charts: Charts = {};
+	for (let k = 0; k < 30; k++) {
+		records.push(record(`c${k}`, 15 + (k % 10) * 0.1, accOfNines(2)));
+		charts[`c${k}`] = { votes: { IN: { [1 + (k % 6)]: 5 } } };
+	}
+	records.push(record("star", 15.5, accOfNines(2.8)));
+	charts.star = { votes: { IN: { 1: 3, 2: 3 } } };
+	const detail = tagProfileDetail(
+		records,
+		parseTagVotes({ sha: "t", tree: TREE, charts }),
+	);
+	const star = detail.charts.find((c) => c.id === "star.0")!;
+	assert.ok(nines(star.expected) < 2.1, String(star.expected));
+	assert.ok(star.diff > 0.7, String(star.diff));
+});
+
+test("a 99.9%+ score where the curve already expects more is not read as a weakness", () => {
+	const records: ProfileRecord[] = [];
+	const charts: Charts = {};
+	for (let k = 0; k < 40; k++) {
+		const c = 15 + (k % 20) * 0.1;
+		const y = 3.6 - 0.8 * (c - 15);
+		const easy = k % 2 === 0;
+		const acc = easy || y >= 3 ? 100 : accOfNines(y);
+		records.push(record(`c${k}`, c, acc));
+		charts[`c${k}`] = { votes: { IN: easy ? { 3: 6 } : { 6: 6 } } };
+	}
 	const out = tagProfile(
 		records,
 		parseTagVotes({ sha: "t", tree: TREE, charts }),
 	);
-	assert.equal(out.recordCount, 31);
-	assert.equal(out.chartCount, 30);
-	assert.equal(out.range?.max, 16.2);
+	assert.equal(out.basis, "scores");
+	const lock = out.tags.find((t) => t.name === "锁手")!;
+	assert.notEqual(lock.side, "weak");
+});
+
+test("when every chart is 99.9%+, tags are ranked by how hard their charts are, dimmed and without numbers", () => {
+	const records: ProfileRecord[] = [];
+	const charts: Charts = {};
+	for (let k = 0; k < 30; k++) {
+		const c = 15 + (k % 15) * 0.1;
+		records.push(record(`c${k}`, c, 100));
+		charts[`c${k}`] = { votes: { IN: c >= 15.8 ? { 2: 6 } : { 4: 6 } } };
+	}
+	const out = tagProfile(
+		records,
+		parseTagVotes({ sha: "t", tree: TREE, charts }),
+	);
+	assert.equal(out.basis, "aps");
+	assert.equal(out.strong[0]?.name, "快交互");
+	assert.equal(out.weak[0]?.name, "倒打");
+	for (const tag of [...out.strong, ...out.weak]) {
+		assert.equal(tag.shown, "");
+		assert.equal(tag.faint, true);
+		assert.equal(tag.slight, true);
+		assert.equal(tag.firm, false);
+	}
+	assert.ok(out.categories.every((c) => !c.hasVotes && c.shown === "–"));
+});
+
+test("faint entries are listed after the others", () => {
+	for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+		const { records, votes } = world(15.5, { 2: 0.4, 4: -0.4 }, seed);
+		const out = tagProfile(records, votes);
+		for (const list of [out.strong, out.weak]) {
+			const firstFaint = list.findIndex((t) => t.faint);
+			if (firstFaint < 0) continue;
+			assert.ok(list.slice(firstFaint).every((t) => t.faint));
+			assert.ok(list.slice(firstFaint).every((t) => t.slight));
+		}
+	}
+});
+
+test("an all-99.9%+ save falls back to the last day with charts still under 99.9%", () => {
+	const charts: Charts = {};
+	const history: Record<string, Record<string, unknown[][]>> = {};
+	const constants = new Map<string, number>();
+	const day = (n: number) => new Date(Date.UTC(2026, 9, n, 4));
+	const now: ProfileRecord[] = [];
+	for (let k = 0; k < 30; k++) {
+		const id = `c${k}.0`;
+		const c = 15 + (k % 10) * 0.1;
+		constants.set(id, c);
+		charts[`c${k}`] = { votes: { IN: { [1 + (k % 6)]: 5 } } };
+		const apDay = k < 15 ? 10 : 20;
+		history[id] = {
+			IN: [
+				[(99 + (k % 5) * 0.1).toFixed(4), 980000, day(1), false],
+				[
+					"100.0000",
+					1000000,
+					k % 2 ? day(apDay).toISOString() : day(apDay),
+					true,
+				],
+			],
+		};
+		now.push(record(`c${k}`, c, 100));
+	}
+	const votes = parseTagVotes({ sha: "t", tree: TREE, charts });
+	assert.equal(tagProfile(now, votes).basis, "aps");
+	const past = historyProfileDetail(
+		history as never,
+		(id) => constants.get(id),
+		votes,
+	)!;
+	assert.equal(past.analysis.basis, "history");
+	assert.equal(past.analysis.asOf, day(10).toISOString());
+	assert.equal(past.analysis.recordCount, 30);
+	assert.equal(past.charts.filter((c) => c.acc < 99.9).length, 15);
+	assert.equal(
+		historyProfileDetail({}, (id) => constants.get(id), votes),
+		undefined,
+	);
 });
 
 test("a tag under two categories counts toward both", () => {

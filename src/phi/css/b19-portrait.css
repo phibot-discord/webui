@@ -1118,6 +1118,10 @@ body {
 	color: var(--b19p-muted);
 }
 
+.b19p-tag-row.is-faint .b19p-tag-name {
+	color: var(--b19p-muted);
+}
+
 .b19p-card .b19p-tags-note,
 .b19p-card .b19p-tags-empty {
 	margin-top: 12px;

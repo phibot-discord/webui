@@ -41,9 +41,9 @@ export const CHANGELOG_RELEASES: ChangeRelease[] = [
 				heading: { en: "Scores", zh: "成绩", ja: "スコア" },
 				items: [
 					{
-						en: "Targets has a new list of charts below your usual form: played charts where your accuracy is under what you usually get on charts of the same constant, with the RKS that reaching it would add and the profile weaknesses each chart carries.",
-						zh: "推分目标新增「低于你平时水平的谱面」：你玩过、准确率低于同定数谱面通常水平的谱面，并列出达到该水平可增加的 RKS，以及谱面带有的画像弱项。",
-						ja: "「目標」に「普段の調子を下回っている譜面」の一覧を追加しました。プレイ済みの譜面のうち、同じ譜面定数の譜面で普段出している精度を下回っているものを対象に、その精度に届いたときに増える RKS と、各譜面が持つプロフィール上の弱点を表示します。",
+						en: "Targets has a new list of charts below your usual form: played charts where your accuracy is under what the rest of your charts predict for them, with the RKS that reaching it would add and the profile weaknesses each chart carries.",
+						zh: "推分目标新增「低于你平时水平的谱面」：你玩过、准确率低于其余谱面对它的预期的谱面，并列出达到该水平可增加的 RKS，以及谱面带有的画像弱项。",
+						ja: "「目標」に「普段の調子を下回っている譜面」の一覧を追加しました。プレイ済みの譜面のうち、ほかの譜面から予想される精度を下回っているものを対象に、その精度に届いたときに増える RKS と、各譜面が持つプロフィール上の弱点を表示します。",
 						href: "/targets",
 					},
 					{
@@ -63,6 +63,27 @@ export const CHANGELOG_RELEASES: ChangeRelease[] = [
 						zh: "版本变化页现在会针对你的存档显示：两个版本之间哪些谱面进入或移出你的 B30、你玩过且定数有调整的谱面，以及你在每个版本定数下的 RKS。",
 						ja: "「バージョン間の変更」では、あなたのセーブデータについて、2 つのバージョン間で B30 に入った譜面と外れた譜面、譜面定数が変わったプレイ済みの譜面、各バージョンの譜面定数で計算した RKS を表示するようになりました。",
 						href: "/versions",
+					},
+				],
+			},
+			{
+				heading: {
+					en: "Chart profile",
+					zh: "谱面标签画像",
+					ja: "譜面プロフィール",
+				},
+				items: [
+					{
+						en: "Each chart is now predicted from all your other charts at once: one curve over constant plus the effects of its tags. Your hardest charts count even with nothing else near their constant, a chart's own score never shapes its own prediction, and a 100% on an easy chart no longer reads as a weakness.",
+						zh: "现在每张谱面的预期由你的其余谱面一次性算出：一条随定数变化的曲线，加上它所带标签的影响。最难的谱面即使附近没有同定数谱面也会计入，谱面自己的成绩不会影响它自己的预期，简单谱面上的 100% 也不再被当作弱项。",
+						ja: "各譜面の予想を、ほかのすべての譜面からまとめて求めるようになりました。定数に沿った 1 本の曲線に、その譜面のタグの効果を加えたものです。いちばん難しい譜面も、近い定数の譜面がなくても数えられ、譜面自身のスコアが自分の予想に影響することはなく、易しい譜面での 100% が苦手として扱われることもなくなりました。",
+						href: "/tags",
+					},
+					{
+						en: "Tags with a small but steady net are listed after the others, dimmed. When every chart in the profile is 99.9%+, it uses your scores from the last day some were still under 99.9%; without score history it ranks tags by how hard those charts are, dimmed and without numbers.",
+						zh: "净值很小但稳定的标签会排在其他标签之后，以变暗方式列出。当画像中的谱面全部在 99.9% 以上时，改用最后一次仍有谱面低于 99.9% 那天的成绩；没有成绩历史时，按这些谱面的难度为标签排序，变暗且不显示数值。",
+						ja: "正味は小さいものの安定しているタグを、ほかのタグの後に薄く表示するようにしました。プロフィールの譜面がすべて 99.9% 以上のときは、まだ 99.9% 未満の譜面があった最後の日のスコアを使います。スコア履歴がない場合は、それらの譜面の難しさでタグを並べ、薄く表示して数値は出しません。",
+						href: "/profile",
 					},
 				],
 			},

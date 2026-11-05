@@ -626,7 +626,12 @@ type HistogramIn = {
 	count?: unknown;
 };
 
-type TagIn = { name?: unknown; shown?: unknown; slight?: unknown };
+type TagIn = {
+	name?: unknown;
+	shown?: unknown;
+	slight?: unknown;
+	faint?: unknown;
+};
 
 type AnalysisIn = {
 	histogram?: HistogramIn;
@@ -651,6 +656,7 @@ function tagList(list: TagIn[] | undefined) {
 			name: str(tag.name),
 			value: str(tag.shown),
 			slight: tag.slight === true,
+			faint: tag.faint === true,
 		}));
 }
 

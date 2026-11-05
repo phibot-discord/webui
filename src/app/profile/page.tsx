@@ -8,6 +8,7 @@ import { PlayerProfile } from "@/components/PlayerProfile";
 import { ProfileTimeline } from "@/components/ProfileTimeline";
 import { getMessages, signInHref } from "@/i18n/server";
 import { loadTagVotes } from "@/phi/lib/chart-tag-votes";
+import { loadSaveHistory } from "@/phi/lib/history";
 import { loadCardDesk } from "@/server/card-desk";
 import { chartCatalog } from "@/server/charts";
 import { getDataHost } from "@/server/data-host";
@@ -34,12 +35,27 @@ export default async function ProfilePage() {
 			getMessages(),
 		]);
 		if ("gate" in loaded) return loaded.gate;
-		const view = playerProfileView(
+		let view = playerProfileView(
 			loaded.bound.save,
 			catalog.list,
 			votes,
 			locale,
 		);
+		if (view.profile?.basis === "aps" && loaded.bound.token) {
+			const history = await loadSaveHistory(
+				host.rt,
+				host.db,
+				loaded.bound.token,
+			).catch(() => undefined);
+			if (history)
+				view = playerProfileView(
+					loaded.bound.save,
+					catalog.list,
+					votes,
+					locale,
+					history.scoreHistory,
+				);
+		}
 		return (
 			<Desk {...loaded.desk} nav={<CardNav current="profile" />}>
 				<PlayerProfile view={view} />

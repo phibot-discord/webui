@@ -105,18 +105,19 @@ function ChartsTable({
 	t,
 	label,
 	worstFirst,
+	aps,
 }: {
 	uses: ProfileTagUse[];
 	charts: ProfileChartRow[];
 	t: Copy;
 	label: string;
 	worstFirst: boolean;
+	aps: boolean;
 }) {
 	const dir = worstFirst ? 1 : -1;
-	const rows = [...uses].sort(
-		(a, b) =>
-			dir * ((charts[a.chart]?.diff ?? 0) - (charts[b.chart]?.diff ?? 0)),
-	);
+	const key = (i: number) =>
+		aps ? (charts[i]?.c ?? 0) : (charts[i]?.diff ?? 0);
+	const rows = [...uses].sort((a, b) => dir * (key(a.chart) - key(b.chart)));
 	return (
 		<div className="data-scroll">
 			<table className="data-table pp-charts">
@@ -164,10 +165,8 @@ function ChartsTable({
 									) : null}
 								</td>
 								<td className="num">{c.rks.toFixed(2)}</td>
-								<td className="num muted">{pct(c.expected)}</td>
-								<td className="num">
-									<Diff value={c.diff} />
-								</td>
+								<td className="num muted">{aps ? "–" : pct(c.expected)}</td>
+								<td className="num">{aps ? "–" : <Diff value={c.diff} />}</td>
 								<td className="num muted">{Math.round(u.share * 100)}%</td>
 								<td>
 									<span className="pp-group" data-group={c.group}>
@@ -229,6 +228,7 @@ function TagList({
 			{rows.map((row) => {
 				const side = "side" in row ? row.side : undefined;
 				const few = kind === "tags" && row.charts < profile.minTagCharts;
+				const aps = profile.basis === "aps";
 				return (
 					<TagDetails
 						key={row.name}
@@ -236,10 +236,10 @@ function TagList({
 							<>
 								<span className="pp-tag-name">{row.name}</span>
 								<span className="num">
-									<Diff value={row.mean} />
+									{aps ? "–" : <Diff value={row.mean} />}
 								</span>
 								<span className="num">
-									{side ? <Diff value={row.diff} /> : "–"}
+									{side && !aps ? <Diff value={row.diff} /> : "–"}
 								</span>
 								<span className="num">{row.charts}</span>
 								<span className="num">
@@ -257,11 +257,15 @@ function TagList({
 									>
 										{side === "even"
 											? t.sides.even
-											: !row.firm
-												? t.leaning[side]
-												: row.slight
-													? t.slight[side]
-													: t.sides[side]}
+											: aps
+												? t.aps[side]
+												: row.faint
+													? t.faint[side]
+													: !row.firm
+														? t.leaning[side]
+														: row.slight
+															? t.slight[side]
+															: t.sides[side]}
 									</span>
 								) : null}
 							</>
@@ -278,6 +282,7 @@ function TagList({
 							t={t}
 							label={fill(t.chartsFor, { name: row.name })}
 							worstFirst={row.diff < 0}
+							aps={aps}
 						/>
 					</TagDetails>
 				);
@@ -308,6 +313,14 @@ function TagSection({ view, t }: { view: PlayerProfileView; t: Copy }) {
 						</p>
 					) : null}
 					<p className="pp-baseline">{t.baseline}</p>
+					{p.basis === "aps" ? <p className="pp-note">{t.apsNote}</p> : null}
+					{p.basis === "history" && p.asOf ? (
+						<p className="pp-note">
+							{fill(t.historyNote, {
+								date: formatDateTime(p.asOf, locale),
+							})}
+						</p>
+					) : null}
 					<p className="field-hint">
 						<Link href="/tags#formula">{t.howLink}</Link>
 						{p.fetchedAt

@@ -32,7 +32,9 @@ export function formTargets(
 	const inBest = new Set(best.map((r) => key(r.id, r.level)));
 	const floor = best.length < BEST_SLOTS ? 0 : (best.at(-1)?.rks ?? 0);
 	const weakTags = new Set(
-		detail.analysis.tags.filter((t) => t.side === "weak").map((t) => t.name),
+		detail.analysis.tags
+			.filter((t) => t.side === "weak" && !t.faint)
+			.map((t) => t.name),
 	);
 	const weakOf = new Map<number, string[]>();
 	for (const [name, uses] of detail.byTag) {

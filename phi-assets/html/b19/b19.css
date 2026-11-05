@@ -1100,6 +1100,10 @@ img.tag-radar-plot,
 	color: rgba(255, 255, 255, 0.4);
 }
 
+.tag-result-row.is-faint .tag-name {
+	color: rgba(255, 255, 255, 0.45);
+}
+
 .tag-insufficient-message {
 	position: absolute;
 	inset: 15px 8px 0;

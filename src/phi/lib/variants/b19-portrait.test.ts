@@ -456,6 +456,7 @@ test("buildAnalysis: titles, tags, pool note and failure message", () => {
 		lines: ["Fast tapping"],
 		value: "+0.11",
 		slight: false,
+		faint: false,
 	});
 	assert.equal(fc.tagPx, 22);
 	assert.equal(fc.tagNote, en.tagsOtherList);
@@ -478,7 +479,13 @@ test("buildAnalysis: titles, tags, pool note and failure message", () => {
 test("buildTags shares one size and wraps long names onto two lines", () => {
 	const short = buildTags([{ name: "Flick", rks: 16.7 }], [{ name: "耐力" }]);
 	assert.equal(short.px, 22);
-	assert.deepEqual(short.weak[0], { rank: 1, lines: ["耐力"], value: "—", slight: false });
+	assert.deepEqual(short.weak[0], {
+		rank: 1,
+		lines: ["耐力"],
+		value: "—",
+		slight: false,
+		faint: false,
+	});
 	const long = buildTags(
 		[
 			{ name: "Flick", rks: 16.7 },

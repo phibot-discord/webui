@@ -189,4 +189,6 @@ export type TagAnalysis = {
 	weak: TagScore[];
 	tags: TagRow[];
 	insufficient: boolean;
+	basis?: "scores" | "history" | "aps";
+	asOf?: string;
 };

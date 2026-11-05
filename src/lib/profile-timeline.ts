@@ -125,7 +125,7 @@ export function profileTimeline(
 	}));
 	const byName = new Map<string, (TimelineCell | null)[]>();
 	analyses.forEach((a, i) => {
-		if (a.insufficient) return;
+		if (a.insufficient || a.basis === "aps") return;
 		for (const tag of a.tags) {
 			const cells = byName.get(tag.name) ?? new Array(snaps.length).fill(null);
 			cells[i] = {

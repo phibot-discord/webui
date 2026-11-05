@@ -392,7 +392,7 @@
                         <div class="tag-column-title"><span></span><p>{{t.strongTags}}</p></div>
                         {{if b30Analysis.tagAnalysis}}
                         {{each b30Analysis.tagAnalysis.strong tag}}
-                        <div class="tag-result-row">
+                        <div class="tag-result-row{{if tag.faint}} is-faint{{/if}}">
                             <p class="tag-rank">{{$index + 1}}</p>
                             <p class="tag-name">{{tag.name}}</p>
                             <p class="tag-rks{{if tag.slight}} is-slight{{/if}}">{{tag.shown}}</p>
@@ -404,7 +404,7 @@
                         <div class="tag-column-title"><span></span><p>{{t.weakTags}}</p></div>
                         {{if b30Analysis.tagAnalysis}}
                         {{each b30Analysis.tagAnalysis.weak tag}}
-                        <div class="tag-result-row">
+                        <div class="tag-result-row{{if tag.faint}} is-faint{{/if}}">
                             <p class="tag-rank">{{$index + 1}}</p>
                             <p class="tag-name">{{tag.name}}</p>
                             <p class="tag-rks{{if tag.slight}} is-slight{{/if}}">{{tag.shown}}</p>
