@@ -1,3 +1,4 @@
+import { fCompute } from "@/phi/lib/fcompute";
 import { nines, PROFILE, weightOf } from "@/phi/lib/tag-profile";
 
 export const EXAMPLE_TAGS = ["快交互", "宽排键"] as const;
@@ -54,6 +55,16 @@ export type ExampleRow = {
 	shares: [number, number];
 };
 
+export type ExampleMove = {
+	row: number;
+	tag: number;
+	net: number;
+	acc: number;
+	after: number;
+	rks: number;
+	rksAfter: number;
+};
+
 export type TagExample = {
 	tags: readonly [string, string];
 	floor: number;
@@ -69,6 +80,7 @@ export type TagExample = {
 	centred: [number, number];
 	meanShare: [number, number];
 	net: [number, number];
+	moves: [ExampleMove, ExampleMove];
 };
 
 export function tagExample(): TagExample {
@@ -131,6 +143,19 @@ export function tagExample(): TagExample {
 			sumShare[j],
 	) as [number, number];
 	const net = both.map((j) => centred[j] * meanShare[j]) as [number, number];
+	const move = (row: number, tag: 0 | 1): ExampleMove => {
+		const r = rows[row]!;
+		const after = 100 - (100 - r.acc) * 10 ** -net[tag];
+		return {
+			row,
+			tag,
+			net: net[tag],
+			acc: r.acc,
+			after,
+			rks: fCompute.rks(r.acc, r.c),
+			rksAfter: fCompute.rks(after, r.c),
+		};
+	};
 	return {
 		tags: EXAMPLE_TAGS,
 		floor: EXAMPLE_FLOOR,
@@ -147,5 +172,6 @@ export function tagExample(): TagExample {
 		centred,
 		meanShare,
 		net,
+		moves: [move(0, 0), move(2, 1)],
 	};
 }

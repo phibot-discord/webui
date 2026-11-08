@@ -20,6 +20,13 @@ test("the worked example matches the numbers printed on /tags", () => {
 	assert.deepEqual(e.beta.map(r3), [0.093, -0.198]);
 	assert.equal(r3(e.shift), -0.025);
 	assert.deepEqual(e.net.map(r3), [0.035, -0.064]);
+	assert.deepEqual(
+		e.moves.map((m) => [m.row, m.tag, r3(m.after), r3(m.rks), r3(m.rksAfter)]),
+		[
+			[0, 0, 99.169, 15.366, 15.415],
+			[2, 1, 96.289, 13.978, 13.638],
+		],
+	);
 });
 
 test("the example keeps the sign story the copy tells", () => {

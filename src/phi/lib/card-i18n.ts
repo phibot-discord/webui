@@ -51,12 +51,10 @@ const en = {
 	tagBallots: "Votes",
 	tagConstants: "Constants",
 	noData: "No data",
-	tagPool:
-		"+/- is lost acc vs what your other charts predict (+0.30 = half as much), {min}–{max}.",
-	tagPoolAps:
-		"All 99.9%+, so there is no gap to measure: ranked by how hard the charts are, {min}–{max}.",
+	tagPool: "Each number is your RKS if every chart played like that tag.",
+	tagPoolAps: "All 99.9%+, so there is no gap to measure.",
 	tagPoolHistory:
-		"All 99.9%+ now: from your scores on {date} (+0.30 = half as much lost), {min}–{max}.",
+		"All 99.9%+ now: from your scores on {date}, as your RKS then ({rks}) if every chart played like that tag.",
 	categorySummary: "Categories",
 	strongTags: "Strengths",
 	weakTags: "Weaknesses",
@@ -177,12 +175,10 @@ const zh: typeof en = {
 	tagBallots: "选票",
 	tagConstants: "定数",
 	noData: "暂无数据",
-	tagPool:
-		"+/- 为准确率损失与你其他谱面的预期相比（+0.30 = 少一半），定数 {min}–{max}",
-	tagPoolAps:
-		"所有谱面均在 99.9% 以上，没有差距可比：按所在谱面的难度排序，定数 {min}–{max}",
+	tagPool: "数字为所有谱面都像该词条时你的 RKS",
+	tagPoolAps: "所有谱面均在 99.9% 以上，没有差距可比",
 	tagPoolHistory:
-		"现在所有谱面均在 99.9% 以上：以下来自 {date} 的成绩（+0.30 = 损失少一半），定数 {min}–{max}",
+		"现在所有谱面均在 99.9% 以上：以下来自 {date} 的成绩，数字为所有谱面都像该词条时你当时的 RKS（当时 {rks}）",
 	categorySummary: "分类汇总",
 	strongTags: "擅长词条",
 	weakTags: "薄弱词条",
@@ -301,12 +297,10 @@ const ja: typeof en = {
 	tagBallots: "投票",
 	tagConstants: "定数",
 	noData: "データなし",
-	tagPool:
-		"+/- は他の譜面から予想した精度ロスとの比較（+0.30 = 半分）、定数 {min}–{max}。",
-	tagPoolAps:
-		"すべて 99.9% 以上で差を測れないため、譜面の難しさ順、定数 {min}–{max}。",
+	tagPool: "数値は全譜面がそのタグのようだった場合の RKS。",
+	tagPoolAps: "すべて 99.9% 以上のため、差を測れません。",
 	tagPoolHistory:
-		"現在はすべて 99.9% 以上のため、{date} 時点のスコアから（+0.30 = 半分）、定数 {min}–{max}。",
+		"現在はすべて 99.9% 以上のため、{date} 時点のスコアから。数値は全譜面がそのタグのようだった場合の当時の RKS（当時 {rks}）。",
 	categorySummary: "カテゴリ別",
 	strongTags: "得意",
 	weakTags: "苦手",
@@ -671,6 +665,7 @@ type TagPoolInfo = {
 	range?: { min: number; max: number };
 	recordCount?: number;
 	totalVotes: number;
+	rks?: number;
 	basis?: "scores" | "history" | "aps";
 	asOf?: string;
 };
@@ -707,10 +702,11 @@ export function tagPoolNote(
 	const range = poolRange(analysis);
 	if (!range) return "";
 	if (analysis?.basis === "aps") return fill(t.tagPoolAps, range);
+	const rks = (analysis?.rks ?? 0).toFixed(2);
 	const date = analysis?.asOf ? shanghaiDate(analysis.asOf) : "";
 	if (analysis?.basis === "history" && date)
-		return fill(t.tagPoolHistory, { ...range, date });
-	return fill(t.tagPool, range);
+		return fill(t.tagPoolHistory, { ...range, date, rks });
+	return fill(t.tagPool, { ...range, rks });
 }
 
 function isNoPushSuggest(s: string | undefined): boolean {

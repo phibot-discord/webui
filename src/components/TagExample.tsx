@@ -13,6 +13,10 @@ function num(n: number, d = 2): string {
 	return n < 0 && Number(s) !== 0 ? `${MINUS}${s}` : s;
 }
 
+function pct(n: number): string {
+	return `${n.toFixed(2)}%`;
+}
+
 function sg(n: number, d = 2): string {
 	const s = Math.abs(n).toFixed(d);
 	if (Number(s) === 0) return s;
@@ -29,6 +33,7 @@ const STEPS = [
 	"centre",
 	"shown",
 	"read",
+	"rks",
 	"listed",
 ] as const;
 
@@ -43,6 +48,7 @@ export function TagExample({
 	const t = m.tags;
 	const tags = example.tags.map((name) => localizeChartTagName(name, locale));
 	const [a, b, c] = example.rows;
+	const [moveA, moveC] = example.moves;
 	if (!a || !b || !c) return null;
 	const dropped = example.rows.flatMap((row) =>
 		row.votes.flatMap((v, j) =>
@@ -97,6 +103,10 @@ export function TagExample({
 			`10^${num(-example.net[1], 3)} ≈ ${num(10 ** -example.net[1])}`,
 			`10^${num(-example.net[0], 3)} ≈ ${num(10 ** -example.net[0])}`,
 		],
+		rks: example.moves.map(
+			(mv) =>
+				`100 − ${num(100 - mv.acc)} × 10^${num(-mv.net, 3)} = ${pct(mv.after)} → ${num(mv.rks)} → ${num(mv.rksAfter)}`,
+		),
 		listed: [],
 	};
 	const texts: Record<
@@ -124,6 +134,17 @@ export function TagExample({
 			nx: sg(example.net[0]),
 			more,
 			less,
+		},
+		rks: {
+			...names,
+			accA: pct(moveA.acc),
+			accA2: pct(moveA.after),
+			ra: num(moveA.rks),
+			ra2: num(moveA.rksAfter),
+			accC: pct(moveC.acc),
+			accC2: pct(moveC.after),
+			rc: num(moveC.rks),
+			rc2: num(moveC.rksAfter),
 		},
 		listed: {},
 	};

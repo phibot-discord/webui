@@ -33,6 +33,8 @@ export const PROFILE = {
 	minFree: 3,
 	listMax: 3,
 	floorSlot: 27,
+	phiSlots: 3,
+	rksSlots: 30,
 } as const;
 
 const LEVELS = new Set(["EZ", "HD", "IN", "AT"]);
@@ -56,6 +58,7 @@ export type PooledChart = ProfileRecord & {
 	weight: number;
 	expected: number;
 	diff: number;
+	baseline: number;
 	group: ChartGroup;
 	votes: number;
 };
@@ -64,6 +67,7 @@ export type TagChart = { chart: number; share: number; votes: number };
 
 export type ProfileTagScore = TagScore & {
 	mean: number;
+	meanRating: number;
 	hold: number;
 	firm: boolean;
 	faint: boolean;
@@ -156,6 +160,7 @@ type Pooled = {
 };
 
 type Pool = {
+	scored: ProfileRecord[];
 	pool: Pooled[];
 	min: number;
 	averageRks: number;
@@ -188,7 +193,47 @@ function poolOf(records: readonly ProfileRecord[]): Pool | undefined {
 		if (!capped) free += 1;
 		pool.push({ r, acc, y: nines(acc), w, capped });
 	}
-	return { pool, min, averageRks, free };
+	return { scored, pool, min, averageRks, free };
+}
+
+type Slot = { rks: number; ap: boolean };
+
+function topSum(list: number[], n: number): number {
+	list.sort((a, b) => b - a);
+	let s = 0;
+	for (let i = 0; i < n && i < list.length; i++) s += list[i]!;
+	return s;
+}
+
+function rksOf(slots: readonly Slot[]): number {
+	const best = slots.map((s) => s.rks);
+	const phi = slots.filter((s) => s.ap).map((s) => s.rks);
+	return (
+		(topSum(best, PROFILE.floorSlot) + topSum(phi, PROFILE.phiSlots)) /
+		PROFILE.rksSlots
+	);
+}
+
+export function rksScale(scored: readonly ProfileRecord[]) {
+	const charts = scored.map((r) => {
+		const acc = accOf(r) ?? 0;
+		return { c: r.difficulty, acc, rks: r.rks, ap: acc >= 100 - EPS };
+	});
+	const rks = rksOf(charts);
+	return {
+		rks,
+		at: (d: number) => {
+			if (d === 0) return rks;
+			const f = 10 ** -d;
+			return rksOf(
+				charts.map((m) =>
+					m.ap
+						? m
+						: { rks: fCompute.rks(100 - (100 - m.acc) * f, m.c), ap: false },
+				),
+			);
+		},
+	};
 }
 
 type Row = {
@@ -455,18 +500,22 @@ function scoreOf(
 	beta: number | undefined,
 	hold: number,
 	aps: boolean,
+	rate: (d: number) => number,
 ): ProfileTagScore {
 	const mean = aps ? 0 : a.s / (a.w + PROFILE.prior);
 	const diff = beta == null ? mean : a.w > 0 ? beta * (a.w2 / a.w) : 0;
 	const firm = !aps && hold >= PROFILE.firmHold;
+	const rating = rate(diff);
 	return {
 		name,
 		diff,
+		rating,
 		mean,
+		meanRating: rate(mean),
 		hold,
 		firm,
 		faint: aps || Math.abs(diff) < PROFILE.minDiff,
-		shown: aps ? "" : signed(diff),
+		shown: aps ? "" : rating.toFixed(2),
 		votes: a.votes,
 		charts: a.charts,
 		best: a.best,
@@ -493,7 +542,13 @@ function fmt(n: number): string {
 }
 
 export function radarGeometry(
-	rows: { name: string; diff: number; hasVotes: boolean; votes: number }[],
+	rows: {
+		name: string;
+		diff: number;
+		rating: number;
+		hasVotes: boolean;
+		votes: number;
+	}[],
 ): TagRadar {
 	const n = rows.length;
 	if (n < 3) return { grids: [], axes: [], points: "", categories: [] };
@@ -525,7 +580,7 @@ export function radarGeometry(
 			diff: row.diff,
 			votes: row.votes,
 			hasVotes: row.hasVotes,
-			shown: row.hasVotes ? signed(row.diff) : "–",
+			shown: row.hasVotes ? row.rating.toFixed(2) : "–",
 			pointX: point.x,
 			pointY: point.y,
 			labelX: label.x,
@@ -552,6 +607,7 @@ export function emptyProfile(): ProfileAnalysis {
 		chartCount: 0,
 		totalVotes: 0,
 		averageRks: 0,
+		rks: 0,
 		categories: [],
 		radar: { grids: [], axes: [], points: "", categories: [] },
 		strong: [],
@@ -591,7 +647,7 @@ export function tagProfileDetail(
 	};
 	const built = poolOf(records);
 	if (!built) return { analysis: emptyProfile(), ...none };
-	const { pool, min, averageRks, free } = built;
+	const { scored, pool, min, averageRks, free } = built;
 	const range = {
 		min,
 		max: pool.reduce((m, p) => Math.max(m, p.r.difficulty), min),
@@ -652,10 +708,12 @@ export function tagProfileDetail(
 	const mainShift = shiftOf(rows, main.theta, knots);
 	const betas = main.theta.slice(knots).map((b) => b - mainShift);
 	const holds = holdsOf(rows, main.targets, knots, T, knobs, !aps, betas);
+	const scale = rksScale(scored);
+	const rate = aps ? () => scale.rks : scale.at;
 	const n = knots + T;
 	const own = voted.map(({ row }) => {
 		const r = rows[row]!;
-		if (aps) return { expected: r.p.acc, gap: 0 };
+		if (aps) return { expected: r.p.acc, baseline: r.p.acc, gap: 0 };
 		let theta = main.theta;
 		if (main.used[row]) {
 			const unit = new Float64Array(n);
@@ -672,6 +730,7 @@ export function tagProfileDetail(
 		const g = curveAt(r, theta) + shiftOf(rest, theta, knots);
 		return {
 			expected: accOfNines(curveAt(r, theta) + tagPart(r, theta, knots)),
+			baseline: accOfNines(g),
 			gap: r.p.capped ? Math.max(0, CAP_Y - g) : r.p.y - g,
 		};
 	});
@@ -694,6 +753,7 @@ export function tagProfileDetail(
 			weight: row.p.w,
 			expected: own[i]!.expected,
 			diff: own[i]!.gap,
+			baseline: own[i]!.baseline,
 			group: group.get(i) ?? "middle",
 			votes: v.total,
 		};
@@ -723,6 +783,7 @@ export function tagProfileDetail(
 				index == null ? 0 : betas[index]!,
 				index == null ? 0 : holds[index]!,
 				aps,
+				rate,
 			);
 			return { ...score, side: sideOf(score) };
 		})
@@ -744,11 +805,13 @@ export function tagProfileDetail(
 	const categories: ProfileCategory[] = votes.categories.map((cat) => {
 		const a = aps ? undefined : byCat.get(cat.id);
 		const score: ProfileTagScore = a
-			? scoreOf(cat.name, a, undefined, 1, false)
+			? scoreOf(cat.name, a, undefined, 1, false, rate)
 			: {
 					name: cat.name,
 					diff: 0,
+					rating: scale.rks,
 					mean: 0,
+					meanRating: scale.rks,
 					hold: 0,
 					firm: false,
 					faint: true,
@@ -776,6 +839,7 @@ export function tagProfileDetail(
 			chartCount: voted.length,
 			totalVotes: voted.reduce((s, c) => s + c.total, 0),
 			averageRks,
+			rks: scale.rks,
 			categories,
 			radar: radarGeometry(categories),
 			strong,

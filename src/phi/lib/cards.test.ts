@@ -226,10 +226,7 @@ test("the tag profile is worked out locally from the vote snapshot, never phib19
 		analysis.tagMeta,
 		`定数 ${min.toFixed(1)}–${max.toFixed(1)} · 成绩 40 · 选票 200`,
 	);
-	assert.match(
-		analysis.tagPoolNote,
-		/^\+\/- 为准确率损失与你其他谱面的预期相比/,
-	);
+	assert.equal(analysis.tagPoolNote, "数字为所有谱面都像该词条时你的 RKS");
 	assert.equal(analysis.histogramPhiSlots, true);
 	assert.equal(analysis.histogram.count, 30);
 	assert.equal(data.rksStddev, analysis.histogram.stddev);

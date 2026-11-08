@@ -56,30 +56,31 @@ test("tag meta line names the constant range, scores and votes", () => {
 	assert.equal(tagAnalysisMeta(undefined, en), "No data");
 });
 
-test("tag pool note names the baseline the +/- compares with", () => {
+test("tag pool note says the numbers are RKS, with no constant range", () => {
 	const pool = {
 		range: { min: 15.2, max: 18.2 },
 		recordCount: 120,
 		totalVotes: 2499,
+		rks: 16.70731,
 	};
 	assert.equal(
 		tagPoolNote(pool, cardCopy("zh")),
-		"+/- 为准确率损失与你其他谱面的预期相比（+0.30 = 少一半），定数 15.2–18.2",
+		"数字为所有谱面都像该词条时你的 RKS",
 	);
-	assert.match(
+	assert.equal(
 		tagPoolNote(pool, cardCopy("en")),
-		/^\+\/- is lost acc vs what your other charts predict \(\+0\.30 = half as much\), 15\.2–18\.2\.$/,
+		"Each number is your RKS if every chart played like that tag.",
 	);
-	assert.match(
+	assert.equal(
 		tagPoolNote({ ...pool, basis: "aps" }, cardCopy("en")),
-		/^All 99\.9%\+, so there is no gap to measure: .*15\.2–18\.2\.$/,
+		"All 99.9%+, so there is no gap to measure.",
 	);
 	assert.equal(
 		tagPoolNote(
 			{ ...pool, basis: "history", asOf: "2026-10-10T17:00:00.000Z" },
 			cardCopy("en"),
 		),
-		"All 99.9%+ now: from your scores on 2026-10-11 (+0.30 = half as much lost), 15.2–18.2.",
+		"All 99.9%+ now: from your scores on 2026-10-11, as your RKS then (16.71) if every chart played like that tag.",
 	);
 	assert.equal(tagPoolNote({ totalVotes: 3 }, cardCopy("en")), "");
 	assert.equal(tagPoolNote(null, cardCopy("zh")), "");

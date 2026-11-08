@@ -1,7 +1,7 @@
 import { localeTag } from "@/i18n/config";
 import { getMessages } from "@/i18n/server";
 import { profileTimeline } from "@/lib/profile-timeline";
-import { fill, localizeChartTagName, signed } from "@/phi/lib/card-i18n";
+import { fill, localizeChartTagName } from "@/phi/lib/card-i18n";
 import type { TagVotes } from "@/phi/lib/chart-tag-votes";
 import { loadSaveHistory } from "@/phi/lib/history";
 import type { Save } from "@/phi/lib/save";
@@ -73,7 +73,7 @@ export async function ProfileTimeline({
 									</thead>
 									<tbody>
 										<tr className="pp-time-meta">
-											<th scope="row">{t.b27}</th>
+											<th scope="row">{t.rks}</th>
 											{view.points.map((p) => (
 												<td key={p.t} className="num">
 													{p.rks ? p.rks.toFixed(2) : "—"}
@@ -113,7 +113,7 @@ export async function ProfileTimeline({
 																}
 																data-listed={c.side !== "even" || undefined}
 															>
-																{signed(c.net)}
+																{c.rating.toFixed(2)}
 															</span>
 														) : (
 															<span className="muted">—</span>

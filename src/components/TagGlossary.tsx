@@ -57,6 +57,11 @@ export function TagGlossary({
 					<p className="tag-index-label">{t.guide}</p>
 					<ul>
 						<li>
+							<a href="#plain">
+								<span>{t.plainTitle}</span>
+							</a>
+						</li>
+						<li>
 							<a href="#formula">
 								<span>{t.howTitle}</span>
 							</a>
@@ -91,6 +96,20 @@ export function TagGlossary({
 					) : null}
 				</nav>
 				<div className="tag-glossary">
+					<section
+						className="tag-cat tag-guide"
+						id="plain"
+						aria-labelledby="plain-h"
+					>
+						<div className="tag-cat-head">
+							<h3 id="plain-h">{t.plainTitle}</h3>
+						</div>
+						<div className="tag-plain">
+							{t.plain.map((line) => (
+								<p key={line}>{line}</p>
+							))}
+						</div>
+					</section>
 					<section
 						className="tag-cat tag-guide"
 						id="formula"

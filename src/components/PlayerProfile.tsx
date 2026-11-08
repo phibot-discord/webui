@@ -5,7 +5,7 @@ import Link from "@/components/LocaleLink";
 import { formatDateTime } from "@/i18n/datetime";
 import { useI18n } from "@/i18n/provider";
 import { songPath } from "@/lib/song-path";
-import { fill, signed } from "@/phi/lib/card-i18n";
+import { fill } from "@/phi/lib/card-i18n";
 import type {
 	PlayerProfileView,
 	ProfileB30Row,
@@ -29,14 +29,13 @@ function Level({ rank, c }: { rank: string; c?: number }) {
 
 const FAINT = 0.03;
 
-function Diff({ value }: { value: number }) {
-	const text = signed(value);
+function Rating({ value, net }: { value: number; net: number }) {
 	return (
 		<span
 			className="pp-diff"
-			data-sign={Math.abs(value) < FAINT ? "flat" : value > 0 ? "up" : "down"}
+			data-sign={Math.abs(net) < FAINT ? "flat" : net > 0 ? "up" : "down"}
 		>
-			{text}
+			{value.toFixed(2)}
 		</span>
 	);
 }
@@ -130,13 +129,13 @@ function ChartsTable({
 							{t.acc}
 						</th>
 						<th scope="col" className="num">
-							{t.rks}
-						</th>
-						<th scope="col" className="num">
 							{t.expected}
 						</th>
 						<th scope="col" className="num">
-							{t.diff}
+							{t.rks}
+						</th>
+						<th scope="col" className="num">
+							{t.curve}
 						</th>
 						<th scope="col" className="num">
 							{t.share}
@@ -164,9 +163,17 @@ function ChartsTable({
 										<span className="muted"> ×{c.weight.toFixed(1)}</span>
 									) : null}
 								</td>
-								<td className="num">{c.rks.toFixed(2)}</td>
 								<td className="num muted">{aps ? "–" : pct(c.expected)}</td>
-								<td className="num">{aps ? "–" : <Diff value={c.diff} />}</td>
+								<td className="num">
+									{aps ? (
+										c.rks.toFixed(2)
+									) : (
+										<Rating value={c.rks} net={c.diff} />
+									)}
+								</td>
+								<td className="num muted">
+									{aps ? "–" : c.curveRks.toFixed(2)}
+								</td>
 								<td className="num muted">{Math.round(u.share * 100)}%</td>
 								<td>
 									<span className="pp-group" data-group={c.group}>
@@ -236,10 +243,14 @@ function TagList({
 							<>
 								<span className="pp-tag-name">{row.name}</span>
 								<span className="num">
-									{aps ? "–" : <Diff value={row.mean} />}
+									{aps ? "–" : <Rating value={row.meanRating} net={row.mean} />}
 								</span>
 								<span className="num">
-									{side && !aps ? <Diff value={row.diff} /> : "–"}
+									{side && !aps ? (
+										<Rating value={row.rating} net={row.diff} />
+									) : (
+										"–"
+									)}
 								</span>
 								<span className="num">{row.charts}</span>
 								<span className="num">
@@ -312,8 +323,13 @@ function TagSection({ view, t }: { view: PlayerProfileView; t: Copy }) {
 							})}
 						</p>
 					) : null}
-					<p className="pp-baseline">{t.baseline}</p>
-					{p.basis === "aps" ? <p className="pp-note">{t.apsNote}</p> : null}
+					{p.basis === "aps" ? (
+						<p className="pp-note">{t.apsNote}</p>
+					) : (
+						<p className="pp-baseline">
+							{fill(t.baseline, { rks: p.rks.toFixed(2) })}
+						</p>
+					)}
 					{p.basis === "history" && p.asOf ? (
 						<p className="pp-note">
 							{fill(t.historyNote, {

@@ -7,7 +7,7 @@ import {
 } from "@/phi/lib/notes";
 import type { CardSlot } from "./cache";
 
-export const RENDER_VERSION = "v53";
+export const RENDER_VERSION = "v54";
 
 export type CardImageCacheInput = {
 	kind: string;

@@ -367,6 +367,8 @@ export type ClientMessages = ToolsMessages & {
 		empty: string;
 		index: string;
 		count: string;
+		plainTitle: string;
+		plain: string[];
 		howTitle: string;
 		how: { term: string; formula?: string; text: string }[];
 		readTitle: string;
@@ -395,6 +397,7 @@ export type ClientMessages = ToolsMessages & {
 			| "centre"
 			| "shown"
 			| "read"
+			| "rks"
 			| "listed",
 			{ term: string; text: string }
 		>;
@@ -1316,6 +1319,14 @@ export const en: ClientMessages = {
 		empty: "The tag list is not available right now.",
 		index: "Categories",
 		count: "{n} tags",
+		plainTitle: "In plain words",
+		plain: [
+			"The chart profile looks for the kinds of charts you play better or worse than your usual. It only compares you with yourself, never with other players.",
+			"The kinds come from tags that players vote onto each chart at kyou.net.cn, such as stairs, long jacks or several judgment lines at once.",
+			"PhiBot first works out how much accuracy you usually keep at each constant. A chart where you did better than that counts in favour of its tags; one where you did worse counts against them. Many charts together make a pattern.",
+			"Each tag then gets an RKS. Say you are at RKS 15.20: a tag at 15.35 suits you.",
+			"A tag is only listed when it is on at least four of your charts and keeps pointing the same way when your scores are reshuffled. Read a listing as a hint about what to practise, not a verdict.",
+		],
 		howTitle: "How the profile is worked out",
 
 		how: [
@@ -1356,7 +1367,12 @@ export const en: ClientMessages = {
 			{
 				term: "Net",
 				formula: "β, ridge 0.5",
-				text: "The tag effects from the same fit as the curve, with a ridge penalty standing in for the prior. A tag only earns what the constant and its co-tags do not already explain. The number shown is β times the tag's mean share.",
+				text: "The tag effects from the same fit as the curve, with a ridge penalty standing in for the prior. A tag only earns what the constant and its co-tags do not already explain. β times the tag's mean share is the net: the tag's effect on a typical chart carrying it.",
+			},
+			{
+				term: "RKS",
+				formula: "acc′ = 100 − (100 − acc) × 10^(−net)",
+				text: "To show a net as an RKS, every chart you have played keeps 10^(−net) of the accuracy it lost: less for a strength, more for a weakness, and an AP stays an AP. RKS is then worked out as usual, the best 27 plus the 3 best APs over 30. A net of 0 gives exactly your RKS. Averages and categories are shown the same way.",
 			},
 			{
 				term: "Holds",
@@ -1374,9 +1390,9 @@ export const en: ClientMessages = {
 		],
 		readTitle: "How to read the numbers",
 		read: [
-			"+0.11 next to a tag: on charts with that tag you lose about a fifth less accuracy than the rest of your charts predict for them, whether to goods or bads. +0.30 is about half the loss; +1.00 is a tenth of it, 99.9% where you would usually get 99%.",
-			"−0.23: about 1.7 times the loss. 0.00: those charts play as predicted.",
-			"Dimmed entries on the card are faint (net under ±0.03, listed last) or slight (number dimmed, net under ±0.05). The player profile page also labels an entry leaning when its net holds in under 99% of resamples. Ordinary score swings alone can produce any of these, so read them as hints.",
+			"15.35 next to a tag when your RKS is 15.20: if every chart played the way charts with that tag do for you, your RKS would be 15.35, so that kind of chart suits you. 14.95 would mean it costs you a quarter of a point.",
+			"The steps are uneven: near 99.9% there is little accuracy left to win, so a strength adds less RKS than an equally strong weakness takes away. The higher your accuracy, the closer every tag sits to your RKS.",
+			"Dimmed entries on the card are faint (the tag changes your lost accuracy by under about 7%, listed last) or slight (under about 12%, number dimmed). The player profile page also labels an entry leaning when its net holds in under 99% of resamples. Ordinary score swings alone can produce any of these, so read them as hints.",
 			"The baseline is you, never other players, and only charts at or above your level count. A chart that is hard for everyone does not count against you on its own, because it is compared with what your own curve expects at its constant.",
 			"Tags that always sit on the same charts cannot be told apart, so the net splits the credit between them. Where a tag also appears without its usual companions, those charts decide. Open a tag on the player profile to see which charts it comes from.",
 			"An entry that holds at 99% can still be luck about one time in twenty, a leaning one about one in five. Treat a single listing as a hint, and a tag that stays listed across saves as a pattern.",
@@ -1431,11 +1447,15 @@ export const en: ClientMessages = {
 			},
 			shown: {
 				term: "Shown",
-				text: "β times the tag's mean share on your charts. These are the numbers on the card.",
+				text: "β times the tag's mean share on your charts: the net, the tag's effect on a typical chart carrying it.",
 			},
 			read: {
 				term: "Reading",
 				text: "{y} {ny}: about {more}% more accuracy lost on its charts than your curve predicts. {x} {nx}: about {less}% less.",
+			},
+			rks: {
+				term: "As RKS",
+				text: "The card shows each net as an RKS. Every chart keeps 10^(−net) of the accuracy it lost: {a} at {accA} with {x}'s net would be {accA2}, RKS {ra} → {ra2}, and {c} at {accC} with {y}'s net {accC2}, RKS {rc} → {rc2}. Doing this to every chart you have played and working out RKS again (the best 27 plus the 3 best APs, over 30) gives the number next to the tag.",
 			},
 			listed: {
 				term: "Listed?",
@@ -2407,6 +2427,14 @@ export const zh: ClientMessages = {
 		empty: "暂时无法加载标签列表。",
 		index: "分类",
 		count: "{n} 个标签",
+		plainTitle: "简单来说",
+		plain: [
+			"谱面画像找的是你比平时打得更好或更差的那类谱面。它只拿你和你自己比，从不和其他玩家比。",
+			"「那类谱面」来自玩家在 kyou.net.cn 给每张谱面投的标签，比如楼梯、长纵连、多条判定线同时出现等。",
+			"PhiBot 先算出你在每个定数通常能保住多少准确率。某张谱面打得比平时好，就给它的标签加分；打得比平时差，就给它的标签减分。很多张谱面合在一起就形成规律。",
+			"然后每个标签都会得到一个 RKS。比如你的 RKS 是 15.20：某个标签显示 15.35 说明它适合你，反之亦然。",
+			"标签至少要出现在你的 4 张谱面上，并且把成绩重新抽样后仍指向同一方向，才会被列出。把它当作练习方向的提示，而不是定论。",
+		],
 		howTitle: "标签画像的计算方式",
 
 		how: [
@@ -2447,7 +2475,12 @@ export const zh: ClientMessages = {
 			{
 				term: "净值",
 				formula: "β，岭回归 0.5",
-				text: "与曲线在同一次拟合中得到的标签效应，岭回归惩罚起到先验的作用。标签只能获得定数和同谱其他标签解释不了的部分。显示值为 β 乘以该标签的平均占比。",
+				text: "与曲线在同一次拟合中得到的标签效应，岭回归惩罚起到先验的作用。标签只能获得定数和同谱其他标签解释不了的部分。β 乘以该标签的平均占比即净值：该标签在一张典型谱面上的影响。",
+			},
+			{
+				term: "RKS",
+				formula: "acc′ = 100 − (100 − acc) × 10^(−净值)",
+				text: "把净值显示成 RKS 时，你玩过的每张谱面损失的准确率都乘以 10^(−净值)：擅长时损失变少，薄弱时变多，AP 保持 AP。然后照常计算 RKS：最好的 27 张加最好的 3 张 AP，除以 30。净值为 0 时正好是你的 RKS。平均和分类也用同样方法显示。",
 			},
 			{
 				term: "稳定",
@@ -2460,14 +2493,14 @@ export const zh: ClientMessages = {
 			},
 			{
 				term: "全部 99.9%+",
-				text: "统计范围内低于 99.9% 的谱面少于 3 张时，没有差距可比。若 PhiBot 有你的成绩历史，画像取自最后一次仍有谱面低于 99.9% 的那天，并显示日期。否则按带该标签的 99.9%+ 谱面有多难来排序，变暗且不显示数值：它说明你在高处打过哪些谱面，而不是能力差异。",
+				text: "统计范围内低于 99.9% 的谱面少于 3 张时，没有差距可比。若 PhiBot 有你的成绩历史，画像取自最后一次仍有谱面低于 99.9% 的那天，并显示日期。否则按带该标签的 99.9%+ 谱面有多难来排序，变暗且不显示数值。",
 			},
 		],
 		readTitle: "如何理解这些数值",
 		read: [
-			"标签旁的 +0.11：在带有该标签的谱面上，你的准确率损失（Good 与 Bad 都算）比其余谱面对它的预期少约五分之一。+0.30 约为损失减半；+1.00 是只剩十分之一，你平时 99% 的地方打到 99.9%。",
-			"−0.23：损失约为 1.7 倍。0.00：这些谱面与预期一致。",
-			"成绩图上变暗的条目是「微弱」（净值小于 ±0.03，排在最后）或「略」（数值变暗，净值小于 ±0.05）。玩家画像页面还会把稳定不足 99% 的条目标为「倾向」。正常的成绩波动也可能造成这些，只作参考。",
+			"你的 RKS 为 15.20 时，标签旁的 15.35：假如每张谱面都打得像你在带该标签的谱面上那样，你的 RKS 会是 15.35，说明这类谱面适合你。14.95 则说明它让你少了约 0.25。",
+			"升降并不对称：接近 99.9% 时能再提升的准确率很少，所以同样程度的擅长加的 RKS 比薄弱扣的少。你的准确率越高，所有标签离你的 RKS 越近。",
+			"成绩图上变暗的条目是「微弱」（该标签让损失的准确率变化不到约 7%，排在最后）或「略」（不到约 12%，数值变暗）。玩家画像页面还会把稳定不足 99% 的条目标为「倾向」。正常的成绩波动也可能造成这些，只作参考。",
 			"基准是你自己，而不是其他玩家，并且只计入你所在难度及以上的谱面。对所有人都难的谱面本身不会算作你的弱项，因为它与你自己的曲线在该定数的预期相比。",
 			"总是出现在同一批谱面上的标签无法区分，净值会把功劳平分。当某个标签也单独出现在别的谱面上时，就由那些谱面来判断。在玩家画像里展开标签可查看它来自哪些谱面。",
 			"稳定达到 99% 的条目仍有约二十分之一只是运气，「倾向」的条目约五分之一。单次出现当作提示，多次存档都在列才算规律。",
@@ -2520,11 +2553,15 @@ export const zh: ClientMessages = {
 			},
 			shown: {
 				term: "显示值",
-				text: "β 乘以该标签在你的谱面上的平均占比，即成绩图上的数字。",
+				text: "β 乘以该标签在你的谱面上的平均占比，即净值：该标签在一张典型谱面上的影响。",
 			},
 			read: {
 				term: "解读",
 				text: "{y} {ny}：在带这个标签的谱面上，比你的曲线预测多损失约 {more}% 的准确率。{x} {nx}：少损失约 {less}%。",
+			},
+			rks: {
+				term: "换算成 RKS",
+				text: "成绩图把每个净值显示为 RKS。每张谱面损失的准确率乘以 10^(−净值)：{a} 的 {accA} 按{x}的净值变为 {accA2}，RKS {ra} → {ra2}；{c} 的 {accC} 按{y}的净值变为 {accC2}，RKS {rc} → {rc2}。对你玩过的每张谱面都这样做，再照常重算 RKS（最好的 27 张加最好的 3 张 AP，除以 30），就得到标签旁的数字。",
 			},
 			listed: {
 				term: "会列出吗",

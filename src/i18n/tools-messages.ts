@@ -90,7 +90,7 @@ export type ToolsMessages = {
 		allTagsHint: string;
 		tag: string;
 		category: string;
-		diff: string;
+		curve: string;
 		charts: string;
 		mean: string;
 		net: string;
@@ -120,7 +120,7 @@ export type ToolsMessages = {
 			none: string;
 			date: string;
 			now: string;
-			b27: string;
+			rks: string;
 			pool: string;
 			few: string;
 			partial: string;
@@ -661,16 +661,16 @@ export const toolsEn: ToolsMessages = {
 		tagsTitle: "Chart profile",
 		meta: "Constants {min}–{max} · {scores} scores · {charts} voted charts · {votes} votes",
 		baseline:
-			"Each number compares the accuracy you lose on charts with that tag, to goods and bads alike, with what the rest of your charts predict for them: one curve over constant plus the other tags on the chart, worked out without the chart itself. +0.30 is about half as much lost, −0.30 about twice as much, +1.00 a tenth (99.9% where you would usually get 99%), 0.00 as predicted.",
+			"Every number here is an RKS: the RKS you would have if every chart played the way charts with that tag play for you. Each chart keeps more or less of the accuracy it lost, goods and bads alike, by the tag's effect, and RKS is worked out again; APs stay APs. Your RKS is {rks}: a tag above it suits you, one below it costs you. The effect is measured against what the rest of your charts predict: one curve over constant plus the other tags on the chart, worked out without the chart itself.",
 		howLink: "How the numbers are worked out",
 		source: "Votes from kyou.net.cn, copied {date}.",
 		categoriesTitle: "Categories",
 		allTagsTitle: "All tags",
 		allTagsHint:
-			"Open a tag to see the charts counted for it. Average is your gap on those charts. Net is what the tag adds once the other tags on the same charts are accounted for; the verdict uses it. Holds is how often the net keeps its sign when your charts are resampled: a listing needs {hold}% and at least {n} charts, and counts as established from {firm}%.",
+			"Open a tag to see the charts counted for it. Average turns your plain gap on those charts into an RKS. Net does the same with what the tag adds once the other tags on the same charts are accounted for; the verdict uses it. Holds is how often the net keeps its direction when your charts are resampled: a listing needs {hold}% and at least {n} charts, and counts as established from {firm}%.",
 		tag: "Tag",
 		category: "Category",
-		diff: "+/-",
+		curve: "Curve RKS",
 		charts: "Charts",
 		mean: "Average",
 		net: "Net",
@@ -686,7 +686,7 @@ export const toolsEn: ToolsMessages = {
 		historyNote:
 			"Every chart here is 99.9%+ now, so this profile uses your scores from {date}, the last time some of them were still under 99.9%.",
 		slightHint:
-			"Leaning: the net holds in under 99% of resamples; shown in full on the card. Slight: it is under ±0.05; its number is dimmed on the card. Faint: under ±0.03; listed after the others and dimmed on the card. Ordinary score swings alone can produce any of these, so treat them as hints.",
+			"Leaning: the net holds in under 99% of resamples; shown in full on the card. Slight: the tag changes your lost accuracy by under about 12%; its number is dimmed on the card. Faint: under about 7%; listed after the others and dimmed on the card. Ordinary score swings alone can produce any of these, so treat them as hints.",
 		few: "On fewer than {n} of your charts: not listed on the card.",
 		chartsFor: "Charts counted for {name}",
 		expected: "Expected acc",
@@ -699,12 +699,12 @@ export const toolsEn: ToolsMessages = {
 		empty: "No scored charts yet.",
 		timeline: {
 			title: "Over time",
-			lede: "The same profile worked out from your scores on earlier days, using today's constants and votes. Only tags that were a strength or weakness at some point are shown.",
+			lede: "The same profile worked out from your scores on earlier days, using today's constants and votes. Each number is an RKS from that day's scores, so it also rises as your RKS does: compare it with the RKS row. Only tags that were a strength or weakness at some point are shown.",
 			loading: "Working out your profile on earlier days…",
 			none: "Not enough save history yet. PhiBot needs scores from at least two different days.",
 			date: "Date",
 			now: "Now",
-			b27: "B27 average",
+			rks: "RKS",
 			pool: "Charts counted",
 			few: "too few",
 			partial:
@@ -1295,16 +1295,16 @@ export const toolsZh: ToolsMessages = {
 		tagsTitle: "谱面标签画像",
 		meta: "定数 {min}–{max} · 成绩 {scores} · 已投票谱面 {charts} · 选票 {votes}",
 		baseline:
-			"每个数值把带该标签的谱面上你损失的准确率（Good 与 Bad 都算）与其余谱面对它的预期相比：预期由一条随定数变化的曲线加上该谱面其他标签的影响组成，计算时不含该谱面本身。+0.30 约为损失减半，−0.30 约为两倍，+1.00 只剩十分之一（你平时 99% 的地方打到 99.9%），0.00 与预期持平。",
+			"这里的每个数字都是 RKS：假如每张谱面都打得像你在带该标签的谱面上那样，你会有的 RKS。具体是按该标签的影响，让每张谱面损失的准确率（Good 与 Bad 都算）按比例变多或变少，再照常重算 RKS，AP 保持不变。你的 RKS 是 {rks}：高于它的标签适合你，低于它的拖累你。标签的影响与其余谱面的预期相比得出：预期由一条随定数变化的曲线加上该谱面其他标签的影响组成，计算时不含该谱面本身。",
 		howLink: "数值的计算方式",
 		source: "投票来自 kyou.net.cn，同步于 {date}。",
 		categoriesTitle: "分类",
 		allTagsTitle: "全部标签",
 		allTagsHint:
-			"展开标签可查看计入它的谱面。「平均」是你在这些谱面上的差值；「净值」是扣除同一谱面上其他标签的影响后该标签自身的贡献，判定以它为准；「稳定」是重抽谱面时净值保持同号的比例，列出需要 {hold}% 且至少 {n} 张谱面，达到 {firm}% 才算确定。",
+			"展开标签可查看计入它的谱面。「平均」把你在这些谱面上的差值换算成 RKS；「净值」对扣除同一谱面上其他标签的影响后该标签自身的贡献做同样换算，判定以它为准；「稳定」是重抽谱面时净值保持方向的比例，列出需要 {hold}% 且至少 {n} 张谱面，达到 {firm}% 才算确定。",
 		tag: "标签",
 		category: "分类",
-		diff: "+/-",
+		curve: "曲线 RKS",
 		charts: "谱面",
 		mean: "平均",
 		net: "净值",
@@ -1316,11 +1316,11 @@ export const toolsZh: ToolsMessages = {
 		faint: { strong: "微弱擅长", weak: "微弱薄弱" },
 		aps: { strong: "较难的 AP", weak: "较易的 AP" },
 		apsNote:
-			"这里所有谱面都在 99.9% 以上，成绩中没有差距可比。改为按带该标签的 99.9%+ 谱面有多难来排序，不显示数值。它说明你在高处打过哪些谱面，而不是你更擅长或更薄弱什么。",
+			"这里所有谱面都在 99.9% 以上，成绩中没有差距可比。",
 		historyNote:
 			"这里所有谱面现在都在 99.9% 以上，因此画像使用 {date} 的成绩，那是最后一次仍有谱面低于 99.9% 的时候。",
 		slightHint:
-			"倾向：净值的稳定不足 99%，成绩图上正常显示。略：净值小于 ±0.05，成绩图上数值变暗。微弱：净值小于 ±0.03，排在其他标签之后，成绩图上变暗。正常的成绩波动也可能造成这些，仅供参考。",
+			"倾向：净值的稳定不足 99%，成绩图上正常显示。略：该标签让你损失的准确率变化不到约 12%，成绩图上数值变暗。微弱：不到约 7%，排在其他标签之后，成绩图上变暗。正常的成绩波动也可能造成这些，仅供参考。",
 		few: "出现在你少于 {n} 张谱面上：不会列在成绩图上。",
 		chartsFor: "计入「{name}」的谱面",
 		expected: "预期准确率",
@@ -1333,12 +1333,12 @@ export const toolsZh: ToolsMessages = {
 		empty: "还没有已计分的谱面。",
 		timeline: {
 			title: "随时间变化",
-			lede: "用你在之前某些日期的成绩计算同一份画像，定数和投票都按现在的。只列出曾经是强项或弱项的标签。",
+			lede: "用你在之前某些日期的成绩计算同一份画像，定数和投票都按现在的。每个数字都是按当天成绩算出的 RKS，会随你的 RKS 一起上升，请与 RKS 一行对照。只列出曾经是强项或弱项的标签。",
 			loading: "正在计算你在之前日期的画像…",
 			none: "存档历史还不够。PhiBot 需要至少两个不同日期的成绩。",
 			date: "日期",
 			now: "现在",
-			b27: "B27 平均",
+			rks: "RKS",
 			pool: "计入谱面",
 			few: "过少",
 			partial:

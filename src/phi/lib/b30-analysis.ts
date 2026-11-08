@@ -147,6 +147,7 @@ export type ChartTagTreeNode = {
 export type TagScore = {
 	name: string;
 	diff: number;
+	rating: number;
 	shown: string;
 	votes: number;
 	charts: number;
@@ -183,6 +184,7 @@ export type TagAnalysis = {
 	chartCount: number;
 	totalVotes: number;
 	averageRks: number;
+	rks: number;
 	categories: (Omit<TagScore, "name"> & { name: string; hasVotes: boolean })[];
 	radar: TagRadar;
 	strong: TagScore[];

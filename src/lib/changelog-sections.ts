@@ -3,6 +3,32 @@ import type { ChangeRelease } from "./changelog";
 /** Every release's items, newest first, loaded only when the dialog opens */
 export const CHANGELOG_RELEASES: ChangeRelease[] = [
 	{
+		date: "2026-11-08",
+		sections: [
+			{
+				heading: {
+					en: "Chart profile",
+					zh: "谱面标签画像",
+					ja: "譜面プロフィール",
+				},
+				items: [
+					{
+						en: "Chart profile numbers are now RKS: each tag shows the RKS you would have if every chart played like the charts with that tag, next to your own RKS. The card, the player profile and its over-time table all use it.",
+						zh: "谱面标签画像的数字现在都是 RKS：每个标签显示假如每张谱面都打得像带该标签的谱面那样时你会有的 RKS，并与你自己的 RKS 并列。成绩图、玩家画像以及「随时间变化」表都使用它。",
+						ja: "譜面プロフィールの数値が RKS になりました。各タグには、すべての譜面をそのタグが付いた譜面と同じ調子でプレイできたとしたときの RKS が、あなた自身の RKS と並んで表示されます。カード、プレイヤープロフィール、推移の表のすべてで使われます。",
+						href: "/profile",
+					},
+					{
+						en: "The Chart tags page opens with a plain-words explanation and walks through turning a tag's effect into an RKS. Every tag's clip now lines up with its neighbours, whether or not the tag has a description.",
+						zh: "谱面标签页开头新增简单说明，并逐步演示如何把标签的影响换算成 RKS。每个标签的短片现在都与相邻标签对齐，无论该标签有没有说明。",
+						ja: "「譜面タグ」ページの冒頭にかんたんな説明を追加し、タグの効果を RKS に換算する手順を計算例で示すようにしました。各タグのクリップは、説明の有無にかかわらず隣のタグとそろって並びます。",
+						href: "/tags",
+					},
+				],
+			},
+		],
+	},
+	{
 		date: "2026-11-05",
 		sections: [
 			{

@@ -23,6 +23,7 @@ export type TimelinePoint = {
 
 export type TimelineCell = {
 	net: number;
+	rating: number;
 	side: ProfileTagRow["side"];
 	firm: boolean;
 	hold: number;
@@ -119,7 +120,7 @@ export function profileTimeline(
 		day: s.day,
 		charts: analyses[i]!.chartCount,
 		played: s.records.length,
-		rks: analyses[i]!.averageRks,
+		rks: analyses[i]!.rks,
 		insufficient: analyses[i]!.insufficient,
 		now: s.now,
 	}));
@@ -130,6 +131,7 @@ export function profileTimeline(
 			const cells = byName.get(tag.name) ?? new Array(snaps.length).fill(null);
 			cells[i] = {
 				net: tag.diff,
+				rating: tag.rating,
 				side: tag.side,
 				firm: tag.firm,
 				hold: tag.hold,

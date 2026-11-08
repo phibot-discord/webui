@@ -5,6 +5,7 @@ import {
 	CHART_TAG_VOTES_SOURCE,
 	type TagVotes,
 } from "@/phi/lib/chart-tag-votes";
+import { fCompute } from "@/phi/lib/fcompute";
 import type { Save } from "@/phi/lib/save";
 import {
 	type ChartGroup,
@@ -42,6 +43,7 @@ export type ProfileChartRow = {
 	rks: number;
 	weight: number;
 	expected: number;
+	curveRks: number;
 	diff: number;
 	group: ChartGroup;
 	votes: number;
@@ -60,6 +62,7 @@ export type TagProfileView = Pick<
 	| "chartCount"
 	| "totalVotes"
 	| "averageRks"
+	| "rks"
 	| "insufficient"
 > & {
 	categories: ProfileCategoryView[];
@@ -169,6 +172,7 @@ export function playerProfileView(
 			chartCount: a.chartCount,
 			totalVotes: a.totalVotes,
 			averageRks: a.averageRks,
+			rks: a.rks,
 			insufficient: a.insufficient,
 			categories: a.categories.map((c, i) => ({
 				...c,
@@ -187,6 +191,7 @@ export function playerProfileView(
 				rks: c.rks,
 				weight: c.weight,
 				expected: c.expected,
+				curveRks: fCompute.rks(c.baseline, c.difficulty),
 				diff: c.diff,
 				group: c.group,
 				votes: c.votes,

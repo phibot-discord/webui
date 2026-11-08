@@ -9,6 +9,7 @@ import {
 	type ProfileRecord,
 	profileRecordsOf,
 	radarGeometry,
+	rksScale,
 	signed,
 	tagProfile,
 	tagProfileDetail,
@@ -109,8 +110,11 @@ test("planted strengths and weaknesses come back on the right side", () => {
 	assert.equal(out.weak[0]!.firm, true);
 	assert.ok(out.strong[0]!.mean > 0);
 	assert.ok(out.weak[0]!.mean < 0);
-	assert.match(out.strong[0]!.shown, /^\+\d\.\d\d$/);
-	assert.match(out.weak[0]!.shown, /^-\d\.\d\d$/);
+	assert.match(out.strong[0]!.shown, /^\d+\.\d\d$/);
+	assert.match(out.weak[0]!.shown, /^\d+\.\d\d$/);
+	assert.ok(out.strong[0]!.rating > out.rks);
+	assert.ok(out.weak[0]!.rating < out.rks);
+	assert.equal(out.strong[0]!.shown, out.strong[0]!.rating.toFixed(2));
 	const cat = Object.fromEntries(out.categories.map((c) => [c.name, c.diff]));
 	assert.ok(cat.硬抗! > 0);
 	assert.ok(cat.定位! < 0);
@@ -145,7 +149,11 @@ test("every tag on the pooled charts gets a row, best first, with its side", () 
 	assert.equal(out.tags.length, 6);
 	for (const t of out.tags) {
 		assert.equal(t.firm, t.hold >= PROFILE.firmHold, t.name);
-		assert.equal(t.slight, Math.abs(Number(t.shown)) < PROFILE.slight, t.name);
+		assert.equal(
+			t.slight,
+			Math.abs(Number(signed(t.diff))) < PROFILE.slight,
+			t.name,
+		);
 	}
 	assert.ok(out.strong[0]!.diff >= PROFILE.slight);
 	assert.equal(out.strong[0]!.slight, false);
@@ -520,6 +528,7 @@ test("radar sits on the card's 200×184 plot: centre (100,92), radius 55, labels
 	const rows = TREE.map((c, i) => ({
 		name: c.name,
 		diff: i === 0 ? 0.3 : 0,
+		rating: i === 0 ? 16.204 : 16,
 		hasVotes: i !== 4,
 		votes: 10,
 	}));
@@ -531,13 +540,69 @@ test("radar sits on the card's 200×184 plot: centre (100,92), radius 55, labels
 	assert.equal(top.anchor, "middle");
 	assert.ok(Math.abs(top.labelY - 14) < 1e-9);
 	assert.ok(Math.abs(top.pointY - (92 - 55)) < 1e-9);
-	assert.equal(top.shown, "+0.30");
+	assert.equal(top.shown, "16.20");
 	const flat = radar.categories[1]!;
 	const r = Math.hypot(flat.pointX - 100, flat.pointY - 92);
 	assert.ok(Math.abs(r - 55 * 0.55) < 1e-9);
 	assert.equal(flat.anchor, "start");
-	assert.equal(flat.shown, "0.00");
+	assert.equal(flat.shown, "16.00");
 	assert.equal(radar.categories[4]!.shown, "–");
 	assert.equal(radar.categories[3]!.anchor, "end");
 	assert.equal(radarGeometry(rows.slice(0, 2)).categories.length, 0);
+});
+
+test("the RKS scale is your RKS with every chart's lost accuracy scaled by 10^-net, and APs stay APs", () => {
+	const records: ProfileRecord[] = [];
+	for (let i = 0; i < 40; i++) {
+		const c = 14 + i * 0.1;
+		const acc = i % 8 === 0 ? 100 : 97 + (i % 5) * 0.5;
+		records.push({
+			id: `S${i}.x.0`,
+			level: "IN",
+			difficulty: c,
+			rks: c * ((acc - 55) / 45) ** 2,
+			acc,
+		});
+	}
+	const scale = rksScale(records);
+	const sorted = records.map((r) => r.rks).sort((a, b) => b - a);
+	const aps = records
+		.filter((r) => r.acc === 100)
+		.map((r) => r.rks)
+		.sort((a, b) => b - a);
+	const sum = (xs: number[]) => xs.reduce((s, v) => s + v, 0);
+	const expected = (sum(sorted.slice(0, 27)) + sum(aps.slice(0, 3))) / 30;
+	assert.ok(Math.abs(scale.rks - expected) < 1e-9);
+	assert.equal(scale.at(0), scale.rks);
+	const half = records.map((r) => {
+		if (r.acc === 100) return r.rks;
+		const acc = 100 - (100 - r.acc!) * 10 ** -0.3;
+		return r.difficulty * ((acc - 55) / 45) ** 2;
+	});
+	const want =
+		(sum(half.sort((a, b) => b - a).slice(0, 27)) + sum(aps.slice(0, 3))) / 30;
+	assert.ok(Math.abs(scale.at(0.3) - want) < 1e-9);
+	let last = -Infinity;
+	for (const d of [-0.4, -0.2, -0.05, 0, 0.05, 0.2, 0.4]) {
+		const v = scale.at(d);
+		assert.ok(v > last, `${d} ${v}`);
+		last = v;
+	}
+	assert.ok(Math.abs(scale.at(-0.001) - scale.rks) < 0.01);
+	const allAp = records.map((r) => ({ ...r, acc: 100, rks: r.difficulty }));
+	const ap = rksScale(allAp);
+	assert.equal(ap.at(-0.5), ap.rks);
+});
+
+test("a tag at 0 shows exactly the player's RKS, and the analysis carries that RKS", () => {
+	const { records, votes } = world(15.5, { 2: 0.8, 4: -0.8 }, 7);
+	const out = tagProfile(records, votes);
+	assert.ok(Math.abs(out.rks - rksScale(records).rks) < 1e-12);
+	for (const t of out.tags) {
+		if (t.diff > 0) assert.ok(t.rating > out.rks, t.name);
+		if (t.diff < 0) assert.ok(t.rating < out.rks, t.name);
+	}
+	const sorted = [...out.tags].sort((a, b) => a.diff - b.diff);
+	for (let i = 1; i < sorted.length; i++)
+		assert.ok(sorted[i]!.rating >= sorted[i - 1]!.rating);
 });
