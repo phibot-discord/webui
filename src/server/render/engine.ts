@@ -53,7 +53,7 @@ export const MEASURE_SLACK_PX = 24;
 const heightCache = new Map<string, number>();
 const HEIGHT_CACHE_MAX = 200;
 
-/** Scaling wrapper and canvas filler; both passes style them, so they share one parsed tree */
+/** Root wrapper and canvas filler; both passes style them, so they share one parsed tree */
 function wrapPixelRoot(html: string) {
 	const root = `<div class="phi-pixel-fill"></div><div class="phi-pixel-root">`;
 	if (/<body\b/i.test(html)) {
@@ -71,15 +71,15 @@ function rootBoxCss(cssWidth: number) {
 
 function measureRootCss(cssWidth: number) {
 	return `.phi-pixel-fill { display: none !important; }
-.phi-pixel-root { width: ${cssWidth}px !important; transform: none !important; transform-origin: 0 0 !important; overflow: visible !important; }`;
+.phi-pixel-root { position: relative !important; z-index: 0 !important; width: ${cssWidth}px !important; overflow: visible !important; }`;
 }
 
-/** Fill every device pixel: a filler behind the scaled root, and a min-height so `.background` covers the card */
+/** Fill every device pixel: a filler behind the root, and a min-height so `.background` covers the card */
 function paintRootCss(cssWidth: number, paint: PaintSize) {
+	const fill = Math.ceil(paint.width / paint.ratio);
 	const cover = Math.ceil(paint.height / paint.ratio);
-	const scale = paint.ratio === 1 ? "none" : `scale(${paint.ratio})`;
-	return `.phi-pixel-fill { display: block !important; position: absolute !important; left: 0 !important; top: 0 !important; width: ${paint.width}px !important; height: ${paint.height}px !important; margin: 0 !important; background: inherit !important; }
-.phi-pixel-root { width: ${cssWidth}px !important; min-height: ${cover}px !important; transform: ${scale}; transform-origin: 0 0 !important; overflow: visible !important; }`;
+	return `.phi-pixel-fill { display: block !important; position: absolute !important; left: 0 !important; top: 0 !important; width: ${fill}px !important; height: ${cover}px !important; margin: 0 !important; background: inherit !important; }
+.phi-pixel-root { position: relative !important; z-index: 0 !important; width: ${cssWidth}px !important; min-height: ${cover}px !important; overflow: visible !important; }`;
 }
 
 function rememberHeight(key: string, height: number) {
@@ -301,7 +301,7 @@ export class RenderEngine {
 				}),
 			),
 		);
-		// One tree for both passes (scale lives in the per-pass CSS); emoji are fetched here, before the raster lock
+		// One tree for both passes (the pixel ratio is a render option); emoji are fetched here, before the raster lock
 		const remote = await withRemoteImages(
 			fromHtml(wrapPixelRoot(prepared)).node,
 			{ emoji: mayHaveEmoji(prepared) },
@@ -331,21 +331,24 @@ export class RenderEngine {
 		const fontFamilies = [...PHI_FONT_FAMILIES];
 		const paintLocked = (node: Node, images: ImageSource[]) =>
 			renderLock.run(async () => {
-				let measureMs: number | undefined;
-				if (!height) {
+				const measureHeight = async (ratio: number) => {
 					signal?.throwIfAborted();
-					const tMeasure = performance.now();
 					const measured = await renderer.measure(node, {
-						width,
-						height: MEASURE_VIEWPORT_H,
+						width: Math.round(width * ratio),
+						height: Math.round(MEASURE_VIEWPORT_H * ratio),
+						devicePixelRatio: ratio,
 						css: [...sharedSheets, rootBoxCss(width), measureRootCss(width)],
 						images,
 						fontFamilies,
 						lang: "zh-CN",
 						signal,
 					});
-					const boxH = measured.height || 0;
-					const extent = Math.max(1, Math.ceil(contentExtent(measured)));
+					const boxW = (measured.width || 0) / ratio;
+					const boxH = (measured.height || 0) / ratio;
+					const extent = Math.max(
+						1,
+						Math.ceil(contentExtent(measured) / ratio),
+					);
 					let raw = Math.max(boxH, extent);
 					if (
 						extent >= MEASURE_VIEWPORT_H - 1 &&
@@ -354,15 +357,29 @@ export class RenderEngine {
 					) {
 						raw = boxH;
 					}
-					height = Math.min(
+					const using = Math.min(
 						MEASURE_VIEWPORT_H,
 						Math.max(1, Math.ceil(raw) + MEASURE_SLACK_PX),
 					);
+					logger.info(
+						`measured @${ratio}x box ${boxW}x${boxH} content ${extent} using ${using}`,
+					);
+					return using;
+				};
+				let measureMs: number | undefined;
+				if (!height) {
+					const tMeasure = performance.now();
+					height = await measureHeight(PIXEL_RATIO);
+					const { ratio } = fitPaint(
+						width,
+						height,
+						PIXEL_RATIO,
+						paintQuality,
+						maxRatio,
+					);
+					if (ratio !== PIXEL_RATIO) height = await measureHeight(ratio);
 					measureMs = performance.now() - tMeasure;
 					if (heightKey) heightCached = "miss";
-					logger.info(
-						`measured box ${measured.width}x${measured.height} content ${extent} using ${height}`,
-					);
 					if (heightKey && height > 64) rememberHeight(heightKey, height);
 				}
 
@@ -383,6 +400,7 @@ export class RenderEngine {
 				const raw = await renderer.render(node, {
 					width: paint.width,
 					height: paint.height,
+					devicePixelRatio: paint.ratio,
 					format: "raw",
 					css: [...sharedSheets, rootBoxCss(width), paintRootCss(width, paint)],
 					images,

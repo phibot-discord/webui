@@ -183,6 +183,66 @@ test("a centred flex body keeps the card at the left edge", async () => {
 	await engine.close();
 });
 
+test("images are decoded at the device size, not stretched from the layout size", async () => {
+	const stripes = Buffer.alloc(8 * 8 * 4);
+	for (let i = 0; i < 64; i++)
+		stripes.set(i % 2 === 0 ? [255, 0, 0, 255] : [0, 0, 255, 255], i * 4);
+	const png = await sharp(stripes, {
+		raw: { width: 8, height: 8, channels: 4 },
+	})
+		.png()
+		.toBuffer();
+	const engine = new RenderEngine();
+	const img = await engine.renderHtml(
+		`<html><body style="margin:0"><img src="data:image/png;base64,${png.toString("base64")}" style="display:block;width:4px;height:4px"></body></html>`,
+		{ width: 4, height: 4, format: "png" },
+	);
+	const px = await painted(img.bytes);
+	assert.equal(px.info.width, 8);
+	for (let x = 0; x < 8; x++)
+		assert.deepEqual(px.at(x, 4), x % 2 === 0 ? [255, 0, 0] : [0, 0, 255]);
+	await engine.close();
+});
+
+test("a card background behind its content stays above the body background", async () => {
+	const engine = new RenderEngine();
+	const img = await engine.renderHtml(
+		`<!DOCTYPE html><html><body style="margin:0;background:#000080"><div style="position:absolute;z-index:-1;top:0;left:0;right:0;bottom:0;background:#ff0000"></div><div style="height:50px"></div></body></html>`,
+		{ width: 100, height: 50, format: "png" },
+	);
+	const px = await painted(img.bytes);
+	assert.deepEqual(px.at(100, 50), [255, 0, 0]);
+	await engine.close();
+});
+
+test("a card too tall for 2x is measured again at the ratio it paints at", async () => {
+	const orig = Renderer.prototype.measure;
+	const ratios: unknown[] = [];
+	Renderer.prototype.measure = function (
+		this: Renderer,
+		...args: Parameters<typeof orig>
+	) {
+		ratios.push(args[1]?.devicePixelRatio);
+		return orig.apply(this, args);
+	} as typeof orig;
+	try {
+		const engine = new RenderEngine();
+		const img = await engine.renderHtml(
+			`<html><body style="margin:0"><div style="height:9000px;background:#00ff00"></div></body></html>`,
+			{ width: 1200, format: "png" },
+		);
+		assert.deepEqual(ratios, [PIXEL_RATIO, 1]);
+		assert.equal(img.height, 9000 + MEASURE_SLACK_PX);
+		const px = await painted(img.bytes);
+		assert.equal(px.info.width, 1200);
+		assert.equal(px.info.height, img.height);
+		assert.deepEqual(px.at(1199, 8999), [0, 255, 0]);
+		await engine.close();
+	} finally {
+		Renderer.prototype.measure = orig;
+	}
+});
+
 test("an aborted render rejects and leaves the raster lock free", async () => {
 	const engine = new RenderEngine();
 	const ac = new AbortController();
