@@ -10,7 +10,7 @@ export type SearchableSong = {
 
 export type MatchKind = "title" | "alias" | "id" | "composer";
 
-export type MatchTier = 0 | 1 | 2 | 3 | 4;
+type MatchTier = 0 | 1 | 2 | 3 | 4;
 export const MATCH_TIERS = [
 	"exact",
 	"prefix",
@@ -50,10 +50,6 @@ const KIND_ORDER: Record<MatchKind, number> = {
 /** Exact-match form: `＞w＜` and `>w<` stay distinct from `w` */
 export function looseFold(s: string): string {
 	return s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
-}
-
-export function fuzzyFold(s: string): string {
-	return looseFold(s).replace(JARO_PUNCT, "");
 }
 
 /** Keeps the loose form when stripping leaves under 2 characters or under half (`＞w＜`, `+E`) */

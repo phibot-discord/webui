@@ -49,9 +49,8 @@ export function cardStyleTemplate(
 ): string | undefined {
 	if (!isStyledKind(kind)) return;
 	if (!(CARD_STYLES[kind] as readonly string[]).includes(style)) return;
-	// Every info layout is self-contained; the old userinfo.art is only the fallback
-	if (kind === "info") return `phi/userinfo/info-${style}`;
 	if (style === DEFAULT_CARD_STYLE) return;
+	if (kind === "info") return `phi/userinfo/info-${style}`;
 	return kind === "hisb30"
 		? `phi/update/update-${style}`
 		: `phi/b19/b19-${style}`;
@@ -59,7 +58,7 @@ export function cardStyleTemplate(
 
 /** The classic layout a kind falls back to when its chosen layout fails */
 export function classicCardTemplate(kind: string): string {
-	if (kind === "info") return "phi/userinfo/userinfo";
+	if (kind === "info") return "phi/userinfo/info-classic";
 	if (kind === "hisb30") return "phi/update/update";
 	return "phi/b19/b19";
 }

@@ -163,11 +163,8 @@ export type FilesMessages = {
 		entries: string;
 		entriesOne: string;
 		newTab: string;
-		realTitle: string;
-		realLede: string;
 		unplacedTitle: string;
 		unplacedLede: string;
-		chaptersTitle: string;
 		chaptersLede: string;
 		jump: string;
 		openChapter: string;
@@ -219,7 +216,6 @@ export type FilesMessages = {
 		detailsFailed: string;
 		retry: string;
 		notInTimeline: string;
-		readMore: string;
 		wikiPages: string;
 		tabsLabel: string;
 		tabs: Record<
@@ -480,13 +476,9 @@ export const filesEn: FilesMessages = {
 		entries: "{n} more Collection entries",
 		entriesOne: "1 more Collection entry",
 		newTab: "(opens in a new tab)",
-		realTitle: "Limbo reality",
-		realLede:
-			"The world outside the Tower, on the Gregorian calendar. All of 770–773 A.P. passes here in a few days around the turn of August and September 2091.",
 		unplacedTitle: "Outside the calendars",
 		unplacedLede:
 			"Collection entries with no date, or with a date in a calendar the game never explains. They are listed as written.",
-		chaptersTitle: "Chapters at a glance",
 		chaptersLede:
 			"Where each chapter's own story sits in Tower time, as its Collection entries date it. Most chapters also look back on older history, which appears under its own year.",
 		jump: "Go to its first event",
@@ -547,7 +539,6 @@ export const filesEn: FilesMessages = {
 		detailsFailed: "This part did not load.",
 		retry: "Try again",
 		notInTimeline: "No dated events yet",
-		readMore: "Show all",
 		wikiPages: "Wiki pages",
 		tabsLabel: "Timeline sections",
 		tabs: {
@@ -810,12 +801,8 @@ export const filesZh: FilesMessages = {
 		entries: "另有收藏品 {n} 条",
 		entriesOne: "另有收藏品 1 条",
 		newTab: "（在新标签页打开）",
-		realTitle: "林泊现实",
-		realLede:
-			"像素塔之外的世界，使用公历。塔内的 770–773 A.P. 在这里只是 2091 年 8 月末到 9 月初的几天。",
 		unplacedTitle: "历法之外",
 		unplacedLede: "没有日期，或日期所用历法游戏从未说明的收藏品，按原样列出。",
-		chaptersTitle: "章节导览",
 		chaptersLede:
 			"按收藏品给出的日期，各章本身的故事落在像素塔时间的哪一段。多数章节也会回顾更早的历史，那些内容放在各自的年份下。",
 		jump: "跳到本章第一个事件",
@@ -875,7 +862,6 @@ export const filesZh: FilesMessages = {
 		detailsFailed: "这部分没有加载出来。",
 		retry: "重试",
 		notInTimeline: "暂无有日期的事件",
-		readMore: "全部显示",
 		wikiPages: "百科词条",
 		tabsLabel: "时间线分区",
 		tabs: {

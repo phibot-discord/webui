@@ -57,7 +57,7 @@ export function shownGoal(goal: number): string {
 	return ((Math.floor(goal * 100) + 1) / 100).toFixed(2);
 }
 
-export function accForRks(rks: number, difficulty: number): number {
+function accForRks(rks: number, difficulty: number): number {
 	if (!(difficulty > 0)) return Number.POSITIVE_INFINITY;
 	return 55 + 45 * Math.sqrt(Math.max(0, rks) / difficulty);
 }

@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	assetCanPreview,
-	assetContentType,
-	assetDisposition,
 	assetKind,
 	assetTab,
 	assetThumbKey,
@@ -93,27 +91,6 @@ test("each listed file carries a short form of its etag as its version", () => {
 	);
 });
 
-test("downloads name the file and images can open inline", () => {
-	assert.equal(
-		assetContentType("info/notesInfo.json"),
-		"application/json; charset=utf-8",
-	);
-	assert.match(assetDisposition("phira/IN/曲-IN.pez", false), /^attachment;/);
-	assert.match(
-		assetDisposition("phira/IN/曲-IN.pez", false),
-		/filename\*=UTF-8''/,
-	);
-	assert.match(assetDisposition("original_ill/ill/a.png", false), /^inline;/);
-	assert.match(
-		assetDisposition("original_ill/ill/a.png", true),
-		/^attachment;/,
-	);
-	assert.match(
-		assetDisposition('4-1/phira/SP/a"b\\c-SP.pez', true),
-		/filename="abc-SP\.pez";/,
-	);
-});
-
 test("public asset urls stay on the R2 host", () => {
 	assert.equal(
 		publicAssetUrl("https://r2.example.test/", "original_ill/ill/Song A&B.png"),
@@ -128,7 +105,6 @@ test("public asset urls stay on the R2 host", () => {
 test("music is a public tree; its rows show the song's jacket", () => {
 	assert.equal(isPublicAssetKey("music/Stasis.Maozon.ogg"), true);
 	assert.equal(assetKind("music/Stasis.Maozon.ogg"), "music");
-	assert.equal(assetContentType("music/Stasis.Maozon.ogg"), "audio/ogg");
 	assert.equal(
 		assetThumbKey("music/Stasis.Maozon.ogg"),
 		"original_ill/illLow/Stasis.Maozon.png",
@@ -197,18 +173,9 @@ test("videos and the collection are public trees, with their own kinds", () => {
 	assert.equal(assetKind("4-1/pv/video/a.mp4"), "video");
 });
 
-test("an MP4 plays in the page and downloads as a file", () => {
+test("an MP4 plays in the page", () => {
 	assert.equal(assetCanPreview("pv/video/spas-unlock.mp4"), "video");
-	assert.equal(assetContentType("pv/video/spas-unlock.mp4"), "video/mp4");
 	assert.equal(assetCanPreview("collection/text/en.json"), "text");
-	assert.match(
-		assetDisposition("pv/video/spas-unlock.mp4", true),
-		/^attachment;/,
-	);
-	assert.match(
-		assetDisposition("pv/video/spas-unlock.mp4", false),
-		/filename="spas-unlock\.mp4"/,
-	);
 });
 
 test("sizes read at a glance", () => {
@@ -222,7 +189,6 @@ test("the hidden song is a public tree of its own", () => {
 	assert.equal(isPublicAssetKey("c9s6/"), false);
 	assert.equal(assetKind("c9s6/chart.json"), "hidden");
 	assert.equal(assetKind("c9s6/background.png"), "hidden");
-	assert.equal(assetContentType("c9s6/music.ogg"), "audio/ogg");
 });
 
 test("collection art is a public tree of its own, listed with its JPEG", () => {
@@ -244,14 +210,6 @@ test("collection art is a public tree of its own, listed with its JPEG", () => {
 		assetThumbKey("collection-art/blackhole0-tile.png"),
 		"collection-art/blackhole0-tile.png",
 		"a map tile has no JPEG of its own",
-	);
-	assert.equal(
-		assetContentType("collection-art/liangrenhuihe0.jpg"),
-		"image/jpeg",
-	);
-	assert.match(
-		assetDisposition("collection-art/liangrenhuihe0.png", false),
-		/^inline;/,
 	);
 });
 

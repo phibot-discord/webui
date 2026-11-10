@@ -19,7 +19,7 @@ const TITLE_MAX_PX = 18;
 const TITLE_ONE_LINE_MIN_PX = 14;
 const TITLE_MIN_PX = 12;
 // ~544 px beside the C / FC / Phi table, less slack; without it badges and a long data size can claim 300 px
-export const NAME_W = { stats: 520, wide: 580 };
+const NAME_W = { stats: 520, wide: 580 };
 const NAME_MAX_PX = 40;
 const NAME_MIN_PX = 16;
 // 820 px in b19-table.css, less slack

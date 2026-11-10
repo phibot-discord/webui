@@ -27,8 +27,6 @@ import {
 	type TemplateDefinition,
 } from "./sdk";
 
-export type { DataHost };
-
 type RenderOpts = {
 	heightKey?: string;
 	height?: number;
@@ -94,9 +92,7 @@ async function bootRender(): Promise<WebHost> {
 			return compileArt(file, {
 				...data,
 				defaultLayout: `${res}/html/common/layout/default.art`,
-				_layout_path: `${res}/html/common/layout/`,
 				_res_path: `${res}/`,
-				pluResPath: `${res}/`,
 				_imgPath: data._imgPath ?? `${res}/html/otherimg/`,
 			});
 		},

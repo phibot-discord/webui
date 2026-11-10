@@ -1,6 +1,6 @@
 import type { Locale } from "@/i18n/config";
 
-export type TimelineText = { zh: string; en: string; ja?: string };
+type TimelineText = { zh: string; en: string; ja?: string };
 import { fill } from "@/phi/lib/card-i18n";
 import {
 	type CollectionIndex,
@@ -16,14 +16,14 @@ import { textAnchor } from "./texts";
 /** Built by the story-timeline tools from the Limbo Wiki; too big to bundle */
 export const TIMELINE_KEY = "timeline/index.json";
 
-export const LANES = ["tower", "real", "subspace"] as const;
-export type Lane = (typeof LANES)[number];
-export const SOURCES = ["game", "official", "community"] as const;
-export type Source = (typeof SOURCES)[number];
-export const NOTE_EFFECTS = ["supports", "contradicts", "adds"] as const;
-export const NOTE_SOURCES = [...SOURCES, "interview"] as const;
-export type NoteSource = (typeof NOTE_SOURCES)[number];
-export type NoteEffect = (typeof NOTE_EFFECTS)[number];
+const LANES = ["tower", "real", "subspace"] as const;
+type Lane = (typeof LANES)[number];
+const SOURCES = ["game", "official", "community"] as const;
+type Source = (typeof SOURCES)[number];
+const NOTE_EFFECTS = ["supports", "contradicts", "adds"] as const;
+const NOTE_SOURCES = [...SOURCES, "interview"] as const;
+type NoteSource = (typeof NOTE_SOURCES)[number];
+type NoteEffect = (typeof NOTE_EFFECTS)[number];
 export const TERM_KINDS = [
 	"place",
 	"subspace",
@@ -80,19 +80,19 @@ export function parseDate(raw: string): GameDate | undefined {
 	};
 }
 
-export function dateKey(d: GameDate): number {
+function dateKey(d: GameDate): number {
 	return d.year * 10000 + (d.month ?? 0) * 100 + (d.day ?? 0);
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export function yearLabel(d: Pick<GameDate, "cal" | "year">): string {
+function yearLabel(d: Pick<GameDate, "cal" | "year">): string {
 	if (d.cal === "real") return String(d.year);
 	return d.year < 0 ? `${-d.year} B.P.` : `${d.year} A.P.`;
 }
 
 /** The part under a year heading: `03/32`, `03`, or "" for a bare year */
-export function dayLabel(d: GameDate): string {
+function dayLabel(d: GameDate): string {
 	if (!d.month) return "";
 	return d.day ? `${pad(d.month)}/${pad(d.day)}` : pad(d.month);
 }
@@ -122,15 +122,15 @@ export function realToTower(d: GameDate): number | undefined {
 	return days >= 0 ? days + 1 : days;
 }
 
-export type WikiLink = { title: string; community: boolean };
+type WikiLink = { title: string; community: boolean };
 
-export type TimelineRef =
+type TimelineRef =
 	| { kind: "wiki"; title: string; community: boolean }
 	| { kind: "entry"; id: string }
 	| { kind: "story"; group: string }
 	| { kind: "pv"; clip: string };
 
-export type TimelineNote = {
+type TimelineNote = {
 	text: TimelineText;
 	effect: NoteEffect;
 	source: NoteSource;
@@ -164,7 +164,7 @@ export type TimelineEra = {
 	summary: TimelineText;
 };
 
-export type TimelineNamed = {
+type TimelineNamed = {
 	id: string;
 	name: TimelineText;
 	summary: TimelineText;
@@ -172,7 +172,7 @@ export type TimelineNamed = {
 	wiki: WikiLink[];
 };
 
-export type TimelineChapter = { id: string; span: string; synopsis: TimelineText };
+type TimelineChapter = { id: string; span: string; synopsis: TimelineText };
 
 export type TimelineTerm = {
 	id: string;
@@ -493,21 +493,21 @@ export type ViewRef = {
 	community: boolean;
 };
 
-export type ViewChip = {
+type ViewChip = {
 	id: string;
 	short: string;
 	name: string;
 	href: string;
 };
 
-export type ViewNote = {
+type ViewNote = {
 	text: string;
 	effect: NoteEffect;
 	source: NoteSource;
 	ref: ViewRef | undefined;
 };
 
-export type ViewTermChip = {
+type ViewTermChip = {
 	id: string;
 	anchor: string;
 	name: string;
@@ -534,13 +534,13 @@ export type ViewEvent = {
 	refs: ViewRef[];
 };
 
-export type ViewEntry = {
+type ViewEntry = {
 	id: string;
 	title: string;
 	href: string;
 	chapter: string;
 };
-export type ViewDay = { when: string; entries: ViewEntry[] };
+type ViewDay = { when: string; entries: ViewEntry[] };
 
 export type ViewYear = {
 	id: string;
@@ -566,7 +566,7 @@ export type ViewThread = {
 	wiki: ViewRef[];
 };
 
-export type SectionKind = "before" | "era" | "after" | "world" | "unplaced";
+type SectionKind = "before" | "era" | "after" | "world" | "unplaced";
 
 export type ViewSection = {
 	id: string;
@@ -581,7 +581,7 @@ export type ViewSection = {
 	to: number;
 };
 
-export type ViewMapRow = {
+type ViewMapRow = {
 	id: string;
 	name: string;
 	first: number;
@@ -648,7 +648,7 @@ export function detailsIndex(
 }
 
 /** Setting entries per page, so a kind with thousands of fan entries still loads quickly */
-export const TERM_PAGE = 200;
+const TERM_PAGE = 200;
 
 export type TimelineOptions = {
 	locale: Locale;
@@ -656,15 +656,15 @@ export type TimelineOptions = {
 	community: boolean;
 };
 
-export function eventAnchor(id: string): string {
+function eventAnchor(id: string): string {
 	return `e-${id.replace(/[^A-Za-z0-9_-]+/g, "-")}`;
 }
 
-export function termAnchor(id: string): string {
+function termAnchor(id: string): string {
 	return `t-${id.replace(/[^A-Za-z0-9_-]+/g, "-")}`;
 }
 
-export function wikiHref(title: string): string {
+function wikiHref(title: string): string {
 	const query = encodeURIComponent(title.replaceAll(" ", "_"))
 		.replaceAll("%3A", ":")
 		.replaceAll("%2F", "/")

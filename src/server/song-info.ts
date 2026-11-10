@@ -18,7 +18,7 @@ import { type FoolsSong, loadFools } from "./fools";
 import { type IllLevels, loadIllLevels } from "./ill-levels";
 import { logger } from "./logger";
 import { assetsDir } from "./paths";
-import { fetchR2Object, r2Ready } from "./r2";
+import { fetchR2Object, INFO_PREFIX, r2Ready } from "./r2";
 import { loadRemoved, type RemovedSong } from "./removed";
 import { withTimeout } from "./render-lock";
 import { mountBytes } from "./vfs";
@@ -119,13 +119,6 @@ export function aliasesSha(): string | undefined {
 	return syncAliasesSha;
 }
 
-const reloadListeners = new Set<() => void>();
-
-/** Runs after `getInfo` re-parses a newer catalog (the Discord bot re-indexes song aliases) */
-export function onCatalogReload(fn: () => void): void {
-	reloadListeners.add(fn);
-}
-
 /** Lets a test build saves without the info cache on disk */
 export function markSongInfoReadyForTest() {
 	initedCommit = BUNDLED;
@@ -213,10 +206,6 @@ export function applyNotesInfo(
 	mountInfoFile(assets, "notesInfo.json", buf);
 }
 
-function infoPrefix(): string {
-	return (process.env.CLOUDFLARE_R2_INFO_PREFIX ?? "info").replace(/\/+$/, "");
-}
-
 function parseState(buf: Buffer | undefined): InfoSyncState | undefined {
 	if (!buf?.byteLength) return undefined;
 	try {
@@ -279,7 +268,7 @@ export async function hydrateSongInfo(
 	opts: HydrateOpts,
 ): Promise<HydrateResult> {
 	const files = opts.files ?? INFO_FILES;
-	const prefix = (opts.prefix ?? infoPrefix()).replace(/\/+$/, "");
+	const prefix = (opts.prefix ?? INFO_PREFIX).replace(/\/+$/, "");
 	const state = parseState(await opts.getObject(INFO_STATE_KEY));
 	// Alias sync does not wait for `pending`; an unreadable state keeps the last sha
 	if (state) {
@@ -433,7 +422,7 @@ export async function applyKvLevels(
 			deps.getNotes ??
 			(r2Ready()
 				? () =>
-						fetchR2Object(`${infoPrefix()}/notesInfo.json`, {
+						fetchR2Object(`${INFO_PREFIX}/notesInfo.json`, {
 							cache: "no-store",
 						})
 				: undefined);
@@ -561,15 +550,6 @@ export async function reloadCatalog(assets = assetsDir()): Promise<boolean> {
 	if (initedCommit === rev) return false;
 	await getInfo.init(assets);
 	initedCommit = rev;
-	for (const fn of reloadListeners) {
-		try {
-			fn();
-		} catch (err) {
-			logger.warn(
-				`catalog reload hook failed: ${err instanceof Error ? err.message : err}`,
-			);
-		}
-	}
 	return true;
 }
 

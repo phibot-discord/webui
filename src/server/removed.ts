@@ -17,7 +17,7 @@ import {
 // Songs and charts the game no longer ships, under `removed/` in the normal layout (scripts/publish-removed.ts)
 const REMOVED_MANIFEST_KEY = `${REMOVED_PREFIX}/index.json`;
 
-export type RemovedChart = {
+type RemovedChart = {
 	label: string;
 	charter: string;
 	notes: number | null;

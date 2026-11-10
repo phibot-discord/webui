@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	type AliasDeps,
-	aliasesR2Key,
 	ensureAliases,
 	liveAliasKey,
 	mergeAliasLayers,
@@ -66,10 +65,6 @@ function setup(overrides: Partial<AliasDeps> = {}) {
 	});
 	return { clock, calls, env };
 }
-
-test("aliases.json lives next to the other info files", () => {
-	assert.equal(aliasesR2Key("info/"), "info/aliases.json");
-});
 
 test("parseApprovedSnapshot trims and rejects the whole snapshot on any bad entry", () => {
 	const ok = parseApprovedSnapshot({

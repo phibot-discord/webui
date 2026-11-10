@@ -5,7 +5,7 @@ import {
 	shanghaiDay,
 } from "./past-self";
 
-export type ChartMilestone = {
+type ChartMilestone = {
 	t: number;
 	kind: "ap" | "fc";
 	level: number;
@@ -14,7 +14,7 @@ export type ChartMilestone = {
 	c: number;
 };
 
-export type CountMilestone = {
+type CountMilestone = {
 	t: number;
 	kind: "apCount" | "fcCount";
 	n: number;
@@ -22,14 +22,14 @@ export type CountMilestone = {
 	rank: string;
 };
 
-export type RksMilestone = {
+type RksMilestone = {
 	t: number;
 	kind: "rks";
 	at: number;
 	value: number;
 };
 
-export type DayMilestone = {
+type DayMilestone = {
 	t: number;
 	kind: "bestDay";
 	day: string;
@@ -42,7 +42,7 @@ export type Milestone =
 	| RksMilestone
 	| DayMilestone;
 
-export type MilestoneStart = {
+type MilestoneStart = {
 	t: number;
 	rks: number | null;
 	ap: number;

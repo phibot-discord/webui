@@ -1,14 +1,11 @@
 .next
 out
 node_modules
-.env
-.env.local
-.env.*.local
 *.tsbuildinfo
 next-env.d.ts
 data
 src/phi/art-compiled.ts
 src/phi/css/bundle.ts
-.wrangler
 .vercel
 .env*
+!.env.example

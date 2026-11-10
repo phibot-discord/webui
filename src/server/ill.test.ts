@@ -102,47 +102,26 @@ test("songIllPath points at the R2 tree without looking on disk", () => {
 	);
 });
 
-function withIllPrefix(prefix: string, fn: () => void) {
-	const prev = process.env.CLOUDFLARE_R2_ILL_PREFIX;
-	process.env.CLOUDFLARE_R2_ILL_PREFIX = prefix;
-	try {
-		fn();
-	} finally {
-		if (prev === undefined) delete process.env.CLOUDFLARE_R2_ILL_PREFIX;
-		else process.env.CLOUDFLARE_R2_ILL_PREFIX = prev;
-	}
-}
-
-test("the 4/1 jackets stay in 4-1/original_ill/ whatever the main tree's prefix", () => {
+test("the 4/1 jackets stay in 4-1/original_ill/ beside the main tree's", () => {
 	const res = "/srv/app/phi-assets";
-	for (const prefix of ["jackets/v2", ""]) {
-		withIllPrefix(prefix, () => {
-			const main = prefix ? `${prefix}/` : "";
-			assert.equal(
-				assetKeyOf(`${res}/original_ill/illLow/Credits.Frums.png`),
-				`${main}illLow/Credits.Frums.png`,
-			);
-			assert.equal(
-				assetKeyOf(`${res}/original_ill/4-1/ill/Oblivion.Daily.png`),
-				"4-1/original_ill/ill/Oblivion.Daily.png",
-			);
-			assert.equal(
-				fallbackKeyOf(`${main}ill/Stasis.Maozon.png`),
-				`${main}illLow/Stasis.Maozon.png`,
-			);
-			assert.equal(
-				fallbackKeyOf("4-1/original_ill/ill/Oblivion.Daily.png"),
-				"4-1/original_ill/illLow/Oblivion.Daily.png",
-			);
-		});
-	}
-	withIllPrefix("jackets", () => {
-		assert.equal(
-			fallbackKeyOf("4-1/jackets/ill/Oblivion.Daily.png"),
-			undefined,
-		);
-		assert.equal(fallbackKeyOf("4-1/html/avatar/a.png"), undefined);
-	});
+	assert.equal(
+		assetKeyOf(`${res}/original_ill/illLow/Credits.Frums.png`),
+		"original_ill/illLow/Credits.Frums.png",
+	);
+	assert.equal(
+		assetKeyOf(`${res}/original_ill/4-1/ill/Oblivion.Daily.png`),
+		"4-1/original_ill/ill/Oblivion.Daily.png",
+	);
+	assert.equal(
+		fallbackKeyOf("original_ill/ill/Stasis.Maozon.png"),
+		"original_ill/illLow/Stasis.Maozon.png",
+	);
+	assert.equal(
+		fallbackKeyOf("4-1/original_ill/ill/Oblivion.Daily.png"),
+		"4-1/original_ill/illLow/Oblivion.Daily.png",
+	);
+	assert.equal(fallbackKeyOf("4-1/jackets/ill/Oblivion.Daily.png"), undefined);
+	assert.equal(fallbackKeyOf("4-1/html/avatar/a.png"), undefined);
 });
 
 test("full jacket R2 miss falls back to illLow; unknown avatar to Introduction", () => {

@@ -1,4 +1,4 @@
-export const FILES_VIEWS = [
+const FILES_VIEWS = [
 	"files",
 	"pv",
 	"collection",

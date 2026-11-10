@@ -97,7 +97,7 @@ const ASCII_EM: Record<string, number> = {
 	"~": 0.56,
 };
 
-export function charEm(ch: string): number {
+function charEm(ch: string): number {
 	const ascii = ASCII_EM[ch];
 	if (ascii != null) return ascii;
 	const cp = ch.codePointAt(0) ?? 0;

@@ -1,7 +1,7 @@
 import type { Locale } from "@/i18n/config";
 
 /** `home` is the owner's B30 card; the rest are title cards rendered from their page's copy */
-export const OG_PAGES = [
+const OG_PAGES = [
 	"home",
 	"songs",
 	"score",

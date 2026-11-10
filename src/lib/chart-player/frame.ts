@@ -27,12 +27,12 @@ export const K_SPARK = 6;
 
 export const NOTE_HW = 0.118;
 export const TAP_HH = 0.0135;
-export const DRAG_HH = 0.0085;
-export const HOLD_CAP = 0.004;
-export const LINE_HALF = 6;
-export const LINE_HH = 0.0038;
-export const RING_HALF = 0.11;
-export const SPARK_HALF = 0.0105;
+const DRAG_HH = 0.0085;
+const HOLD_CAP = 0.004;
+const LINE_HALF = 6;
+const LINE_HH = 0.0038;
+const RING_HALF = 0.11;
+const SPARK_HALF = 0.0105;
 export const NOTE_SCALE_MIN = 0.6;
 export const NOTE_SCALE_MAX = 1.5;
 

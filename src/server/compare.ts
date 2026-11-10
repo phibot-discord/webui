@@ -28,7 +28,7 @@ export type SideLoad =
 	| { state: "unavailable" }
 	| { state: "nohistory" };
 
-export function sideFromSave(save: Save): CompareSide {
+function sideFromSave(save: Save): CompareSide {
 	const records: CompareRecord[] = save
 		.getRecord()
 		.map((r) => [
@@ -50,7 +50,7 @@ export function sideFromSave(save: Save): CompareSide {
 	};
 }
 
-export function sideAtDay(
+function sideAtDay(
 	save: Save,
 	history: Pick<SaveHistory, "scoreHistory" | "rks" | "challengeModeRank">,
 	day: string,

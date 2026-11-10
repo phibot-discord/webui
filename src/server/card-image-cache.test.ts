@@ -151,8 +151,6 @@ test("public object URL is the R2 custom domain plus key", () => {
 			accountId: "a",
 			apiToken: "t",
 			bucket: "phi-web-assets",
-			prefix: "original_ill",
-			htmlPrefix: "html",
 			publicBase: "https://r2.example.test",
 		}),
 		"https://r2.example.test/web-cards/phi%3AwebCard%3Apng%3Ab30%3Au%3Aetag.jpg",

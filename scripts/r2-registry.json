@@ -180,7 +180,6 @@
 		{
 			"prefix": "history/",
 			"writer": "phi-unpackd",
-			"script": "scripts/publish-history.ts (the first 13 APKs)",
 			"contents": "<apk>/ holds older chart revisions, one copy of the main layout per APK. On each new build the ripper compares charts by content, keeps the ones that changed or were dropped under the previous version, and adds their eras. A build published out of order is added with --insert-build. Each build's info.csv is kept as <version>/info/info.csv and listed under `tables` in the index; older builds were added with --save-table. The ripper never deletes here.",
 			"manifest": "history/index.json"
 		},

@@ -17,14 +17,14 @@ import { TtlLru } from "./lru";
 export const LB_LEVELS = ["EZ", "HD", "IN", "AT"] as const;
 export type LbLevel = (typeof LB_LEVELS)[number];
 
-export const LB_FETCH_MS = 25_000;
+const LB_FETCH_MS = 25_000;
 /** songAccList sends every record of a chart (70k rows on popular ones); it only ever finishes in the background */
-export const LB_LIST_FETCH_MS = 45_000;
+const LB_LIST_FETCH_MS = 45_000;
 export const LB_ROW_BUDGET_MS = 2_500;
 export const LB_CARD_BUDGET_MS = 8_000;
-export const LB_BREAKER_MS = 90_000;
+const LB_BREAKER_MS = 90_000;
 /** A 401/403/404/405 (a proxy that doesn't route the path, or a bad key) isn't asked again for this long */
-export const LB_OFF_MS = 15 * 60 * 1000;
+const LB_OFF_MS = 15 * 60 * 1000;
 const RANK_TTL_MS = 6 * 60 * 60 * 1000;
 /** Past RANK_TTL_MS a row is asked again, but still drawn for this long when the new answer is late */
 const RANK_STALE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -157,10 +157,6 @@ export function fmtTopPercent(p: number): string {
 	return v < 1 ? v.toFixed(2) : v.toFixed(1);
 }
 
-export function rksBandLabel(band: RksBand): string {
-	return `${band.minRks.toFixed(2)}–${band.maxRks.toFixed(2)}`;
-}
-
 /** Requests in flight per pool; waiting happens here, so fetch timeouts start on send */
 const RANK_SLOTS = 4;
 const LIST_SLOTS = 2;
@@ -204,7 +200,7 @@ const rankGate = slotGate(RANK_SLOTS);
 const listGate = slotGate(LIST_SLOTS);
 
 /** One attempt; a 400 body is still parsed (it names the unknown song ids) */
-export const phib19Post: Transport = async (path, body) => {
+const phib19Post: Transport = async (path, body) => {
 	const url = chartTagUrl(path);
 	const list = path === PATH_LIST;
 	const started = performance.now();
@@ -1023,7 +1019,7 @@ export async function songApFc(
 }
 
 /** null: phib19 has no records there. Rejects when phib19 didn't answer */
-export async function placeOnChart(
+async function placeOnChart(
 	songId: string,
 	level: LbLevel,
 	acc: number,

@@ -20,7 +20,7 @@ let memo:
 	| { list: readonly ChartSummary[]; sha: string; index: SimilarIndex }
 	| undefined;
 
-export function tagSharesOf(
+function tagSharesOf(
 	votes: TagVotes | undefined,
 	id: string,
 	rank: string,
@@ -56,7 +56,7 @@ export function kindsOf(
 	return kinds.tap + kinds.drag + kinds.hold + kinds.flick ? kinds : null;
 }
 
-export function featuresOf(
+function featuresOf(
 	list: readonly ChartSummary[],
 	votes?: TagVotes,
 ): ChartFeature[] {

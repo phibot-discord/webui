@@ -11,7 +11,7 @@ import { runInBackground } from "./background";
 import { logger } from "./logger";
 import { outgoingFetch } from "./outgoing";
 import { assetsDir } from "./paths";
-import { fetchR2Object, r2Ready } from "./r2";
+import { fetchR2Object, INFO_PREFIX, r2Ready } from "./r2";
 import { aliasesSha, ensureSongInfo, loadedCatalogRevision } from "./song-info";
 
 export type AliasLayer = "base" | "approved";
@@ -65,11 +65,7 @@ const LIVE_PER_MIN = 30;
 const LIVE_PER_CLIENT_MIN = 10;
 export const ALIAS_MAX_LEN = 64;
 
-export function aliasesR2Key(
-	prefix = process.env.CLOUDFLARE_R2_INFO_PREFIX ?? "info",
-): string {
-	return `${prefix.replace(/\/+$/, "")}/aliases.json`;
-}
+const ALIASES_R2_KEY = `${INFO_PREFIX}/aliases.json`;
 
 function errText(err: unknown): string {
 	return err instanceof Error ? err.message : String(err);
@@ -225,7 +221,7 @@ const defaultDeps: AliasDeps = {
 		readYaml<unknown>(join(assetsDir(), "info", "nicklist.yaml"), {}),
 	getApproved: async () =>
 		r2Ready()
-			? fetchR2Object(aliasesR2Key(), {
+			? fetchR2Object(ALIASES_R2_KEY, {
 					cache: "no-store",
 					negative: false,
 				})

@@ -8,7 +8,7 @@ import type { Save } from "@/phi/lib/save";
 import { PROFILE } from "@/phi/lib/tag-profile";
 import type { ChartSummary } from "./charts";
 
-export type BrowseSong = {
+type BrowseSong = {
 	id: string;
 	title: string;
 	composer: string;
@@ -30,7 +30,7 @@ export type BrowseChart = [
 	tags: number[],
 ];
 
-export type BrowseTag = { id: number; name: string; cat: string };
+type BrowseTag = { id: number; name: string; cat: string };
 
 export type BrowseView = {
 	songs: BrowseSong[];

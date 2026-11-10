@@ -10,8 +10,8 @@ import { illKey } from "./ill";
 import { logger } from "./logger";
 import { fetchR2Object, publicObjectUrl } from "./r2";
 
-export const GUESS_W = 640;
-export const GUESS_H = 360;
+const GUESS_W = 640;
+const GUESS_H = 360;
 
 const ZOOM = [0.16, 0.24, 0.34, 0.48, 0.68, 1];
 const BLUR = [6, 4.5, 3, 1.8, 0.8, 0];
@@ -38,11 +38,10 @@ export type GuessAnswer = {
 };
 
 function secret(): string {
-	const key =
-		process.env.PHI_GUESS_SECRET?.trim() || process.env.AUTH_SECRET?.trim();
+	const key = process.env.AUTH_SECRET?.trim();
 	if (key) return key;
 	if (process.env.NODE_ENV === "production") {
-		throw new Error("guess: set PHI_GUESS_SECRET or AUTH_SECRET");
+		throw new Error("guess: set AUTH_SECRET");
 	}
 	return "phibot-dev-guess";
 }
@@ -121,7 +120,7 @@ export function clueUrl(puzzle: string, step: number): string {
 
 let poolMemo: { list: readonly ChartSummary[]; songs: GuessSong[] } | undefined;
 
-export async function guessPool(): Promise<GuessSong[]> {
+async function guessPool(): Promise<GuessSong[]> {
 	const { list } = await chartCatalog();
 	if (poolMemo?.list !== list) poolMemo = { list, songs: poolOf(list) };
 	return poolMemo.songs;

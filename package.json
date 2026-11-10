@@ -5,19 +5,18 @@
 	"private": true,
 	"type": "module",
 	"engines": {
-		"node": ">=22.11"
+		"node": ">=22.19"
 	},
 	"scripts": {
-		"dev": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && NODE_OPTIONS='--import tsx' next dev --turbopack",
-		"build": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && NODE_OPTIONS='--import tsx' next build",
-		"dev:local": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && PHI_LOCAL_DATA=1 CLOUDFLARE_R2_BUCKET=off CLOUDFLARE_R2_PUBLIC_BASE=${CLOUDFLARE_R2_PUBLIC_BASE:-https://r2.phibot.dev} NODE_OPTIONS='--import tsx' next dev --turbopack",
-		"render-card": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && node --import tsx scripts/render-card-local.ts",
-		"start": "NODE_OPTIONS='--import tsx' next start",
-		"typecheck": "node scripts/precompile-art.mjs && node scripts/bundle-css.mjs && NODE_OPTIONS='--import tsx' next typegen && tsc --noEmit",
-		"test": "node --import tsx --test 'src/**/*.test.ts'",
-		"fmt": "pnpx @biomejs/biome format --write",
-		"precompile-art": "node scripts/precompile-art.mjs",
-		"bundle-css": "node scripts/bundle-css.mjs",
+		"codegen": "node scripts/codegen.mjs",
+		"dev": "node scripts/codegen.mjs && next dev",
+		"build": "node scripts/codegen.mjs && next build",
+		"dev:local": "node scripts/codegen.mjs && PHI_LOCAL_DATA=1 CLOUDFLARE_R2_BUCKET=off CLOUDFLARE_R2_PUBLIC_BASE=${CLOUDFLARE_R2_PUBLIC_BASE:-https://r2.phibot.dev} next dev",
+		"render-card": "node scripts/codegen.mjs && node --import tsx scripts/render-card-local.ts",
+		"start": "next start",
+		"typecheck": "node scripts/codegen.mjs && next typegen && tsc --noEmit",
+		"test": "node scripts/codegen.mjs && node --import tsx --test 'src/**/*.test.ts'",
+		"fmt": "biome format --write",
 		"drawings": "node tools/drawings/build.mjs"
 	},
 	"dependencies": {
@@ -25,7 +24,6 @@
 		"@takumi-rs/core": "2.19.0",
 		"@vercel/analytics": "^2.0.1",
 		"@vercel/speed-insights": "^2.0.0",
-		"art-template": "^4.13.4",
 		"jszip": "^3.10.2",
 		"mediabunny": "^1.65.0",
 		"nanoid": "^6.0.2",
@@ -36,7 +34,6 @@
 		"react-dom": "^19.3.1",
 		"sharp": "^0.35.5",
 		"takumi-js": "^2.19.0",
-		"tsx": "^4.23.15",
 		"undici": "^8.12.3",
 		"yaml": "^2.9.1"
 	},
@@ -45,6 +42,8 @@
 		"@types/node": "^26.6.6",
 		"@types/react": "^19.3.0",
 		"@types/react-dom": "^19.3.0",
+		"art-template": "^4.13.4",
+		"tsx": "^4.23.15",
 		"typescript": "^7.0.2"
 	}
 }

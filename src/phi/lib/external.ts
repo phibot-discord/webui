@@ -44,5 +44,3 @@ export function watchExternal(onWait?: (waiting: boolean) => void) {
 		},
 	};
 }
-
-export type ExternalWatch = ReturnType<typeof watchExternal>;

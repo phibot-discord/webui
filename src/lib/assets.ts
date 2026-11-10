@@ -20,7 +20,7 @@ export type JacketTree = (typeof JACKET_TREES)[number];
 export function sidePrefix(tab: SideTab): string {
 	return SIDE_TREES.find((tree) => tree.tab === tab)?.prefix ?? tab;
 }
-/** The side trees' jacket directory, whatever CLOUDFLARE_R2_ILL_PREFIX the main tree uses */
+/** The side trees' jacket directory */
 export const SIDE_ILL_DIR = "original_ill";
 
 /** ponytail: public trees only. Add a prefix when a new public tree lands in the bucket */
@@ -156,34 +156,6 @@ export function assetExt(key: string): string {
 	return dot >= 0 ? file.slice(dot + 1).toLowerCase() : "";
 }
 
-export function assetContentType(key: string): string {
-	switch (assetExt(key)) {
-		case "png":
-			return "image/png";
-		case "jpg":
-		case "jpeg":
-			return "image/jpeg";
-		case "webp":
-			return "image/webp";
-		case "gif":
-			return "image/gif";
-		case "json":
-			return "application/json; charset=utf-8";
-		case "txt":
-		case "csv":
-		case "yaml":
-		case "yml":
-		case "md":
-			return "text/plain; charset=utf-8";
-		case "ogg":
-			return "audio/ogg";
-		case "mp4":
-			return "video/mp4";
-		default:
-			return "application/octet-stream";
-	}
-}
-
 export function formatSize(size: number): string {
 	if (size < 1024) return `${size} B`;
 	if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
@@ -213,13 +185,6 @@ export function publicAssetUrl(
 		.map(encodeURIComponent)
 		.join("/");
 	return `${root}/${path}${version ? `?v=${encodeURIComponent(version)}` : ""}`;
-}
-
-export function assetDisposition(key: string, download: boolean): string {
-	const file = key.split("/").pop() || "file";
-	const ascii = file.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "");
-	const mode = download || !assetCanPreview(key) ? "attachment" : "inline";
-	return `${mode}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(file)}`;
 }
 
 /** Low-res jacket when one exists, so a result row does not pull the full illustration (music shows its song's) */

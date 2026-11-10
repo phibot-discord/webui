@@ -1,5 +1,5 @@
 export const GUESS_STEPS = 6;
-export const GUESS_TZ = "Asia/Shanghai";
+const GUESS_TZ = "Asia/Shanghai";
 
 const DAILY = /^d-(\d{4})-(\d{2})-(\d{2})$/;
 const PRACTICE = /^p-[A-Za-z0-9_-]{12,24}$/;

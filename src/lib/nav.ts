@@ -2,7 +2,7 @@ import { CARD_KINDS, CARD_PAGES, TOOL_PAGES } from "@/server/card-kinds";
 
 export type NavGroupId = "tools" | "scores" | "files";
 
-export type NavItemId =
+type NavItemId =
 	| (typeof CARD_KINDS)[number]
 	| (typeof CARD_PAGES)[number]["id"]
 	| (typeof TOOL_PAGES)[number]["id"]
@@ -19,7 +19,7 @@ export type NavItemId =
 	| "texts"
 	| "versions";
 
-export type NavItem = { id: NavItemId; href: string; match: string[] };
+type NavItem = { id: NavItemId; href: string; match: string[] };
 export type NavGroup = { id: NavGroupId; items: NavItem[] };
 
 const page = (id: NavItemId, href: string, match = [href]): NavItem => ({
@@ -61,7 +61,7 @@ export const NAV_GROUPS: NavGroup[] = [
 	},
 ];
 
-export const GROUP_MATCH: Record<NavGroupId, string[]> = {
+const GROUP_MATCH: Record<NavGroupId, string[]> = {
 	tools: NAV_GROUPS[0]?.items.flatMap((i) => i.match) ?? [],
 	scores: ["/me", ...(NAV_GROUPS[1]?.items.flatMap((i) => i.match) ?? [])],
 	files: ["/files", "/versions"],

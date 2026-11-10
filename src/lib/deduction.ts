@@ -29,9 +29,9 @@ export const DED_SOUNDS = [
 export type DedSoundId = (typeof DED_SOUNDS)[number];
 
 export type DedLine = Partial<Record<CollectionLang, string>>;
-export type DedPage = { visual: number; lines: DedLine[] };
-export type DedImage = { file: string; width: number; height: number };
-export type DedSound = { file: string; volume: number; loop: boolean };
+type DedPage = { visual: number; lines: DedLine[] };
+type DedImage = { file: string; width: number; height: number };
+type DedSound = { file: string; volume: number; loop: boolean };
 
 export type Deduction = {
 	pages: DedPage[];
@@ -184,7 +184,7 @@ export type DedSoundEvent =
 	| { frame: number; kind: "typing"; voice: number }
 	| { frame: number; kind: "sound"; sound: DedSoundId };
 
-export type DedLineView = {
+type DedLineView = {
 	full: string;
 	shown: number | null;
 	cursor: boolean;

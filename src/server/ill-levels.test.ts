@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import test from "node:test";
 import {
-	illLevelsKey,
+	ILL_LEVELS_KEY,
 	loadIllLevels,
 	parseIllLevels,
 	resetIllLevelsForTest,
@@ -38,17 +38,11 @@ test("a bad version, song or level is dropped; the rest still loads", () => {
 	assert.deepEqual([...levels], [["Ok.One", ["IN"]]]);
 });
 
-test("the manifest sits next to the jackets, whatever their prefix is", () => {
-	assert.equal(illLevelsKey("original_ill"), "original_ill/levels.json");
-	assert.equal(illLevelsKey("jackets/v2"), "jackets/v2/levels.json");
-	assert.equal(illLevelsKey(""), "levels.json");
-});
-
 test("the manifest is read from R2 once per TTL; a missing one means no per-difficulty jackets", async () => {
 	let hits = 0;
 	let published = true;
 	const server = createServer((req, res) => {
-		if (published && req.url === `/${illLevelsKey("original_ill")}`) {
+		if (published && req.url === `/${ILL_LEVELS_KEY}`) {
 			hits += 1;
 			res.end(JSON.stringify(MANIFEST));
 			return;
@@ -61,7 +55,6 @@ test("the manifest is read from R2 once per TTL; a missing one means no per-diff
 	const env = { ...process.env };
 	process.env.CLOUDFLARE_R2_PUBLIC_BASE = `http://127.0.0.1:${port}`;
 	process.env.CLOUDFLARE_R2_BUCKET = "off";
-	delete process.env.CLOUDFLARE_R2_ILL_PREFIX;
 	resetIllLevelsForTest();
 	const realNow = Date.now;
 	try {

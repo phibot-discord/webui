@@ -58,7 +58,7 @@ export type PlayerClip = {
 	replay?: DeductionView;
 };
 
-export type ClipVersion = { key?: string; url: string; filename: string };
+type ClipVersion = { key?: string; url: string; filename: string };
 
 export type ClipOverlay = {
 	kind: OverlayKind;

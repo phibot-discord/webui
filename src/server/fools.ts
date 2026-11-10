@@ -22,7 +22,7 @@ import {
 // April Fools (4/1) specials the game shipped for a day, under `4-1/` in the normal layout (scripts/publish-fools.ts)
 export const FOOLS_MANIFEST_KEY = `${FOOLS_PREFIX}/index.json`;
 
-export type FoolsChart = {
+type FoolsChart = {
 	label: string;
 	charter: string;
 	notes: number | null;

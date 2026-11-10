@@ -10,7 +10,7 @@ import {
 import { logger } from "./logger";
 import { illDir } from "./paths";
 import { poolAll } from "./pool";
-import { fetchR2Object, r2Config } from "./r2";
+import { fetchR2Object, HTML_PREFIX, ILL_PREFIX } from "./r2";
 
 const CACHE_ROOT = process.env.PHI_ILL_CACHE?.trim() || "/tmp/phi-web-ill";
 const ILL_FETCH_CONCURRENCY = 48;
@@ -41,13 +41,7 @@ export function illKey(
 	tree: IllTree = "normal",
 	level?: string,
 ): string {
-	return songIllPath(
-		r2Config().prefix || "original_ill",
-		stem,
-		kind,
-		tree,
-		level,
-	);
+	return songIllPath(ILL_PREFIX, stem, kind, tree, level);
 }
 
 function underIllTree(absPath: string): string | undefined {
@@ -88,26 +82,23 @@ export function assetKeyOf(rawPath: string): string | undefined {
 	const ill = underIllTree(absPath);
 	if (ill) {
 		const [root, rest] = splitTree(ill);
-		const prefix = root ? SIDE_ILL_DIR : r2Config().prefix;
-		return `${root}${prefix ? `${prefix}/` : ""}${rest}`;
+		return `${root}${root ? SIDE_ILL_DIR : ILL_PREFIX}/${rest}`;
 	}
 	const html = HTML_IMAGE_RE.exec(absPath.replace(/\\/g, "/"))?.[1];
-	if (html) return `${r2Config().htmlPrefix}/${html}`;
+	if (html) return `${HTML_PREFIX}/${html}`;
 	return undefined;
 }
 
 export function fallbackKeyOf(key: string): string | undefined {
-	const { prefix, htmlPrefix } = r2Config();
 	// The side trees mirror the normal tree under `4-1/` and `removed/`, always in SIDE_ILL_DIR
 	const [root, rest] = splitTree(key);
-	const dir = root ? SIDE_ILL_DIR : prefix;
-	const base = dir ? `${dir}/` : "";
+	const base = `${root ? SIDE_ILL_DIR : ILL_PREFIX}/`;
 	const illBase = `${base}ill/`;
 	if (rest.startsWith(illBase)) {
 		return `${root}${base}illLow/${rest.slice(illBase.length)}`;
 	}
 	if (root) return undefined;
-	const avatarBase = `${htmlPrefix}/avatar/`;
+	const avatarBase = `${HTML_PREFIX}/avatar/`;
 	const defaultAvatar = `${avatarBase}Introduction.png`;
 	if (key.startsWith(avatarBase) && key !== defaultAvatar) return defaultAvatar;
 	return undefined;

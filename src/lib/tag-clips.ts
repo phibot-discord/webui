@@ -1,6 +1,6 @@
 import data from "./tag-clips.json";
 
-export type TagClip = {
+type TagClip = {
 	id: string;
 	level: string;
 	start: number;

@@ -8,5 +8,5 @@ synced from upstream.
 Jackets, avatars, rank icons and the live catalog come from R2, written by
 ill-sync and phi-unpackd. `info/` is only the fallback when R2 is unreachable.
 
-After editing a template or stylesheet run `pnpm precompile-art` and
-`pnpm bundle-css` (`pnpm dev` and `pnpm build` already do).
+After editing a template or stylesheet run `pnpm codegen` (`pnpm dev` and
+`pnpm build` already do).

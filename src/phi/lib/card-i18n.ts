@@ -1,4 +1,4 @@
-export const PHI_LOCALES = ["en", "zh", "ja"] as const;
+const PHI_LOCALES = ["en", "zh", "ja"] as const;
 export type PhiLocale = (typeof PHI_LOCALES)[number];
 const DEFAULT_PHI_LOCALE: PhiLocale = "en";
 
@@ -712,15 +712,6 @@ export function tagPoolNote(
 function isNoPushSuggest(s: string | undefined): boolean {
 	if (!s) return true;
 	return s === "无法推分" || /^can't push$/i.test(s);
-}
-
-export function displaySuggest(
-	s: string | number | undefined,
-	t: CardCopy,
-): string {
-	if (s == null || s === -1) return t.noPush;
-	const str = String(s);
-	return isNoPushSuggest(str) ? t.noPush : str;
 }
 
 export function localizeSuggestFields(

@@ -50,16 +50,6 @@ export function exactScore(
 	return judge + (maxCombo / total) * COMBO_BASE;
 }
 
-export function scoreFor(
-	perfect: number,
-	good: number,
-	maxCombo: number,
-	total: number,
-	mode: ScoreMode = "normal",
-) {
-	return Math.round(exactScore(perfect, good, maxCombo, total, mode));
-}
-
 export function comboFeasible(
 	perfect: number,
 	good: number,

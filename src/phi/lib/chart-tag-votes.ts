@@ -5,7 +5,7 @@ export const CHART_TAG_VOTES_SOURCE = "https://kyou.net.cn/phigros";
 const TTL_MS = 30 * 60_000;
 const RETRY_MS = 5 * 60_000;
 
-export type TagCategory = { id: number; name: string };
+type TagCategory = { id: number; name: string };
 
 export type TagVotes = {
 	sha: string;
@@ -16,11 +16,7 @@ export type TagVotes = {
 	charts: Map<string, Map<number, number>>;
 };
 
-export function chartTagVotesR2Key(
-	prefix = process.env.CLOUDFLARE_R2_INFO_PREFIX ?? "info",
-) {
-	return `${prefix.replace(/\/+$/, "")}/chartTags.json`;
-}
+const CHART_TAG_VOTES_R2_KEY = "info/chartTags.json";
 
 export function chartVoteKey(id: string, level: string): string {
 	return `${id.replace(/\.0$/, "")}|${level}`;
@@ -118,7 +114,7 @@ export type TagVotesDeps = {
 const defaultDeps: TagVotesDeps = {
 	read: async () => {
 		const { fetchR2Object } = await import("@/server/r2");
-		return fetchR2Object(chartTagVotesR2Key(), {
+		return fetchR2Object(CHART_TAG_VOTES_R2_KEY, {
 			cache: "no-store",
 			negative: false,
 		});

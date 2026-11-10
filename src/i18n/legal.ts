@@ -1,6 +1,6 @@
 import type { Locale } from "@/i18n/config";
 
-export type LegalSection = {
+type LegalSection = {
 	id: string;
 	title: string;
 	tldr: string;

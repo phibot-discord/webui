@@ -178,7 +178,7 @@ const COPY = {
 
 type Copy = (typeof COPY)["en"];
 
-export const CARD_WIDTH = 800;
+const CARD_WIDTH = 800;
 const CONTENT_W = CARD_WIDTH - 2 * 32;
 // Jacket 336 × 177 (the 2048 × 1080 art), 28 px gap, text column the rest
 const HERO_TEXT_W = CONTENT_W - 336 - 28;
@@ -201,7 +201,7 @@ const METER_W = 190;
 
 type FitText = { px: number; lines: string[] };
 
-export function ellipsize(text: string, widthPx: number, px: number) {
+function ellipsize(text: string, widthPx: number, px: number) {
 	if (textEm(text) * px <= widthPx) return text;
 	const chars = [...text];
 	while (chars.length && textEm(`${chars.join("").trimEnd()}…`) * px > widthPx)
@@ -375,7 +375,7 @@ export type DistView = {
 	};
 };
 
-export function distView(
+function distView(
 	board: Board | null,
 	state: LookupState,
 	acc: number | null,
@@ -675,8 +675,6 @@ export function songView(card: SongCardData, locale: PhiLocale) {
 		source: fill(vt.source, { d: card.asOf }),
 	};
 }
-
-export type SongView = ReturnType<typeof songView>;
 
 export const variant: CardVariant = {
 	tpl: "song",

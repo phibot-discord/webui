@@ -41,7 +41,7 @@ export type ArtFile = SongFile & {
 	level?: string;
 };
 
-export type ChartFiles = {
+type ChartFiles = {
 	id: string;
 	tree: Tree;
 	rev?: string;

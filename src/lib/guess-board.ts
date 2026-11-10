@@ -1,6 +1,6 @@
 import { GUESS_STEPS } from "./guess";
 
-export type RunStatus = "playing" | "won" | "lost";
+type RunStatus = "playing" | "won" | "lost";
 
 export type GuessRun = {
 	t0: number;
@@ -60,7 +60,7 @@ export function runStep(run: Pick<GuessRun, "guesses" | "status">): number {
 		: GUESS_STEPS - 1;
 }
 
-export function compareEntries(a: BoardEntry, b: BoardEntry): number {
+function compareEntries(a: BoardEntry, b: BoardEntry): number {
 	return (
 		a.tries - b.tries ||
 		a.ms - b.ms ||

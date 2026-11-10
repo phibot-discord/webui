@@ -61,7 +61,7 @@ export function failBind(err: unknown): BindErr {
 	return { error: "bind_failed", status: 502, detail: msg || undefined };
 }
 
-export function qrSucceeded(
+function qrSucceeded(
 	result: {
 		success?: boolean;
 		data?: { kid?: string; access_token?: string; error?: string };
@@ -152,9 +152,7 @@ export async function requestQr(
 	};
 }
 
-export function parseQrStored(
-	raw: string | null | undefined,
-): QrStored | undefined {
+function parseQrStored(raw: string | null | undefined): QrStored | undefined {
 	if (!raw) return;
 	try {
 		return JSON.parse(raw) as QrStored;
@@ -247,7 +245,7 @@ function qrWaiting(rateLimited?: true): QrWait {
 		: { status: "waiting" };
 }
 
-export const QR_PENDING = new Set([
+const QR_PENDING = new Set([
 	"authorization_pending",
 	"authorization_waiting",
 	"slow_down",

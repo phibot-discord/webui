@@ -17,7 +17,7 @@ export function isB30AvgKind(v: unknown): v is B30AvgKind {
 }
 
 /** "band": players near the user's RKS (±0.05) */
-export const RANK_SCOPES = ["all", "band", "both"] as const;
+const RANK_SCOPES = ["all", "band", "both"] as const;
 export type RankScope = (typeof RANK_SCOPES)[number];
 
 export function isRankScope(v: unknown): v is RankScope {
@@ -28,7 +28,7 @@ export function rankScopeOf(notes: Pick<UserNotes, "rankScope">): RankScope {
 	return isRankScope(notes.rankScope) ? notes.rankScope : "all";
 }
 
-export const RANK_BAND_SHOWS = ["place", "percent"] as const;
+const RANK_BAND_SHOWS = ["place", "percent"] as const;
 export type RankBandShow = (typeof RANK_BAND_SHOWS)[number];
 
 export function isRankBandShow(v: unknown): v is RankBandShow {
@@ -46,7 +46,7 @@ export function b30AvgKindOf(notes: Pick<UserNotes, "b30AvgKind">): B30AvgKind {
 	return isB30AvgKind(notes.b30AvgKind) ? notes.b30AvgKind : "all";
 }
 
-export type TaskObj = {
+type TaskObj = {
 	song: string;
 	finished: boolean;
 	request: { type: string; rank: string; value: number };

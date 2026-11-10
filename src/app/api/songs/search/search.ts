@@ -16,7 +16,7 @@ import { type ChartSummary, chartCatalog } from "@/server/charts";
 import { jsonError, jsonEtagResponse } from "@/server/http";
 import { clientIp } from "@/server/rate-limit";
 
-export const SEARCH_LIMIT_MAX = 25;
+const SEARCH_LIMIT_MAX = 25;
 const SEARCH_LIMIT_DEFAULT = 10;
 const CACHE = "public, max-age=60, s-maxage=300, stale-while-revalidate=3600";
 /** Bundled-only aliases or a live lookup still running: ask again soon */
@@ -24,7 +24,7 @@ const CACHE_SHORT = "public, max-age=0, s-maxage=15, stale-while-revalidate=60";
 
 export type SongSearchQuery = { q: string; limit: number; exact: boolean };
 
-export type SongSearchResult = {
+type SongSearchResult = {
 	id: string;
 	song: string;
 	composer: string;
@@ -107,7 +107,7 @@ function result(
 }
 
 /** Asks phib19's resolve (cached, ≤3 s) only while a published snapshot is not loaded yet */
-export async function searchSongs(
+async function searchSongs(
 	query: SongSearchQuery,
 	deps: SongSearchDeps = defaultDeps,
 	client?: string,

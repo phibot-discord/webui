@@ -55,7 +55,7 @@ export function clipNamesSong(clip: PvClip, song: SongRef): boolean {
 	return label.length >= MIN_LABEL && stem.includes(label);
 }
 
-export function clipChapterId(
+function clipChapterId(
 	clip: PvClip,
 	chapters: readonly CollectionChapter[],
 	transcriptChapter: (clip: string) => string | undefined,

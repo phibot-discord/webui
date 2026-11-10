@@ -5,12 +5,12 @@ import { phiraPackFile, phiraPackKey } from "@/phi/lib/phira";
 import { jsonLoader } from "./manifest";
 import { chartBase, chartRows, findSong, songIds, songRows } from "./side-tree";
 
-// Older chart revisions under `history/<apk>/`; `history/index.json` lists each song's eras (scripts/publish-history.ts)
+// Older chart revisions under `history/<apk>/`; `history/index.json` lists each song's eras
 const HISTORY_MANIFEST_KEY = `${HISTORY_PREFIX}/index.json`;
 /** A version name, or `<name>-<code>` for a later build that shipped under a name already listed */
 const VERSION = /^[\d.]+(?:-\d+)?$/;
 
-export type EraChart = {
+type EraChart = {
 	label: string;
 	notes: number | null;
 	charter: string;

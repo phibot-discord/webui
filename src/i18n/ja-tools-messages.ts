@@ -209,7 +209,6 @@ export const toolsJa: ToolsMessages = {
 		notes: "ノーツ",
 		charter: "譜面作者",
 		kinds: "Tap · Drag · Hold · Flick",
-		toolsTitle: "ツール",
 		phira: "Phira 用にダウンロード",
 		score: "スコア計画",
 		songCard: "曲のランクカード",

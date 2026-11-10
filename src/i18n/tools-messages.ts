@@ -178,7 +178,6 @@ export type ToolsMessages = {
 		notes: string;
 		charter: string;
 		kinds: string;
-		toolsTitle: string;
 		phira: string;
 		score: string;
 		songCard: string;
@@ -767,7 +766,6 @@ export const toolsEn: ToolsMessages = {
 		notes: "Notes",
 		charter: "Charter",
 		kinds: "Tap · Drag · Hold · Flick",
-		toolsTitle: "Tools",
 		phira: "Download for Phira",
 		score: "Plan a score",
 		songCard: "Song rank card",
@@ -1400,7 +1398,6 @@ export const toolsZh: ToolsMessages = {
 		notes: "物量",
 		charter: "谱师",
 		kinds: "Tap · Drag · Hold · Flick",
-		toolsTitle: "工具",
 		phira: "下载 Phira 谱面",
 		score: "规划分数",
 		songCard: "单曲排名图",

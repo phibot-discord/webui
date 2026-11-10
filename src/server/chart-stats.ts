@@ -11,7 +11,7 @@ const cache = new Map<string, ChartStats | null>();
 
 export const CURRENT = "current";
 
-export function chartJsonKey(stem: string, level: string, ver?: string) {
+function chartJsonKey(stem: string, level: string, ver?: string) {
 	return ver && ver !== CURRENT
 		? `${HISTORY_PREFIX}/${ver}/chart/${stem}/${level}.json`
 		: `chart/${stem}/${level}.json`;

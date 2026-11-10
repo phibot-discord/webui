@@ -1,5 +1,5 @@
 export const STATUS_TARGETS = ["workers", "kv", "assets", "phira"] as const;
-export type StatusTargetId = (typeof STATUS_TARGETS)[number];
+type StatusTargetId = (typeof STATUS_TARGETS)[number];
 export type StatusState = "up" | "degraded" | "down" | "unknown";
 
 export type CheckBucket = {
@@ -22,7 +22,7 @@ export type StatusTarget = {
 	hours: CheckBucket[];
 };
 
-export type HostPoint = { t: number; cpu: number | null; mem: number | null };
+type HostPoint = { t: number; cpu: number | null; mem: number | null };
 
 export type StatusHost = {
 	cpu: number | null;
@@ -37,7 +37,7 @@ export type StatusHost = {
 	series30d: HostPoint[];
 };
 
-export type PhiraPoint = {
+type PhiraPoint = {
 	t: number;
 	players: number | null;
 	rooms: number | null;

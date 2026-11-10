@@ -27,7 +27,7 @@ import {
 import { progressView, targetsView } from "./save-views";
 import { exists } from "./vfs";
 
-export const SNAP_VIEWS = ["progress", "targets"] as const;
+const SNAP_VIEWS = ["progress", "targets"] as const;
 export type SnapView = (typeof SNAP_VIEWS)[number];
 
 const TARGETS_SHOWN = 10;

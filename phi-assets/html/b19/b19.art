@@ -1,11 +1,11 @@
 {{extend defaultLayout}}
 
 {{block 'css'}}
-{{if themeInfo && themeInfo.cssUrl && themeInfo.cssMode == "replace"}}
-<link rel="stylesheet" href="{{themeInfo.cssUrl}}">
-{{else}}
 <link rel="stylesheet" href="{{_res_path}}html/b19/b19.css">
-{{/if}}
+<link rel="stylesheet" href="phi-css://knobs.css">
+<link rel="stylesheet" href="phi-css://takumi.css">
+<link rel="stylesheet" href="phi-css://player.css">
+<link rel="stylesheet" href="phi-css://b30.css">
 {{/block}}
 
 {{block 'main'}}
@@ -13,14 +13,12 @@
 <div class="title">
     <div class="playerInfo">
         <div class="blackBlock clip-box"></div>
-        <div class="avatar clip-box">
-            <img src="{{_res_path}}html/avatar/{{gameuser.avatar}}.png" alt="{{gameuser.avatar}}">
-        </div>
         <div class="playerId">
-            <p name="pvis">{{#gameuser.PlayerId}}</p>
-        </div>
-        <div class="rks clip-box">
+            <p name="pvis"{{if nameStyle}} style="{{nameStyle}}"{{/if}}>{{#gameuser.PlayerId}}</p>
+        </div><div class="rks clip-box">
             <p>{{gameuser.rks.toFixed(4)}}{{if rksStddev > 0}} <span class="rks-sd">±{{rksStddev.toFixed(2)}}</span>{{/if}}</p>
+        </div><div class="avatar clip-box">
+            <img src="{{_res_path}}html/avatar/{{gameuser.avatar}}.png" alt="{{gameuser.avatar}}">
         </div>
         <div class="clgBox">
             <div class="Challenge">
@@ -45,51 +43,12 @@
         </div>
         {{/if}}
     </div>
+    {{if hideRecordStats !== true}}
     <div class="recordInfo clip-box">
         <div class="whiteLine clip-box"></div>
-        <div class="sheet">
-            <div class="row">
-                <div class="poz">
-                    <p>\</p>
-                </div>
-                {{each stats v i}}
-                <div class="poz">
-                    <p>{{v.title}}</p>
-                </div>
-                {{/each}}
-            </div>
-            <div class="row">
-                <div class="poz">
-                    <p>C</p>
-                </div>
-                {{each stats v i}}
-                <div class="poz">
-                    <p>{{v.cleared}}</p>
-                </div>
-                {{/each}}
-            </div>
-            <div class="row">
-                <div class="poz">
-                    <p>FC</p>
-                </div>
-                {{each stats v i}}
-                <div class="poz">
-                    <p>{{v.fc}}</p>
-                </div>
-                {{/each}}
-            </div>
-            <div class="row">
-                <div class="poz">
-                    <p>Phi</p>
-                </div>
-                {{each stats v i}}
-                <div class="poz">
-                    <p>{{v.phi}}</p>
-                </div>
-                {{/each}}
-            </div>
-        </div>
+        <div class="stats-table">{{each statsTable.rows row r}}<div class="stats-row stats-row-{{r}}" style="position:relative;height:24px;width:{{statsTable.width}}px">{{each row cell c}}<div class="stats-{{c ? 'val' : 'lab'}}" style="position:absolute;left:{{c ? statsTable.labW + (c - 1) * statsTable.valW : 0}}px;top:0;width:{{c ? statsTable.valW : statsTable.labW}}px;height:24px;display:flex;justify-content:center;align-items:center;text-align:center;box-sizing:border-box">{{@cell}}</div>{{/each}}</div>{{/each}}</div>
     </div>
+    {{/if}}
 </div>
 <div class="b19">
     {{if phi}}
@@ -109,25 +68,21 @@
             </div>
             <div class="rank-{{song.rank}} clip-box">
                 <div class="org">
-                    <p>{{song.rank}}&ensp;{{song.difficulty.toFixed(1)}}</p>
+                    <p>{{song.rank}}&nbsp;{{song.difficulty.toFixed(1)}}</p>
                 </div>
                 <div class="rel">
                     <p>{{song.rks.toFixed(4)}}</p>
                 </div>
             </div>
         </div>
-        <div class="info-{{song.rank}}">
-            <div class="songname">
-                <p name="pvis">{{song.song}}</p>
+        <div class="info-{{song.rank}}">{{if song.fit.mid}}<div class="info-mid">{{/if}}
+            <div class="songname{{if song.fit.lines}} songname-wrap{{/if}}">{{if song.fit.lines}}{{each song.fit.lines line}}<p name="pvis" style="font-size:{{song.fit.px}}px">{{line}}</p>{{/each}}{{else}}<p name="pvis" style="font-size:{{song.fit.px}}px">{{song.song}}</p>{{/if}}
             </div>
-            <div class="songinfo">
-                <div class="Rating">
-                    <img src="{{themeInfo && themeInfo.icons && themeInfo.icons[song.Rating] ? themeInfo.icons[song.Rating] : (_res_path + 'html/otherimg/' + song.Rating + '.png')}}" alt="{{song.Rating}}">
-                </div>
-                <div class="chengji">
-                    <div class="score">
+            <div class="songinfo"><div class="chengji"><div class="score-line"><div class="Rating">
+                    <img src="{{_res_path + 'html/otherimg/' + song.Rating + '.png'}}" alt="{{song.Rating}}">
+                </div><div class="score">
                         <p>{{song.score}}</p>
-                    </div>
+                    </div></div>
                     <div class="line"></div>
                     <div class="acc-box">
                         <div class="acc">
@@ -140,13 +95,13 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div>{{if song.fit.mid}}</div>{{/if}}
         {{if song.accRanks && song.accRanks.length}}
         <div class="accRanks">
             {{each song.accRanks r}}
-            <div class="accAvg accRank{{if r.ap}} accRankAp{{/if}}{{if r.scope == 'band'}} accRankBand{{/if}} clip-box">
+            <div class="accAvg {{if r.fit.px != 12}}rank-px-{{r.fit.px}} {{/if}}accRank{{if r.ap}} accRankAp{{/if}}{{if r.scope == 'band'}} accRankBand{{/if}} clip-box">
                 <div class="accAvgLine clip-box"></div>
-                {{if r.tag}}<p class="accRankTag">{{r.tag}}</p>{{/if}}{{if r.show != 'percent'}}<p class="accRankPos">{{r.pos}}</p><p class="accRankOf">{{r.of}}</p>{{/if}}{{if r.show != 'place'}}<p class="accRankPct{{if r.show == 'percent'}} accRankLead{{/if}}">{{r.pct}}</p>{{/if}}
+                {{if r.tag}}<p class="accRankTag">{{r.tag}}</p>{{/if}}{{if r.show != 'percent'}}<p class="accRankPos">{{r.pos}}</p>{{if r.fit.of}}<p class="accRankOf">{{r.of}}</p>{{/if}}{{/if}}{{if r.show != 'place'}}<p class="accRankPct{{if r.show == 'percent'}} accRankLead{{/if}}">{{r.pct}}</p>{{/if}}
             </div>
             {{/each}}
         </div>
@@ -184,7 +139,7 @@
                 p-id="1589"
             ></path>
             </svg>
-            <p>{{song.cpToOld.dif}}&ensp;&ensp;&ensp;RKS</p>
+            <p>{{song.cpToOld.dif}}&nbsp;&nbsp;&nbsp;RKS</p>
             <svg viewBox="0 0 1024 1024">
             <path
                 d="M564.8 465.184l4.192 3.904 274.72 274.752a32 32 0 0 1 0 45.248l-22.624 22.624a32 32 0 0 1-45.248 0l-263.456-263.392-263.424 263.392a32 32 0 0 1-42.24 2.656l-3.008-2.656-22.624-22.624a32 32 0 0 1 0-45.248l274.784-274.752a80 80 0 0 1 108.96-3.904z m0-256l4.192 3.904 274.72 274.752a32 32 0 0 1 0 45.248l-22.624 22.624a32 32 0 0 1-45.248 0l-263.456-263.392-263.424 263.392a32 32 0 0 1-42.24 2.656l-3.008-2.656-22.624-22.624a32 32 0 0 1 0-45.248l274.784-274.752a80 80 0 0 1 108.96-3.904z"
@@ -226,22 +181,20 @@
     {{if $index == (phi ? 27 : 30)}}
     <div class="over_flow">
         <div class="flow_line_box_l">
-            <div class="flow_line"></div>
-            <div class="flow_line"></div>
-            <div class="flow_line"></div>
-            <div class="flow_line"></div>
-            <div class="flow_line"></div>
-            <div class="flow_line"></div>
-        </div>
+            <div class="flow_line" style="width:50%;flex:none;height:15px;background:#ffffff"></div>
+            <div class="flow_line" style="width:25%;flex:none;height:15px;background:#ffffff"></div>
+            <div class="flow_line" style="width:12.5%;flex:none;height:15px;background:#ffffff"></div>
+            <div class="flow_line" style="width:6.25%;flex:none;height:15px;background:#ffffff"></div>
+            <div class="flow_line" style="width:3.125%;flex:none;height:15px;background:#ffffff"></div>
+            <div class="flow_line" style="width:1.5625%;flex:none;height:15px;background:#ffffff"></div></div>
         <p><i>OVER FLOW</i></p>
         <div class="flow_line_box_r">
-            <div class="flow_line"></div>
-            <div class="flow_line"></div>
-            <div class="flow_line"></div>
-            <div class="flow_line"></div>
-            <div class="flow_line"></div>
-            <div class="flow_line"></div>
-        </div>
+            <div class="flow_line" style="width:1.5625%;flex:none;height:15px;background:#ffffff"></div>
+            <div class="flow_line" style="width:3.125%;flex:none;height:15px;background:#ffffff"></div>
+            <div class="flow_line" style="width:6.25%;flex:none;height:15px;background:#ffffff"></div>
+            <div class="flow_line" style="width:12.5%;flex:none;height:15px;background:#ffffff"></div>
+            <div class="flow_line" style="width:25%;flex:none;height:15px;background:#ffffff"></div>
+            <div class="flow_line" style="width:50%;flex:none;height:15px;background:#ffffff"></div></div>
     </div>
     {{/if}}
 
@@ -256,25 +209,21 @@
             </div>
             <div class="rank-{{song.rank}} clip-box">
                 <div class="org">
-                    <p>{{song.rank}}&ensp;{{song.difficulty.toFixed(1)}}</p>
+                    <p>{{song.rank}}&nbsp;{{song.difficulty.toFixed(1)}}</p>
                 </div>
                 <div class="rel">
                     <p>{{song.rks.toFixed(4)}}</p>
                 </div>
             </div>
         </div>
-        <div class="info-{{song.rank}}">
-            <div class="songname">
-                <p name="pvis">{{song.song}}</p>
+        <div class="info-{{song.rank}}">{{if song.fit.mid}}<div class="info-mid">{{/if}}
+            <div class="songname{{if song.fit.lines}} songname-wrap{{/if}}">{{if song.fit.lines}}{{each song.fit.lines line}}<p name="pvis" style="font-size:{{song.fit.px}}px">{{line}}</p>{{/each}}{{else}}<p name="pvis" style="font-size:{{song.fit.px}}px">{{song.song}}</p>{{/if}}
             </div>
-            <div class="songinfo">
-                <div class="Rating">
-                    <img src="{{themeInfo && themeInfo.icons && themeInfo.icons[song.Rating] ? themeInfo.icons[song.Rating] : (_res_path + 'html/otherimg/' + song.Rating + '.png')}}" alt="{{song.Rating}}">
-                </div>
-                <div class="chengji">
-                    <div class="score">
+            <div class="songinfo"><div class="chengji"><div class="score-line"><div class="Rating">
+                    <img src="{{_res_path + 'html/otherimg/' + song.Rating + '.png'}}" alt="{{song.Rating}}">
+                </div><div class="score">
                         <p>{{song.score}}</p>
-                    </div>
+                    </div></div>
                     <div class="line"></div>
                     <div class="acc-box">
                         <div class="acc">
@@ -287,14 +236,14 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div>{{if song.fit.mid}}</div>{{/if}}
             
         {{if song.accRanks && song.accRanks.length}}
         <div class="accRanks">
             {{each song.accRanks r}}
-            <div class="accAvg accRank{{if r.ap}} accRankAp{{/if}}{{if r.scope == 'band'}} accRankBand{{/if}} clip-box">
+            <div class="accAvg {{if r.fit.px != 12}}rank-px-{{r.fit.px}} {{/if}}accRank{{if r.ap}} accRankAp{{/if}}{{if r.scope == 'band'}} accRankBand{{/if}} clip-box">
                 <div class="accAvgLine clip-box"></div>
-                {{if r.tag}}<p class="accRankTag">{{r.tag}}</p>{{/if}}{{if r.show != 'percent'}}<p class="accRankPos">{{r.pos}}</p><p class="accRankOf">{{r.of}}</p>{{/if}}{{if r.show != 'place'}}<p class="accRankPct{{if r.show == 'percent'}} accRankLead{{/if}}">{{r.pct}}</p>{{/if}}
+                {{if r.tag}}<p class="accRankTag">{{r.tag}}</p>{{/if}}{{if r.show != 'percent'}}<p class="accRankPos">{{r.pos}}</p>{{if r.fit.of}}<p class="accRankOf">{{r.of}}</p>{{/if}}{{/if}}{{if r.show != 'place'}}<p class="accRankPct{{if r.show == 'percent'}} accRankLead{{/if}}">{{r.pct}}</p>{{/if}}
             </div>
             {{/each}}
         </div>
@@ -332,7 +281,7 @@
                 p-id="1589"
             ></path>
             </svg>
-            <p>{{song.cpToOld.dif}}&ensp;&ensp;&ensp;RKS</p>
+            <p>{{song.cpToOld.dif}}&nbsp;&nbsp;&nbsp;RKS</p>
             <svg viewBox="0 0 1024 1024">
             <path
                 d="M564.8 465.184l4.192 3.904 274.72 274.752a32 32 0 0 1 0 45.248l-22.624 22.624a32 32 0 0 1-45.248 0l-263.456-263.392-263.424 263.392a32 32 0 0 1-42.24 2.656l-3.008-2.656-22.624-22.624a32 32 0 0 1 0-45.248l274.784-274.752a80 80 0 0 1 108.96-3.904z m0-256l4.192 3.904 274.72 274.752a32 32 0 0 1 0 45.248l-22.624 22.624a32 32 0 0 1-45.248 0l-263.456-263.392-263.424 263.392a32 32 0 0 1-42.24 2.656l-3.008-2.656-22.624-22.624a32 32 0 0 1 0-45.248l274.784-274.752a80 80 0 0 1 108.96-3.904z"
@@ -351,22 +300,20 @@
 {{if b30Analysis}}
 <div class="over_flow">
     <div class="flow_line_box_l">
-        <div class="flow_line"></div>
-        <div class="flow_line"></div>
-        <div class="flow_line"></div>
-        <div class="flow_line"></div>
-        <div class="flow_line"></div>
-        <div class="flow_line"></div>
-    </div>
+        <div class="flow_line" style="width:50%;flex:none;height:15px;background:#ffffff"></div>
+        <div class="flow_line" style="width:25%;flex:none;height:15px;background:#ffffff"></div>
+        <div class="flow_line" style="width:12.5%;flex:none;height:15px;background:#ffffff"></div>
+        <div class="flow_line" style="width:6.25%;flex:none;height:15px;background:#ffffff"></div>
+        <div class="flow_line" style="width:3.125%;flex:none;height:15px;background:#ffffff"></div>
+        <div class="flow_line" style="width:1.5625%;flex:none;height:15px;background:#ffffff"></div></div>
     <p><i>{{t.analysisTitle}}</i></p>
     <div class="flow_line_box_r">
-        <div class="flow_line"></div>
-        <div class="flow_line"></div>
-        <div class="flow_line"></div>
-        <div class="flow_line"></div>
-        <div class="flow_line"></div>
-        <div class="flow_line"></div>
-    </div>
+        <div class="flow_line" style="width:1.5625%;flex:none;height:15px;background:#ffffff"></div>
+        <div class="flow_line" style="width:3.125%;flex:none;height:15px;background:#ffffff"></div>
+        <div class="flow_line" style="width:6.25%;flex:none;height:15px;background:#ffffff"></div>
+        <div class="flow_line" style="width:12.5%;flex:none;height:15px;background:#ffffff"></div>
+        <div class="flow_line" style="width:25%;flex:none;height:15px;background:#ffffff"></div>
+        <div class="flow_line" style="width:50%;flex:none;height:15px;background:#ffffff"></div></div>
 </div>
 
 <div class="b30-analysis-row {{if b30Analysis.histogramWide}}histogram-wide{{/if}}">
@@ -437,32 +384,29 @@
                 <p class="analysis-kicker">RKS DISTRIBUTION</p>
                 <p class="analysis-title">{{t.histTitle}}</p>
             </div>
-            <div class="histogram-summary">
-                <p class="histogram-avg-label">{{t.avgRks}}</p>
-                <p>{{b30Analysis.histogram.average.toFixed(4)}}</p>
-            </div>
+            <div class="histogram-summary" style="text-align:right;flex:none;min-width:140px"><p class="histogram-avg-label" style="font-size:12px;color:rgba(255,255,255,0.75)">{{t.avgRks}}</p><p style="font-size:24px;color:#ffffff;font-family:Aldrich,PHI">{{b30Analysis.histogram.average.toFixed(4)}}</p></div>
         </div>
-        <div class="histogram-chart">
-            <div class="histogram-plot">
-                <div class="histogram-y-ticks">
-                    {{each b30Analysis.histogram.ticks tick}}
-                    <p class="histogram-y-tick" style="bottom: {{tick.position}}%;">{{tick.label}}</p>
+        <div class="histogram-chart" style="position:relative;width:100%;height:178px;padding-top:8px;overflow:hidden">
+            <div class="histogram-plot" style="position:relative;width:100%;height:164px;overflow:hidden">
+                <div class="histogram-y-ticks" style="position:absolute;left:0;top:0;width:40px;height:136px">
+                    {{each hist.ticks tick}}
+                    <p class="histogram-y-tick" style="position:absolute;right:2px;bottom:{{tick.bottom}}px;margin:0;padding:0;width:36px;text-align:right;white-space:nowrap;font-size:10px;line-height:1;color:rgba(255,255,255,0.75)">{{tick.label}}</p>
                     {{/each}}
                 </div>
-                <div class="histogram-y-label">{{t.histY}}</div>
-                <div class="histogram-scale">
-                    {{each b30Analysis.histogram.ticks tick}}
-                    <div class="histogram-grid-line" style="bottom: {{tick.position}}%;"></div>
+                <div class="histogram-y-label" style="position:absolute;left:0;top:136px;width:40px;height:28px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;overflow:visible;writing-mode:horizontal-tb;font-size:8px;line-height:1.15;color:rgba(255,255,255,0.52)">{{each hist.yTitle part}}<span>{{@part}}</span>{{/each}}</div>
+                <div class="histogram-scale" style="position:absolute;left:40px;right:0;top:0;height:136px;box-sizing:content-box">
+                    {{each hist.ticks tick}}
+                    <div class="histogram-grid-line" style="position:absolute;left:0;right:0;bottom:{{tick.bottom}}px;border-top:1px dashed rgba(255,255,255,0.28)"></div>
                     {{/each}}
-                    <div class="average-marker" style="bottom: {{b30Analysis.histogram.averagePosition}}%;"><p>AVG {{b30Analysis.histogram.average.toFixed(4)}}</p></div>
+                    <div class="average-marker" style="position:absolute;left:0;right:0;bottom:{{hist.avgBottom}}px;height:2px;background:#ffffff"><p style="position:absolute;top:-14px;right:4px;margin:0;padding:0;white-space:nowrap;font-size:9px;line-height:1;color:#ffffff">AVG {{b30Analysis.histogram.average.toFixed(4)}}</p></div>
                 </div>
-                <div class="histogram-bars">
-                    {{each b30Analysis.histogram.slots slot}}
+                <div class="histogram-bars" style="position:absolute;left:40px;right:3px;top:0;height:164px;display:flex;flex-direction:row;align-items:stretch">
+                    {{each hist.slots slot}}
                     <div class="histogram-slot">
                         <div class="histogram-bar-area">
-                            <div class="histogram-bar {{slot.kind == 'phi' ? 'phi-bar' : 'best-bar'}}" style="height: {{slot.height}}%;"></div>
+                            <div class="histogram-bar {{slot.bar}}" style="height:{{slot.height}}px;width:72%;min-height:3px"></div>
                         </div>
-                        <p class="histogram-slot-label">{{slot.label}}</p>
+                        <p class="histogram-slot-label" style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;height:24px;width:100%;font-size:7px;line-height:1;margin:0;padding:2px 0 0;transform:none">{{if slot.label.length > 1}}{{each slot.label part}}<span>{{@part}}</span>{{/each}}{{else}}{{@slot.label[0]}}{{/if}}</p>
                     </div>
                     {{/each}}
                 </div>
@@ -478,13 +422,7 @@
     </section>
 </div>
 {{/if}}
-<div class="createdbox">
-    <div class="phi-plugin">
-        <p>{{_plugin}}</p>
-    </div>
-    <div class="ver">
-        <p>{{Version.ver}}</p>
-    </div>
-</div>
 
 {{/block}}
+
+{{block 'foot'}}{{if tips.trim()}}<div class="tips"><p>Tip:{{tips}}</p></div>{{/if}}{{/block}}

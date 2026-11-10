@@ -6,8 +6,9 @@ import { logger } from "./logger";
 import { objectUrl, type R2Config, r2Config, r2WriteReady } from "./r2-base";
 
 export {
-	bucketObjectsUrl,
-	objectUrl,
+	HTML_PREFIX,
+	ILL_PREFIX,
+	INFO_PREFIX,
 	type R2Config,
 	r2BucketName,
 	r2CacheConfig,

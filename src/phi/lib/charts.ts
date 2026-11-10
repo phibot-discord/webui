@@ -22,7 +22,7 @@ function esc(s: string) {
 	);
 }
 
-function percentLineChartSvg(
+export function percentLineChartSvg(
 	segs: LineSeg[],
 	opts: { stroke?: string; width?: number; height?: number } = {},
 ) {
@@ -159,27 +159,5 @@ export async function tagRadarHtml(radar: TagRadar) {
 		`<img class="tag-radar-plot" width="200" height="184" src="${src}" style="width:200px;height:184px;max-width:200px;max-height:184px;display:block;flex:none;padding:0;margin:0;object-fit:fill;position:relative;z-index:2;top:auto;right:auto;bottom:auto;left:auto;transform:none;min-width:200px;min-height:184px;"/>` +
 		radarLabels(radar) +
 		`</div>`
-	);
-}
-
-/** userinfo.art draws its rks/acc lines as percent-coordinate <line>s; Takumi wants paths */
-export function polishSvgCharts(html: string) {
-	return html.replace(
-		/<svg\b[^>]*>([\s\S]*?)<\/svg>/g,
-		(full, inner: string) => {
-			const hits = [
-				...inner.matchAll(
-					/<line\b[^>]*x1="([\d.]+)%"[^>]*y1="([\d.]+)%"[^>]*x2="([\d.]+)%"[^>]*y2="([\d.]+)%"[^>]*\/?\s*>/g,
-				),
-			];
-			if (!hits.length) return full;
-			const segs: LineSeg[] = hits.map((h) => [
-				Number(h[1]),
-				Number(h[2]),
-				Number(h[3]),
-				Number(h[4]),
-			]);
-			return percentLineChartSvg(segs);
-		},
 	);
 }

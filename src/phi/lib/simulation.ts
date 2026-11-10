@@ -53,7 +53,7 @@ export type SimSlot = Entry & {
 	was?: string;
 };
 
-export type SimChartStatus = "invalid" | "unknown" | "no_gain" | "better";
+type SimChartStatus = "invalid" | "unknown" | "no_gain" | "better";
 
 export type SimChart = {
 	key: string;
@@ -209,11 +209,11 @@ export function scoreFromAcc(acc: number): number {
 	return Math.round(Math.max(0, acc) * 9000 + 100_000);
 }
 
-export function sanitizeAcc(raw: string): string {
+function sanitizeAcc(raw: string): string {
 	return raw.replace(/[^\d.]/g, "").slice(0, 10);
 }
 
-export function sanitizeScore(raw: string): string {
+function sanitizeScore(raw: string): string {
 	return raw.replace(/\D/g, "").slice(0, 7);
 }
 

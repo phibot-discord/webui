@@ -85,7 +85,7 @@ function globToRegExp(pattern: string): RegExp {
 	return new RegExp(`^${escaped}$`);
 }
 
-export type KvListItem = { name: string; metadata?: unknown };
+type KvListItem = { name: string; metadata?: unknown };
 
 export type RemoteKv = {
 	label: string;
@@ -203,7 +203,7 @@ const BIND_KEY =
 	/:userToken:|:save:|:notes:|:hisb30:|:history:|:manualSave:|:webShare/;
 
 /** Dev only: swaps Cloudflare KV for an in-memory store */
-export function localDataMode(): boolean {
+function localDataMode(): boolean {
 	return (
 		process.env.PHI_LOCAL_DATA === "1" && process.env.NODE_ENV !== "production"
 	);

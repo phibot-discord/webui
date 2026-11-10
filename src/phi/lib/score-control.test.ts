@@ -9,7 +9,6 @@ import {
 	planScore,
 	SCORE_TOLERANCE,
 	type ScoreMode,
-	scoreFor,
 } from "./score-control";
 
 function checkPlans(total: number, target: number, mode: ScoreMode) {
@@ -96,7 +95,7 @@ test("a combo of N with a broken note is impossible", () => {
 });
 
 test("challenge mode ignores combo and only counts judgements", () => {
-	const target = scoreFor(790, 8, 0, 800, "challenge");
+	const target = Math.round(exactScore(790, 8, 0, 800, "challenge"));
 	const plans = checkPlans(800, target, "challenge");
 	assert.ok(plans.some((p) => p.perfect === 790 && p.good === 8));
 	for (const p of plans) assert.equal(p.maxCombo, p.perfect + p.good);

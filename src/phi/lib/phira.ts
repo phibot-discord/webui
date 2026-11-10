@@ -6,7 +6,7 @@ export type PhiraLevel = (typeof PHIRA_LEVELS)[number];
 
 const FIXED_DATE = new Date(Date.UTC(2025, 0, 1));
 
-export function phiraInfoText(info: {
+function phiraInfoText(info: {
 	id: string;
 	name: string;
 	level: string;

@@ -53,7 +53,7 @@ export type ProfileBasis = "scores" | "history" | "aps";
 
 export type ChartGroup = "best" | "middle" | "worst";
 
-export type PooledChart = ProfileRecord & {
+type PooledChart = ProfileRecord & {
 	acc: number;
 	weight: number;
 	expected: number;
@@ -65,7 +65,7 @@ export type PooledChart = ProfileRecord & {
 
 export type TagChart = { chart: number; share: number; votes: number };
 
-export type ProfileTagScore = TagScore & {
+type ProfileTagScore = TagScore & {
 	mean: number;
 	meanRating: number;
 	hold: number;
@@ -601,7 +601,7 @@ export function radarGeometry(
 	};
 }
 
-export function emptyProfile(): ProfileAnalysis {
+function emptyProfile(): ProfileAnalysis {
 	return {
 		recordCount: 0,
 		chartCount: 0,
@@ -861,7 +861,7 @@ export function tagProfile(
 	return tagProfileDetail(records, votes).analysis;
 }
 
-export type ScoreHistoryRow = readonly [
+type ScoreHistoryRow = readonly [
 	acc: unknown,
 	score: unknown,
 	date: unknown,
@@ -884,7 +884,7 @@ function timeOf(v: unknown): number {
 
 type Point = { t: number; acc: number; score: number };
 
-export function pastRecords(
+function pastRecords(
 	history: ScoreHistoryRows,
 	constantOf: (id: string, level: string) => number | undefined,
 ): { records: ProfileRecord[]; t: number } | undefined {

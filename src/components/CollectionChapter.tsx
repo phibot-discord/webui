@@ -22,7 +22,7 @@ import { TextGroups } from "./GameTexts";
 import { LangSwitch } from "./LangSwitch";
 import { RichText } from "./RichText";
 
-export type ViewEntry = {
+type ViewEntry = {
 	sub: number;
 	title: string;
 	meta: string;

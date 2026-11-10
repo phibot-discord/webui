@@ -12,7 +12,7 @@ const LEVEL_COLOR: Record<string, string> = {
 	AT: "#4a505d",
 };
 
-export type SnapHead = {
+type SnapHead = {
 	brand: string;
 	host: string;
 	title: string;

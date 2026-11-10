@@ -4,10 +4,12 @@ export type R2Config = {
 	accountId: string;
 	apiToken: string;
 	bucket: string;
-	prefix: string;
-	htmlPrefix: string;
 	publicBase: string;
 };
+
+export const ILL_PREFIX = "original_ill";
+export const HTML_PREFIX = "html";
+export const INFO_PREFIX = "info";
 
 function normalizePublicBase(raw: string | undefined): string {
 	const t = (raw || "").trim().replace(/\/+$/, "");
@@ -28,14 +30,6 @@ export function r2Config(): R2Config {
 		accountId: process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || "",
 		apiToken: process.env.CLOUDFLARE_API_TOKEN?.trim() || "",
 		bucket: r2BucketName(),
-		prefix: (process.env.CLOUDFLARE_R2_ILL_PREFIX ?? "original_ill").replace(
-			/\/+$/,
-			"",
-		),
-		htmlPrefix: (process.env.CLOUDFLARE_R2_HTML_PREFIX ?? "html").replace(
-			/\/+$/,
-			"",
-		),
 		publicBase: normalizePublicBase(process.env.CLOUDFLARE_R2_PUBLIC_BASE),
 	};
 }
@@ -44,9 +38,7 @@ export function r2Config(): R2Config {
 export function r2CacheConfig(): R2Config {
 	return {
 		...r2Config(),
-		bucket: r2BucketName(
-			process.env.CLOUDFLARE_R2_CACHE_BUCKET?.trim() || "phi-web-cache",
-		),
+		bucket: "phi-web-cache",
 		publicBase: "",
 	};
 }

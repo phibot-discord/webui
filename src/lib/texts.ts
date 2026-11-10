@@ -1,6 +1,6 @@
 import type { Locale } from "@/i18n/config";
 
-export type TextsText = { zh: string; en: string; ja?: string };
+type TextsText = { zh: string; en: string; ja?: string };
 import { COLLECTION_LANGS, type CollectionLang, localText } from "./collection";
 import { positiveInt, v1Body } from "./parse";
 
@@ -101,7 +101,7 @@ export type TextLine =
 	| { kind: "langs"; text: Partial<Record<CollectionLang, string>> }
 	| { kind: "text"; text: string; lang?: CollectionLang };
 
-export type TextImage = { file: string; width: number; height: number };
+type TextImage = { file: string; width: number; height: number };
 
 export type TextGroup = {
 	id: string;

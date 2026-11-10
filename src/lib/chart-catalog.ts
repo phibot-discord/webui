@@ -1,6 +1,6 @@
 import type { ChartCell, ChartSummary } from "@/server/charts";
 
-export type { ChartCell, ChartSummary, RemovedCell } from "@/server/charts";
+export type { ChartCell, ChartSummary } from "@/server/charts";
 
 // SP is the 4/1 specials' level; the scored catalog never has it
 export const CHART_LEVELS = ["EZ", "HD", "IN", "AT", "SP"] as const;

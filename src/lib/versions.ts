@@ -25,7 +25,7 @@ export type LevelChange = {
 	to: number | null;
 };
 
-export type SongEntry = { id: string; levels: VersionSong["levels"] };
+type SongEntry = { id: string; levels: VersionSong["levels"] };
 
 export type VersionDiff = {
 	added: SongEntry[];
@@ -138,7 +138,7 @@ export type SlotRow = {
 
 export type B30Under = RksUnder & { slots: Map<string, SlotRow> };
 
-export const slotKey = (id: string, rank: string) => `${id}:${rank}`;
+const slotKey = (id: string, rank: string) => `${id}:${rank}`;
 
 export function b30Under(
 	records: readonly RecordAcc[],
@@ -190,7 +190,7 @@ export type YourChange = {
 	move: Movement;
 };
 
-export function movementOf(key: string, a: B30Under, b: B30Under): Movement {
+function movementOf(key: string, a: B30Under, b: B30Under): Movement {
 	const was = a.slots.has(key);
 	const is = b.slots.has(key);
 	return was && is ? "stay" : is ? "in" : was ? "out" : "none";

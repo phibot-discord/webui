@@ -34,7 +34,7 @@ export type HiddenBackground = { file: string; width: number; height: number };
 export type CutLine = Record<CollectionLang, string>;
 export type CutPage = { lines: CutLine[] };
 
-export type CutImage = {
+type CutImage = {
 	page: number;
 	entrance: number;
 	file: string;
@@ -43,7 +43,7 @@ export type CutImage = {
 	height: number;
 };
 
-export type CutVideo = {
+type CutVideo = {
 	file: string;
 	width: number;
 	height: number;
@@ -60,7 +60,7 @@ export type FadeToWhite = {
 	autoNext: boolean;
 };
 
-export type CutSound = {
+type CutSound = {
 	bgm: string | null;
 	image: string | null;
 	typing: string[];

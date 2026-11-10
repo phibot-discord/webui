@@ -4,16 +4,16 @@ import { nonNegative, text, v1Body } from "./parse";
 import { splitWords } from "./unlock";
 
 export const PV_MANIFEST_KEY = "pv/index.json";
-export const PV_VIDEO_PREFIX = "pv/video/";
+const PV_VIDEO_PREFIX = "pv/video/";
 export const PV_OVERLAY_KEY = "pv/overlay/index.json";
-export const PV_OVERLAY_PREFIX = "pv/overlay/";
+const PV_OVERLAY_PREFIX = "pv/overlay/";
 /** Clips the game does not ship as videos, rendered by hand and listed apart from phi-unpackd's manifest */
 export const PV_SPECIALS_KEY = "pv/specials.json";
-export const PV_SPECIAL_PREFIX = "pv/special/";
+const PV_SPECIAL_PREFIX = "pv/special/";
 
 export type OverlayKind = "single" | "lang" | "level";
 
-export type OverlayVersion = { key?: string; file: string; size: number };
+type OverlayVersion = { key?: string; file: string; size: number };
 
 export type OverlayIndex = ReadonlyMap<
 	string,
@@ -104,7 +104,7 @@ export function parsePvManifest(raw: unknown): PvClip[] | undefined {
 	return out;
 }
 
-export type SpecialVersion = {
+type SpecialVersion = {
 	lang: CollectionLang;
 	file: string;
 	size: number;

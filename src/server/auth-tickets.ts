@@ -3,8 +3,8 @@ import { decode, encode } from "next-auth/jwt";
 export const TAP_LOGIN_COOKIE = "phi-tap-login";
 export const DISCORD_LINK_COOKIE = "phi-link-discord";
 
-export const TAP_TICKET_TTL_S = 120;
-export const TAP_LOGIN_COOKIE_MAX_AGE_S = 840 + TAP_TICKET_TTL_S;
+const TAP_TICKET_TTL_S = 120;
+const TAP_LOGIN_COOKIE_MAX_AGE_S = 840 + TAP_TICKET_TTL_S;
 export const DISCORD_LINK_TTL_S = 600;
 
 const TAP_TICKET_SALT = "phi-tap-ticket";
@@ -62,7 +62,7 @@ export function tapLoginClearCookie(secure: boolean): string {
 }
 
 function authSecret(): string {
-	const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+	const secret = process.env.AUTH_SECRET;
 	if (!secret) throw new Error("AUTH_SECRET is not set");
 	return secret;
 }

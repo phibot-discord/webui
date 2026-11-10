@@ -20,7 +20,7 @@ for (const k of [
 ]) {
 	delete process.env[k];
 }
-const { b19Card, isPartialResult, lookupBudgetMs } = await import("./cards");
+const { b19Card, lookupBudgetMs } = await import("./cards");
 const { loadTagVotes, resetTagVotesForTest } = await import(
 	"./chart-tag-votes"
 );
@@ -319,13 +319,6 @@ test("tags off: no lookup, insufficient copy, not partial", async () => {
 	assert.equal(analysis.tagLookupFailed, false);
 	assert.equal(analysis.tagMessage, cardCopy("en").tagInsufficient);
 	assert.equal(data.renderPartial, false);
-});
-
-test("peer-average results only mark the card partial when they say so", () => {
-	assert.equal(isPartialResult({ partial: true }), true);
-	assert.equal(isPartialResult({ partial: false }), false);
-	assert.equal(isPartialResult({ phi: [], b19_list: [], com_rks: 16 }), false);
-	assert.equal(isPartialResult(undefined), false);
 });
 
 test("rank badges draw no legend chip and keep the user's rows in KV", async () => {

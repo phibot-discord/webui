@@ -1,9 +1,7 @@
 data
-.wrangler
 .env
 .env.local
 .env.*.local
-phi-assets/html/common/font/NotoColorEmoji-Regular.ttf
 # Jackets come from R2 at runtime and are excluded from function traces
 phi-assets/original_ill
 # Local tooling state

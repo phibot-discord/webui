@@ -39,7 +39,7 @@ export type CollectionChapter = {
 	unlock: string | null;
 };
 
-export type CollectionEntry = {
+type CollectionEntry = {
 	sub: number;
 	date: string;
 	type: number;
@@ -285,7 +285,7 @@ export function chipName(short: string, tip: string): string {
 	return tip.includes(short) ? tip : `${short} · ${tip}`;
 }
 
-export const COLLECTION_SEARCH_LIMIT = 100;
+const COLLECTION_SEARCH_LIMIT = 100;
 const SNIPPET_BEFORE = 24;
 const SNIPPET_AFTER = 48;
 

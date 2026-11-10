@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fuzzyFold, looseFold, rankSongs } from "./song-search";
+import { looseFold, rankSongs } from "./song-search";
 
 const SONGS = [
 	{
@@ -78,11 +78,9 @@ function ids(q: string, opts?: { limit?: number; exact?: boolean }) {
 	return rankSongs(SONGS, q, opts).map((m) => m.song.id);
 }
 
-test("folds keep full-width symbols exact but strip punctuation for fuzzy tiers", () => {
+test("the loose fold keeps full-width symbols exact", () => {
 	assert.equal(looseFold("＞w＜"), ">w<");
 	assert.equal(looseFold(" Ain  Soph "), "ainsoph");
-	assert.equal(fuzzyFold(">w<"), "w");
-	assert.equal(fuzzyFold("Rrhar'il"), "rrharil");
 });
 
 test("ad matches three songs by exact alias, title order breaking the tie", () => {

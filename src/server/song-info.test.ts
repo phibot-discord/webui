@@ -25,7 +25,6 @@ import {
 	INFO_STATE_KEY,
 	infoFetchOpts,
 	loadedCatalogRevision,
-	onCatalogReload,
 	reloadCatalog,
 	resetSongInfoForTest,
 	syncFools,
@@ -462,10 +461,6 @@ test("loadedCatalogRevision trails catalogRevision until getInfo re-parses", asy
 	const assets = tmp();
 	const cacheRoot = tmp();
 	mkdirSync(join(assets, "info"), { recursive: true });
-	let reloads = 0;
-	onCatalogReload(() => {
-		reloads += 1;
-	});
 	applyLevelsCsv(
 		assets,
 		infoCache("sha1", `${CSV_HEAD}A.b\tSong A\tb\tx\t\t\t\t\t1\t2\t3\t\n`),
@@ -474,7 +469,6 @@ test("loadedCatalogRevision trails catalogRevision until getInfo re-parses", asy
 	assert.equal(await reloadCatalog(assets), true);
 	assert.equal(loadedCatalogRevision(), "bundled:sha1");
 	assert.equal(await reloadCatalog(assets), false);
-	assert.equal(reloads, 1);
 
 	applyLevelsCsv(
 		assets,
@@ -488,7 +482,6 @@ test("loadedCatalogRevision trails catalogRevision until getInfo re-parses", asy
 	assert.equal(loadedCatalogRevision(), "bundled:sha2");
 	assert.ok(getInfo.ori_info["C.d.0"]);
 	assert.equal(getInfo.ori_info["A.b.0"], undefined);
-	assert.equal(reloads, 2);
 });
 
 test("a file R2 fails to send keeps the last complete set and is the only one fetched again", async () => {

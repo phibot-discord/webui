@@ -1,9 +1,9 @@
 import { fCompute } from "@/phi/lib/fcompute";
 import { nines, PROFILE, weightOf } from "@/phi/lib/tag-profile";
 
-export const EXAMPLE_TAGS = ["快交互", "宽排键"] as const;
+const EXAMPLE_TAGS = ["快交互", "宽排键"] as const;
 
-export const EXAMPLE_FLOOR = 15.9;
+const EXAMPLE_FLOOR = 15.9;
 
 export const EXAMPLE_VOTED = "2026-11-04";
 
@@ -40,7 +40,7 @@ const CHARTS = [
 	},
 ] as const;
 
-export type ExampleRow = {
+type ExampleRow = {
 	id: string;
 	title: string;
 	level: string;
@@ -55,7 +55,7 @@ export type ExampleRow = {
 	shares: [number, number];
 };
 
-export type ExampleMove = {
+type ExampleMove = {
 	row: number;
 	tag: number;
 	net: number;

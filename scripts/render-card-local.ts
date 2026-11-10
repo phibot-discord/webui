@@ -1,4 +1,4 @@
-// Offline card render from data/raw-save.json; rerun precompile-art and bundle-css after template edits
+// Offline card render from data/raw-save.json; rerun `pnpm codegen` after template edits
 //   node --import tsx scripts/render-card-local.ts <b30|x30|fc30|hisb30|info|song> [out.jpg]
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -64,9 +64,7 @@ const helpers = {
 			{
 				...data,
 				defaultLayout: `${res}/html/common/layout/default.art`,
-				_layout_path: `${res}/html/common/layout/`,
 				_res_path: `${res}/`,
-				pluResPath: `${res}/`,
 				_imgPath: data._imgPath ?? `${res}/html/otherimg/`,
 			},
 		),

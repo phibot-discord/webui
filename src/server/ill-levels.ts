@@ -1,6 +1,6 @@
 import { v1Body } from "@/lib/parse";
 import { jsonLoader } from "./manifest";
-import { r2Config } from "./r2";
+import { ILL_PREFIX } from "./r2";
 
 // Songs with a jacket per difficulty: `original_ill/<size>/<level>/<id>.png`, listed in `original_ill/levels.json`
 export type IllLevels = Map<string, string[]>;
@@ -9,7 +9,7 @@ export type IllLevels = Map<string, string[]>;
 const JACKET_LEVELS = ["EZ", "HD", "IN", "AT"] as const;
 
 const manifest = jsonLoader(
-	() => illLevelsKey(),
+	() => ILL_LEVELS_KEY,
 	parseIllLevels,
 	new Map() as IllLevels,
 );
@@ -18,9 +18,7 @@ export function resetIllLevelsForTest() {
 	manifest.reset();
 }
 
-export function illLevelsKey(prefix = r2Config().prefix): string {
-	return prefix ? `${prefix}/levels.json` : "levels.json";
-}
+export const ILL_LEVELS_KEY = `${ILL_PREFIX}/levels.json`;
 
 /** Ids are as the manifest has them (`.0` or not); a song without a known level is skipped */
 export function parseIllLevels(raw: unknown): IllLevels {

@@ -63,13 +63,12 @@ import { type PaintQuality, parsePaintQuality } from "./render/paint-budget";
 import { withTimeout } from "./render-lock";
 import { foolsPending } from "./song-info";
 
-export type { BoundErr, ErrorCode } from "./bound";
+export type { BoundErr } from "./bound";
 export {
 	type CardKind,
 	clampCount,
 	isCardKind,
 	isPublicKind,
-	type PublicKind,
 } from "./card-kinds";
 export { RENDER_VERSION };
 

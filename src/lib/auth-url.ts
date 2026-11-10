@@ -20,7 +20,6 @@ function envOrigins(): string[] {
 	return [
 		...splitOrigins(process.env.AUTH_URLS),
 		...splitOrigins(process.env.AUTH_URL),
-		...splitOrigins(process.env.NEXTAUTH_URL),
 	];
 }
 
@@ -44,7 +43,7 @@ function parseAuthOrigins(): string[] {
 export function resetAuthOriginsForTest(
 	env: Record<string, string | undefined> = {},
 ) {
-	const keys = ["AUTH_URLS", "AUTH_URL", "NEXTAUTH_URL"] as const;
+	const keys = ["AUTH_URLS", "AUTH_URL"] as const;
 	for (const key of keys) {
 		const value = env[key];
 		if (value) process.env[key] = value;
@@ -59,10 +58,7 @@ export function configuredAuthOrigins(): readonly string[] {
 
 /** Auth.js parses AUTH_URL as a single origin. Drop it when several are set */
 export function stripCanonicalAuthUrlIfMany() {
-	if (parseAuthOrigins().length > 1) {
-		delete process.env.AUTH_URL;
-		delete process.env.NEXTAUTH_URL;
-	}
+	if (parseAuthOrigins().length > 1) delete process.env.AUTH_URL;
 }
 
 function firstHeader(headers: Headers, name: string): string {
@@ -101,29 +97,17 @@ export function resolveAuthOrigin(headers: Headers): string | undefined {
 	return parseAuthOrigins()[0];
 }
 
-function restoreEnv(
-	key: "AUTH_URL" | "NEXTAUTH_URL",
-	prev: string | undefined,
-) {
-	if (prev === undefined) delete process.env[key];
-	else process.env[key] = prev;
-}
-
 export async function withBoundAuthUrl<T>(
 	headers: Headers,
 	fn: () => T | Promise<T>,
 ): Promise<T> {
 	const origin = resolveAuthOrigin(headers);
-	const prevUrl = process.env.AUTH_URL;
-	const prevNext = process.env.NEXTAUTH_URL;
-	if (origin) {
-		process.env.AUTH_URL = origin;
-		process.env.NEXTAUTH_URL = origin;
-	}
+	const prev = process.env.AUTH_URL;
+	if (origin) process.env.AUTH_URL = origin;
 	try {
 		return await fn();
 	} finally {
-		restoreEnv("AUTH_URL", prevUrl);
-		restoreEnv("NEXTAUTH_URL", prevNext);
+		if (prev === undefined) delete process.env.AUTH_URL;
+		else process.env.AUTH_URL = prev;
 	}
 }

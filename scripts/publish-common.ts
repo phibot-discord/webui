@@ -1,5 +1,4 @@
 // Helpers shared by the publish-* scripts
-import { changesInPlace } from "../src/lib/assets";
 import { poolAll } from "../src/server/pool";
 
 type Note = { type: number };
@@ -20,16 +19,6 @@ export const oneLine = (s: string | null | undefined) =>
 export const publicBase = (
 	process.env.CLOUDFLARE_R2_PUBLIC_BASE || "https://r2.phibot.dev"
 ).replace(/\/$/, "");
-
-export async function fetchPublic(key: string, agent: string): Promise<Buffer> {
-	const fresh = changesInPlace(key) ? `?fresh=${Date.now()}` : "";
-	const res = await fetch(
-		`${publicBase}/${key.split("/").map(encodeURIComponent).join("/")}${fresh}`,
-		{ headers: { "User-Agent": `Mozilla/5.0 ${agent}` } },
-	);
-	if (!res.ok) throw new Error(`${key}: ${res.status}`);
-	return Buffer.from(await res.arrayBuffer());
-}
 
 type TreeFile = { body: Uint8Array; type: string };
 

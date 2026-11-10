@@ -1,11 +1,11 @@
 import { type Areas, compileAreas } from "./areas";
 import { ASPECT, lastAtOrBefore } from "./base";
 
-export { ASPECT, firstAfter, firstAtOrAfter, lastAtOrBefore } from "./base";
+export { ASPECT, firstAfter, firstAtOrAfter } from "./base";
 export const FLOOR_UNIT = 1 / (0.83175 * ASPECT);
 export const NOTE_X = 0.1125;
 export const FX_LIFE = 0.5;
-export const HOLD_FX_STEP = 0.15;
+const HOLD_FX_STEP = 0.15;
 
 export const HOLD = 0;
 export const DRAG = 1;
@@ -15,12 +15,12 @@ export const FLICK = 3;
 export const BELOW = 1;
 export const MULTI = 2;
 
-export const CHORD_NEAR = 0.2;
-export const CHORD_COLORS = 4;
+const CHORD_NEAR = 0.2;
+const CHORD_COLORS = 4;
 
 export const SOUND_TAP = 0;
 export const SOUND_DRAG = 1;
-export const SOUND_FLICK = 2;
+const SOUND_FLICK = 2;
 
 export type Segments = {
 	off: Int32Array;
@@ -39,7 +39,7 @@ export type Speeds = {
 	f: Float64Array;
 };
 
-export type Notes = {
+type Notes = {
 	time: Float64Array;
 	end: Float64Array;
 	floor: Float64Array;
@@ -55,7 +55,7 @@ export type Notes = {
 	maxHold: number;
 };
 
-export type Effects = {
+type Effects = {
 	t: Float64Array;
 	x: Float32Array;
 	y: Float32Array;

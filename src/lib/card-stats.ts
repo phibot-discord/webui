@@ -1,6 +1,6 @@
 import type { CardMissing } from "@/phi/lib/external";
 
-export type CardCacheStore = "mem" | "r2" | "kv";
+type CardCacheStore = "mem" | "r2" | "kv";
 type CardSource = "r2" | "kv" | "render" | "browser";
 
 export type CardStats = {

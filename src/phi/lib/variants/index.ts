@@ -8,7 +8,7 @@ import type { CardVariant } from "./types";
 import { variant as updateSummary } from "./update-summary";
 import { variant as updateTimeline } from "./update-timeline";
 
-export type { CardData, CardVariant, VariantContext } from "./types";
+export type { CardVariant } from "./types";
 
 const VARIANTS: CardVariant[] = [
 	b19Table,

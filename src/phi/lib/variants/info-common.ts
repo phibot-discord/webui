@@ -94,9 +94,9 @@ const COPY = {
 	},
 };
 
-export type InfoCopy = (typeof COPY)["en"];
+type InfoCopy = (typeof COPY)["en"];
 
-export function infoCopy(locale: PhiLocale): InfoCopy {
+function infoCopy(locale: PhiLocale): InfoCopy {
 	return COPY[locale] ?? COPY.en;
 }
 
@@ -118,7 +118,7 @@ export type InfoChart = {
 	grid: number[];
 };
 
-export type InfoLevel = {
+type InfoLevel = {
 	key: (typeof LEVELS)[number];
 	rating: string;
 	unlocked: number;
@@ -176,7 +176,7 @@ export function richPlain(html: string): string {
 		.replace(/\r/g, "");
 }
 
-export function lineCount(text: string, widthPx: number, px: number): number {
+function lineCount(text: string, widthPx: number, px: number): number {
 	let lines = 0;
 	for (const para of text.split("\n")) {
 		const em = textEm(para.trim());

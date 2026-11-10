@@ -246,7 +246,7 @@ function decodeHtml(raw: string) {
 		.replace(/&amp;/g, "&");
 }
 
-export function ellipsize(text: string, widthPx: number, px: number) {
+function ellipsize(text: string, widthPx: number, px: number) {
 	if (textEm(text) * px <= widthPx) return text;
 	const chars = [...text];
 	while (chars.length && textEm(`${chars.join("").trimEnd()}…`) * px > widthPx)
@@ -787,7 +787,7 @@ export function b30Movement(snaps: unknown, info: SongLookup) {
 	};
 }
 
-export type MoveSide = {
+type MoveSide = {
 	dir: "in" | "out";
 	title: string;
 	count: string;

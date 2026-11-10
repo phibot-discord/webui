@@ -20,9 +20,6 @@ importers:
       '@vercel/speed-insights':
         specifier: ^2.0.0
         version: 2.0.0(next@16.4.4(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
-      art-template:
-        specifier: ^4.13.4
-        version: 4.13.4
       jszip:
         specifier: ^3.10.2
         version: 3.10.2
@@ -53,9 +50,6 @@ importers:
       takumi-js:
         specifier: ^2.19.0
         version: 2.19.0(csstype@3.2.3)(preact@10.24.3)(react@19.3.1)
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
       undici:
         specifier: ^8.12.3
         version: 8.12.3
@@ -75,6 +69,12 @@ importers:
       '@types/react-dom':
         specifier: ^19.3.0
         version: 19.3.0(@types/react@19.3.0)
+      art-template:
+        specifier: ^4.13.4
+        version: 4.13.4
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

@@ -240,7 +240,7 @@ function badgeText(b: AccRankBadge) {
 	return `${b.tag ? `${b.tag} ` : ""}${parts.join(" · ")}`;
 }
 
-export function applyRowRanks(
+function applyRowRanks(
 	rows: Array<ScoreAvgSong | undefined | null>,
 	ranks: Map<string, LbRankRow> | undefined,
 	band?: { ranks: Map<string, LbRankRow>; range: RksBand; show?: RankBandShow },

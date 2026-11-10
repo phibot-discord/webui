@@ -14,7 +14,7 @@ export const SAVE_ENTRIES = [
 ] as const;
 const SAVE_MAX_BYTES = 8 * 1024 * 1024;
 
-export class CloudSaveError extends Error {
+class CloudSaveError extends Error {
 	readonly status?: number;
 
 	constructor(message: string, status?: number) {

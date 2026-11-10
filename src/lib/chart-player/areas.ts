@@ -1,6 +1,6 @@
 import { ASPECT, lastAtOrBefore } from "./base";
 
-export const AREA_FADE = 0.5;
+const AREA_FADE = 0.5;
 export const AREA_STRIDE = 12;
 export const DISABLED_LEVEL = 0.55;
 

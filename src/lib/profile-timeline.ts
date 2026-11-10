@@ -11,7 +11,7 @@ import {
 	shanghaiDay,
 } from "./past-self";
 
-export type TimelinePoint = {
+type TimelinePoint = {
 	t: number;
 	day: string;
 	charts: number;
@@ -21,7 +21,7 @@ export type TimelinePoint = {
 	now: boolean;
 };
 
-export type TimelineCell = {
+type TimelineCell = {
 	net: number;
 	rating: number;
 	side: ProfileTagRow["side"];
@@ -29,7 +29,7 @@ export type TimelineCell = {
 	hold: number;
 };
 
-export type TimelineRow = { name: string; cells: (TimelineCell | null)[] };
+type TimelineRow = { name: string; cells: (TimelineCell | null)[] };
 
 export type ProfileTimeline = {
 	points: TimelinePoint[];

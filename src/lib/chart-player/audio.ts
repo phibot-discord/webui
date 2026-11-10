@@ -3,9 +3,9 @@ import { firstAtOrAfter, type Hits } from "./chart";
 const LEAD = 0.05;
 const LOOKAHEAD = 0.3;
 export const HIT_GAIN = 1;
-export const HIT_MAX = 1.5;
+const HIT_MAX = 1.5;
 export const MUSIC_GAIN = 0.9;
-export const SOUND_KINDS = 3;
+const SOUND_KINDS = 3;
 
 type Ctx = AudioContext & {
 	getOutputTimestamp?: () => { contextTime?: number; performanceTime?: number };
@@ -123,7 +123,7 @@ export function limiter(ctx: BaseAudioContext): AudioNode {
 	return pre;
 }
 
-export function clampHit(v: number, max = HIT_MAX): number {
+function clampHit(v: number, max = HIT_MAX): number {
 	return Number.isFinite(v) ? Math.min(Math.max(v, 0), max) : 1;
 }
 

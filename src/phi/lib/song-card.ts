@@ -41,7 +41,7 @@ export type SongCardResult =
 	| { templateId: string; data: Record<string, unknown> }
 	| { error: "unknown_card"; status: 404 };
 
-export const SONG_TEMPLATE = "phi/song/song";
+const SONG_TEMPLATE = "phi/song/song";
 
 export type LookupState =
 	| "ok"
@@ -57,7 +57,7 @@ const PARTIAL_STATES: ReadonlySet<LookupState> = new Set([
 	"unavailable",
 ]);
 
-export type SongRecord = {
+type SongRecord = {
 	score: number;
 	acc: number;
 	fc: boolean;
@@ -65,7 +65,7 @@ export type SongRecord = {
 	rating: string;
 };
 
-export type ApFcCell = { total: number; ap: number; fc: number };
+type ApFcCell = { total: number; ap: number; fc: number };
 
 export type SongLevelRow = {
 	level: LbLevel;

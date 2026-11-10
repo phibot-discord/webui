@@ -139,7 +139,7 @@ const GRADES = ["phi", "FC", "V", "S", "A", "B", "C", "F"];
 
 type Delta = { text: string; cls: string };
 
-export type TimelineEntry = {
+type TimelineEntry = {
 	ill: string;
 	titleLines: string[];
 	titlePx: number;
@@ -165,7 +165,7 @@ export type TimelineEntry = {
 	rksWasPx: number;
 };
 
-export type TimelineDay = {
+type TimelineDay = {
 	date: string;
 	weekday: string;
 	times: string;
@@ -189,7 +189,7 @@ export type TimelineChart = {
 	change: Delta;
 };
 
-export type TimelineTask = {
+type TimelineTask = {
 	ill: string;
 	titleLines: string[];
 	titlePx: number;

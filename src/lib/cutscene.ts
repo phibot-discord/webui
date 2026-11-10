@@ -4,7 +4,7 @@ import { parseRichText, type RichSegment } from "./richtext";
 
 export type LineText = { text: string; lang: CollectionLang };
 
-export type PageLine = LineText & {
+type PageLine = LineText & {
 	at: number;
 	segments: RichSegment[];
 	length: number;
@@ -40,7 +40,7 @@ export function lineEnd(text: PageText, line: number): number {
 	return text.lines.slice(0, line + 1).reduce((n, l) => n + l.length, 0);
 }
 
-export type TypedSegment = RichSegment & { rest: string };
+type TypedSegment = RichSegment & { rest: string };
 export type TypedLine = {
 	at: number;
 	lang: CollectionLang;
@@ -65,8 +65,8 @@ export function typeOut(text: PageText, typed: number): TypedLine[] {
 	}));
 }
 
-export type CutPhase = "start" | "play" | "end";
-export type CutWhite = "none" | "in" | "full" | "out";
+type CutPhase = "start" | "play" | "end";
+type CutWhite = "none" | "in" | "full" | "out";
 
 export type CutState = {
 	phase: CutPhase;
@@ -130,7 +130,7 @@ function lengthOf(state: CutState, ctx: CutCtx): number {
 	return ctx.lengths[state.page] ?? 0;
 }
 
-export function pageDone(state: CutState, ctx: CutCtx): boolean {
+function pageDone(state: CutState, ctx: CutCtx): boolean {
 	return state.typed >= lengthOf(state, ctx);
 }
 

@@ -18,18 +18,18 @@ const ART_FILE = /^collection-art\/[^/]+\.jpg$/;
 const ART_ORIGINAL = /^collection-art\/[^/]+\.png$/;
 const LAYOUTS = ["side", "banner", "text"] as const;
 
-export type ArtLayout = "side" | "banner";
+type ArtLayout = "side" | "banner";
 
-export type CollectionArt = {
+type CollectionArt = {
 	file: string;
 	original: string;
 	width: number;
 	height: number;
 };
 
-export type EntryBefore = { flag: string; text: LocalText };
+type EntryBefore = { flag: string; text: LocalText };
 
-export type ArtTile = {
+type ArtTile = {
 	file: string;
 	width: number;
 	height: number;

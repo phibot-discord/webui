@@ -135,15 +135,6 @@ async function b30AnalysisFor(
 	};
 }
 
-/** attachB19AccAvg may report `{ partial: true }` when its lookup timed out */
-export function isPartialResult(value: unknown): boolean {
-	return (
-		value != null &&
-		typeof value === "object" &&
-		(value as { partial?: unknown }).partial === true
-	);
-}
-
 export async function b19Card(
 	rt: PhiRuntime,
 	save: Save,

@@ -17,9 +17,9 @@ export type CompareSide = {
 	records: CompareRecord[];
 };
 
-export type LevelTally = Record<"played" | "clear" | "fc" | "ap", number>;
+type LevelTally = Record<"played" | "clear" | "fc" | "ap", number>;
 
-export type HeadToHead = {
+type HeadToHead = {
 	id: string;
 	rank: string;
 	constant: number;

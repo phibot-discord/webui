@@ -1,7 +1,7 @@
 import type { Bilingual } from "@/i18n/config";
 import { readLocal, writeLocal } from "./local-store";
 
-export type ChangeItem = Bilingual & { href?: string };
+type ChangeItem = Bilingual & { href?: string };
 export type ChangeSection = { heading: Bilingual; items: ChangeItem[] };
 export type ChangeRelease = { date: string; sections: ChangeSection[] };
 export type Changelog = { version: string; date: string };

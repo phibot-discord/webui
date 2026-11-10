@@ -132,11 +132,3 @@ export function writeSim(userId: string, stored: SimStored): boolean {
 		return false;
 	}
 }
-
-export function clearSim(userId: string) {
-	try {
-		localStorage.removeItem(storageKey(userId));
-	} catch {
-		/* private mode */
-	}
-}

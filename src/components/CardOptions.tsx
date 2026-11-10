@@ -16,20 +16,20 @@ import type { B30AvgKind, RankBandShow, RankScope } from "@/phi/lib/notes";
 import type { CardKind } from "@/server/card-kinds";
 import type { PaintQuality } from "@/server/render/paint-budget";
 
-export const PEER_KINDS = [
+const PEER_KINDS = [
 	"none",
 	"all",
 	"top",
 	"rank",
 ] as const satisfies readonly B30AvgKind[];
 
-export const RANK_SCOPE_KINDS = [
+const RANK_SCOPE_KINDS = [
 	"all",
 	"band",
 	"both",
 ] as const satisfies readonly RankScope[];
 
-export const RANK_BAND_SHOW_KINDS = [
+const RANK_BAND_SHOW_KINDS = [
 	"place",
 	"percent",
 ] as const satisfies readonly RankBandShow[];
@@ -106,7 +106,7 @@ function hitMiss(
 	return v === "hit" ? card.statsHit : card.statsMiss;
 }
 
-export function sourceLabel(
+function sourceLabel(
 	source: ReturnType<typeof cardSource>,
 	card: Pick<
 		Messages["card"],

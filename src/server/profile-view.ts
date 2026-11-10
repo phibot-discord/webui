@@ -51,9 +51,9 @@ export type ProfileChartRow = {
 
 export type ProfileTagUse = { chart: number; share: number; votes: number };
 
-export type ProfileTagView = ProfileTagRow & { uses: ProfileTagUse[] };
+type ProfileTagView = ProfileTagRow & { uses: ProfileTagUse[] };
 
-export type ProfileCategoryView = ProfileCategory & { uses: ProfileTagUse[] };
+type ProfileCategoryView = ProfileCategory & { uses: ProfileTagUse[] };
 
 export type TagProfileView = Pick<
 	TagAnalysis,

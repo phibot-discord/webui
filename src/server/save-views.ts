@@ -110,7 +110,7 @@ export function targetsView(
 	};
 }
 
-export type SuggestionRow = {
+type SuggestionRow = {
 	id: string;
 	rank: string;
 	c: number;

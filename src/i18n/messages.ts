@@ -607,7 +607,6 @@ export type ClientMessages = ToolsMessages & {
 		background: string;
 		backgroundRandom: string;
 		backgroundSearch: string;
-		backgroundChange: string;
 		backgroundNone: string;
 		backgroundResults: string;
 		backgroundCurrent: string;
@@ -647,7 +646,6 @@ export type ClientMessages = ToolsMessages & {
 		zoom: string;
 		fullScreen: string;
 		original: string;
-		zoomTitle: string;
 		zoomScreen: string;
 		zoomFit: string;
 		zoomActual: string;
@@ -721,9 +719,6 @@ export type ClientMessages = ToolsMessages & {
 		statsHintServer: string;
 		statsHintExternal: string;
 		statsHintWait: string;
-		statsHintStoreR2: string;
-		statsHintStoreKv: string;
-		statsHintRender: string;
 	};
 	refresh: {
 		save: string;
@@ -1699,7 +1694,6 @@ export const en: ClientMessages = {
 		background: "Background",
 		backgroundRandom: "Random",
 		backgroundSearch: "Search songs",
-		backgroundChange: "Change",
 		backgroundNone: "No matching songs",
 		backgroundResults: "Matching songs: {n}",
 		backgroundCurrent: "current",
@@ -1767,7 +1761,6 @@ export const en: ClientMessages = {
 		zoom: "View full screen",
 		fullScreen: "Full screen",
 		original: "Original",
-		zoomTitle: "Card viewer",
 		zoomScreen: "Fit screen",
 		zoomFit: "Fit width",
 		zoomActual: "100%",
@@ -1862,9 +1855,6 @@ export const en: ClientMessages = {
 		statsHintExternal:
 			"Time the card waited for phib19.top: comparison badges and ranks.",
 		statsHintWait: "Your wait, including download.",
-		statsHintStoreR2: "Served from R2 object storage.",
-		statsHintStoreKv: "Served from KV.",
-		statsHintRender: "Cache miss — this JPEG was painted now.",
 	},
 	refresh: {
 		save: "Refresh save",
@@ -2797,7 +2787,6 @@ export const zh: ClientMessages = {
 		background: "背景",
 		backgroundRandom: "随机",
 		backgroundSearch: "搜索曲目",
-		backgroundChange: "更换",
 		backgroundNone: "没有匹配的曲目",
 		backgroundResults: "匹配的曲目：{n} 首",
 		backgroundCurrent: "当前",
@@ -2864,7 +2853,6 @@ export const zh: ClientMessages = {
 		zoom: "全屏查看",
 		fullScreen: "全屏",
 		original: "原图",
-		zoomTitle: "成绩图查看器",
 		zoomScreen: "适应屏幕",
 		zoomFit: "适应宽度",
 		zoomActual: "100%",
@@ -2954,9 +2942,6 @@ export const zh: ClientMessages = {
 		statsHintServer: "本次请求的服务端耗时。",
 		statsHintExternal: "出图时等待 phib19.top 的时间：对比标记与排名。",
 		statsHintWait: "等到图片的总时间，含下载。",
-		statsHintStoreR2: "从 R2 对象存储读取。",
-		statsHintStoreKv: "从 KV 读取。",
-		statsHintRender: "缓存未命中，这次当场绘制。",
 	},
 	refresh: {
 		save: "刷新存档",

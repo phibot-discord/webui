@@ -1,8 +1,7 @@
 import { extname, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import template from "art-template/lib/index.js";
 import { artFactories } from "@/phi/art-compiled";
-import { exists, readFile } from "@/server/vfs";
+import { exists } from "@/server/vfs";
 import {
 	type ArtFactory,
 	type ArtRenderOptions,
@@ -12,50 +11,7 @@ import {
 } from "./art-runtime";
 import { readAssetCached } from "./asset-cache";
 
-type ArtCompile = (opts: Record<string, unknown>) => (data: object) => string;
-type ArtEngine = ((file: string, data: object) => string) & {
-	compile: ArtCompile;
-	defaults?: Record<string, unknown>;
-};
-
 const factories = artFactories as Record<string, ArtFactory>;
-
-function artEngine(): ArtEngine {
-	const mod = template as unknown as { default?: unknown };
-	const engine = (
-		typeof template === "function" ? template : mod.default
-	) as ArtEngine;
-	if (typeof engine !== "function" || typeof engine.compile !== "function") {
-		throw new Error("art-template compile is missing");
-	}
-	return engine;
-}
-
-function loadArt(filename: string) {
-	return readFile(filename, "utf8");
-}
-
-function configureArt() {
-	const origWarn = console.warn.bind(console);
-	console.warn = (...args: unknown[]) => {
-		const text = args
-			.map((a) => (typeof a === "string" ? a : String(a)))
-			.join(" ");
-		if (text.includes("Template upgrade:")) return;
-		origWarn(...(args as Parameters<typeof origWarn>));
-	};
-	try {
-		const defaults = artEngine().defaults;
-		if (!defaults) return;
-		defaults.escape = true;
-		defaults.cache = true;
-		defaults.debug = false;
-		defaults.minimize = false;
-		defaults.loader = loadArt;
-	} catch {}
-}
-
-configureArt();
 
 function renderOptions(filename: string): ArtRenderOptions {
 	const options: ArtRenderOptions = {
@@ -75,32 +31,13 @@ function renderOptions(filename: string): ArtRenderOptions {
 	return options;
 }
 
-function renderPrecompiled(
-	file: string,
-	data: Record<string, unknown>,
-): string {
-	const key = artKey(file);
-	const factory = factories[key];
-	if (!factory) throw new Error(`precompiled art missing: ${key}`);
-	return factory(artImports, renderOptions(file))(data);
-}
-
 export function compileArt(
 	file: string,
 	data: Record<string, unknown>,
 ): string {
-	if (!exists(file)) throw new Error(`template not found: ${file}`);
-	if (factories[artKey(file)]) return renderPrecompiled(file, data);
-	return artEngine().compile({
-		filename: file,
-		source: loadArt(file),
-		loader: loadArt,
-		escape: true,
-		cache: true,
-		debug: false,
-		minimize: false,
-		bail: true,
-	})(data);
+	const factory = factories[artKey(file)];
+	if (!factory) throw new Error(`template not found: ${file}`);
+	return factory(artImports, renderOptions(file))(data);
 }
 
 const SRC_RE = /\b(?:src|href)=["']([^"']+)["']/gi;

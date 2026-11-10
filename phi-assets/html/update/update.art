@@ -2,11 +2,17 @@
 {{block 'css'}}
 
 <link rel="stylesheet" href="{{_res_path}}html/update/update.css">
+<link rel="stylesheet" href="phi-css://knobs.css">
+<link rel="stylesheet" href="phi-css://takumi.css">
+{{if box_line[0]||task_data}}
+<link rel="stylesheet" href="phi-css://update.css">
+{{/if}}
 
 {{/block}}
 
 
 {{block 'main'}}
+{{set rec = box_line[0]||task_data}}
 
     
     <div class="title">
@@ -33,13 +39,18 @@
         <div class="rks_line">
             <div class="svg-box">
                 {{if rks_history[0]}}
+                {{if rec}}
+                <div class="value_box" style="height:102px;width:52px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;flex:none;margin:0"><p style="font-size:10px;margin:0;color:#fff">{{rks_range[1].toFixed(4)}}</p><p style="font-size:10px;margin:0;color:#fff">{{rks_range[0].toFixed(4)}}</p>
+                </div>
+                {{else}}
                 <div class="value_box">
                     <p>{{rks_range[1].toFixed(4)}}</p>
                     <p>{{rks_range[0].toFixed(4)}}</p>
                 </div>
+                {{/if}}
                 <div class="line-box">
                     <div class="line">
-                        <svg>
+                        {{if rksLine}}{{@rksLine}}{{else}}<svg>
                             <defs>
                                 <marker id="dot" viewBox="0 0 10 10" markerWidth="8" markerHeight="8" refX="2" refY="2">
                                     <circle cx="2" cy="2" r="1"></circle>
@@ -49,12 +60,17 @@
                             <line x1="{{$value[0]}}%" y1="{{$value[1]}}%" x2="{{$value[2]}}%" y2="{{$value[3]}}%">
                             </line>
                             {{/each}}
-                        </svg>
+                        </svg>{{/if}}
                     </div>
+                    {{if rec}}
+                    <div class="date_box" style="width:100%;height:20px;display:flex;flex-direction:row;justify-content:space-between;align-items:center;overflow:visible"><p style="font-size:8px;margin:0;white-space:nowrap;color:#fff">{{rks_date[0]}}</p><p style="font-size:8px;margin:0;white-space:nowrap;color:#fff">{{rks_date[1]}}</p>
+                    </div>
+                    {{else}}
                     <div class="date_box">
                         <p>{{rks_date[0]}}</p>
                         <p>{{rks_date[1]}}</p>
                     </div>
+                    {{/if}}
                 </div>
                 {{else}}
                 <p>NO_INFO</p>
@@ -62,57 +78,48 @@
             </div>
         </div>
     </div>
-    {{if box_line[0]||task_data}}
+    {{if rec}}
     <div class="record_box">
         {{if task_data && (task_data[0]||task_data[1]||task_data[2]||task_data[3]||task_data[4])}}
-        <div class="title_box">
-            <div class="box_title" style="width: 755px;filter: drop-shadow(0px 2px 2px #fff382);">
-                <div class="box_title-right-down" style="background-color: #fff382;"></div>
-                <div class="box_title-left" style="background-color: #fff382;">
-                    <p style="color: black;text-shadow: 0px 0px 3pxrgb(255, 255, 255);">Task_table</p>
+        <div class="title_box" style="display:flex;flex-direction:row;align-items:flex-end;justify-content:flex-start;width:780px;overflow:visible">
+            <div class="box_title" style="flex:0 0 755px;width:755px;max-width:755px;min-width:755px;height:32px;position:relative;display:flex;flex-direction:row;align-items:center;margin:0 10px;overflow:visible;clip-path:none">
+                <div class="box_title-right-down" style="background-color:#fff382;position:absolute;left:0;right:0;bottom:0;height:4px;min-height:4px;width:100%;border-radius:2px;overflow:hidden;line-height:4px;font-size:1px;color:#fff382">.</div>
+                <div class="box_title-left" style="background-color:#fff382;width:auto;min-width:160px;height:24px;padding:0 10px;display:flex;align-items:center;justify-content:center;overflow:visible;border-radius:4px;z-index:1"><p name="pvis" style="font-size:11px;white-space:nowrap;color:#fff;margin:0">Task_table</p>
                 </div>
-                <div class="box_title-right">
-                    <p>{{task_time}}</p>
+                <div class="box_title-right" style="position:absolute;right:4px;top:0;width:auto;height:22px;display:flex;align-items:center;z-index:1"><p name="pvis" style="font-size:10px;white-space:nowrap;color:#fff;margin:0">{{task_time}}</p>
                 </div>
             </div>
         </div>
-        <div class="song_box" style="padding-top: 3%;">
+        <div class="song_box" style="display:flex;flex-direction:row;justify-content:flex-start;flex-wrap:nowrap;overflow:visible;padding:8px 0 14px;width:780px">
             {{each task_data song}}
             {{if song}}
-            <div class="abox">
-                <div class="imgbox">
-                    <img src="{{song.illustration}}" alt="{{song.song}}">
+            <div class="abox" style="width:135px;height:104px;flex:none;position:relative;margin:0 10px;overflow:hidden;border-radius:5px;background:rgba(0,0,0,0.45)">
+                <div class="imgbox" style="width:135px;height:72px;position:relative;overflow:hidden"><img style="width:135px;height:72px;object-fit:cover;display:block" src="{{song.illustration}}" alt="{{song.song}}">
                 </div>
-                <div class="infobox">
+                <div class="infobox" style="position:absolute;top:0;left:0;width:135px;height:104px;display:flex;flex-direction:column;justify-content:space-between">
                     {{if song.finished}}
-                    <div class="namebox_ed">
-                        <div class="songsname">
-                            <p name="pvis">{{song.song}}</p>
+                    <div class="namebox_ed" style="height:20px;width:135px;flex:none;display:flex;flex-direction:row;align-items:center;background:rgba(255,217,0,0.72)">
+                        <div class="songsname" style="position:relative;width:auto;flex:1;height:18px;min-width:0;display:flex;align-items:center;justify-content:center"><p name="pvis" style="font-size:{{song.titlePx}}px;white-space:nowrap;overflow:hidden;margin:0;text-align:center;color:#fff">{{song.song}}</p>
                         </div>
                     </div>
                     {{else}}
-                    <div class="namebox_un">
-                        <div class="songsname">
-                            <p name="pvis">{{song.song}}</p>
+                    <div class="namebox_un" style="height:20px;width:135px;flex:none;display:flex;flex-direction:row;align-items:center;background:rgba(255,0,0,0.72)">
+                        <div class="songsname" style="position:relative;width:auto;flex:1;height:18px;min-width:0;display:flex;align-items:center;justify-content:center"><p name="pvis" style="font-size:{{song.titlePx}}px;white-space:nowrap;overflow:hidden;margin:0;text-align:center;color:#fff">{{song.song}}</p>
                         </div>
                     </div>
                     {{/if}}
                     {{if song.finished}}
-                    <div class="songsinfo_ed">
-                        <div class="rank">
-                            <p>{{song.request.rank}}</p>
+                    <div class="songsinfo_ed" style="height:32px;width:135px;flex:none;margin-top:auto;position:relative;background:rgba(255,217,0,0.78);display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;padding:2px 4px;box-sizing:border-box">
+                        <div class="rank" style="position:static;transform:none;flex:none;margin-right:4px"><p style="font-size:11px;color:rgba(255,255,255,0.8);margin:0;line-height:1.1">{{song.request.rank}}</p>
                         </div>
-                        <div class="score">
-                            <p>{{song.request.value}}</p>
+                        <div class="score" style="position:static;width:auto;flex:none"><p style="font-size:11px;margin:0;color:#fff;line-height:1.1">{{song.request.value}}</p>
                         </div>
                     </div>
                     {{else}}
-                    <div class="songsinfo_un">
-                        <div class="rank">
-                            <p>{{song.request.rank}}</p>
+                    <div class="songsinfo_un" style="height:32px;width:135px;flex:none;margin-top:auto;position:relative;background:rgba(255,0,0,0.78);display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;padding:2px 4px;box-sizing:border-box">
+                        <div class="rank" style="position:static;transform:none;flex:none;margin-right:4px"><p style="font-size:11px;color:rgba(255,255,255,0.8);margin:0;line-height:1.1">{{song.request.rank}}</p>
                         </div>
-                        <div class="score">
-                            <p>{{song.request.value}}</p>
+                        <div class="score" style="position:static;width:auto;flex:none"><p style="font-size:11px;margin:0;color:#fff;line-height:1.1">{{song.request.value}}</p>
                         </div>
                     </div>
                     {{/if}}
@@ -125,67 +132,43 @@
 
 
         {{each box_line time_line}}
-        <div class="title_box">
+        <div class="title_box" style="display:flex;flex-direction:row;align-items:flex-end;justify-content:flex-start;width:780px;overflow:visible">
             {{each time_line date}}
-            <div class="box_title" style="width: {{date.width}}px;filter: drop-shadow(0px 2px 2px {{date.color}});">
-                <div class="box_title-right-down" style="background-color: {{date.color}};"></div>
+            <div class="box_title" style="flex:0 0 {{date.width}}px;width:{{date.width}}px;max-width:{{date.width}}px;min-width:{{date.width}}px;height:32px;position:relative;display:flex;flex-direction:row;align-items:center;margin:0 10px;overflow:visible;clip-path:none">
+                <div class="box_title-right-down" style="background-color:{{date.color}};position:absolute;left:0;right:0;bottom:0;height:4px;min-height:4px;width:100%;border-radius:2px;overflow:hidden;line-height:4px;font-size:1px;color:{{date.color}}">.</div>
                 {{if date.date}}
-                <div class="box_title-left" style="background-color: {{date.color}};">
-                    <p name="pvis">{{date.date}}</p>
+                <div class="box_title-left" style="background-color:{{date.color}};width:auto;min-width:160px;height:24px;padding:0 10px;display:flex;align-items:center;justify-content:center;overflow:visible;border-radius:4px;z-index:1"><p name="pvis" style="font-size:11px;white-space:nowrap;color:#fff;margin:0">{{date.date}}</p>
                 </div>
                 {{/if}}
                 {{if date?.update_num > 1}}
-                <div class="box_title-right">
-                    <p name="pvis">Updated × {{date.update_num}}</p>
+                <div class="box_title-right" style="position:absolute;right:4px;top:0;width:auto;height:22px;display:flex;align-items:center;z-index:1"><p name="pvis" style="font-size:10px;white-space:nowrap;color:#fff;margin:0">Updated × {{date.update_num}}</p>
                 </div>
                 {{/if}}
             </div>
             {{/each}}
         </div>
-        <div class="song_box">
+        <div class="song_box" style="display:flex;flex-direction:row;justify-content:flex-start;flex-wrap:nowrap;overflow:visible;padding:8px 0 14px;width:780px">
             {{each time_line date}}
             {{each date.song song}}
-            <div class="abox">
-                <div class="imgbox">
-                    <img src="{{song.illustration}}" alt="{{song.song}}">
+            <div class="abox" style="width:135px;height:104px;flex:none;position:relative;margin:0 10px;overflow:hidden;border-radius:5px;background:rgba(0,0,0,0.45)">
+                <div class="imgbox" style="width:135px;height:72px;position:relative;overflow:hidden"><img style="width:135px;height:72px;object-fit:cover;display:block" src="{{song.illustration}}" alt="{{song.song}}">
                 </div>
                 {{if song.isB19}}
                 <div class="coinbox">
                     <p>Best {{song.isB19}}</p>
                 </div>
                 {{/if}}
-                <div class="infobox">
-                    <div class="namebox">
+                <div class="infobox" style="position:absolute;top:0;left:0;width:135px;height:104px;display:flex;flex-direction:column;justify-content:space-between">
+                    <div class="namebox" style="height:20px;width:135px;flex:none;display:flex;flex-direction:row;align-items:center;padding:0 3px;box-sizing:border-box;background:rgba(0,0,0,0.62)">
                         {{if song.Rating}}
-                        <div class="new-box">
+                        <div class="new-box" style="width:18px;height:18px;flex:none;display:flex;align-items:center;justify-content:center">
                             <img src="{{_res_path}}html/otherimg/{{song.Rating}}.png" alt="{{song.Rating}}">
                         </div>
                         {{/if}}
-                        <div class="songsname">
-                            <p name="pvis">{{song.song}}</p>
+                        <div class="songsname" style="position:relative;width:auto;flex:1;height:18px;min-width:0;display:flex;align-items:center;justify-content:center"><p name="pvis" style="font-size:{{song.titlePx}}px;white-space:nowrap;overflow:hidden;margin:0;text-align:center;color:#fff">{{song.song}}</p>
                         </div>
                     </div>
-                    <div class="songsinfo">
-                        <div class="rank">
-                            <p>{{song.rank}}</p>
-                        </div>
-                        <div class="score">
-                            <p>{{song.score_new}}</p>
-                        </div>
-                        <div class="acc">
-                            <div class="acc_1">
-                                <p>{{song.acc_new - song.acc_new % 1}}</p>
-                            </div>
-                            <div class="acc_2">
-                                <p>.{{((song.acc_new % 1).toFixed(4)).replace('0.','')}}%</p>
-                            </div>
-                        </div>
-                        {{if song.rks_new}}
-                        <div class="rks">
-                            <p>{{song.rks_new.toFixed(4)}}</p>
-                        </div>
-                        {{/if}}
-                    </div>
+                    <div style="height:32px;width:135px;background:rgba(0,0,0,0.82);display:flex;flex-direction:column;justify-content:center;padding:2px 5px;box-sizing:border-box"><p style="margin:0;padding:0;font-size:11px;color:#ffffff;line-height:14px">{{song.rank}}  {{song.score_new}}</p><p style="margin:0;padding:0;font-size:10px;color:#ffffff;line-height:13px">{{song.acc_new - song.acc_new % 1}}.{{((song.acc_new % 1).toFixed(4)).replace('0.','')}}%{{if song.rks_new}}  {{song.rks_new.toFixed(4)}}{{/if}}</p></div>
                 </div>
             </div>
             {{/each}}
@@ -209,33 +192,9 @@
         <div class="sqrt"></div>
     </div>
     {{/if}}
-    <div class="createdbox">
-        <div class="phi-brand">
-            <p>{{_plugin}}</p>
-        </div>
-        <div class="ver">
-            <p>{{Version.ver}}</p>
-        </div>
-    </div>
     {{if tips}}
     <div class="tips">
         <p>Tip:{{tips}}</p>
     </div>
-    {{/if}}
-    {{if theme == "snow"}}
-    <div class="snow-box"> </div>
-    <script>
-        themeSnow();
-    </script>
-    {{else if theme == "topText" || theme == "foolsDay"}}
-    <div class="topTextBox" id="topTextBox"></div>
-    <script>
-        themeTopText();
-    </script>
-    {{else if theme == "star"}}
-    <canvas id="stars"></canvas>
-    <script>
-        themeStar();
-    </script>
     {{/if}}
 {{/block}}

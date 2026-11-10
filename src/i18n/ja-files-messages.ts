@@ -191,13 +191,9 @@ export const filesJa: FilesMessages = {
 		entries: "コレクションの項目がほかに {n} 件",
 		entriesOne: "コレクションの項目がほかに 1 件",
 		newTab: "（新しいタブで開きます）",
-		realTitle: "Limbo 現実",
-		realLede:
-			"タワーの外の世界で、グレゴリオ暦を使います。770 〜 773 A.P. の全期間は、ここでは 2091 年 8 月末から 9 月初めの数日間にあたります。",
 		unplacedTitle: "暦の外",
 		unplacedLede:
 			"日付がないコレクションの項目や、ゲームが説明しない暦で日付が書かれた項目です。記載のまま掲載しています。",
-		chaptersTitle: "チャプター早見",
 		chaptersLede:
 			"コレクションの日付に基づいて、各チャプター自身の物語がタワーの時間のどこにあるかを示します。多くのチャプターはより古い歴史も振り返っており、その内容はそれぞれの年に載せています。",
 		jump: "最初の出来事へ移動",
@@ -259,7 +255,6 @@ export const filesJa: FilesMessages = {
 		detailsFailed: "この部分を読み込めませんでした。",
 		retry: "再試行",
 		notInTimeline: "日付のある出来事はまだありません",
-		readMore: "すべて表示",
 		wikiPages: "wiki のページ",
 		tabsLabel: "年表のセクション",
 		tabs: {
