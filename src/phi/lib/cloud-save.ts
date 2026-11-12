@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import JSZip from "jszip";
 import { logger } from "@/server/logger";
 import { cloudRegion } from "./phigros";
+import { fetchSaveFile } from "./save-host";
 import { QINIU_HOST, TAPAPI_SAVE_TIMEOUT_MS, tapFetch } from "./tapapi";
 
 /** The five members every `.save` ZIP from the game holds */
@@ -171,8 +172,11 @@ export async function checkSaveZip(zip: Buffer): Promise<void> {
 		throw new CloudSaveError(`save is missing ${missing.join(", ")}`);
 }
 
-export async function downloadSaveZip(url: string): Promise<Buffer> {
-	const res = await tapFetch(url, {}, TAPAPI_SAVE_TIMEOUT_MS);
+export async function downloadSaveZip(
+	url: string,
+	global?: boolean,
+): Promise<Buffer> {
+	const res = await fetchSaveFile(url, global);
 	if (!res.ok)
 		throw new CloudSaveError(`save download ${res.status}`, res.status);
 	const zip = Buffer.from(await res.arrayBuffer());
@@ -383,7 +387,7 @@ export async function verifyCloudSave(
 		throw new CloudSaveError("the cloud save summary differs");
 	const url = row.gameFile.url;
 	const res = url
-		? await tapFetch(url, {}, TAPAPI_SAVE_TIMEOUT_MS).catch(() => undefined)
+		? await fetchSaveFile(url, global).catch(() => undefined)
 		: undefined;
 	if (!res?.ok) {
 		logger.warn(`uploaded save not re-read: ${res?.status ?? "no response"}`);

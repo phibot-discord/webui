@@ -1,6 +1,7 @@
 import type { Locale } from "@/i18n/config";
 
 type TextsText = { zh: string; en: string; ja?: string };
+
 import { COLLECTION_LANGS, type CollectionLang, localText } from "./collection";
 import { positiveInt, v1Body } from "./parse";
 

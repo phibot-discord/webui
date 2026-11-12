@@ -1,17 +1,24 @@
-import { createDecipheriv } from "node:crypto";
+import { createCipheriv, createDecipheriv } from "node:crypto";
 import JSZip from "jszip";
 import { logger } from "@/server/logger";
-import { TAPAPI_SAVE_TIMEOUT_MS, tapFetch, tapRegion } from "./tapapi";
+import { fetchSaveFile } from "./save-host";
+import { bodyCode, tapFetch, tapRegion } from "./tapapi";
 
 const KEY = Buffer.from(
 	"6Jaa0qVAJZuXkZCLiOa/Ax5tIZVu+taKUN1V1nqwkks=",
 	"base64",
 );
 const IV = Buffer.from("Kk/wisgNYwcAV8WVGMgyUw==", "base64");
+const SAVE_MAX_BYTES = 8 * 1024 * 1024;
 
 function decrypt(data: Buffer) {
 	const decipher = createDecipheriv("aes-256-cbc", KEY, IV);
 	return Buffer.concat([decipher.update(data), decipher.final()]);
+}
+
+export function encryptSaveEntry(data: Buffer) {
+	const cipher = createCipheriv("aes-256-cbc", KEY, IV);
+	return Buffer.concat([cipher.update(data), cipher.final()]);
 }
 
 class ByteReader {
@@ -65,19 +72,71 @@ class ByteReader {
 		return this.data[this.position++]!;
 	}
 
-	skipVarInt(num?: number) {
-		if (num) {
-			for (; num > 0; num--) this.skipVarInt();
-			return;
-		}
-		if (this.data[this.position]! < 0) this.position += 2;
-		else this.position++;
-	}
-
 	getString() {
 		const length = this.getVarInt();
 		this.position += length;
 		return this.data.toString("utf-8", this.position - length, this.position);
+	}
+}
+
+class SaveFormatError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "SaveFormatError";
+	}
+}
+
+class BlockReader extends ByteReader {
+	need(bytes: number) {
+		if (this.remaining() < bytes)
+			throw new SaveFormatError(`cut at byte ${this.position}`);
+	}
+
+	getByte() {
+		this.need(1);
+		return super.getByte();
+	}
+
+	getShort() {
+		this.need(2);
+		return super.getShort();
+	}
+
+	getInt() {
+		this.need(4);
+		return super.getInt();
+	}
+
+	getFloat() {
+		this.need(4);
+		return super.getFloat();
+	}
+
+	getVarInt() {
+		const low = this.getByte();
+		if (low < 0x80) return low;
+		const high = this.getByte();
+		if (high > 0x7f)
+			throw new SaveFormatError(
+				`number longer than two bytes at byte ${this.position - 2}`,
+			);
+		return (low & 0x7f) | (high << 7);
+	}
+
+	getString() {
+		const length = this.getVarInt();
+		this.need(length);
+		this.position += length;
+		return this.data.toString("utf-8", this.position - length, this.position);
+	}
+}
+
+function readKnownFields(block: string, read: () => void) {
+	try {
+		read();
+	} catch (err) {
+		if (!(err instanceof SaveFormatError)) throw err;
+		logger.warn(`save ${block} read stopped: ${err.message}`);
 	}
 }
 
@@ -121,19 +180,25 @@ class LevelRecord {
 
 class GameRecord {
 	static version = 1;
-	data: ByteReader;
+	data: BlockReader;
 	Record: Record<string, (LevelRecord | undefined)[]> = {};
 	songsnum = 0;
 
 	constructor(data: Buffer) {
-		this.data = new ByteReader(data);
+		this.data = new BlockReader(data);
 	}
 
 	async init() {
+		if (!this.data.remaining()) return;
 		this.songsnum = this.data.getVarInt();
 		while (this.data.remaining() > 0) {
 			const key = this.data.getString();
-			this.data.skipVarInt();
+			const size = this.data.getVarInt();
+			const start = this.data.position;
+			if (size > this.data.remaining())
+				throw new SaveFormatError(
+					`song length past the block at byte ${start}`,
+				);
 			const length = this.data.getByte();
 			const fc = this.data.getByte();
 			const song: (LevelRecord | undefined)[] = [];
@@ -148,6 +213,10 @@ class GameRecord {
 							: getBit(fc, level);
 				}
 			}
+			if (this.data.position !== start + size)
+				throw new SaveFormatError(
+					`song length does not match its levels at byte ${start}`,
+				);
 			this.Record[key] = song;
 		}
 	}
@@ -156,96 +225,150 @@ class GameRecord {
 class GameUser {
 	name = "user";
 	version = 1;
-	showPlayerId: boolean;
-	selfIntro: string;
-	avatar: string;
-	background: string;
+	declare showPlayerId?: boolean;
+	declare selfIntro?: string;
+	declare avatar?: string;
+	declare background?: string;
 
 	constructor(data: Buffer) {
-		const reader = new ByteReader(data);
-		this.showPlayerId = getBit(reader.getByte(), 0);
-		this.selfIntro = reader.getString();
-		this.avatar = reader.getString();
-		this.background = reader.getString();
+		const reader = new BlockReader(data);
+		readKnownFields("user", () => {
+			this.showPlayerId = getBit(reader.getByte(), 0);
+			this.selfIntro = reader.getString();
+			this.avatar = reader.getString();
+			this.background = reader.getString();
+		});
 	}
 }
 
 class GameProgress {
-	isFirstRun: boolean;
-	legacyChapterFinished: boolean;
-	alreadyShowCollectionTip: boolean;
-	alreadyShowAutoUnlockINTip: boolean;
-	completed: string;
-	songUpdateInfo: number;
-	challengeModeRank: number;
-	money: number[];
-	unlockFlagOfSpasmodic: number;
-	unlockFlagOfIgallta: number;
-	unlockFlagOfRrharil: number;
-	flagOfSongRecordKey: number;
-	randomVersionUnlocked: number;
-	chapter8UnlockBegin: boolean;
-	chapter8UnlockSecondPhase: boolean;
-	chapter8Passed: boolean;
-	chapter8SongUnlocked: number;
+	declare isFirstRun?: boolean;
+	declare legacyChapterFinished?: boolean;
+	declare alreadyShowCollectionTip?: boolean;
+	declare alreadyShowAutoUnlockINTip?: boolean;
+	declare completed?: string;
+	declare songUpdateInfo?: number;
+	declare challengeModeRank?: number;
+	declare money?: number[];
+	declare unlockFlagOfSpasmodic?: number;
+	declare unlockFlagOfIgallta?: number;
+	declare unlockFlagOfRrharil?: number;
+	declare flagOfSongRecordKey?: number;
+	declare randomVersionUnlocked?: number;
+	declare chapter8UnlockBegin?: boolean;
+	declare chapter8UnlockSecondPhase?: boolean;
+	declare chapter8Passed?: boolean;
+	declare chapter8SongUnlocked?: number;
 
 	constructor(data: Buffer) {
-		const reader = new ByteReader(data);
-		const tem = reader.getByte();
-		this.isFirstRun = getBit(tem, 0);
-		this.legacyChapterFinished = getBit(tem, 1);
-		this.alreadyShowCollectionTip = getBit(tem, 2);
-		this.alreadyShowAutoUnlockINTip = getBit(tem, 3);
-		this.completed = reader.getString();
-		this.songUpdateInfo = reader.getVarInt();
-		this.challengeModeRank = reader.getShort();
-		this.money = [
-			reader.getVarInt(),
-			reader.getVarInt(),
-			reader.getVarInt(),
-			reader.getVarInt(),
-			reader.getVarInt(),
-		];
-		this.unlockFlagOfSpasmodic = reader.getByte();
-		this.unlockFlagOfIgallta = reader.getByte();
-		this.unlockFlagOfRrharil = reader.getByte();
-		this.flagOfSongRecordKey = reader.getByte();
-		this.randomVersionUnlocked = reader.getByte();
-		const flags = reader.getByte();
-		this.chapter8UnlockBegin = getBit(flags, 0);
-		this.chapter8UnlockSecondPhase = getBit(flags, 1);
-		this.chapter8Passed = getBit(flags, 2);
-		this.chapter8SongUnlocked = reader.getByte();
+		const reader = new BlockReader(data);
+		readKnownFields("gameProgress", () => {
+			const tem = reader.getByte();
+			this.isFirstRun = getBit(tem, 0);
+			this.legacyChapterFinished = getBit(tem, 1);
+			this.alreadyShowCollectionTip = getBit(tem, 2);
+			this.alreadyShowAutoUnlockINTip = getBit(tem, 3);
+			this.completed = reader.getString();
+			this.songUpdateInfo = reader.getVarInt();
+			this.challengeModeRank = reader.getShort();
+			this.money = [
+				reader.getVarInt(),
+				reader.getVarInt(),
+				reader.getVarInt(),
+				reader.getVarInt(),
+				reader.getVarInt(),
+			];
+			this.unlockFlagOfSpasmodic = reader.getByte();
+			this.unlockFlagOfIgallta = reader.getByte();
+			this.unlockFlagOfRrharil = reader.getByte();
+			this.flagOfSongRecordKey = reader.getByte();
+			this.randomVersionUnlocked = reader.getByte();
+			const flags = reader.getByte();
+			this.chapter8UnlockBegin = getBit(flags, 0);
+			this.chapter8UnlockSecondPhase = getBit(flags, 1);
+			this.chapter8Passed = getBit(flags, 2);
+			this.chapter8SongUnlocked = reader.getByte();
+		});
 	}
 }
 
 class GameSettings {
-	chordSupport: boolean;
-	fcAPIndicator: boolean;
-	enableHitSound: boolean;
-	lowResolutionMode: boolean;
-	deviceName: string;
-	bright: number;
-	musicVolume: number;
-	effectVolume: number;
-	hitSoundVolume: number;
-	soundOffset: number;
-	noteScale: number;
+	declare chordSupport?: boolean;
+	declare fcAPIndicator?: boolean;
+	declare enableHitSound?: boolean;
+	declare lowResolutionMode?: boolean;
+	declare deviceName?: string;
+	declare bright?: number;
+	declare musicVolume?: number;
+	declare effectVolume?: number;
+	declare hitSoundVolume?: number;
+	declare soundOffset?: number;
+	declare noteScale?: number;
 
 	constructor(data: Buffer) {
-		const reader = new ByteReader(data);
-		const tem = reader.getByte();
-		this.chordSupport = getBit(tem, 0);
-		this.fcAPIndicator = getBit(tem, 1);
-		this.enableHitSound = getBit(tem, 2);
-		this.lowResolutionMode = getBit(tem, 3);
-		this.deviceName = reader.getString();
-		this.bright = reader.getFloat();
-		this.musicVolume = reader.getFloat();
-		this.effectVolume = reader.getFloat();
-		this.hitSoundVolume = reader.getFloat();
-		this.soundOffset = reader.getFloat();
-		this.noteScale = reader.getFloat();
+		const reader = new BlockReader(data);
+		readKnownFields("settings", () => {
+			const tem = reader.getByte();
+			this.chordSupport = getBit(tem, 0);
+			this.fcAPIndicator = getBit(tem, 1);
+			this.enableHitSound = getBit(tem, 2);
+			this.lowResolutionMode = getBit(tem, 3);
+			this.deviceName = reader.getString();
+			this.bright = reader.getFloat();
+			this.musicVolume = reader.getFloat();
+			this.effectVolume = reader.getFloat();
+			this.hitSoundVolume = reader.getFloat();
+			this.soundOffset = reader.getFloat();
+			this.noteScale = reader.getFloat();
+		});
+	}
+}
+
+const BLOCK_VERSIONS = { gameProgress: 6, user: 1, settings: 1 };
+
+type SaveMember = { ver: number | undefined; body: Buffer };
+
+function openBlock(body: Buffer) {
+	try {
+		return decrypt(body);
+	} catch {
+		throw new SaveFormatError("decryption failed");
+	}
+}
+
+async function readRecords(member: SaveMember) {
+	try {
+		if (member.ver === undefined) throw new SaveFormatError("empty member");
+		if (member.ver !== GameRecord.version) {
+			logger.warn(`save gameRecord version ${member.ver} refused`);
+			throw new Error("版本号已更新");
+		}
+		const record = new GameRecord(openBlock(member.body));
+		await record.init();
+		return record.Record;
+	} catch (err) {
+		if (!(err instanceof SaveFormatError)) throw err;
+		logger.warn(`save gameRecord refused: ${err.message}`);
+		throw new Error("存档成绩数据无法读取");
+	}
+}
+
+function readTolerant<T>(
+	block: keyof typeof BLOCK_VERSIONS,
+	member: SaveMember,
+	read: (plain: Buffer) => T,
+): T | undefined {
+	const known = BLOCK_VERSIONS[block];
+	if (member.ver !== undefined && member.ver > known)
+		logger.warn(
+			`save ${block} version ${member.ver} is newer than ${known}, reading the known fields`,
+		);
+	try {
+		return read(openBlock(member.body));
+	} catch (err) {
+		if (!(err instanceof SaveFormatError)) throw err;
+		logger.warn(`save ${block} not read: ${err.message}`);
+		return undefined;
 	}
 }
 
@@ -290,12 +413,46 @@ type ParsedCloudSave = {
 	PlayerId?: string;
 };
 
+export class PhigrosCloudError extends Error {
+	readonly status: number;
+	readonly code?: number;
+
+	constructor(message: string, status: number, code?: number) {
+		super(message);
+		this.name = "PhigrosCloudError";
+		this.status = status;
+		this.code = code;
+	}
+}
+
+export function isPhigrosCloudError(err: unknown): err is PhigrosCloudError {
+	return err instanceof Error && err.name === "PhigrosCloudError";
+}
+
+const acceptedErrors = new WeakSet<object>();
+
+export function markSessionAccepted<T>(err: T): T {
+	if (typeof err === "object" && err !== null) acceptedErrors.add(err);
+	return err;
+}
+
+export function isSessionAcceptedError(err: unknown): boolean {
+	return typeof err === "object" && err !== null && acceptedErrors.has(err);
+}
+
 async function jsonGet<T>(
 	url: string,
 	headers: Record<string, string>,
 ): Promise<T> {
 	const res = await tapFetch(url, { headers });
-	if (!res.ok) throw new Error(`Phigros cloud ${res.status} ${res.statusText}`);
+	if (!res.ok) {
+		const text = await res.text().catch(() => "");
+		throw new PhigrosCloudError(
+			`Phigros cloud ${res.status} ${res.statusText}`,
+			res.status,
+			bodyCode(text),
+		);
+	}
 	return res.json() as Promise<T>;
 }
 
@@ -336,25 +493,31 @@ class SaveManager {
 
 	async saveCheck(session: string) {
 		const userInfo = await this.getPlayerInfo(session);
-		const array = await this.saveArray(session, userInfo.objectId);
-		const results: ParsedCloudSave[] = [];
-		for (const item of array) {
-			if (!item?.gameFile) continue;
-			results.push({
-				gameFile: item.gameFile,
-				summary: new Summary(item.summary),
-				modifiedAt: { iso: new Date(item.modifiedAt.iso) },
-				createdAt: new Date(item.createdAt),
-				updatedAt: new Date(item.updatedAt),
-				PlayerId: userInfo.nickname,
-			});
+		const accepted =
+			typeof userInfo?.objectId === "string" && userInfo.objectId !== "";
+		try {
+			const array = await this.saveArray(session, userInfo.objectId);
+			const results: ParsedCloudSave[] = [];
+			for (const item of array) {
+				if (!item?.gameFile) continue;
+				results.push({
+					gameFile: item.gameFile,
+					summary: new Summary(item.summary),
+					modifiedAt: { iso: new Date(item.modifiedAt.iso) },
+					createdAt: new Date(item.createdAt),
+					updatedAt: new Date(item.updatedAt),
+					PlayerId: userInfo.nickname,
+				});
+			}
+			if (!results.length)
+				throw new Error("TK 对应存档列表为空，请检查是否同步存档QAQ！");
+			results.sort(
+				(a, b) => b.modifiedAt.iso.getTime() - a.modifiedAt.iso.getTime(),
+			);
+			return { saveInfo: results[0], playerInfo: userInfo };
+		} catch (err) {
+			throw accepted ? markSessionAccepted(err) : err;
 		}
-		if (!results.length)
-			throw new Error("TK 对应存档列表为空，请检查是否同步存档QAQ！");
-		results.sort(
-			(a, b) => b.modifiedAt.iso.getTime() - a.modifiedAt.iso.getTime(),
-		);
-		return { saveInfo: results[0], playerInfo: userInfo };
 	}
 }
 
@@ -399,35 +562,56 @@ export class PhigrosUser {
 		}
 		if (saveInfo.summary.saveVersion === 1)
 			throw new Error("存档版本过低，请更新Phigros！");
-		const save = await tapFetch(saveUrl, {}, TAPAPI_SAVE_TIMEOUT_MS);
+		const save = await fetchSaveFile(saveUrl, this.global);
 		if (!save.ok) throw new Error(`下载存档失败 ${save.status}`);
+		if (Number(save.headers.get("content-length")) > SAVE_MAX_BYTES)
+			throw new Error("存档文件过大");
+		const body = await save.arrayBuffer();
+		if (!body.byteLength || body.byteLength > SAVE_MAX_BYTES)
+			throw new Error("存档文件过大");
 		let savezip: JSZip;
 		try {
-			savezip = await JSZip.loadAsync(await save.arrayBuffer());
+			savezip = await JSZip.loadAsync(body);
 		} catch (err) {
 			throw new Error(`解压zip文件失败！ ${err}`);
 		}
+		for (const name of ["gameProgress", "user", "settings", "gameRecord"]) {
+			if (!savezip.file(name)) throw new Error(`存档缺少 ${name}`);
+		}
 		this.Recordver = 1;
 
-		const entry = async (name: string) => {
-			const buf = await savezip.file(name)!.async("nodebuffer");
+		const entry = async (name: string): Promise<SaveMember> => {
+			const file = savezip.file(name);
+			if (!file) throw new Error(`存档缺少 ${name}`);
+			const buf = await file.async("nodebuffer");
 			return { ver: buf[0], body: buf.subarray(1) };
 		};
-		this.gameProgress = new GameProgress(
-			decrypt((await entry("gameProgress")).body),
-		);
-		this.gameuser = new GameUser(decrypt((await entry("user")).body));
-		this.gamesettings = new GameSettings(
-			decrypt((await entry("settings")).body),
-		);
-		const rec = await entry("gameRecord");
-		if (rec.ver !== GameRecord.version) {
+		let gameRecord: GameRecord["Record"];
+		try {
+			gameRecord = await readRecords(await entry("gameRecord"));
+		} catch (err) {
 			this.gameRecord = {};
-			throw new Error("版本号已更新");
+			throw err;
 		}
-		const record = new GameRecord(decrypt(rec.body));
-		await record.init();
-		this.gameRecord = record.Record;
+		const gameProgress = readTolerant(
+			"gameProgress",
+			await entry("gameProgress"),
+			(plain) => new GameProgress(plain),
+		);
+		const gameuser = readTolerant(
+			"user",
+			await entry("user"),
+			(plain) => new GameUser(plain),
+		);
+		const gamesettings = readTolerant(
+			"settings",
+			await entry("settings"),
+			(plain) => new GameSettings(plain),
+		);
+		this.gameProgress = gameProgress;
+		this.gameuser = gameuser;
+		this.gamesettings = gamesettings;
+		this.gameRecord = gameRecord;
 		return false;
 	}
 }

@@ -1,5 +1,6 @@
 import type { Messages } from "@/i18n/messages";
-import { catalogs, getRequestLocale } from "@/i18n/server";
+import { requestLocale } from "@/i18n/request";
+import { catalogs } from "@/i18n/server";
 import type { ErrorCode } from "./bound";
 import { jsonError, retryAfter } from "./http";
 
@@ -15,7 +16,7 @@ export async function localizedErrorBody(err: {
 	retryAfter?: number;
 	detail?: string;
 }): Promise<Record<string, unknown>> {
-	const locale = await getRequestLocale();
+	const locale = await requestLocale();
 	const key = asErrorKey(err.error);
 	const message = key ? catalogs[locale].errors[key] : err.error;
 	const body = err.detail ? `${message} ${err.detail}` : message;
@@ -28,8 +29,28 @@ export async function localizedErrorBody(err: {
 }
 
 export async function localizedError(status: number, key: ErrorKey) {
-	const locale = await getRequestLocale();
+	const locale = await requestLocale();
 	return jsonError(status, catalogs[locale].errors[key], key);
+}
+
+export async function codeError(
+	status: number,
+	code: string,
+	opts: {
+		detail?: string;
+		headers?: Record<string, string>;
+		stable?: boolean;
+	} = {},
+): Promise<Response> {
+	const key = opts.stable ? undefined : asErrorKey(code);
+	const text = key ? catalogs[await requestLocale()].errors[key] : code;
+	const body = opts.detail
+		? { error: `${text} ${opts.detail}`, code, detail: opts.detail }
+		: { error: text, code };
+	return Response.json(body, {
+		status,
+		headers: { "Cache-Control": "no-store", ...opts.headers },
+	});
 }
 
 /** A stored-QR PNG as an uncached image, or its localized JSON error */
@@ -56,7 +77,7 @@ export async function localizedBindError(err: {
 }
 
 export async function localizedRetryAfter(seconds: number, key: ErrorKey) {
-	const locale = await getRequestLocale();
+	const locale = await requestLocale();
 	return retryAfter(seconds, catalogs[locale].errors[key], key);
 }
 

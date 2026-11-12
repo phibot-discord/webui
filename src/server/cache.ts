@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { kvKey } from "@/phi/lib/const";
+import { evictOldest, evictToBudget } from "@/phi/lib/lru";
 import { listAssetPrefix } from "./assets";
 import { runInBackground } from "./background";
 import { parseCachedHeight } from "./card-image-cache";
@@ -30,22 +31,18 @@ function rememberPng(key: string, bytes: Buffer) {
 	pngBufferCache.delete(key);
 	pngBufferCache.set(key, bytes);
 	pngBufferBytes += bytes.byteLength;
-	while (pngBufferBytes > PNG_BUFFER_CACHE_BYTES && pngBufferCache.size > 1) {
-		const oldest = pngBufferCache.keys().next().value;
-		if (oldest === undefined) break;
-		const evicted = pngBufferCache.get(oldest);
-		pngBufferCache.delete(oldest);
-		if (evicted) pngBufferBytes -= evicted.byteLength;
-	}
+	pngBufferBytes = evictToBudget(
+		pngBufferCache,
+		pngBufferBytes,
+		PNG_BUFFER_CACHE_BYTES,
+		(value) => value.byteLength,
+	);
 }
 
 function rememberHeightMem(id: string, height: number) {
 	heightMem.delete(id);
-	if (heightMem.size >= HEIGHT_MEM_MAX) {
-		const oldest = heightMem.keys().next().value;
-		if (oldest !== undefined) heightMem.delete(oldest);
-	}
 	heightMem.set(id, height);
+	evictOldest(heightMem, HEIGHT_MEM_MAX);
 }
 
 function heightCacheKey(id: string) {

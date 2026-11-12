@@ -2,6 +2,8 @@ export const GUESS_STEPS = 6;
 const GUESS_TZ = "Asia/Shanghai";
 
 const DAILY = /^d-(\d{4})-(\d{2})-(\d{2})$/;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const FIRST_GUESS_DAY = "2026-10-31";
 const PRACTICE = /^p-[A-Za-z0-9_-]{12,24}$/;
 
 export type PuzzleKind = "daily" | "practice";
@@ -17,6 +19,12 @@ export function dayKey(at: Date = new Date()): string {
 	return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
+export function isGuessDay(day: string, today: string = dayKey()): boolean {
+	if (!DAY.test(day) || day < FIRST_GUESS_DAY || day > today) return false;
+	const at = new Date(`${day}T00:00:00Z`);
+	return !Number.isNaN(at.getTime()) && at.toISOString().slice(0, 10) === day;
+}
+
 export function dailyId(day: string = dayKey()): string {
 	return `d-${day}`;
 }
@@ -28,8 +36,7 @@ export function puzzleKind(
 	const daily = id.match(DAILY);
 	if (daily) {
 		const day = `${daily[1]}-${daily[2]}-${daily[3]}`;
-		const valid = !Number.isNaN(Date.parse(`${day}T00:00:00Z`));
-		return valid && day <= today ? "daily" : undefined;
+		return isGuessDay(day, today) ? "daily" : undefined;
 	}
 	return PRACTICE.test(id) ? "practice" : undefined;
 }

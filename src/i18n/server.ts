@@ -1,18 +1,22 @@
-import { cookies, headers } from "next/headers";
 import { cache } from "react";
-import { LOCALE_HEADER, localePath } from "@/lib/locale-path";
+import { localePath } from "@/lib/locale-path";
+import { ASKED_PARAM } from "@/lib/safe-next";
 import {
 	isLocale,
 	LOCALE_COOKIE,
+	LOCALE_COOKIE_MAX_AGE,
 	type Locale,
-	negotiateLocale,
 } from "./config";
 import { figuresEn, figuresZh } from "./figure-messages";
 import { filesEn, filesZh } from "./files-messages";
 import { figuresJa } from "./ja-figure-messages";
 import { filesJa } from "./ja-files-messages";
 import { ja } from "./ja-messages";
-import { en, type Messages, zh } from "./messages";
+import { en, type Messages } from "./messages";
+import { testLocale } from "./request";
+import { zh } from "./zh-messages";
+
+export { setRequestLocaleForTest } from "./request";
 
 export const catalogs: Record<Locale, Messages> = {
 	en: { ...en, ...filesEn, ...figuresEn },
@@ -20,19 +24,13 @@ export const catalogs: Record<Locale, Messages> = {
 	ja: { ...ja, ...filesJa, ...figuresJa },
 };
 
-const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
-
 export const getRequestLocale = cache(resolveRequestLocale);
 
-/** The page URL's locale (set by the proxy), else cookie, then Accept-Language; never the notes */
 async function resolveRequestLocale(): Promise<Locale> {
-	const hdrs = await headers();
-	const fromUrl = hdrs.get(LOCALE_HEADER);
-	if (isLocale(fromUrl)) return fromUrl;
-	const jar = await cookies();
-	const cookie = jar.get(LOCALE_COOKIE)?.value;
-	if (isLocale(cookie)) return cookie;
-	return negotiateLocale(undefined, hdrs.get("accept-language"));
+	const forTest = testLocale();
+	if (forTest) return forTest;
+	const { segmentLocale } = await import("./segment");
+	return (await segmentLocale()) ?? "en";
 }
 
 /** `path` in the locale of the page being rendered */
@@ -46,19 +44,13 @@ export async function signInHref(next: string): Promise<string> {
 	return `${localePath("/", locale)}?next=${encodeURIComponent(localePath(next, locale))}`;
 }
 
+export async function signInLink(next: string): Promise<string> {
+	return `${await signInHref(next)}&${ASKED_PARAM}=1`;
+}
+
 export async function getMessages(): Promise<{ locale: Locale; m: Messages }> {
 	const locale = await getRequestLocale();
 	return { locale, m: catalogs[locale] };
-}
-
-export async function setLocaleCookie(locale: Locale) {
-	const jar = await cookies();
-	jar.set(LOCALE_COOKIE, locale, {
-		path: "/",
-		maxAge: LOCALE_COOKIE_MAX_AGE,
-		sameSite: "lax",
-		httpOnly: false,
-	});
 }
 
 /** The same cookie as `setLocaleCookie`, as a Set-Cookie value for a plain Response */

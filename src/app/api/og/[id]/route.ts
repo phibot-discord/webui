@@ -9,15 +9,18 @@ import {
 	TITLE_CARD_CACHE,
 	titleCardImage,
 } from "@/server/og";
+import { clientIp, rateLimitBy } from "@/server/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 export async function GET(
 	request: Request,
 	ctx: { params: Promise<{ id: string }> },
 ) {
+	const limited = rateLimitBy(`og:${clientIp(request.headers)}`, 30);
+	if (!limited.ok) return ogRedirect(STATIC_OG);
 	const { id } = await ctx.params;
 	if (!isOgPage(id)) return new Response(null, { status: 404 });
 	const raw = new URL(request.url).searchParams.get("lang");

@@ -1,6 +1,5 @@
 "use client";
 
-import { Check } from "@phosphor-icons/react";
 import {
 	type KeyboardEvent,
 	useEffect,
@@ -10,6 +9,7 @@ import {
 	useState,
 } from "react";
 import { comboboxKey } from "@/components/ChartSearch";
+import { Check } from "@/components/icons";
 import { OptStatus } from "@/components/SegRadio";
 import { useI18n } from "@/i18n/provider";
 import { looseFold } from "@/lib/song-search";

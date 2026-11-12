@@ -1,6 +1,6 @@
 import { authed } from "@/server/authed";
 import { getDataHost } from "@/server/data-host";
-import { localizedError } from "@/server/i18n-http";
+import { localizedError, localizedRetryAfter } from "@/server/i18n-http";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 import { loadSimBase } from "@/server/simulation";
 
@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
 	return authed(async (userId) => {
 		const limited = rateLimit({ userId, ip: clientIp(request.headers) });
-		if (!limited.ok) return localizedError(429, "rate_limit");
+		if (!limited.ok)
+			return localizedRetryAfter(limited.retryAfter, "rate_limit");
 
 		const got = await loadSimBase(await getDataHost(), userId);
 		if ("error" in got) return localizedError(got.status, got.error);

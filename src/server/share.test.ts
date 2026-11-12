@@ -48,27 +48,29 @@ async function withClock<T>(clock: { now: number }, fn: () => Promise<T>) {
 
 test("a slug is looked up once a minute per process", async () => {
 	kv.set("phi:webShare:abcdefgh1234", "u1");
+	kv.set("phi:webShareUser:u1", "abcdefgh1234");
 	const clock = { now: 80_000_000 };
 	await withClock(clock, async () => {
 		assert.equal(await userIdForSlug("abcdefgh1234"), "u1");
 		assert.equal(await userIdForSlug("abcdefgh1234"), "u1");
-		assert.equal(reads.length, 1);
+		assert.equal(reads.length, 2);
 		clock.now += 60_001;
 		assert.equal(await userIdForSlug("abcdefgh1234"), "u1");
-		assert.equal(reads.length, 2);
+		assert.equal(reads.length, 4);
 	});
 });
 
 test("unknown and malformed slugs are not remembered", async () => {
 	assert.equal(await userIdForSlug("nosuchslug12"), undefined);
 	kv.set("phi:webShare:nosuchslug12", "u2");
+	kv.set("phi:webShareUser:u2", "nosuchslug12");
 	assert.equal(
 		await userIdForSlug("nosuchslug12"),
 		"u2",
 		"a new share works at once",
 	);
 	assert.equal(await userIdForSlug("bad slug!"), undefined);
-	assert.equal(reads.length, 2, "malformed slugs never reach KV");
+	assert.equal(reads.length, 3, "malformed slugs never reach KV");
 });
 
 test("revoking forgets the slug in this process", async () => {
@@ -104,6 +106,46 @@ test("revoking the share drops compare, and a new share starts with it off", asy
 	const next = await createShare("u5");
 	assert.notEqual(next, slug);
 	assert.equal(await getCompareOptIn("u5"), false);
+});
+
+test("a slug that is not its owner's current slug resolves to nobody", async () => {
+	kv.set("phi:webShare:slugAAAAAAAA", "u1");
+	kv.set("phi:webShare:slugBBBBBBBB", "u1");
+	kv.set("phi:webShareUser:u1", "slugBBBBBBBB");
+	assert.equal(await userIdForSlug("slugAAAAAAAA"), undefined);
+	assert.equal(await userIdForSlug("slugBBBBBBBB"), "u1");
+});
+
+test("a moved share resolves for its new owner", async () => {
+	const slug = await createShare("a");
+	await moveShare("a", "b");
+	resetShareMemForTest();
+	assert.equal(await userIdForSlug(slug), "b");
+});
+
+test("a share whose second write failed is replaced by the next one", async () => {
+	const set = db.set;
+	const forward: string[] = [];
+	let failed = false;
+	db.set = async (key: string, value: string) => {
+		if (key.startsWith("phi:webShare:")) forward.push(key.slice(13));
+		if (key === "phi:webShareUser:u1" && !failed) {
+			failed = true;
+			throw new Error("KV write failed");
+		}
+		return set(key, value);
+	};
+	try {
+		await assert.rejects(() => createShare("u1"));
+		const next = await createShare("u1");
+		const [first] = forward;
+		assert.ok(first);
+		assert.notEqual(next, first);
+		assert.equal(await userIdForSlug(next), "u1");
+		assert.equal(await userIdForSlug(first), undefined);
+	} finally {
+		db.set = set;
+	}
 });
 
 test("compare follows a moved share, and is dropped when the move revokes", async () => {

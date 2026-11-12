@@ -2,6 +2,9 @@ import { logger } from "@/server/logger";
 import { fCompute } from "./fcompute";
 import { getInfo } from "./get-info";
 import { LevelRecordInfo } from "./level-record";
+import { isLevelKind } from "./manual-score";
+import type { SimBaseRecord } from "./simulation";
+import { roundUp, targetsFor } from "./targets";
 
 type Limit =
 	| { type: "acc" | "score" | "rks"; value: number[] }
@@ -40,6 +43,43 @@ function checkIg(save: Save) {
 	if (Math.floor(clg / 100) === 0 && clg !== 0) return true;
 	if (clg % 1 !== 0) return true;
 	return false;
+}
+
+function pushKey(id: string, rank: string) {
+	return `${rank}:${id}`;
+}
+
+function pushTargets(gameRecord: Record<string, (LevelRecordInfo | null)[]>) {
+	const records: SimBaseRecord[] = [];
+	for (const rows of Object.values(gameRecord)) {
+		for (const row of rows.slice(0, 4)) {
+			if (!row?.score || !isLevelKind(row.rank)) continue;
+			if (!Number.isFinite(row.acc) || !(row.difficulty > 0)) continue;
+			records.push([row.id, row.rank, row.acc, row.difficulty]);
+		}
+	}
+	const set = targetsFor(records);
+	const values = new Map<string, number | null>();
+	for (const t of set.targets) {
+		let value: number | null = null;
+		if (t.viaAp) value = 100;
+		else if (t.need != null) value = Math.min(100, roundUp(t.need, 4));
+		values.set(pushKey(t.id, t.rank), value);
+	}
+	return { rks: set.rks, values };
+}
+
+function pushText(value: number | null | undefined) {
+	return value == null ? "无法推分" : `${value.toFixed(4)}%`;
+}
+
+function pushType(value: number) {
+	if (value < 98.5) return 0;
+	if (value < 99) return 1;
+	if (value < 99.5) return 2;
+	if (value < 99.7) return 3;
+	if (value < 99.85) return 4;
+	return 5;
 }
 
 export type SaveInfo = {
@@ -96,6 +136,7 @@ export class Save {
 	gameuser: SaveGameUser;
 	gameRecord: Record<string, (LevelRecordInfo | null)[]> = {};
 	sortedRecord?: LevelRecordInfo[];
+	declare moneyUnread?: true;
 
 	constructor(data: SavePayload, ignore = false) {
 		this.session = data.session;
@@ -110,6 +151,7 @@ export class Save {
 		this.gameProgress = data.gameProgress
 			? { money: [0, 0, 0, 0, 0], ...data.gameProgress }
 			: { money: [0, 0, 0, 0, 0] };
+		if (!Array.isArray(data.gameProgress?.money)) this.moneyUnread = true;
 		this.gameuser = {
 			name: data.gameuser?.name || "",
 			version: data.gameuser?.version || "",
@@ -119,9 +161,9 @@ export class Save {
 			background: data.gameuser?.background || "",
 		};
 		if (checkIg(this)) {
-			logger.error(`banned tk ${this.session}`);
+			logger.error("save rejected: rks or challenge rank out of range");
 			throw new Error(
-				`您的存档rks异常，该 token 已禁用，如有异议请联系机器人管理员。\n${this.session}`,
+				`您的存档rks异常，该 token 已禁用，如有异议请联系机器人管理员。`,
 			);
 		}
 		if (!Object.keys(getInfo.ori_info).length) {
@@ -148,12 +190,12 @@ export class Save {
 						)
 							continue;
 						throw new Error(
-							`您的存档 acc 异常，该 token 已禁用，如有异议请联系机器人管理员。\n${this.session}\n${id} ${level} ${rec.acc}`,
+							`您的存档 acc 异常，该 token 已禁用，如有异议请联系机器人管理员。\n${id} ${level} ${rec.acc}`,
 						);
 					}
 					if ((rec.score ?? 0) > 1_000_000 || (rec.score ?? 0) < 0) {
 						throw new Error(
-							`您的存档 score 异常，该 token 已禁用，如有异议请联系机器人管理员。\n${this.session}\n${id} ${level} ${rec.score}`,
+							`您的存档 score 异常，该 token 已禁用，如有异议请联系机器人管理员。\n${id} ${level} ${rec.score}`,
 						);
 					}
 				}
@@ -193,21 +235,12 @@ export class Save {
 	getB19(num: number) {
 		let sum_rks = 0;
 		const philist = this.findAccRecord(100);
-		for (let i = 0, j = 0; i < philist.length; ++i) {
-			if (philist[i]!.rks < philist[j]!.rks) {
-				if (i <= 3) {
-					j = i;
-					continue;
-				}
-				if (j < 3) {
-					const tem = philist.slice(j, i - 1);
-					philist.splice(j);
-					philist.push(...fCompute.randArray(tem));
-				}
-				philist.splice(i);
-				break;
-			}
-		}
+		philist.sort(
+			(a, b) =>
+				b.rks - a.rks ||
+				(a.id < b.id ? -1 : a.id > b.id ? 1 : 0) ||
+				LEVEL_NUM_SAFE(a.rank) - LEVEL_NUM_SAFE(b.rank),
+		);
 		const phi: (LevelRecordInfo | undefined)[] = [];
 		for (let i = 0; i < 3; ++i) {
 			if (!philist[i]) {
@@ -224,43 +257,21 @@ export class Save {
 			}
 		}
 		const rkslist = this.getRecord();
-		const userrks = this.saveInfo.summary.rankingScore;
-		let minuprks = Math.floor(userrks * 100) / 100 + 0.005 - userrks;
-		if (minuprks < 0) minuprks += 0.01;
+		const push = pushTargets(this.gameRecord);
 		const b19_list: LevelRecordInfo[] = [];
 		for (let i = 0; i < num && i < rkslist.length; ++i) {
 			const row = rkslist[i]!;
 			if (i < 27) sum_rks += Number(row.rks);
 			row.num = i + 1;
-			if (row.acc < 100) {
-				let suggest = fCompute.suggest(
-					Number(i < 26 ? row.rks : rkslist[26]!.rks) + minuprks * 30,
-					row.difficulty,
-				);
-				if (
-					suggest === -1 &&
-					(!phi[0] || row.rks > (phi[phi.length - 1]?.rks || 0))
-				)
-					suggest = 100;
-				if (suggest !== -1 && typeof suggest === "number") {
-					row.suggest = `${suggest.toFixed(4)}%`;
-					if (suggest < 98.5) row.suggestType = 0;
-					else if (suggest < 99) row.suggestType = 1;
-					else if (suggest < 99.5) row.suggestType = 2;
-					else if (suggest < 99.7) row.suggestType = 3;
-					else if (suggest < 99.85) row.suggestType = 4;
-					else row.suggestType = 5;
-				} else {
-					row.suggest = "无法推分";
-				}
-			} else {
-				row.suggest = "无法推分";
-			}
+			const value =
+				row.acc < 100 ? push.values.get(pushKey(row.id, row.rank)) : undefined;
+			row.suggest = pushText(value);
+			if (value != null) row.suggestType = pushType(value);
 			row.illustration = getInfo.getill(row.id, "low", row.rank);
 			b19_list.push(row);
 		}
 		const com_rks = sum_rks / 30;
-		return { phi, b19_list, com_rks };
+		return { phi, b19_list, com_rks, pushRks: push.rks };
 	}
 
 	async getBestWithLimit(num: number, limit: Limit[], withPhi = true) {
@@ -291,9 +302,7 @@ export class Save {
 			}
 		}
 		const rkslist = this.getRecord();
-		const userrks = this.saveInfo.summary.rankingScore;
-		let minuprks = Math.floor(userrks * 100) / 100 + 0.005 - userrks;
-		if (minuprks < 0) minuprks += 0.01;
+		const push = pushTargets(this.gameRecord);
 		for (let i = 0; i < rkslist.length; ++i) {
 			if (!checkLimit(rkslist[i]!, limit)) {
 				rkslist.splice(i, 1);
@@ -306,28 +315,13 @@ export class Save {
 			if (!x.rks) continue;
 			if (i < (withPhi ? 27 : 30)) sum_rks += Number(x.rks);
 			x.num = i + 1;
-			if (x.acc < 100) {
-				x.suggest = String(
-					fCompute.suggest(
-						Number(i < 26 ? x.rks : rkslist[26]!.rks) + minuprks * 30,
-						x.difficulty,
-						4,
-					),
-				);
-				if (
-					x.suggest.includes("无") &&
-					(!phi?.[0] || x.rks > (phi[phi.length - 1]?.rks || 0)) &&
-					x.rks < 100
-				) {
-					x.suggest = "100.0000%";
-				}
-			} else {
-				x.suggest = "无法推分";
-			}
+			x.suggest = pushText(
+				x.acc < 100 ? push.values.get(pushKey(x.id, x.rank)) : undefined,
+			);
 			x.illustration = getInfo.getill(x.id, "low", x.rank);
 			b19_list.push(x);
 		}
-		return { phi, b19_list, com_rks: sum_rks / 30 };
+		return { phi, b19_list, com_rks: sum_rks / 30, pushRks: push.rks };
 	}
 
 	async getStats() {

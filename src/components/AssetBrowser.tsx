@@ -1,12 +1,6 @@
 "use client";
 
 import {
-	ArrowSquareOut,
-	CaretDown,
-	DownloadSimple,
-	WarningCircle,
-} from "@phosphor-icons/react";
-import {
 	Fragment,
 	type KeyboardEvent,
 	useCallback,
@@ -17,6 +11,12 @@ import {
 	useState,
 } from "react";
 import { useChartCatalog } from "@/components/ChartSearch";
+import {
+	ArrowSquareOut,
+	CaretDown,
+	DownloadSimple,
+	WarningCircle,
+} from "@/components/icons";
 import { Announce, useSettled } from "@/components/Tool";
 import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";

@@ -6,6 +6,23 @@ export function evictOldest<K>(map: Map<K, unknown>, max: number) {
 	}
 }
 
+export function evictToBudget<K, V>(
+	map: Map<K, V>,
+	bytes: number,
+	max: number,
+	sizeOf: (value: V) => number,
+): number {
+	let total = bytes;
+	while (total > max && map.size > 1) {
+		const oldest = map.keys().next().value;
+		if (oldest === undefined) break;
+		const evicted = map.get(oldest);
+		map.delete(oldest);
+		if (evicted !== undefined) total -= sizeOf(evicted);
+	}
+	return total;
+}
+
 export class TtlLru<V> {
 	private map = new Map<string, { until: number; value: V }>();
 	constructor(private max: number) {}

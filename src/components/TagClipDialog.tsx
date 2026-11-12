@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
 	ArrowCounterClockwise,
 	Pause,
@@ -7,17 +8,26 @@ import {
 	SpeakerHigh,
 	SpeakerSlash,
 	X,
-} from "@phosphor-icons/react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+} from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import { useI18n } from "@/i18n/provider";
 import { WATERMARK } from "@/lib/chart-player/base";
+import {
+	CHORD_KEY,
+	NOISE_KEY,
+	playerModule,
+	SIZE_KEY,
+	SIZE_MAX,
+	SIZE_MIN,
+	storedMix,
+	storedNumber,
+	VOLUME_KEY,
+	VOLUME_MAX,
+} from "@/lib/chart-player/host";
 import type { AudioState, ChartPlayer } from "@/lib/chart-player/player";
 import { readLocal } from "@/lib/local-store";
 import { fill } from "@/phi/lib/card-i18n";
 import type { TagClipView } from "@/server/tag-clips";
-
-type PlayerModule = typeof import("@/lib/chart-player/player");
 
 type Phase = "loading" | "ready" | "failed" | "nogl";
 
@@ -30,24 +40,6 @@ export type ActiveClip = {
 const LEAD = 1;
 const TAIL = 0.5;
 const SPEEDS = [0.5, 0.75, 1];
-
-let moduleJob: Promise<PlayerModule> | null = null;
-
-function clipModule(): Promise<PlayerModule> {
-	if (!moduleJob) {
-		moduleJob = import("@/lib/chart-player/player");
-		moduleJob.catch(() => {
-			moduleJob = null;
-		});
-	}
-	return moduleJob;
-}
-
-function stored(key: string, min: number, max: number, fallback: number) {
-	const raw = readLocal(key);
-	const n = raw === null || raw === "" ? Number.NaN : Number(raw);
-	return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : fallback;
-}
 
 export function TagClipDialog({
 	active,
@@ -71,6 +63,10 @@ export function TagClipDialog({
 	const [playing, setPlaying] = useState(false);
 	const [speed, setSpeed] = useState(1);
 	const [sounds, setSounds] = useState(true);
+	const speedRef = useRef(speed);
+	speedRef.current = speed;
+	const soundsRef = useRef(sounds);
+	soundsRef.current = sounds;
 
 	const onTime = useCallback((pos: number) => {
 		const r = range.current;
@@ -86,7 +82,7 @@ export function TagClipDialog({
 				from: Math.max(0, clip.start - LEAD),
 				to: clip.start + clip.length + TAIL,
 			};
-			const mod = await clipModule().catch(() => null);
+			const mod = await playerModule().catch(() => null);
 			if (id !== job.current) return;
 			if (!mod) {
 				setPhase("failed");
@@ -106,11 +102,15 @@ export function TagClipDialog({
 					setPhase("nogl");
 					return;
 				}
-				volume.current = stored("webChartHitVolume", 0, 1.5, 1);
-				p.setHitVolume(volume.current);
-				p.setNoteScale(stored("webChartNoteSize", 0.6, 1.5, 1));
-				p.setChordColors(readLocal("webChartChordColors") === "1");
-				p.setNoise(readLocal("webChartNoise") !== "0");
+				volume.current = storedNumber(VOLUME_KEY, 0, VOLUME_MAX) ?? 1;
+				p.setHitVolume(soundsRef.current ? volume.current : 0);
+				for (const [kind, gain] of (storedMix() ?? []).entries()) {
+					p.setHitMix(kind, gain);
+				}
+				p.setNoteScale(storedNumber(SIZE_KEY, SIZE_MIN, SIZE_MAX) ?? 1);
+				p.setChordColors(readLocal(CHORD_KEY) === "1");
+				p.setNoise(readLocal(NOISE_KEY) !== "0");
+				p.setSpeed(speedRef.current);
 				player.current = p;
 			}
 			p.pause();

@@ -1,5 +1,7 @@
 import { isLocale, negotiateLocale } from "@/i18n/config";
 import { cookieLocale } from "@/i18n/server";
+import { reviewYear } from "@/lib/review-window";
+import { loadSaveHistory } from "@/phi/lib/history";
 import { authed } from "@/server/authed";
 import { loadBound } from "@/server/bound";
 import { chartCatalog } from "@/server/charts";
@@ -7,8 +9,13 @@ import { getHost } from "@/server/host";
 import { localizedError, localizedRetryAfter } from "@/server/i18n-http";
 import { logger } from "@/server/logger";
 import { clientIp, rateLimit } from "@/server/rate-limit";
-import { renderLock } from "@/server/render-lock";
-import { isSnapView, progressSnap, targetsSnap } from "@/server/snapshot";
+import { reviewPhaseNow } from "@/server/review";
+import {
+	isSnapView,
+	progressSnap,
+	targetsSnap,
+	wrappedSnap,
+} from "@/server/snapshot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +31,8 @@ export async function GET(request: Request) {
 		const limited = rateLimit({ userId, ip: clientIp(request.headers) });
 		if (!limited.ok)
 			return localizedRetryAfter(limited.retryAfter, "rate_limit");
+		if (view === "review" && reviewPhaseNow() === "soon")
+			return localizedError(404, "unknown_card");
 		const raw = url.searchParams.get("lang");
 		const locale = isLocale(raw)
 			? raw
@@ -39,15 +48,23 @@ export async function GET(request: Request) {
 			const snap =
 				view === "progress"
 					? progressSnap(bound.save, catalog.list, locale)
-					: await targetsSnap(bound.save, catalog.list, locale);
-			const img = await renderLock.run(
-				() =>
-					host.render(snap.id, snap.data, {
-						height: snap.height,
-						signal: AbortSignal.timeout(PAINT_MS),
-					}),
-				request.signal,
-			);
+					: view === "targets"
+						? await targetsSnap(bound.save, catalog.list, locale)
+						: wrappedSnap(
+								bound.save,
+								await loadSaveHistory(host.rt, host.db, bound.token),
+								catalog.list,
+								locale,
+								reviewYear(url.searchParams.get("year")),
+								bound.manual === true,
+							);
+			const img = await host.render(snap.id, snap.data, {
+				height: snap.height,
+				signal: AbortSignal.any([
+					request.signal,
+					AbortSignal.timeout(PAINT_MS),
+				]),
+			});
 			const day = new Date().toISOString().slice(0, 10);
 			return new Response(new Uint8Array(img.bytes), {
 				headers: {

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { parseTagVotes } from "./chart-tag-votes";
 import {
 	CHART_TAG_BACKGROUND_MS,
 	CHART_TAG_TIMEOUT_MS,
@@ -10,7 +11,6 @@ import {
 	loadChartTagTree,
 	withChartTagBudget,
 } from "./chart-tags-api";
-import { parseTagVotes } from "./chart-tag-votes";
 import { PHI_CHART_TAG_API } from "./const";
 
 test("proxy key goes to the Worker, never to phib19 itself", () => {

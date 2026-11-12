@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { localeTag } from "@/i18n/config";
 import { useI18n } from "@/i18n/provider";
+import { fetchRank, rankUrl } from "@/lib/rank-lookup";
 import { fill } from "@/phi/lib/card-i18n";
 
 export type YourScore = {
@@ -91,41 +92,26 @@ function useRank(id: string, row: YourScore): Rank {
 	const [rank, setRank] = useState<Rank>({ state: "loading" });
 	useEffect(() => {
 		const ac = new AbortController();
-		fetch(
-			`/api/leaderboard?${new URLSearchParams({
-				chart: id,
-				level: row.rank,
-				acc: String(row.acc),
-			})}`,
-			{ signal: ac.signal },
-		)
-			.then(async (res) => {
-				if (!res.ok) throw new Error(String(res.status));
-				const body = (await res.json()) as {
-					rank?: number;
-					of?: number;
-					percent?: number;
-				};
-				if (typeof body.rank !== "number" || typeof body.of !== "number") {
-					throw new Error("shape");
-				}
-				setRank({
-					state: "ok",
-					rank: body.rank,
-					of: body.of,
-					percent: body.percent ?? 0,
-				});
-			})
-			.catch(() => {
-				if (!ac.signal.aborted) setRank({ state: "failed" });
-			});
+		void fetchRank(rankUrl(id, row.rank, row.acc), ac.signal).then((got) => {
+			if (ac.signal.aborted) return;
+			setRank(
+				got.kind === "ranked"
+					? {
+							state: "ok",
+							rank: got.rank,
+							of: got.of,
+							percent: got.percent ?? 0,
+						}
+					: { state: "failed" },
+			);
+		});
 		return () => ac.abort();
 	}, [id, row.rank, row.acc]);
 	return rank;
 }
 
 function RankCell({ id, row }: { id: string; row: YourScore }) {
-	const { m } = useI18n();
+	const { m, locale } = useI18n();
 	const t = m.songPage;
 	const rank = useRank(id, row);
 	if (rank.state === "loading")
@@ -135,8 +121,8 @@ function RankCell({ id, row }: { id: string; row: YourScore }) {
 	return (
 		<>
 			{fill(t.rankOf, {
-				rank: rank.rank.toLocaleString(),
-				of: rank.of.toLocaleString(),
+				rank: rank.rank.toLocaleString(localeTag(locale)),
+				of: rank.of.toLocaleString(localeTag(locale)),
 			})}
 		</>
 	);

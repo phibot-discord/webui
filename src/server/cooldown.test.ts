@@ -27,6 +27,7 @@ function memStore() {
 			const cur = map.get(key);
 			if (!cur) return 0;
 			const n = cur.exp - Date.now();
+			// biome-ignore lint/complexity/useMathMinMax: NaN must read as 0, which Math.max would not do
 			return n > 0 ? n : 0;
 		},
 	};

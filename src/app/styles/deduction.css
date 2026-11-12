@@ -47,8 +47,7 @@
 	gap: calc(52 * 100cqh / 1080);
 	height: 100%;
 	color: #eef3ff;
-	font-family:
-		var(--ded-font), "Noto Sans SC", var(--font-cjk), "PingFang SC", sans-serif;
+	font-family: var(--ded-font), var(--font-cjk), "PingFang SC", sans-serif;
 	font-size: calc(28 * 100cqh / 1080);
 	font-weight: 400;
 	line-height: 1.5;

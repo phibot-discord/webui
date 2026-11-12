@@ -1,6 +1,8 @@
 import { isPublicAssetKey } from "@/lib/assets";
 import { ensureAssetVersions, listPublicAssets } from "@/server/assets";
+import { codeError, localizedRetryAfter } from "@/server/i18n-http";
 import { publicObjectUrl, r2Config } from "@/server/r2";
+import { clientIp, rateLimitBy } from "@/server/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,12 +14,14 @@ const LIST_CACHE =
 const REDIRECT_CACHE = "public, max-age=300, s-maxage=600";
 
 export async function GET(request: Request) {
+	const limited = rateLimitBy(`assets:${clientIp(request.headers)}`, 60);
+	if (!limited.ok) return localizedRetryAfter(limited.retryAfter, "rate_limit");
 	const url = new URL(request.url);
 	const base = r2Config().publicBase;
 	const key = url.searchParams.get("key");
 	if (key) {
 		if (!base || !isPublicAssetKey(key)) {
-			return Response.json({ error: "bad_key" }, { status: 400 });
+			return codeError(400, "bad_key");
 		}
 		await ensureAssetVersions();
 		return new Response(null, {
@@ -29,7 +33,7 @@ export async function GET(request: Request) {
 		});
 	}
 	if (!base) {
-		return Response.json({ error: "unavailable" }, { status: 503 });
+		return codeError(503, "unavailable");
 	}
 	try {
 		const files = await listPublicAssets();
@@ -38,6 +42,6 @@ export async function GET(request: Request) {
 			{ headers: { "Cache-Control": LIST_CACHE } },
 		);
 	} catch {
-		return Response.json({ error: "unavailable" }, { status: 503 });
+		return codeError(503, "unavailable");
 	}
 }

@@ -41,6 +41,7 @@ export async function readJsonWithTapWait(
 	const dec = new TextDecoder();
 	let buf = "";
 	let data: TapWaitPayload = {};
+	let result = false;
 	for (;;) {
 		const { done, value } = await reader.read();
 		if (value) buf += dec.decode(value, { stream: true });
@@ -57,9 +58,13 @@ export async function readJsonWithTapWait(
 				continue;
 			}
 			if (obj.phase === TAP_WAIT_PHASE) onTapWait();
-			else data = obj;
+			else {
+				data = obj;
+				result = true;
+			}
 		}
 		if (done) break;
 	}
+	if (!result) data = { code: "stream_incomplete" };
 	return { httpStatus: tapWaitHttpStatus(res, data), data };
 }

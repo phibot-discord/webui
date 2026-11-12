@@ -201,6 +201,38 @@ test("the overlay index keeps only versions named after their clip and key", () 
 	assert.equal(parseOverlayIndex({ v: 2, clips: {} }), undefined);
 });
 
+test("a malformed row is skipped and the rest of the index survives", () => {
+	const index = parseOverlayIndex({
+		v: 1,
+		clips: {
+			good: {
+				kind: "single",
+				variants: [{ file: "pv/overlay/good.mp4", size: 3 }],
+			},
+			proto: {
+				kind: "toString",
+				variants: [{ file: "pv/overlay/proto.mp4", size: 3 }],
+			},
+			holes: {
+				kind: "lang",
+				variants: [
+					null,
+					{ key: "en", file: "pv/overlay/holes-en.mp4", size: 4 },
+				],
+			},
+		},
+	});
+	assert.deepEqual(index?.get("good"), {
+		kind: "single",
+		versions: [{ file: "pv/overlay/good.mp4", size: 3 }],
+	});
+	assert.equal(index?.has("proto"), false);
+	assert.deepEqual(index?.get("holes"), {
+		kind: "lang",
+		versions: [{ key: "en", file: "pv/overlay/holes-en.mp4", size: 4 }],
+	});
+});
+
 test("special clips list one MP4 per game language and go before the clip they name", () => {
 	const version = (id: string, lang: string) => ({
 		lang,

@@ -1,14 +1,14 @@
 "use client";
 
+import { useEffect, useId, useRef, useState } from "react";
+import { ChartSearch, useChartCatalog } from "@/components/ChartSearch";
 import {
 	ArrowCounterClockwise,
 	CheckCircle,
 	FileArchive,
 	UsersThree,
 	WarningCircle,
-} from "@phosphor-icons/react";
-import { useEffect, useId, useRef, useState } from "react";
-import { ChartSearch, useChartCatalog } from "@/components/ChartSearch";
+} from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import { chartSearchText } from "@/components/ScoreControl";
 import { Announce, SteadyButton } from "@/components/Tool";

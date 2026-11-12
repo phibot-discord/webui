@@ -14,6 +14,7 @@ import { useWidth } from "@/components/status/useWidth";
 import { Announce } from "@/components/Tool";
 import { type Locale, localeTag } from "@/i18n/config";
 import { useI18n } from "@/i18n/provider";
+import type { Milestone, Milestones } from "@/lib/milestones";
 import { songPath } from "@/lib/song-path";
 import {
 	defaultRange,
@@ -26,7 +27,6 @@ import {
 	timeTicks,
 	valueTicks,
 } from "@/lib/trend-chart";
-import type { Milestone, Milestones } from "@/lib/milestones";
 import { fill } from "@/phi/lib/card-i18n";
 import type { SongNames, TrendPoint, TrendView } from "@/server/save-views";
 

@@ -62,6 +62,7 @@ export type OutgoingInit = {
 	body?: RequestInit["body"] | Buffer | Uint8Array | string;
 	signal?: AbortSignal | null;
 	dispatcher?: Dispatcher;
+	redirect?: "follow" | "manual";
 };
 
 /** undici's fetch: Next's drops `dispatcher`, `request()` is RST by TapTap, Node `FormData` is stringified */
@@ -75,7 +76,7 @@ export async function outgoingFetch(
 		body: init.body as UndiciRequestInit["body"],
 		signal: init.signal ?? undefined,
 		dispatcher: init.dispatcher ?? defaultAgent,
-		redirect: "follow",
+		redirect: init.redirect ?? "follow",
 	});
 	return res as unknown as Response;
 }

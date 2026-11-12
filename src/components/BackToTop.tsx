@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowUp } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
+import { ArrowUp } from "@/components/icons";
 import { useI18n } from "@/i18n/provider";
 import { focusMain } from "./SkipLink";
 

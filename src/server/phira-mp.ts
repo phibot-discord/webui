@@ -84,7 +84,7 @@ export async function loadMp(): Promise<MpData> {
 	const token = process.env.PHIRA_MP_TOKEN?.trim();
 	if (!token) {
 		logger.warn("phira-mp: PHIRA_MP_TOKEN is not set");
-		return { checkedAt, up: false, players: null, rooms: null };
+		return { checkedAt, up: null, players: null, rooms: null };
 	}
 	const [status, rooms] = await Promise.allSettled([
 		get("/v1/status", token),
@@ -97,7 +97,7 @@ export async function loadMp(): Promise<MpData> {
 	const server =
 		status.status === "fulfilled"
 			? readServer(status.value)
-			: { up: false, players: null };
+			: { up: null, players: null };
 	return {
 		checkedAt,
 		...server,

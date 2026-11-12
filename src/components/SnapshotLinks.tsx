@@ -1,6 +1,6 @@
 "use client";
 
-import { DownloadSimple, ImageSquare } from "@phosphor-icons/react";
+import { DownloadSimple, ImageSquare } from "@/components/icons";
 import { useI18n } from "@/i18n/provider";
 
 export function SnapshotLinks({ view }: { view: "progress" | "targets" }) {

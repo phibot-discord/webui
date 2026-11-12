@@ -4,6 +4,7 @@ export type RenderedImage = {
 	ext: string;
 	width: number;
 	height: number;
+	missingImages?: string[];
 	timings?: {
 		htmlMs?: number;
 		assetsMs?: number;

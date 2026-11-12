@@ -2,6 +2,8 @@
 //   node --import tsx scripts/render-card-local.ts <b30|x30|fc30|hisb30|info|song> [out.jpg]
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import type { LevelRecordInfo } from "../src/phi/lib/level-record";
+import type { TemplateDefinition } from "../src/server/sdk";
 
 const KIND = process.argv[2] || "b30";
 const STYLE = process.env.STYLE || "classic";
@@ -55,7 +57,7 @@ for (const dir of ["avatar", "otherimg"]) {
 // Same wiring as host.ts bootRender, on the in-memory KV
 hydrateCss(PHI_CSS);
 const engine = new RenderEngine();
-const templates = new Map<string, any>();
+const templates = new Map<string, TemplateDefinition>();
 const helpers = {
 	resources,
 	compileArt: (page: string, data: Record<string, unknown>) =>
@@ -72,7 +74,7 @@ const helpers = {
 const app = {
 	config: loadWebConfig(),
 	db,
-	template: (def: { id: string }) => void templates.set(def.id, def),
+	template: (def: TemplateDefinition) => void templates.set(def.id, def),
 	fonts: {
 		fromDir: async (dir: string, map: never) => {
 			for (const f of await loadFontsFromDir(dir, map)) engine.registerFont(f);
@@ -88,7 +90,12 @@ const { b19Card } = await import("../src/phi/lib/cards");
 const { buildUpdateCard } = await import("../src/phi/lib/history");
 const { SaveHistory } = await import("../src/phi/lib/save-history");
 
-const locale = process.env.LOCALE === "zh" ? "zh" : "en";
+const locale: "en" | "ja" | "zh" =
+	process.env.LOCALE === "zh"
+		? "zh"
+		: process.env.LOCALE === "ja"
+			? "ja"
+			: "en";
 const style = parseCardStyle(KIND, STYLE);
 // Fresh Save per render: getB19 / getBestWithLimit mutate rows
 const save = new Save(
@@ -111,7 +118,7 @@ if (KIND === "info") {
 	const empty = process.env.EMPTY_HISTORY === "1";
 	const token = "localinfotoken00000000000";
 	if (!empty) {
-		const now = Date.parse(save.saveInfo.modifiedAt.iso);
+		const now = new Date(save.saveInfo.modifiedAt.iso).getTime();
 		const week = 7 * 86_400_000;
 		const rksNow = save.saveInfo.summary.rankingScore;
 		const money = save.gameProgress?.money || [0, 0, 0, 0, 0];
@@ -128,7 +135,7 @@ if (KIND === "info") {
 					date: new Date(now - (11 - i) * week).toISOString(),
 					value: [
 						money[0],
-						Math.max(0, money[1] - (11 - i) * 37),
+						Math.max(0, (money[1] ?? 0) - (11 - i) * 37),
 						money[2],
 						money[3],
 						money[4],
@@ -167,14 +174,17 @@ if (KIND === "info") {
 	console.log("song card state", sc.state, "partial", built.data.renderPartial);
 } else if (KIND === "hisb30") {
 	// raw-save has no score history: synthesize two entries per chart over 12 days
-	const now = Date.parse(save.saveInfo.modifiedAt.iso);
+	const now = new Date(save.saveInfo.modifiedAt.iso).getTime();
 	const day = 86_400_000;
 	const scoreHistory: Record<string, Record<string, unknown>> = {};
 	let n = 0;
 	const empty = process.env.EMPTY_HISTORY === "1";
 	for (const [sid, rows] of empty
 		? []
-		: (Object.entries(save.gameRecord) as [string, any[]][])) {
+		: (Object.entries(save.gameRecord) as [
+				string,
+				(LevelRecordInfo | null)[],
+			][])) {
 		rows.forEach((rec, lv) => {
 			if (!rec || lv > 3) return;
 			const level = ["EZ", "HD", "IN", "AT"][lv]!;

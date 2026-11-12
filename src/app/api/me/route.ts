@@ -5,6 +5,7 @@ import {
 	refreshCooldownRemaining,
 } from "@/server/bound";
 import { getDataHost } from "@/server/data-host";
+import { privateJson } from "@/server/http";
 import { getShareSlug } from "@/server/share";
 
 export const runtime = "nodejs";
@@ -19,7 +20,7 @@ export async function GET() {
 			loadBound(host, userId),
 		]);
 		if ("error" in got) {
-			return Response.json({
+			return privateJson({
 				bound: got.error === "no_save",
 				banned: got.error === "banned",
 				hasSave: false,
@@ -28,7 +29,7 @@ export async function GET() {
 				refreshCooldownMs,
 			});
 		}
-		return Response.json({
+		return privateJson({
 			bound: true,
 			banned: false,
 			hasSave: true,

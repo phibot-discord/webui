@@ -107,12 +107,18 @@ function fakeSave(rev: string) {
 		gameProgress: { money: [0, 0, 0, 0, 0] },
 		gameRecord: scoredRecords(),
 		getB19() {
-			return { phi: copy(phiRows), b19_list: copy(bestRows), com_rks: 16 };
+			return {
+				phi: copy(phiRows),
+				b19_list: copy(bestRows),
+				com_rks: 16,
+				pushRks: 16.0412,
+			};
 		},
 		async getBestWithLimit(_n: number, _limit: unknown, withPhi = true) {
 			return {
 				phi: withPhi ? copy(phiRows) : undefined,
 				b19_list: copy(bestRows),
+				pushRks: 16.0412,
 			};
 		},
 		async getStats() {
@@ -247,6 +253,7 @@ test("leaving P3 out of the SD drops only the P slots, in the header and the his
 			phi: phiRows.map((row) => ({ ...row })),
 			b19_list: listed.map((row) => ({ ...row })),
 			com_rks: 16,
+			pushRks: 16.0412,
 		});
 		const { db } = memoryDb();
 		return b19Card(rt as never, save as never, db, "u1", catalog as never, {
@@ -372,4 +379,67 @@ test("rank badges draw no legend chip and keep the user's rows in KV", async () 
 		},
 	);
 	assert.deepEqual(off.spInfo, []);
+});
+
+test("a header 0.0001 or more away from the goal's RKS prints the goal's RKS", async () => {
+	for (const mode of ["b30", "x30"] as const) {
+		const data = await card(`rev-head-${mode}`, mode, { tags: false });
+		assert.equal(data.Rks, "16.0412");
+		assert.equal(data.gameuser.rks, 16.0412);
+	}
+});
+
+test("a header closer than 0.0001 to the goal's RKS is printed exactly as today", async () => {
+	const near: readonly (readonly [stored: number, pushRks: number])[] = [
+		[Math.fround(16.7075499), 16.7075499],
+		[16.1, 16.10005],
+	];
+	for (const [stored, pushRks] of near) {
+		const save = fakeSave(`rev-near-${stored}`);
+		save.saveInfo.summary.rankingScore = stored;
+		save.getB19 = () => ({
+			phi: phiRows.map((row) => ({ ...row })),
+			b19_list: bestRows.map((row) => ({ ...row })),
+			com_rks: 16,
+			pushRks,
+		});
+		const { db } = memoryDb();
+		const data = await b19Card(
+			rt as never,
+			save as never,
+			db,
+			"u1",
+			catalog as never,
+			{
+				nnum: 33,
+				mode: "b30",
+				locale: "en",
+				showTagAnalysis: false,
+				notes,
+			},
+		);
+		assert.equal(data.Rks, Number(stored).toFixed(4));
+		assert.equal(data.gameuser.rks, stored);
+	}
+});
+
+test("a stored RKS that is not a number gives the goal's RKS", async () => {
+	const save = fakeSave("rev-nan");
+	save.saveInfo.summary.rankingScore = Number.NaN;
+	const { db } = memoryDb();
+	const data = await b19Card(
+		rt as never,
+		save as never,
+		db,
+		"u1",
+		catalog as never,
+		{
+			nnum: 33,
+			mode: "b30",
+			locale: "en",
+			showTagAnalysis: false,
+			notes,
+		},
+	);
+	assert.equal(data.Rks, "16.0412");
 });

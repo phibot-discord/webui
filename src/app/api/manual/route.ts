@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { authed } from "@/server/authed";
 import { getDataHost } from "@/server/data-host";
-import { localizedError } from "@/server/i18n-http";
+import { codeError, localizedRetryAfter } from "@/server/i18n-http";
 import {
 	clearManual,
 	loadManual,
@@ -28,12 +28,13 @@ export async function GET() {
 export async function PUT(request: Request) {
 	return authed(async (userId) => {
 		const limited = rateLimit({ userId, ip: clientIp(request.headers) });
-		if (!limited.ok) return localizedError(429, "rate_limit");
+		if (!limited.ok)
+			return localizedRetryAfter(limited.retryAfter, "rate_limit");
 		let body: ManualInput;
 		try {
 			body = (await request.json()) as ManualInput;
 		} catch {
-			return Response.json({ error: "bad_request" }, { status: 400 });
+			return codeError(400, "bad_request");
 		}
 		const session = await auth();
 		const result = await saveManual(
@@ -41,12 +42,8 @@ export async function PUT(request: Request) {
 			body,
 			session?.user?.name?.trim() || "Player",
 		);
-		if ("error" in result) {
-			return Response.json(
-				{ error: result.error, detail: result.detail },
-				{ status: result.status },
-			);
-		}
+		if ("error" in result)
+			return codeError(result.status, result.error, { detail: result.detail });
 		return Response.json(result);
 	});
 }
@@ -54,7 +51,8 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
 	return authed(async (userId) => {
 		const limited = rateLimit({ userId, ip: clientIp(request.headers) });
-		if (!limited.ok) return localizedError(429, "rate_limit");
+		if (!limited.ok)
+			return localizedRetryAfter(limited.retryAfter, "rate_limit");
 		const had = await clearManual(userId);
 		return Response.json({ ok: true, had });
 	});

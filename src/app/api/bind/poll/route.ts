@@ -1,6 +1,11 @@
 import { authed } from "@/server/authed";
 import { finishQrBind, isQrResume, peekQrBind } from "@/server/bind";
-import { localizedBindError, localizedErrorBody } from "@/server/i18n-http";
+import {
+	localizedBindError,
+	localizedErrorBody,
+	localizedRetryAfter,
+} from "@/server/i18n-http";
+import { rateLimitBy } from "@/server/rate-limit";
 import { tapWaitNdjson } from "@/server/tap-stream";
 
 export const runtime = "nodejs";
@@ -9,6 +14,9 @@ export const maxDuration = 180;
 
 export async function POST() {
 	return authed(async (userId) => {
+		const limited = rateLimitBy(`poll:${userId}`, 60);
+		if (!limited.ok)
+			return localizedRetryAfter(limited.retryAfter, "rate_limit");
 		const peeked = await peekQrBind(userId);
 		if (isQrResume(peeked)) {
 			return tapWaitNdjson(

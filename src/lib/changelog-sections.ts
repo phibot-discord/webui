@@ -3,6 +3,178 @@ import type { ChangeRelease } from "./changelog";
 /** Every release's items, newest first, loaded only when the dialog opens */
 export const CHANGELOG_RELEASES: ChangeRelease[] = [
 	{
+		date: "2026-11-12",
+		sections: [
+			{
+				heading: { en: "Song pages", zh: "曲目页面", ja: "曲ページ" },
+				items: [
+					{
+						en: "Every song page has a new Chart tags section: for each level it lists the tags players voted onto that chart, with each tag's share of the chart's votes, which is the weight the chart profile gives it. Pick a tag to open the Chart browser on that tag.",
+						zh: "每首曲目的页面新增「谱面标签」：按难度列出玩家为该谱面投出的标签，以及每个标签在该谱面全部投票中所占的比例，也就是谱面标签画像计入它时所用的权重。点击标签即可在「谱面一览」中查看带有该标签的谱面。",
+						ja: "各曲のページに「譜面タグ」を追加しました。レベルごとに、プレイヤーがその譜面に投票したタグと、各タグがその譜面の投票全体に占める割合（譜面プロフィールがそのタグを数えるときの比重）を表示します。タグを選ぶと、そのタグで絞り込んだ「譜面ブラウザー」が開きます。",
+						href: "/songs",
+					},
+				],
+			},
+			{
+				heading: {
+					en: "2026 Recap",
+					zh: "2026 年度回顾",
+					ja: "2026 年の振り返り",
+				},
+				items: [
+					{
+						en: "Your 2026 Recap opens on 1 December in the Scores menu. It looks back at your year from PhiBot's record of your save: how your RKS moved, the charts you improved or played for the first time, your APs and FCs, your biggest jump and more, as a page and as an image you can download. Until it opens, its address shows the opening date. Once it opens, players who have a recap get a note that it is ready.",
+						zh: "「2026 年度回顾」将于 12 月 1 日在「成绩」菜单中开放。它根据 PhiBot 对你存档的记录回顾这一年：RKS 的变化、有进步和首次游玩的谱面、AP 与 FC、单日最大进步等，既有页面，也有可下载的图片。开放之前，打开该地址会显示开放日期。开放后，有年度回顾可看的玩家会收到回顾已就绪的提示。",
+						ja: "「2026 年の振り返り」が 12 月 1 日に「スコア」メニューで公開されます。PhiBot が記録したセーブデータから 1 年を振り返り、RKS の変化、伸びた譜面や初めてプレイした譜面、AP と FC、最大の伸びなどを、ページとダウンロードできる画像で確認できます。公開までは、そのアドレスに公開日が表示されます。公開後、振り返りがあるプレイヤーには、準備ができたことをお知らせします。",
+						href: "/2026-recap",
+					},
+					{
+						en: "The page deals your year as a deck of cards you can tap, swipe or throw. Going through it one card at a time builds a combo, and reaching the last card without breaking it earns a FULL COMBO, or an ALL PERFECT if you threw every card. On a phone, switch on Tilt to flick: the cards follow the way you hold the phone, and a quick turn throws the top card.",
+						zh: "页面会把你的一年发成一叠卡牌，可以点击、滑动或甩出去。一张一张往下翻会累积连击，连击不断地翻到最后一张就能拿到 FULL COMBO，每一张都是甩出去的则是 ALL PERFECT。在手机上打开「晃动手机翻牌」后，卡牌会随手机的倾斜移动，快速转动手机就能甩出最上面的一张。",
+						ja: "ページでは 1 年をカードの束として配り、タップ、スワイプ、または投げてめくれます。1 枚ずつ進めるとコンボがつながり、コンボを切らさずに最後のカードまで進むと FULL COMBO、すべてのカードを投げてめくると ALL PERFECT になります。スマートフォンで「傾けてめくる」をオンにすると、端末の傾きに合わせてカードが動き、端末をすばやく傾けるといちばん上のカードが飛びます。",
+					},
+					{
+						en: "The deck ends with your PGTI, a player type with a family and a style. It is also on the image you can download.",
+						zh: "卡牌的最后一张是你的 PGTI：一个带有家族和风格的玩家类型。可下载的图片上也会显示它。",
+						ja: "最後のカードは、ファミリーとスタイル付きのプレイヤータイプ「PGTI」です。ダウンロードできる画像にも表示されます。",
+					},
+				],
+			},
+			{
+				heading: { en: "Manual scores", zh: "手动录入成绩", ja: "手動スコア" },
+				items: [
+					{
+						en: "Manual scores can import a records file: the CSV or JSON file from PhiBot's records download. A score replaces yours only when its accuracy is higher, and nothing is removed.",
+						zh: "「手动录入成绩」可以导入成绩文件：使用 PhiBot 成绩下载得到的 CSV 或 JSON 文件。只有准确率更高时才会替换你现有的成绩，不会删除任何内容。",
+						ja: "「手動スコア」で記録ファイルを読み込めるようになりました。PhiBot の記録ダウンロードで得た CSV または JSON ファイルを使います。精度が高いときだけ今のスコアを置き換え、何も削除しません。",
+						href: "/me/manual",
+					},
+					{
+						en: "Binding your Phigros account after using manual scores now keeps the B30 history recorded up to then.",
+						zh: "使用手动成绩之后再绑定 Phigros 账号，此前记录的 B30 历史现在会保留。",
+						ja: "手動スコアを使ったあとで Phigros アカウントを連携しても、それまでに記録された B30 の履歴が残るようになりました。",
+					},
+				],
+			},
+			{
+				heading: { en: "Cards", zh: "成绩图", ja: "カード" },
+				items: [
+					{
+						en: "The accuracy a card says you need for more RKS now follows the same rule as Targets and is rounded up, so reaching the number shown is always enough.",
+						zh: "成绩图上显示的推分所需准确率现在与「推分目标」使用同一规则，并向上取整，达到所示数值就一定足够。",
+						ja: "カードに表示される、RKS を上げるのに必要な精度が「目標」と同じルールで計算され、切り上げて表示されるようになりました。表示された値に届けば必ず足ります。",
+					},
+					{
+						en: "A card drawn while one of its images was missing, such as the illustration of a brand-new song, is no longer kept. It is drawn again once the image is there, and until then its share preview shows a general image.",
+						zh: "如果生成成绩图时有图片缺失（例如新曲的曲绘尚未就绪），这张成绩图不再被保留：图片就绪后会重新生成，在此之前分享预览显示通用图片。",
+						ja: "画像が欠けた状態で描画されたカード（新曲のイラストがまだない場合など）は保存されなくなりました。画像がそろうと描き直され、それまで共有プレビューには汎用の画像が表示されます。",
+					},
+					{
+						en: "Dates on cards use China time, Japanese share images use Japanese glyphs, and the three all-perfect charts of a B30 are chosen the same way every time, even when several are tied.",
+						zh: "成绩图上的日期统一使用中国时间，日语分享图片使用日语字形，B30 中的三张 AP 谱面即使并列也每次按相同方式选出。",
+						ja: "カードの日付は中国時間で表示され、日本語の共有画像は日本語の字形を使い、B30 の AP 3 譜面は同点でも毎回同じ方法で選ばれます。",
+					},
+				],
+			},
+			{
+				heading: { en: "Chart browser", zh: "谱面一览", ja: "譜面ブラウザー" },
+				items: [
+					{
+						en: "The Chart browser keeps its filters and sorting in the address, so a filtered list can be bookmarked or sent to someone.",
+						zh: "「谱面一览」的筛选和排序现在保存在地址中，筛选后的列表可以收藏，也可以发给别人。",
+						ja: "「譜面ブラウザー」の絞り込みと並べ替えがアドレスに残るようになり、絞り込んだ一覧をブックマークしたり、ほかの人に送ったりできます。",
+						href: "/charts",
+					},
+				],
+			},
+			{
+				heading: { en: "Signing in", zh: "登录", ja: "サインイン" },
+				items: [
+					{
+						en: "When a page needs a sign-in and sends you to the home page, a small note there now tells you to sign in first.",
+						zh: "打开需要登录的页面而被带回首页时，首页现在会弹出一条小提示，告诉你需要先登录。",
+						ja: "サインインが必要なページを開いてホームに戻されたとき、先にサインインするよう小さなお知らせが表示されるようになりました。",
+					},
+				],
+			},
+			{
+				heading: { en: "Speed", zh: "加载速度", ja: "表示速度" },
+				items: [
+					{
+						en: "Pages load faster: the home, status, terms and privacy pages are served ready-made, the top bar no longer waits for your sign-in state, only the texts of your language are downloaded, and the Chinese web font arrives in small pieces.",
+						zh: "页面加载更快：首页、运行状态、使用条款和隐私政策改为预先生成后直接提供，顶栏不再等待你的登录信息，只下载所用语言的文本，中文网页字体也改为分片加载。",
+						ja: "ページの表示が速くなりました。ホーム、ステータス、利用規約、プライバシーポリシーは生成済みのページを配信し、上部バーはサインインの確認を待たず、使用中の言語のテキストだけを読み込み、中国語のウェブフォントは小さく分割して読み込みます。",
+					},
+				],
+			},
+			{
+				heading: {
+					en: "Reliability and safety",
+					zh: "稳定与安全",
+					ja: "安定性と安全性",
+				},
+				items: [
+					{
+						en: "If PhiBot cannot fully read a save, the refresh now stops with a clear message instead of showing partial scores.",
+						zh: "如果 PhiBot 无法完整读取存档，刷新会停止并给出明确提示，而不是显示不完整的成绩。",
+						ja: "セーブデータを完全に読み取れない場合、更新は一部だけのスコアを表示せず、分かりやすいメッセージとともに中止されます。",
+					},
+					{
+						en: "The Status page keeps its last good data when its source cannot be reached, and says so once that data is five minutes old.",
+						zh: "「运行状态」在数据源无法访问时保留最近一次的有效数据，数据超过五分钟后会提示暂时无法获取。",
+						ja: "「ステータス」ページは、データ元に接続できないときも最後に取得できたデータを表示し続け、データが 5 分以上古くなるとその旨を表示します。",
+						href: "/status",
+					},
+					{
+						en: "Sign-in and sharing are stricter: a TapTap sign-in ends when its save is no longer the one bound to you, a share link works only while it is your current link, and repeated requests are rate limited.",
+						zh: "登录与分享更严格：通过 TapTap 登录的会话，在其存档不再是你绑定的存档时会结束；分享链接只在它是你当前的链接时有效；重复请求会被限流。",
+						ja: "サインインと共有を厳格にしました。TapTap でのサインインは、そのセーブデータが連携中のものでなくなると終了し、共有リンクは現在のリンクである間だけ有効で、繰り返しのリクエストにはレート制限がかかります。",
+					},
+					{
+						en: "Guess the song, the chart preview and card loading now recover from a failed request instead of getting stuck, and pages left in a background tab stop refreshing until you return.",
+						zh: "「猜曲绘」、谱面预览和成绩图加载在请求失败后可以恢复，不再卡住；放在后台标签页里的页面会暂停自动刷新，回到页面后再继续。",
+						ja: "「曲あてクイズ」、譜面プレビュー、カードの読み込みは、リクエストが失敗しても止まったままにならず復帰します。バックグラウンドのタブにあるページは、戻ってくるまで自動更新を止めます。",
+					},
+				],
+			},
+			{
+				heading: {
+					en: "Terms and privacy",
+					zh: "条款与隐私",
+					ja: "利用規約とプライバシー",
+				},
+				items: [
+					{
+						en: "The terms now say that the site's data endpoints (the addresses under /api/) are internal: they serve PhiBot's own pages, are not offered to other software, and can change or be limited without notice. The RKS badge is the exception.",
+						zh: "使用条款新增说明：网站的数据接口（/api/ 下的地址）是内部接口，只为 PhiBot 自己的页面服务，不对其他软件开放，可能随时更改或限流。RKS 徽章例外。",
+						ja: "利用規約に、サイトのデータ用エンドポイント（/api/ 以下のアドレス）は内部用であることを明記しました。PhiBot 自身のページのためのもので、他のソフトウェアには提供しておらず、予告なく変更または制限されることがあります。RKS バッジは例外です。",
+						href: "/tos",
+					},
+				],
+			},
+			{
+				heading: {
+					en: "Discord bot",
+					zh: "Discord 机器人",
+					ja: "Discord ボット",
+				},
+				items: [
+					{
+						en: "When a command fails, its error message is now visible only to the person who ran it.",
+						zh: "命令执行失败时，错误信息现在只有执行命令的人能看到。",
+						ja: "コマンドが失敗したとき、エラーメッセージはコマンドを実行した本人にだけ表示されるようになりました。",
+					},
+					{
+						en: "Binding your account through the bot now also takes the site out of manual scores, so both show your real save.",
+						zh: "通过机器人绑定账号后，网站也会退出手动成绩模式，两边都显示你的真实存档。",
+						ja: "ボットでアカウントを連携すると、サイト側も手動スコアのモードを終了し、どちらも実際のセーブデータを表示するようになりました。",
+					},
+				],
+			},
+		],
+	},
+	{
 		date: "2026-11-08",
 		sections: [
 			{

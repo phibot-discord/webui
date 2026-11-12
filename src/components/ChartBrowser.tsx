@@ -1,9 +1,32 @@
 "use client";
 
-import { useDeferredValue, useId, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+	type RefObject,
+	useDeferredValue,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import Link from "@/components/LocaleLink";
+import type { Locale } from "@/i18n/config";
 import { useI18n } from "@/i18n/provider";
+import {
+	type ChartFilters,
+	type ChartSort,
+	chartQuery,
+	chartsHref,
+	filterChoices,
+	parseChartQuery,
+	Q_MAX,
+	type SortKey,
+	STATUS_FILTERS,
+	type StatusFilter,
+} from "@/lib/chart-browse-query";
 import type { ChartStatus } from "@/lib/chart-status";
+import { localePath } from "@/lib/locale-path";
 import { songPath } from "@/lib/song-path";
 import { fill } from "@/phi/lib/card-i18n";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
@@ -13,18 +36,18 @@ import type {
 	BrowseView,
 } from "@/server/chart-browse";
 
-type SortKey = "c" | "title" | "notes" | "nps" | "bpm" | "length" | "acc";
-
-type StatusFilter = "all" | "none" | "notFc" | "notAp" | "played";
-
 const STEP = 50;
-const STATUS_FILTERS: StatusFilter[] = [
-	"all",
-	"none",
-	"notFc",
-	"notAp",
-	"played",
-];
+const SETTLE_MS = 400;
+
+function replaceSearch(
+	written: RefObject<string>,
+	search: string,
+	locale: Locale,
+) {
+	if (search === written.current) return;
+	written.current = search;
+	window.history.replaceState(null, "", localePath(chartsHref(search), locale));
+}
 
 type Row = {
 	key: string;
@@ -63,28 +86,68 @@ function keepStatus(filter: StatusFilter, mine: Row["mine"]) {
 export function ChartBrowser({
 	view,
 	mine,
+	initial,
 }: {
 	view: BrowseView;
 	mine: BrowseMine | null;
+	initial: ChartFilters;
 }) {
-	const { m } = useI18n();
+	const { m, locale } = useI18n();
 	const t = m.charts;
 	const ids = useId();
-	const [q, setQ] = useState("");
+	const [q, setQ] = useState(initial.q);
 	const [levels, setLevels] = useState<Set<LevelKind>>(
-		() => new Set(["IN", "AT"]),
+		() => new Set(initial.levels),
 	);
-	const [cMin, setCMin] = useState("");
-	const [cMax, setCMax] = useState("");
-	const [tag, setTag] = useState("");
-	const [chapter, setChapter] = useState("");
-	const [status, setStatus] = useState<StatusFilter>("all");
-	const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({
-		key: "c",
-		desc: true,
-	});
+	const [cMin, setCMin] = useState(initial.cMin);
+	const [cMax, setCMax] = useState(initial.cMax);
+	const [tag, setTag] = useState(initial.tag);
+	const [chapter, setChapter] = useState(initial.chapter);
+	const [status, setStatus] = useState<StatusFilter>(initial.status);
+	const [sort, setSort] = useState<ChartSort>(initial.sort);
 	const [shown, setShown] = useState(STEP);
 	const query = useDeferredValue(q);
+	const choices = useMemo(
+		() => filterChoices(view, mine !== null),
+		[view, mine],
+	);
+	const search = chartQuery({
+		q,
+		levels: [...levels],
+		cMin,
+		cMax,
+		tag,
+		chapter,
+		status,
+		sort,
+	});
+	const written = useRef(search);
+	const urlSearch = useSearchParams().toString();
+
+	useEffect(() => {
+		if (search === written.current) return;
+		const timer = setTimeout(
+			() => replaceSearch(written, search, locale),
+			SETTLE_MS,
+		);
+		return () => clearTimeout(timer);
+	}, [search, locale]);
+
+	useEffect(() => {
+		const next = parseChartQuery(new URLSearchParams(urlSearch), choices);
+		const canon = chartQuery(next);
+		if (canon === written.current) return;
+		written.current = canon;
+		setQ(next.q);
+		setLevels(new Set(next.levels));
+		setCMin(next.cMin);
+		setCMax(next.cMax);
+		setTag(next.tag);
+		setChapter(next.chapter);
+		setStatus(next.status);
+		setSort(next.sort);
+		setShown(STEP);
+	}, [urlSearch, choices]);
 
 	const tagName = useMemo(
 		() => new Map(view.tags.map((x) => [x.id, x.name] as const)),
@@ -212,6 +275,7 @@ export function ChartBrowser({
 						id={`${ids}-q`}
 						className="input"
 						type="search"
+						maxLength={Q_MAX}
 						value={q}
 						placeholder={t.searchHint}
 						onChange={(e) => {

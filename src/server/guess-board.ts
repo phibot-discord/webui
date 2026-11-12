@@ -6,11 +6,13 @@ import {
 	rankBoard,
 } from "@/lib/guess-board";
 import { kvKey } from "@/phi/lib/const";
+import { evictOldest } from "@/phi/lib/lru";
 import { getDataHost } from "./data-host";
 import { logger } from "./logger";
 
 const KEEP_MS = 60 * 86_400_000;
 const BOARD_MEMO_MS = 60_000;
+export const BOARD_MEMO_MAX = 32;
 /** KV lists can lag a write by up to 60 s; this instance's own writes cover the gap */
 const RECENT_MS = 90_000;
 
@@ -209,7 +211,9 @@ async function listed(day: string, fresh: boolean): Promise<BoardEntry[]> {
 		const entry = entryOf(key.slice(prefix.length), meta);
 		return entry ? [entry] : [];
 	});
+	boards.delete(day);
 	boards.set(day, { at: Date.now(), entries });
+	evictOldest(boards, BOARD_MEMO_MAX);
 	return entries;
 }
 

@@ -11,13 +11,15 @@ import {
 	RENDER_VERSION,
 	renderCard,
 } from "@/server/cards";
-import { cardResultResponse, wantsReload } from "@/server/http";
+import { cardResultResponse, jsonError, wantsReload } from "@/server/http";
 import {
+	codeError,
 	localizedError,
 	localizedErrorBody,
 	localizedRenderError,
 	localizedRetryAfter,
 } from "@/server/i18n-http";
+import { logger } from "@/server/logger";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 import { parsePaintQuality } from "@/server/render/paint-budget";
 
@@ -114,13 +116,21 @@ export async function GET(
 					}));
 					stream.fail({ error: String(body.error), code: result.error });
 				},
-				(err: unknown) => {
-					const body = {
-						error: err instanceof Error ? err.message : "render_failed",
-						code: "render_failed",
-					};
-					if (stream) stream.fail(body);
-					else resolve(Response.json(body, { status: 500 }));
+				async (err: unknown) => {
+					logger.error("card render failed", err);
+					if (!stream) {
+						resolve(
+							await codeError(500, "render_failed").catch(() =>
+								jsonError(500, "render_failed", "render_failed"),
+							),
+						);
+						return;
+					}
+					const body = await localizedErrorBody({
+						error: "render_failed",
+						status: 500,
+					}).catch(() => ({ error: "render_failed" }));
+					stream.fail({ error: String(body.error), code: "render_failed" });
 				},
 			);
 		});

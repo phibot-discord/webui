@@ -1,15 +1,8 @@
 import { join } from "node:path";
-import {
-	isProxyHost,
-	PHI_CHART_TAG_API,
-	PHI_PROXY_KEY,
-	PROXY_KEY_HEADER,
-} from "@/phi/lib/const";
 import { readYaml } from "@/phi/lib/files";
 import { getInfo, withDotZero } from "@/phi/lib/get-info";
 import { runInBackground } from "./background";
 import { logger } from "./logger";
-import { outgoingFetch } from "./outgoing";
 import { assetsDir } from "./paths";
 import { fetchR2Object, INFO_PREFIX, r2Ready } from "./r2";
 import { aliasesSha, ensureSongInfo, loadedCatalogRevision } from "./song-info";
@@ -38,31 +31,13 @@ export type AliasDeps = {
 	readBase: () => unknown;
 	getApproved: () => Promise<Buffer | undefined>;
 	known: (id: string) => boolean;
-	fetchResolve: (
-		alias: string,
-	) => Promise<{ status: number; body: unknown } | undefined>;
 	background: (work: Promise<unknown>) => void;
 	now: () => number;
 	coldWaitMs: number;
-	liveBudgetMs: number;
 };
 
 const COLD_WAIT_MS = 2_500;
 const RETRY_MS = 60_000;
-const LIVE_BUDGET_MS = 3_000;
-/** Past the caller's budget the answer only fills the cache; don't hold the function long */
-const LIVE_FETCH_MS = 8_000;
-const LIVE_HIT_TTL_MS = 6 * 60 * 60 * 1000;
-const LIVE_MISS_TTL_MS = 15 * 60 * 1000;
-const LIVE_ERROR_TTL_MS = 60_000;
-/** The Worker has no alias route (404) or rejects the key (401/403) */
-const LIVE_OFF_MS = 15 * 60 * 1000;
-/** Upstream 5xx or timeouts in a row: stop asking for a minute */
-const LIVE_BREAKER_AFTER = 3;
-const LIVE_BREAKER_MS = 60_000;
-const LIVE_MAX = 1_000;
-const LIVE_PER_MIN = 30;
-const LIVE_PER_CLIENT_MIN = 10;
 export const ALIAS_MAX_LEN = 64;
 
 const ALIASES_R2_KEY = `${INFO_PREFIX}/aliases.json`;
@@ -146,15 +121,6 @@ export function mergeAliasLayers(
 	return { byId, orphans: [...orphans] };
 }
 
-type LiveResult = { status: LiveStatus; ids: string[] };
-export type LiveStatus =
-	| "skipped"
-	| "hit"
-	| "miss"
-	| "timeout"
-	| "error"
-	| "off";
-
 type AliasState = {
 	baseRev?: string;
 	base?: unknown;
@@ -163,26 +129,10 @@ type AliasState = {
 	retryAt: number;
 	loading?: Promise<void>;
 	index?: Omit<AliasIndex, "stale">;
-	live: Map<string, { until: number; result: LiveResult }>;
-	liveInflight: Map<string, Promise<LiveResult>>;
-	liveOffUntil: number;
-	liveFailures: number;
-	liveWindow: number;
-	liveCount: number;
-	liveClients: Map<string, number>;
 };
 
 function freshState(): AliasState {
-	return {
-		retryAt: 0,
-		live: new Map(),
-		liveInflight: new Map(),
-		liveOffUntil: 0,
-		liveFailures: 0,
-		liveWindow: 0,
-		liveCount: 0,
-		liveClients: new Map(),
-	};
+	return { retryAt: 0 };
 }
 
 // Shared by every route bundle in the process, like `getInfo`
@@ -194,23 +144,6 @@ function state(): AliasState {
 
 function known(id: string): boolean {
 	return id in getInfo.ori_info || id in getInfo.sp_info;
-}
-
-async function fetchResolve(
-	alias: string,
-): Promise<{ status: number; body: unknown }> {
-	const url = `${PHI_CHART_TAG_API}/aliases/resolve?alias=${encodeURIComponent(alias)}`;
-	const headers: Record<string, string> = { Accept: "application/json" };
-	if (PHI_PROXY_KEY && isProxyHost(url))
-		headers[PROXY_KEY_HEADER] = PHI_PROXY_KEY;
-	const res = await outgoingFetch(url, {
-		headers,
-		signal: AbortSignal.timeout(LIVE_FETCH_MS),
-	});
-	const json = (res.headers.get("content-type") ?? "").includes("json");
-	const body = json ? await res.json().catch(() => undefined) : undefined;
-	if (!json) await res.text().catch(() => "");
-	return { status: res.status, body };
 }
 
 const defaultDeps: AliasDeps = {
@@ -227,14 +160,12 @@ const defaultDeps: AliasDeps = {
 				})
 			: undefined,
 	known,
-	fetchResolve,
 	background: (work) =>
 		runInBackground(work, (err) =>
 			logger.warn(`aliases background failed: ${errText(err)}`),
 		),
 	now: Date.now,
 	coldWaitMs: COLD_WAIT_MS,
-	liveBudgetMs: LIVE_BUDGET_MS,
 };
 
 let deps = defaultDeps;
@@ -352,123 +283,4 @@ export async function ensureAliases(): Promise<AliasIndex> {
 		await Promise.race([st.loading, wait(deps.coldWaitMs)]);
 	}
 	return currentIndex(want);
-}
-
-/** Cache key for the live resolve: upstream trims and ignores case, but does not apply NFKC */
-export function liveAliasKey(q: string): string {
-	return q.trim().toLowerCase();
-}
-
-function remember(key: string, result: LiveResult, ttl: number) {
-	const live = state().live;
-	live.delete(key);
-	live.set(key, { until: deps.now() + ttl, result });
-	while (live.size > LIVE_MAX) {
-		const oldest = live.keys().next().value;
-		if (oldest === undefined) break;
-		live.delete(oldest);
-	}
-}
-
-function liveIds(body: unknown): string[] | undefined {
-	const items = (body as { items?: unknown } | undefined)?.items;
-	if (!Array.isArray(items)) return;
-	const ids = new Set<string>();
-	for (const item of items) {
-		const id = (item as { songId?: unknown } | null)?.songId;
-		if (typeof id === "string" && id.trim()) ids.add(withDotZero(id.trim()));
-	}
-	return [...ids];
-}
-
-function liveOff(ms: number, why: string) {
-	const st = state();
-	if (deps.now() >= st.liveOffUntil) {
-		logger.warn(`aliases: live resolve off for ${ms / 1000} s (${why})`);
-	}
-	st.liveOffUntil = Math.max(st.liveOffUntil, deps.now() + ms);
-}
-
-async function fetchLive(alias: string, key: string): Promise<LiveResult> {
-	const st = state();
-	try {
-		const res = await deps.fetchResolve(alias);
-		if (!res) return { status: "off", ids: [] };
-		if (res.status === 401 || res.status === 403 || res.status === 404) {
-			// Today's Worker has no alias route; don't ask again per query
-			liveOff(LIVE_OFF_MS, String(res.status));
-			return { status: "off", ids: [] };
-		}
-		if (res.status === 400) {
-			st.liveFailures = 0;
-			const miss: LiveResult = { status: "miss", ids: [] };
-			remember(key, miss, LIVE_MISS_TTL_MS);
-			return miss;
-		}
-		const ids = res.status === 200 ? liveIds(res.body) : undefined;
-		if (!ids) throw new Error(`resolve ${res.status}`);
-		st.liveFailures = 0;
-		const result: LiveResult = { status: ids.length ? "hit" : "miss", ids };
-		remember(key, result, ids.length ? LIVE_HIT_TTL_MS : LIVE_MISS_TTL_MS);
-		return result;
-	} catch (err) {
-		logger.warn(`aliases: live resolve failed: ${errText(err)}`);
-		st.liveFailures += 1;
-		if (st.liveFailures >= LIVE_BREAKER_AFTER) {
-			st.liveFailures = 0;
-			liveOff(LIVE_BREAKER_MS, `${LIVE_BREAKER_AFTER} failures in a row`);
-		}
-		const result: LiveResult = { status: "error", ids: [] };
-		remember(key, result, LIVE_ERROR_TTL_MS);
-		return result;
-	}
-}
-
-function takeLiveBudget(client: string | undefined): boolean {
-	const st = state();
-	const window = Math.floor(deps.now() / 60_000);
-	if (st.liveWindow !== window) {
-		st.liveWindow = window;
-		st.liveCount = 0;
-		st.liveClients.clear();
-	}
-	if (st.liveCount >= LIVE_PER_MIN) return false;
-	const used = client ? (st.liveClients.get(client) ?? 0) : 0;
-	if (used >= LIVE_PER_CLIENT_MIN) return false;
-	st.liveCount += 1;
-	if (client) st.liveClients.set(client, used + 1);
-	return true;
-}
-
-/** phib19's /aliases/resolve, for aliases newer than the mirror */
-export async function resolveAliasLive(
-	q: string,
-	client?: string,
-): Promise<LiveResult> {
-	const alias = q.trim();
-	if (!alias || alias.length > ALIAS_MAX_LEN)
-		return { status: "skipped", ids: [] };
-	const key = liveAliasKey(alias);
-	const st = state();
-	const cached = st.live.get(key);
-	if (cached && cached.until > deps.now()) {
-		st.live.delete(key);
-		st.live.set(key, cached);
-		return cached.result;
-	}
-	if (deps.now() < st.liveOffUntil) return { status: "off", ids: [] };
-	let job = st.liveInflight.get(key);
-	if (!job) {
-		if (!takeLiveBudget(client)) return { status: "skipped", ids: [] };
-		const started = fetchLive(alias, key).finally(() => {
-			st.liveInflight.delete(key);
-		});
-		st.liveInflight.set(key, started);
-		deps.background(started);
-		job = started;
-	}
-	const timeout = wait(deps.liveBudgetMs).then(
-		(): LiveResult => ({ status: "timeout", ids: [] }),
-	);
-	return Promise.race([job, timeout]);
 }

@@ -9,6 +9,7 @@ import {
 	type CardImageCacheInput,
 	cardCacheInput,
 	cardCacheParts,
+	cardSlot,
 	parseCachedHeight,
 } from "./card-image-cache";
 import { publicObjectUrl } from "./r2";
@@ -57,6 +58,46 @@ test("save, language, quality, or cache bypass each get a new JPEG cache id", ()
 	assert.notEqual(
 		base,
 		cardEtag(cardCacheParts(sample({ epoch: "123" }), "jpeg")),
+	);
+});
+
+test("a new levels revision gets a new JPEG cache id and keeps the slot version", () => {
+	const a = sample({ levels: "0123456789abcdef" });
+	const b = sample({ levels: "fedcba9876543210" });
+	assert.notDeepEqual(cardCacheParts(a, "jpeg"), cardCacheParts(b, "jpeg"));
+	assert.notEqual(
+		cardEtag(cardCacheParts(a, "jpeg")),
+		cardEtag(cardCacheParts(b, "jpeg")),
+	);
+	assert.equal(cardSlot(a).version, cardSlot(b).version);
+	assert.equal(cardSlot(a).version, cardSlot(sample()).version);
+	const parts = cardCacheParts(a, "jpeg");
+	assert.equal(parts.at(-3), "lv:0123456789ab");
+	assert.equal(parts.at(-2), "v32");
+});
+
+test("no levels revision keeps today's id", () => {
+	const today = [
+		"b30",
+		"user",
+		"save-a",
+		"locale:zh",
+		"fast",
+		"0",
+		"33",
+		"default",
+		"a1",
+		"t1",
+		"s1",
+		"avg:all:blue",
+		"random",
+		"v32",
+		"jpeg",
+	];
+	assert.deepEqual(cardCacheParts(sample(), "jpeg"), today);
+	assert.deepEqual(cardCacheParts(sample({ levels: "" }), "jpeg"), today);
+	assert.ok(
+		!cardCacheParts(sample(), "height").some((p) => p.startsWith("lv:")),
 	);
 });
 

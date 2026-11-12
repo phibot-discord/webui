@@ -1,3 +1,5 @@
+import { evictOldest } from "@/phi/lib/lru";
+
 const USER_PER_MIN = 10;
 const IP_PER_MIN = 30;
 const WINDOW_MS = 60_000;
@@ -26,11 +28,7 @@ function take(
 	live.push(now);
 	hits.delete(key);
 	hits.set(key, live);
-	while (hits.size > KEYS_MAX) {
-		const oldest = hits.keys().next().value;
-		if (oldest === undefined) break;
-		hits.delete(oldest);
-	}
+	evictOldest(hits, KEYS_MAX);
 	return { ok: true };
 }
 
@@ -42,6 +40,14 @@ export function rateLimit(
 	if (!ip.ok) return ip;
 	if (opts.userId) return take(`user:${opts.userId}`, USER_PER_MIN, now);
 	return ip;
+}
+
+export function rateLimitBy(
+	key: string,
+	perMinute: number,
+	now = Date.now(),
+): { ok: true } | { ok: false; retryAfter: number } {
+	return take(key, perMinute, now);
 }
 
 export function resetRateLimitForTest() {

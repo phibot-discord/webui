@@ -1,13 +1,20 @@
 "use client";
 
-import { Desktop, Moon, Sun } from "@phosphor-icons/react";
-import { useEffect, useId, useState } from "react";
+import {
+	useEffect,
+	useId,
+	useLayoutEffect,
+	useState,
+	useSyncExternalStore,
+} from "react";
+import { Desktop, Moon, Sun } from "@/components/icons";
 import { useI18n } from "@/i18n/provider";
 import {
 	THEME_COLORS,
 	THEME_COOKIE,
 	type Theme,
 	type ThemeChoice,
+	themeFromCookie,
 } from "@/theme/config";
 
 const OPTIONS = [
@@ -17,6 +24,12 @@ const OPTIONS = [
 ] as const;
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+const noSubscribe = () => () => {};
+
+function savedChoice(): ThemeChoice {
+	return themeFromCookie(document.cookie) ?? "system";
+}
 
 function syncThemeColor(theme: Theme | null) {
 	const dark = window.matchMedia(DARK_QUERY).matches;
@@ -56,15 +69,30 @@ function applyTheme(choice: ThemeChoice) {
 	syncThemeColor(choice);
 }
 
-export function ThemeSwitch({ initial }: { initial: ThemeChoice }) {
+export function ThemeSwitch() {
 	const { m } = useI18n();
 	const labelId = useId();
-	const [choice, setChoice] = useState<ThemeChoice>(initial);
+	const saved = useSyncExternalStore(
+		noSubscribe,
+		savedChoice,
+		() => "system" as const,
+	);
+	const [picked, setPicked] = useState<ThemeChoice | null>(null);
+	const choice = picked ?? saved;
 	const names: Record<ThemeChoice, string> = {
 		light: m.theme.light,
 		dark: m.theme.dark,
 		system: m.theme.system,
 	};
+
+	useLayoutEffect(() => {
+		const theme = themeFromCookie(document.cookie);
+		if (theme) {
+			document.documentElement.setAttribute("data-theme", theme);
+			document.documentElement.style.colorScheme = theme;
+		}
+		syncThemeColor(theme);
+	}, []);
 
 	useEffect(() => {
 		if (choice !== "system") return;
@@ -77,7 +105,7 @@ export function ThemeSwitch({ initial }: { initial: ThemeChoice }) {
 	function pick(next: ThemeChoice) {
 		if (next === choice) return;
 		applyTheme(next);
-		setChoice(next);
+		setPicked(next);
 	}
 
 	return (

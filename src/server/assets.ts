@@ -7,12 +7,8 @@ import {
 import { runInBackground } from "./background";
 import { cfFetch } from "./cf-fetch";
 import { logger } from "./logger";
-import {
-	bucketObjectsUrl,
-	type R2Config,
-	r2Config,
-	r2WriteReady,
-} from "./r2-base";
+import { listRequest, type R2Config, r2Config, r2WriteReady } from "./r2-base";
+import { parseS3List } from "./r2-s3";
 import { withTimeout } from "./render-lock";
 
 const LIST_TTL_MS = 5 * 60 * 1000;
@@ -31,19 +27,14 @@ export async function listAssetPrefix(
 	const files: AssetFile[] = [];
 	let cursor: string | undefined;
 	for (let page = 0; page < LIST_PAGE_CAP && files.length < LIST_MAX; page++) {
-		const url = new URL(bucketObjectsUrl(cfg));
-		url.searchParams.set("prefix", prefix);
-		url.searchParams.set("per_page", "1000");
-		if (cursor) url.searchParams.set("cursor", cursor);
-		const res = await cfFetch(url.toString(), {
-			headers: { Authorization: `Bearer ${cfg.apiToken}` },
-		});
+		const req = listRequest(cfg, prefix, cursor);
+		const res = await cfFetch(req.url, { headers: req.headers });
 		if (!res.ok) {
 			logger.warn(`r2 list ${res.status} ${prefix}`);
 			throw new Error(`r2 list ${res.status}`);
 		}
 		const parsed = readAssetPage(
-			await res.json(),
+			cfg.s3 ? parseS3List(await res.text()) : await res.json(),
 			(key) => key.startsWith(prefix) && key !== prefix,
 		);
 		files.push(...parsed.files);
@@ -59,6 +50,10 @@ function relist(cfg: R2Config): Promise<Listing> {
 	)
 		.then((groups) => {
 			const all = groups.flat().sort((a, b) => a.key.localeCompare(b.key));
+			if (all.length > LIST_MAX)
+				logger.warn(
+					`asset listing cut: ${all.length} keys, showing ${LIST_MAX}`,
+				);
 			cached = {
 				at: Date.now(),
 				files: all.slice(0, LIST_MAX),

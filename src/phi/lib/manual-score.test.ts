@@ -60,3 +60,12 @@ test("a typed accuracy parses to a valid, rounded number or nothing", () => {
 	assert.equal(parseAcc(""), undefined);
 	assert.equal(parseAcc("abc"), undefined);
 });
+
+test("a score of 0 counts as no score, so the estimate is used", () => {
+	assert.equal(effectiveScore({ acc: 98, score: 0 }), estimateScore(98, false));
+	assert.equal(
+		effectiveScore({ acc: 99, score: 0, fc: true }),
+		estimateScore(99, true),
+	);
+	assert.equal(effectiveScore({ acc: 100, score: 0 }), 1_000_000);
+});

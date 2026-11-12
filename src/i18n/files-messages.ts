@@ -76,6 +76,7 @@ export type FilesMessages = {
 		unavailable: string;
 		chaptersLabel: string;
 		itemCount: string;
+		itemCountOne: string;
 		other: string;
 		clues: string;
 		author: string;
@@ -194,6 +195,7 @@ export type FilesMessages = {
 		settingTitle: string;
 		settingLede: string;
 		settingCount: string;
+		settingCountOne: string;
 		kinds: Record<
 			| "place"
 			| "subspace"
@@ -366,6 +368,7 @@ export const filesEn: FilesMessages = {
 		unavailable: "The collection is unavailable right now.",
 		chaptersLabel: "Chapters",
 		itemCount: "{n} items",
+		itemCountOne: "1 item",
 		other: "Other",
 		clues: "Clues",
 		author: "By {name}",
@@ -518,6 +521,7 @@ export const filesEn: FilesMessages = {
 		settingLede:
 			"The places, peoples, groups, whims and ideas of the Limbo Wiki, each with the events that mention it. Official entries come first; community entries appear when community lore is on.",
 		settingCount: "{n} entries",
+		settingCountOne: "1 entry",
 		kinds: {
 			place: "Places",
 			subspace: "Subspaces",
@@ -696,6 +700,7 @@ export const filesZh: FilesMessages = {
 		unavailable: "收藏品暂不可用。",
 		chaptersLabel: "章节",
 		itemCount: "{n} 件",
+		itemCountOne: "1 件",
 		other: "其他",
 		clues: "线索",
 		author: "作者：{name}",
@@ -841,6 +846,7 @@ export const filesZh: FilesMessages = {
 		settingLede:
 			"林泊百科里的地点、族群、组织、异想与概念，各自列出提到它的事件。官方条目在前；打开社区设定后才显示社区条目。",
 		settingCount: "{n} 条",
+		settingCountOne: "1 条",
 		kinds: {
 			place: "地点",
 			subspace: "亚空间",

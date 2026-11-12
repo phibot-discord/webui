@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { LOCALE_COOKIE, negotiateLocale } from "@/i18n/config";
 import {
+	isEnglishSegment,
 	LOCALE_HEADER,
 	localePath,
 	pathLocale,
+	segmentPath,
 	stripLocale,
 } from "@/lib/locale-path";
 import { withDiscordUid } from "@/server/logger";
@@ -22,6 +24,11 @@ function redirectTo(req: NextRequest, path: string) {
 /** Picks each page's locale from its URL; bare URLs send readers who prefer Chinese or Japanese to /zh or /ja */
 export async function proxy(req: NextRequest) {
 	const { pathname, search } = req.nextUrl;
+	if (isEnglishSegment(pathname))
+		return NextResponse.redirect(
+			new URL(stripLocale(pathname) + search, req.nextUrl),
+			308,
+		);
 	const locale = pathLocale(pathname);
 	const bare = stripLocale(pathname);
 	if (locale === "en" && (req.method === "GET" || req.method === "HEAD")) {
@@ -35,9 +42,9 @@ export async function proxy(req: NextRequest) {
 	const pass = () => {
 		const headers = new Headers(req.headers);
 		headers.set(LOCALE_HEADER, locale);
-		if (locale === "en") return NextResponse.next({ request: { headers } });
+		if (locale !== "en") return NextResponse.next({ request: { headers } });
 		const url = req.nextUrl.clone();
-		url.pathname = bare;
+		url.pathname = segmentPath(pathname, "en");
 		return NextResponse.rewrite(url, { request: { headers } });
 	};
 	if (!SIGNED_IN_ONLY.test(bare)) return pass();

@@ -82,6 +82,7 @@ export const filesJa: FilesMessages = {
 		unavailable: "コレクションは現在利用できません。",
 		chaptersLabel: "チャプター",
 		itemCount: "{n} 件",
+		itemCountOne: "1 件",
 		other: "その他",
 		clues: "手がかり",
 		author: "作者：{name}",
@@ -234,6 +235,7 @@ export const filesJa: FilesMessages = {
 		settingLede:
 			"Limbo Wiki の場所、民族、団体、異想、概念を、それに言及する出来事とともに並べています。公式の項目が先で、コミュニティ設定をオンにするとコミュニティの項目も表示されます。",
 		settingCount: "{n} 件",
+		settingCountOne: "1 件",
 		kinds: {
 			place: "場所",
 			subspace: "サブスペース",

@@ -1,7 +1,7 @@
 "use client";
 
-import { DownloadSimple } from "@phosphor-icons/react";
 import { useId } from "react";
+import { DownloadSimple } from "@/components/icons";
 import { useI18n } from "@/i18n/provider";
 
 export function ExportRecords() {

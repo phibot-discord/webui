@@ -23,6 +23,15 @@ export function isPackLevel(v: string): boolean {
 	return v.length <= 32 && PACK_LEVEL.test(v);
 }
 
+export function isChartId(v: string): boolean {
+	if (v.length < 1 || v.length > 160 || v === "." || v === "..") return false;
+	for (let i = 0; i < v.length; i++) {
+		const c = v.charCodeAt(i);
+		if (c < 0x20 || c === 0x7f || c === 0x2f || c === 0x5c) return false;
+	}
+	return true;
+}
+
 /** A pack the song list does not offer: Legacy, or a chart only an unlock plays */
 export function isExtraPackLevel(v: string): boolean {
 	return isPackLevel(v) && !SCORED_LEVELS.includes(v);

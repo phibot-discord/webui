@@ -26,6 +26,37 @@
 	margin: 0;
 }
 
+.manual-import {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+	margin: 0 0 var(--space-5);
+}
+
+.manual-import .field-hint {
+	margin: 0;
+}
+
+.manual-import .field-hint:empty {
+	position: absolute;
+}
+
+.manual-import-preview {
+	margin: 0 0 var(--space-5);
+}
+
+.manual-import-preview h2 {
+	margin: 0 0 var(--space-2);
+	font-size: var(--text-base);
+	overflow-wrap: anywhere;
+}
+
+.manual-import-counts {
+	margin: 0 0 var(--space-3);
+	padding-left: var(--space-5);
+}
+
 .manual-warn {
 	margin: 0 0 var(--space-4);
 	border-color: var(--danger);

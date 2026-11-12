@@ -1,7 +1,7 @@
 "use client";
 
-import { CaretDown, DotsThree } from "@phosphor-icons/react";
 import { type ReactNode, useCallback, useId, useRef, useState } from "react";
+import { CaretDown, DotsThree } from "@/components/icons";
 import { ToolPop, useToolDismiss } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 

@@ -76,7 +76,7 @@ function useBoard(
 }
 
 function Curve({ board, mine }: { board: BoardCurve; mine?: number }) {
-	const { m } = useI18n();
+	const { m, locale } = useI18n();
 	const t = m.rankCurve;
 	const lo = curveLow(board);
 	const points = curvePoints(board, lo);
@@ -101,7 +101,7 @@ function Curve({ board, mine }: { board: BoardCurve; mine?: number }) {
 		xTicks.push(v);
 	const you = mine != null ? boardRank(board, mine) : null;
 	const label = fill(t.chartLabel, {
-		n: board.n.toLocaleString(),
+		n: board.n.toLocaleString(localeTag(locale)),
 		lo: lo.toFixed(1),
 	});
 	return (
@@ -223,9 +223,9 @@ export function RankCurve({
 				<>
 					<p className="rc-sum">
 						{fill(t.summary, {
-							n: board.n.toLocaleString(),
-							ap: board.ap.toLocaleString(),
-							fc: board.fc.toLocaleString(),
+							n: board.n.toLocaleString(localeTag(locale)),
+							ap: board.ap.toLocaleString(localeTag(locale)),
+							fc: board.fc.toLocaleString(localeTag(locale)),
 						})}
 					</p>
 					<Curve board={board} mine={acc} />
@@ -264,8 +264,12 @@ export function RankCurve({
 											</th>
 											<td className="num">
 												{a >= 100
-													? fill(t.tied, { n: r.tied.toLocaleString() })
-													: fill(t.about, { rank: r.rank.toLocaleString() })}
+													? fill(t.tied, {
+															n: r.tied.toLocaleString(localeTag(locale)),
+														})
+													: fill(t.about, {
+															rank: r.rank.toLocaleString(localeTag(locale)),
+														})}
 											</td>
 											<td className="num">
 												{r.top < 0.01
@@ -281,7 +285,9 @@ export function RankCurve({
 														? "—"
 														: now.rank > r.rank
 															? fill(t.places, {
-																	n: (now.rank - r.rank).toLocaleString(),
+																	n: (now.rank - r.rank).toLocaleString(
+																		localeTag(locale),
+																	),
 																})
 															: "—"}
 												</td>

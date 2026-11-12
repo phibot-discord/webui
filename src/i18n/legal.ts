@@ -12,7 +12,7 @@ export type LegalDoc = {
 	sections: LegalSection[];
 };
 
-export const LEGAL_UPDATED = "2026-11-04";
+export const LEGAL_UPDATED = "2026-11-11";
 
 const GITHUB = "https://github.com/phibot-discord/webui";
 
@@ -65,6 +65,7 @@ export const terms: Record<Locale, LegalDoc> = {
 						"look for or use security holes, or try to reach other people's data;",
 						"use PhiBot for anything unlawful, or to harass other players.",
 					],
+					"The site's data endpoints (the addresses under /api/) serve PhiBot's own pages. They are internal and not offered for use by other software, and they can change, be limited or stop without notice. The **RKS badge** is the exception: it is meant to be embedded on other sites.",
 					"Access can be limited, suspended or ended for anyone who breaks these rules or puts the service at risk.",
 				],
 			},
@@ -186,6 +187,7 @@ export const terms: Record<Locale, LegalDoc> = {
 						"寻找或利用安全漏洞，或试图获取他人的数据；",
 						"将 PhiBot 用于违法用途或骚扰其他玩家。",
 					],
+					"网站的数据接口（/api/ 下的地址）只为 PhiBot 自己的页面服务。它们是内部接口，不对其他软件开放，可能随时更改、限流或停用，恕不另行通知。**RKS 徽章**例外：它本来就是用来嵌入其他网站的。",
 					"违反这些规则或危及服务的用户，可能会被限制、暂停或终止使用。",
 				],
 			},
@@ -307,6 +309,7 @@ export const terms: Record<Locale, LegalDoc> = {
 						"セキュリティ上の欠陥を探す、悪用する、または他人のデータにアクセスしようとすること。",
 						"違法な目的、または他のプレイヤーへの嫌がらせに PhiBot を使うこと。",
 					],
+					"サイトのデータ用エンドポイント（/api/ 以下のアドレス）は PhiBot 自身のページのためのものです。内部用であり、他のソフトウェアからの利用には提供しておらず、予告なく変更、制限、または停止することがあります。**RKS バッジ**は例外で、他のサイトに埋め込むためのものです。",
 					"これらのルールに違反した方、またはサービスを危険にさらした方は、アクセスを制限、停止、または終了することがあります。",
 				],
 			},

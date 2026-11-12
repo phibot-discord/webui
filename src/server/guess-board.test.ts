@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test, { beforeEach } from "node:test";
 import {
+	BOARD_MEMO_MAX,
 	boardFor,
 	guessRun,
 	isRanked,
@@ -198,4 +199,16 @@ test("a board write that fails still counts the win, unranked", async () => {
 	failEntries = false;
 	assert.equal(await setRanked(DAY, "w", "w", true), true);
 	assert.equal((await boardFor(DAY)).total, 1);
+});
+
+test("the board memo keeps only the most recently listed days", async () => {
+	const days = Array.from({ length: BOARD_MEMO_MAX + 1 }, (_, i) =>
+		new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10),
+	);
+	for (const day of days) await boardFor(day);
+	assert.equal(lists, BOARD_MEMO_MAX + 1);
+	await boardFor(days.at(-1)!);
+	assert.equal(lists, BOARD_MEMO_MAX + 1);
+	await boardFor(days[0]!);
+	assert.equal(lists, BOARD_MEMO_MAX + 2);
 });

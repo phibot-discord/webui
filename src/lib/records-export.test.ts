@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	csvCell,
+	exportDocument,
 	exportFileName,
 	exportRows,
 	parseExportFormat,
@@ -51,6 +52,26 @@ test("the CSV starts with a BOM and a header", () => {
 	assert.ok(csv.startsWith("\uFEFFid,song,level,"));
 	assert.equal(csv.split("\r\n").length, 3);
 	assert.ok(csv.includes(`"'+ERABY+E CONNEC+10N"`));
+});
+
+test("the JSON export names its format and version before the player", () => {
+	const doc = exportDocument(
+		{
+			player: "Player",
+			rks: 15.8,
+			savedAt: null,
+			exportedAt: "2026-11-11T00:00:00.000Z",
+		},
+		exportRows([record]),
+	);
+	assert.deepEqual(Object.keys(doc).slice(0, 3), [
+		"format",
+		"version",
+		"player",
+	]);
+	assert.equal(doc.format, "phibot-records");
+	assert.equal(doc.version, 1);
+	assert.equal(doc.records.length, 1);
 });
 
 test("format and file name", () => {

@@ -13,6 +13,7 @@ import { useI18n } from "@/i18n/provider";
 import { timelineHref } from "@/lib/files-view";
 import type { EventDetails, TermDetails, ThreadDetails } from "@/lib/timeline";
 import { loadTimelineDetails } from "@/timeline-actions";
+import { LocaleAnchor } from "./LocaleAnchor";
 import { type RefCopy, RefLink } from "./TimelineRef";
 
 export type DetailsCopy = RefCopy &
@@ -84,7 +85,7 @@ function EventMore({
 					<ul className="tl-term-chips">
 						{data.terms.map((term) => (
 							<li key={term.id}>
-								<a
+								<LocaleAnchor
 									className="tl-tag"
 									href={timelineHref(
 										{
@@ -97,7 +98,7 @@ function EventMore({
 									)}
 								>
 									{term.name}
-								</a>
+								</LocaleAnchor>
 							</li>
 						))}
 					</ul>
@@ -179,10 +180,10 @@ function Body({
 		<ol>
 			{(data as ThreadDetails).events.map((e) => (
 				<li key={e.anchor}>
-					<a href={timelineHref({ community }, e.anchor)}>
+					<LocaleAnchor href={timelineHref({ community }, e.anchor)}>
 						{e.when ? <span className="tl-when">{e.when}</span> : null}
 						{e.title}
-					</a>
+					</LocaleAnchor>
 				</li>
 			))}
 		</ol>

@@ -143,6 +143,44 @@ test("update card with no history shows the empty state and RKS delta from snaps
 	assert.equal(card.ChallengeModeRank, 51);
 });
 
+test("the update card takes the previous score by date", async () => {
+	const at = (n: number) => new Date(T0 + n * DAY).toISOString();
+	const row = (n: number, acc: number) => [
+		acc.toFixed(4),
+		900_000 + n,
+		at(n),
+		false,
+	];
+	const history = new SaveHistory({
+		version: 3,
+		scoreHistory: {
+			"s.0": { IN: [row(1, 97), row(2, 98), row(3, 99)] },
+		},
+	} as never);
+	history.scoreHistory["s.0"]!.IN = [
+		row(2, 98),
+		row(3, 99),
+		row(1, 97),
+	] as never;
+	const card = await buildUpdateCard(
+		mockRt(),
+		mockSave(),
+		catalog,
+		history,
+		notes,
+		[],
+		{ locale: "en" },
+	);
+	const tiles = card.box_line.flat().flatMap((box) => box.song);
+	const tileOn = (n: number) =>
+		tiles.find((tile) => tile.date_new.toISOString() === at(n));
+	assert.equal(tiles.length, 3);
+	assert.equal(tileOn(2)?.acc_old, 97);
+	assert.equal(tileOn(3)?.acc_old, 98);
+	assert.ok(tileOn(1));
+	assert.equal(tileOn(1)?.acc_old, undefined);
+});
+
 test("updateCardImages lists every jacket, grade icon, the challenge icon and background once", async () => {
 	const history = new SaveHistory({
 		version: 3,

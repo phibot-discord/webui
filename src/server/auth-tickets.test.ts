@@ -34,6 +34,25 @@ test("a linked sign-in's ticket names the Discord user", async () => {
 	});
 });
 
+test("a ticket carries the save proof only when it was sealed with one", async () => {
+	const linked = await sealTapTicket(LOGIN, {
+		id: "123456789012345678",
+		proof: "abc",
+	});
+	assert.deepEqual(await openTapTicket(linked, LOGIN), {
+		id: "123456789012345678",
+		name: undefined,
+		image: undefined,
+		proof: "abc",
+	});
+	const plain = await openTapTicket(
+		await sealTapTicket(LOGIN, { id: "tap:obj1" }),
+		LOGIN,
+	);
+	assert.equal(plain?.proof, undefined);
+	assert.equal(plain && "proof" in plain, false);
+});
+
 test("garbage and the other kind of sealed value do not open as a ticket", async () => {
 	assert.equal(await openTapTicket("nope", LOGIN), null);
 	assert.equal(await openTapTicket(undefined, LOGIN), null);

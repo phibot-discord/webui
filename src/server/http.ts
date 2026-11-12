@@ -12,6 +12,16 @@ export function jsonError(status: number, error: string, code?: string) {
 	});
 }
 
+export function privateJson(
+	body: unknown,
+	init: { status?: number } = {},
+): Response {
+	return Response.json(body, {
+		status: init.status,
+		headers: { "Cache-Control": "private, no-store" },
+	});
+}
+
 /** If-None-Match uses weak comparison: lists, W/ tags and `*` match */
 export function etagMatches(
 	ifNoneMatch: string | null | undefined,

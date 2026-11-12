@@ -17,8 +17,11 @@ import {
 	SNAP_PROGRESS,
 	SNAP_TARGETS,
 	SNAP_W,
+	SNAP_WRAPPED,
 	type TargetsSnap,
 	targetsSnapHtml,
+	type WrappedSnap,
+	wrappedSnapHtml,
 } from "./render/snapshot";
 import {
 	type App,
@@ -153,6 +156,14 @@ async function bootRender(): Promise<WebHost> {
 			width: SNAP_W,
 			format: "png",
 			html: (raw) => targetsSnapHtml(raw as TargetsSnap),
+		}),
+	);
+	app.template(
+		defineTemplate({
+			id: SNAP_WRAPPED,
+			width: SNAP_W,
+			format: "png",
+			html: (raw) => wrappedSnapHtml(raw as WrappedSnap),
 		}),
 	);
 

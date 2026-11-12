@@ -1,18 +1,69 @@
 import { existsSync as fsExists } from "node:fs";
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
+	JACKET_TREES,
 	type JacketTree,
 	SIDE_ILL_DIR,
 	sidePrefix,
 	splitTree,
 } from "@/lib/assets";
+import {
+	type CacheFiles,
+	claimCacheRoot,
+	markFileUsed,
+	pruneToBudget,
+	retryAfterPrune,
+} from "@/phi/lib/disk-budget";
 import { logger } from "./logger";
 import { illDir } from "./paths";
 import { poolAll } from "./pool";
 import { fetchR2Object, HTML_PREFIX, ILL_PREFIX } from "./r2";
 
-const CACHE_ROOT = process.env.PHI_ILL_CACHE?.trim() || "/tmp/phi-web-ill";
+const DEFAULT_CACHE_ROOT = "/tmp/phi-web-ill";
+const CACHE_ROOT = process.env.PHI_ILL_CACHE?.trim() || DEFAULT_CACHE_ROOT;
+const DEFAULT_ILL_CACHE_MB = 128;
+const ILL_PRUNE_GAP_MS = 30_000;
+let prunedAt = 0;
+
+export function illCacheBytes(raw: string | undefined): number {
+	const mb = Number(raw?.trim());
+	return (
+		(Number.isFinite(mb) && mb > 0 ? mb : DEFAULT_ILL_CACHE_MB) * 1024 * 1024
+	);
+}
+
+const ILL_CACHE_BYTES = illCacheBytes(process.env.PHI_ILL_CACHE_MB);
+
+const JACKET_FILES: CacheFiles = {
+	setting: "PHI_ILL_CACHE",
+	folders: [
+		ILL_PREFIX,
+		...JACKET_TREES.map((tree) => `${sidePrefix(tree)}/${SIDE_ILL_DIR}`),
+		`${HTML_PREFIX}/avatar`,
+		`${HTML_PREFIX}/otherimg`,
+	],
+	nested: true,
+	name: /\.png$/,
+	marker: ".phi-jacket-cache",
+};
+let rootClaimed = false;
+
+export function pruneIllCache(
+	maxBytes = ILL_CACHE_BYTES,
+	now = Date.now(),
+): number | undefined | null {
+	if (now - prunedAt < ILL_PRUNE_GAP_MS) return null;
+	prunedAt = now;
+	return pruneToBudget(CACHE_ROOT, maxBytes, JACKET_FILES, now);
+}
+
+function pruneNote(left: number | undefined | null): string {
+	if (left === null) return "the last prune ran less than 30 s ago";
+	if (left === undefined) return "its folder is never pruned";
+	return `pruned to ${Math.round(left / 1048576)} MB`;
+}
+
 const ILL_FETCH_CONCURRENCY = 48;
 
 /** `sp`: full jacket only, in `SP/`; a jacket tree mirrors the normal layout under its prefix */
@@ -117,12 +168,33 @@ function diskPath(key: string) {
 type Located = { dest: string; fetched: boolean };
 const locating = new Map<string, Promise<Located | undefined>>();
 
-/** Temp name + rename, so a concurrent reader never sees a partial file */
-async function writeAtomic(dest: string, buf: Buffer) {
+async function writeOnce(dest: string, buf: Buffer) {
 	await mkdir(/*turbopackIgnore: true*/ dirname(dest), { recursive: true });
 	const tmp = `${dest}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
-	await writeFile(/*turbopackIgnore: true*/ tmp, buf);
-	await rename(/*turbopackIgnore: true*/ tmp, dest);
+	try {
+		await writeFile(/*turbopackIgnore: true*/ tmp, buf);
+		await rename(/*turbopackIgnore: true*/ tmp, dest);
+	} catch (err) {
+		await rm(/*turbopackIgnore: true*/ tmp, { force: true });
+		throw err;
+	}
+}
+
+/** Temp name + rename, so a concurrent reader never sees a partial file */
+async function writeAtomic(dest: string, buf: Buffer) {
+	if (!rootClaimed) {
+		rootClaimed = true;
+		claimCacheRoot(CACHE_ROOT, JACKET_FILES, CACHE_ROOT === DEFAULT_CACHE_ROOT);
+	}
+	await retryAfterPrune(
+		() => writeOnce(dest, buf),
+		(err) => {
+			const left = pruneIllCache(ILL_CACHE_BYTES / 2);
+			logger.warn(
+				`jacket cache write failed (${err instanceof Error ? err.message : err}), ${pruneNote(left)}`,
+			);
+		},
+	);
 }
 
 function locateAsset(key: string): Promise<Located | undefined> {
@@ -134,11 +206,14 @@ function locateAsset(key: string): Promise<Located | undefined> {
 		);
 		for (const candidate of candidates) {
 			const dest = diskPath(candidate);
-			if (fsExists(/*turbopackIgnore: true*/ dest))
+			if (fsExists(/*turbopackIgnore: true*/ dest)) {
+				markFileUsed(dest);
 				return { dest, fetched: false };
+			}
 			const buf = await fetchBytes(candidate);
 			if (!buf) continue;
 			await writeAtomic(dest, buf);
+			markFileUsed(dest);
 			return { dest, fetched: true };
 		}
 		logger.warn(`asset r2 miss ${key}`);
@@ -196,6 +271,7 @@ export async function hydrateIlls(
 		hits += 1;
 		if (hit.fetched) fetched += 1;
 	});
+	if (fetched) pruneIllCache();
 	if (fetched) {
 		logger.ok(
 			`assets ${hits}/${wanted.length} (${fetched} fetched) in ${Math.round(performance.now() - started)}ms → ${CACHE_ROOT}`,

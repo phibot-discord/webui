@@ -6,8 +6,8 @@ import {
 } from "@/phi/lib/tag-profile";
 import {
 	dayEndMs,
-	type ScoreHistoryMap,
 	recordsAt,
+	type ScoreHistoryMap,
 	shanghaiDay,
 } from "./past-self";
 

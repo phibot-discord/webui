@@ -14,7 +14,11 @@ function toOrigin(raw: string): string | undefined {
 	}
 }
 
-type AuthOriginStore = { __phiAuthOrigins?: string[] };
+type AuthOriginStore = {
+	__phiAuthOrigins?: string[];
+	__phiAuthUrlBase?: { value: string | undefined };
+	__phiAuthUrlTail?: Promise<void>;
+};
 
 function envOrigins(): string[] {
 	return [
@@ -49,7 +53,10 @@ export function resetAuthOriginsForTest(
 		if (value) process.env[key] = value;
 		else delete process.env[key];
 	}
-	delete (globalThis as AuthOriginStore).__phiAuthOrigins;
+	const g = globalThis as AuthOriginStore;
+	delete g.__phiAuthOrigins;
+	delete g.__phiAuthUrlBase;
+	delete g.__phiAuthUrlTail;
 }
 
 export function configuredAuthOrigins(): readonly string[] {
@@ -58,7 +65,10 @@ export function configuredAuthOrigins(): readonly string[] {
 
 /** Auth.js parses AUTH_URL as a single origin. Drop it when several are set */
 export function stripCanonicalAuthUrlIfMany() {
+	const g = globalThis as AuthOriginStore;
+	if (g.__phiAuthUrlBase) return;
 	if (parseAuthOrigins().length > 1) delete process.env.AUTH_URL;
+	g.__phiAuthUrlBase = { value: process.env.AUTH_URL };
 }
 
 function firstHeader(headers: Headers, name: string): string {
@@ -97,17 +107,35 @@ export function resolveAuthOrigin(headers: Headers): string | undefined {
 	return parseAuthOrigins()[0];
 }
 
+export const AUTH_URL_WAIT_MS = 5_000;
+
+function waitAtMost(prior: Promise<void>, ms: number): Promise<void> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<void>((resolve) => {
+		timer = setTimeout(resolve, ms);
+	});
+	return Promise.race([prior, timeout]).finally(() => clearTimeout(timer));
+}
+
 export async function withBoundAuthUrl<T>(
 	headers: Headers,
 	fn: () => T | Promise<T>,
+	waitMs = AUTH_URL_WAIT_MS,
 ): Promise<T> {
-	const origin = resolveAuthOrigin(headers);
-	const prev = process.env.AUTH_URL;
-	if (origin) process.env.AUTH_URL = origin;
+	stripCanonicalAuthUrlIfMany();
+	const g = globalThis as AuthOriginStore;
+	const base = g.__phiAuthUrlBase?.value;
+	const prior = g.__phiAuthUrlTail ?? Promise.resolve();
+	const { promise: done, resolve: release } = Promise.withResolvers<void>();
+	g.__phiAuthUrlTail = done;
+	await waitAtMost(prior, waitMs);
 	try {
+		const origin = resolveAuthOrigin(headers);
+		if (origin) process.env.AUTH_URL = origin;
 		return await fn();
 	} finally {
-		if (prev === undefined) delete process.env.AUTH_URL;
-		else process.env.AUTH_URL = prev;
+		if (base === undefined) delete process.env.AUTH_URL;
+		else process.env.AUTH_URL = base;
+		release();
 	}
 }

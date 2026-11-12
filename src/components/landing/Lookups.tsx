@@ -1,5 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
+import { useFormStatus } from "react-dom";
+import { signInDiscord } from "@/auth-actions";
 import {
 	ArrowRight,
 	BookOpenText,
@@ -21,13 +24,12 @@ import {
 	Target,
 	TrendUp,
 	UserList,
-} from "@phosphor-icons/react";
-import type { ReactNode } from "react";
-import { useFormStatus } from "react-dom";
-import { signInDiscord } from "@/auth-actions";
+} from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import { LevelChip } from "@/components/landing/LevelChip";
+import { SessionSwap } from "@/components/landing/SessionSwap";
 import { SignInStatus } from "@/components/landing/SignIn";
+import { useHeaderSession } from "@/components/useHeaderSession";
 import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
 import { localePath } from "@/lib/locale-path";
@@ -130,8 +132,10 @@ function SignInRow({ kind, next }: { kind: LookupKind; next: string }) {
 	);
 }
 
-export function LandingLookups({ signedIn }: { signedIn: boolean }) {
+export function LandingLookups({ live }: { live: boolean }) {
 	const { locale, m } = useI18n();
+	const session = useHeaderSession();
+	const signedIn = live && session.signedIn;
 	const t = m.home;
 	const list = (
 		<ul className="lookup-grid">
@@ -144,7 +148,11 @@ export function LandingLookups({ signedIn }: { signedIn: boolean }) {
 								isNew={NEW_KINDS.has(kind)}
 								Icon={ICONS[kind]}
 							/>
-							<Go />
+							<Go>
+								<span className="lookup-hint" data-off>
+									{t.signInHint}
+								</span>
+							</Go>
 						</Link>
 					) : (
 						<SignInRow kind={kind} next={localePath(href, locale)} />
@@ -160,9 +168,12 @@ export function LandingLookups({ signedIn }: { signedIn: boolean }) {
 				<h2 id="lookups-title" className="section-title">
 					{t.lookupsTitle}
 				</h2>
-				<p className="section-intro">
-					{signedIn ? t.lookupsSignedIn : t.lookupsSignedOut}
-				</p>
+				<SessionSwap
+					live={live}
+					className="intro-swap"
+					signedOut={<p className="section-intro">{t.lookupsSignedOut}</p>}
+					signedIn={<p className="section-intro">{t.lookupsSignedIn}</p>}
+				/>
 			</header>
 			{signedIn ? (
 				list
@@ -177,13 +188,15 @@ export function LandingLookups({ signedIn }: { signedIn: boolean }) {
 }
 
 export function LandingExplore({
-	signedIn,
+	live,
 	figure,
 }: {
-	signedIn: boolean;
+	live: boolean;
 	figure: ReactNode;
 }) {
 	const { m } = useI18n();
+	const session = useHeaderSession();
+	const signedIn = live && session.signedIn;
 	const t = m.home.explore;
 	return (
 		<section className="landing-section" aria-labelledby="explore-title">
@@ -205,7 +218,15 @@ export function LandingExplore({
 									isNew={NEW_KINDS.has(kind)}
 									Icon={ICONS[kind]}
 								/>
-								<Go>{signedIn ? null : t.hint}</Go>
+								<Go>
+									{signedIn ? (
+										<span className="lookup-hint" data-off>
+											{t.hint}
+										</span>
+									) : (
+										t.hint
+									)}
+								</Go>
 							</Link>
 						</li>
 					))}

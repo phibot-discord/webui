@@ -1,29 +1,24 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import {
-	createContext,
 	type ReactNode,
 	useCallback,
 	useContext,
 	useEffect,
-	useMemo,
 	useState,
 	useTransition,
 } from "react";
 import { localePath, pathLocale, stripLocale } from "@/lib/locale-path";
 import { bumpCardReload } from "@/lib/save-refresh";
+import { I18nContext } from "./catalog-context";
 import { LOCALE_COOKIE, type Locale, localeTag } from "./config";
-import { ja } from "./ja-messages";
-import { type ClientMessages, en, zh } from "./messages";
 
-const catalogs: Record<Locale, ClientMessages> = { en, zh, ja };
-
-const I18nContext = createContext<{
-	locale: Locale;
-	m: ClientMessages;
-	setLocale: (locale: Locale) => void;
-} | null>(null);
+const CatalogEn = dynamic(() => import("./catalog-en"));
+const CatalogZh = dynamic(() => import("./catalog-zh"));
+const CatalogJa = dynamic(() => import("./catalog-ja"));
+const CATALOGS = { en: CatalogEn, zh: CatalogZh, ja: CatalogJa };
 
 function writeLocaleCookie(locale: Locale) {
 	// biome-ignore lint/suspicious/noDocumentCookie: not httpOnly; Cookie Store is not universal
@@ -48,7 +43,6 @@ export function I18nProvider({
 			setLocaleState(pathLocale(path));
 		}
 	}
-	const m = catalogs[locale];
 
 	useEffect(() => {
 		document.documentElement.lang = localeTag(locale);
@@ -79,12 +73,12 @@ export function I18nProvider({
 		[locale, router],
 	);
 
-	const value = useMemo(
-		() => ({ locale, m, setLocale }),
-		[locale, m, setLocale],
+	const Catalog = CATALOGS[locale];
+	return (
+		<Catalog locale={locale} setLocale={setLocale}>
+			{children}
+		</Catalog>
 	);
-
-	return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 export function useI18n() {

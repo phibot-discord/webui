@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { kvKey } from "@/phi/lib/const";
 import type { TapLogin } from "@/phi/lib/taptap";
-import { tapSignInUser } from "./account-link";
+import { noteTokenUser, tapSignInUser } from "./account-link";
 import { sealTapTicket } from "./auth-tickets";
 import { signInAvatar } from "./avatar";
 import {
@@ -20,6 +20,7 @@ import {
 import { playerFromSave } from "./bound";
 import { getDataHost } from "./data-host";
 import { withDiscordUid } from "./logger";
+import { proofFor } from "./session-proof";
 import { ensureSongInfo } from "./song-info";
 
 /** Keyed by a random id that only the visitor's httpOnly cookie holds */
@@ -97,11 +98,13 @@ export async function finishTapLogin(
 			try {
 				await songInfo;
 				const save = await switchBind(host, userId, token, resume.useGlobal);
+				await noteTokenUser(userId, token);
 				const player = playerFromSave(save);
 				const ticket = await sealTapTicket(loginId, {
 					id: userId,
 					name: login.name || player.playerId || undefined,
 					image: await image,
+					proof: proofFor(userId, token),
 				});
 				return { ticket, ...player };
 			} catch (err) {

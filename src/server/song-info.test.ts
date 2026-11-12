@@ -25,6 +25,7 @@ import {
 	INFO_STATE_KEY,
 	infoFetchOpts,
 	loadedCatalogRevision,
+	loadedLevelsRevision,
 	reloadCatalog,
 	resetSongInfoForTest,
 	syncFools,
@@ -482,6 +483,45 @@ test("loadedCatalogRevision trails catalogRevision until getInfo re-parses", asy
 	assert.equal(loadedCatalogRevision(), "bundled:sha2");
 	assert.ok(getInfo.ori_info["C.d.0"]);
 	assert.equal(getInfo.ori_info["A.b.0"], undefined);
+});
+
+test("the loaded levels revision changes only when the level table does", async () => {
+	resetSongInfoForTest();
+	const assets = tmp();
+	const cacheRoot = tmp();
+	mkdirSync(join(assets, "info"), { recursive: true });
+	assert.equal(loadedLevelsRevision(), "");
+	applyLevelsCsv(
+		assets,
+		infoCache("sha1", `${CSV_HEAD}A.b\tSong A\tb\tx\t\t\t\t\t1\t2\t3\t\n`),
+		cacheRoot,
+	);
+	assert.equal(loadedLevelsRevision(), "");
+	assert.equal(await reloadCatalog(assets), true);
+	assert.equal(loadedLevelsRevision(), "sha1");
+
+	await hydrateSongInfo({
+		getObject: objects({
+			[INFO_STATE_KEY]: JSON.stringify({ commit: "c2", pending: 0 }),
+			"info/tips.txt": "tips",
+		}),
+		assetsDir: assets,
+		cacheRoot: tmp(),
+		files: ["tips.txt"],
+	});
+	assert.equal(catalogRevision(), "c2:sha1");
+	assert.equal(await reloadCatalog(assets), true);
+	assert.equal(loadedCatalogRevision(), "c2:sha1");
+	assert.equal(loadedLevelsRevision(), "sha1");
+
+	applyLevelsCsv(
+		assets,
+		infoCache("sha2", `${CSV_HEAD}C.d\tSong C\td\tx\t\t\t\t\t1\t2\t3\t\n`),
+		cacheRoot,
+	);
+	assert.equal(loadedLevelsRevision(), "sha1");
+	assert.equal(await reloadCatalog(assets), true);
+	assert.equal(loadedLevelsRevision(), "sha2");
 });
 
 test("a file R2 fails to send keeps the last complete set and is the only one fetched again", async () => {

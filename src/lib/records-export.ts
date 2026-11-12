@@ -25,6 +25,9 @@ export type ExportRow = {
 
 export type ExportFormat = "csv" | "json";
 
+export const EXPORT_FORMAT = "phibot-records";
+export const EXPORT_VERSION = 1;
+
 const COLUMNS = [
 	"id",
 	"song",
@@ -72,6 +75,18 @@ export function toCsv(rows: readonly ExportRow[]): string {
 		...rows.map((row) => COLUMNS.map((key) => csvCell(row[key])).join(",")),
 	];
 	return `\uFEFF${lines.join("\r\n")}\r\n`;
+}
+
+export function exportDocument(
+	meta: {
+		player: string;
+		rks: number | null;
+		savedAt: string | null;
+		exportedAt: string;
+	},
+	records: readonly ExportRow[],
+) {
+	return { format: EXPORT_FORMAT, version: EXPORT_VERSION, ...meta, records };
 }
 
 export function exportFileName(

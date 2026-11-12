@@ -6,7 +6,8 @@ import {
 } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { type ComponentProps, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { I18nProvider } from "@/i18n/provider";
+import { CatalogProvider } from "@/i18n/catalog-context";
+import { en } from "@/i18n/messages";
 import { ChartSearch, comboboxKey } from "./ChartSearch";
 
 const OPEN = { expanded: true, active: 1, count: 4, hasQuery: true };
@@ -73,12 +74,17 @@ test("the listbox is not a Tab stop and is wired to the input", () => {
 		onPick: () => {},
 	});
 	// children come in as the third argument
-	const provider = { locale: "en" } as ComponentProps<typeof I18nProvider>;
+	const provider: ComponentProps<typeof CatalogProvider> = {
+		locale: "en",
+		messages: en,
+		setLocale: () => {},
+		children: null,
+	};
 	const html = renderToStaticMarkup(
 		createElement(
 			AppRouterContext.Provider,
 			{ value: {} as AppRouterInstance },
-			createElement(I18nProvider, provider, search),
+			createElement(CatalogProvider, provider, search),
 		),
 	);
 	const list = html.match(/<ul [^>]*>/)?.[0] ?? "";

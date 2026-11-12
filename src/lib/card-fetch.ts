@@ -62,12 +62,16 @@ export function loadCardBlob(
 	if (hit?.value && now - hit.at <= CARD_FETCH_REUSE_MS) {
 		return Promise.resolve(hit.value);
 	}
-	if (hit?.promise) {
+	if (hit && !hit.value) {
 		if (onPhase) {
 			hit.watchers.add(onPhase);
 			if (hit.phase) onPhase(hit.phase);
 		}
 		return hit.promise;
+	}
+	if (hit?.value) {
+		slots.delete(src);
+		forgetUrl(hit.value.url);
 	}
 	const watchers = new Set(onPhase ? [onPhase] : []);
 	// Called after the response starts, so `slot` is set by then
@@ -80,6 +84,7 @@ export function loadCardBlob(
 	trimSlots();
 	promise.then(
 		(value) => {
+			watchers.clear();
 			if (slots.get(src) !== slot) {
 				forgetUrl(value.url);
 				return;
@@ -88,6 +93,7 @@ export function loadCardBlob(
 			slot.at = Date.now();
 		},
 		() => {
+			watchers.clear();
 			if (slots.get(src) === slot) slots.delete(src);
 		},
 	);

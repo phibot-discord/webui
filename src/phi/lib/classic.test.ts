@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { Renderer } from "@takumi-rs/core";
@@ -211,7 +211,6 @@ test("Takumi paints a single histogram with a left RKS gutter", async () => {
 		histogramHtml({ slots, ticks, average: 16.3335, averagePosition: 66 }),
 	);
 	const bytes = await renderTakumi(html, 489, 340);
-	writeFileSync("/tmp/phi-histogram-fix.png", bytes);
 	const { w, h, at } = await pixels(bytes);
 	const isWhiteBar = (r: number, g: number, b: number) =>
 		r > 180 && g > 180 && b > 180 && Math.max(r, g, b) - Math.min(r, g, b) < 40;
@@ -458,6 +457,36 @@ test("the update card draws its RKS line as one path and its tiles as two text l
 	assert.match(html, />IN {2}990000<\/p><p [^>]*>99\.5000% {2}15\.5000<\/p>/);
 	assert.match(html, /class="box_title" style="flex:0 0 151px;/);
 	assert.match(html, /Updated × 2/);
+});
+
+test("an accuracy just under a whole number prints once", () => {
+	const prepare = classicPrepare("update");
+	assert.ok(prepare);
+	const tile = (acc_new: number) => ({
+		song: "Stasis",
+		rank: "IN",
+		score_new: 990000,
+		acc_new,
+	});
+	const out = prepare(
+		updateCard({
+			box_line: [[{ date: "2026/01/01 00:00:00", song: [tile(98.99999)] }]],
+			task_data: [tile(97.1234)],
+		}),
+		ctx,
+	);
+	const boxes = out.box_line as { song: { accText: string }[] }[][];
+	assert.equal(boxes[0]?.[0]?.song[0]?.accText, "99.0000");
+	const tasks = out.task_data as { accText: string }[];
+	assert.equal(tasks[0]?.accText, "97.1234");
+	const html = compile(
+		"update/update",
+		updateCard({
+			box_line: [[{ date: "2026/01/01 00:00:00", song: [tile(98.99999)] }]],
+		}),
+	);
+	assert.match(html, />99\.0000%</);
+	assert.doesNotMatch(html, /98\.1\.0000%/);
 });
 
 test("an update card with no records keeps the plain chart box and skips update.css", () => {

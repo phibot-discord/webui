@@ -3,6 +3,7 @@ import test from "node:test";
 import { isTimeoutError } from "@/server/outgoing";
 import {
 	isRetryableTapNet,
+	isTapApiFailure,
 	isTapRateLimited,
 	setTapHttpForTest,
 	TAPAPI_TIMEOUT_MS,
@@ -289,6 +290,33 @@ test("a 429 that outlasts the retries is a TapAPI failure, not a plain response"
 	);
 });
 
+test("an error thrown by another copy of the module is still recognized", async () => {
+	const spec = "./tapapi.ts?copy=1";
+	const copy = (await import(spec)) as typeof import("./tapapi");
+	assert.notEqual(copy.TapApiError, TapApiError);
+	const limited = new copy.TapApiError(
+		"TapAPI 429 Too Many Requests",
+		false,
+		429,
+	);
+	assert.equal(limited instanceof TapApiError, false);
+	assert.equal(isTapRateLimited(limited), true);
+	assert.equal(isTapApiFailure(limited), true);
+	assert.equal(
+		isTapRateLimited(new Error("wrapped", { cause: limited })),
+		true,
+	);
+	assert.equal(
+		isTapRateLimited(new copy.TapApiError("TapAPI 503", false, 503)),
+		false,
+	);
+	assert.equal(
+		isRetryableTapNet(new copy.TapApiError("TapAPI timed out", true)),
+		true,
+	);
+	assert.equal(isTapRateLimited(new Error("TapAPI 429")), false);
+});
+
 test("ordinary responses and POST bodies pass through the tap agent intact", async () => {
 	const big = "x".repeat(512 * 1024);
 	await withTapServer(
@@ -321,4 +349,57 @@ test("ordinary responses and POST bodies pass through the tap agent intact", asy
 			assert.equal(hits(), 2);
 		},
 	);
+});
+
+test("a refused TapTap answer is logged with its status and numeric code, never its body", async () => {
+	const warns: string[] = [];
+	const orig = console.warn;
+	console.warn = (...a: unknown[]) => {
+		warns.push(a.map(String).join(" "));
+	};
+	const body = JSON.stringify({ code: 211, error: "body-marker-7f3a" });
+	setTapHttpForTest(async () => new Response(body, { status: 404 }));
+	try {
+		const res = await tapFetch("https://example.test/1.1/users/me");
+		assert.equal(res.status, 404);
+		assert.equal(await res.text(), body);
+		setTapHttpForTest(
+			async () =>
+				new Response("<html>page-marker-7f3a</html>", { status: 403 }),
+		);
+		const page = await tapFetch("https://example.test/1.1/classes/_GameSave");
+		assert.equal(page.status, 403);
+		const lines = warns.filter((w) => w.includes("tap GET example.test/1.1/"));
+		assert.equal(lines.length, 2);
+		assert.match(
+			lines[0] ?? "",
+			/tap GET example\.test\/1\.1\/users\/me 404 \d+ms code 211/,
+		);
+		assert.match(
+			lines[1] ?? "",
+			/tap GET example\.test\/1\.1\/classes\/_GameSave 403 \d+ms/,
+		);
+		assert.equal(lines[1]?.includes("code"), false);
+		assert.equal(
+			warns.some((w) => w.includes("marker-7f3a")),
+			false,
+		);
+	} finally {
+		console.warn = orig;
+		setTapHttpForTest();
+	}
+});
+
+test("a 304 answer is passed through as a 304, not turned into a TapTap failure", async () => {
+	setTapHttpForTest(
+		async () => new Response(null, { status: 304, headers: { etag: '"v1"' } }),
+	);
+	try {
+		const res = await tapFetch("https://example.test/gamesaves/a/.save");
+		assert.equal(res.status, 304);
+		assert.equal(res.headers.get("etag"), '"v1"');
+		assert.equal(await res.text(), "");
+	} finally {
+		setTapHttpForTest();
+	}
 });

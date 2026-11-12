@@ -70,6 +70,31 @@ test("urlencoded bodies keep oauth fields; Node FormData does not", async () => 
 	}
 });
 
+test("outgoingFetch follows redirects unless told not to", async () => {
+	const server = createServer((req, res) => {
+		if (req.url === "/a") {
+			res.writeHead(302, { location: "/b" });
+			res.end();
+			return;
+		}
+		res.end("b");
+	});
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const { port } = server.address() as { port: number };
+	const base = `http://127.0.0.1:${port}`;
+	try {
+		const followed = await outgoingFetch(`${base}/a`);
+		assert.equal(followed.status, 200);
+		assert.equal(await followed.text(), "b");
+		const manual = await outgoingFetch(`${base}/a`, { redirect: "manual" });
+		assert.equal(manual.status, 302);
+		assert.equal(manual.headers.get("location"), "/b");
+	} finally {
+		server.closeAllConnections();
+		server.close();
+	}
+});
+
 test("the retry interceptor waits at most the cap for Retry-After", async () => {
 	let n = 0;
 	const server = createServer((_req, res) => {

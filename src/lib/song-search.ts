@@ -1,4 +1,4 @@
-// Shared by the browser (ChartSearch) and `/api/songs/search`: keep it free of node imports
+// Shared by the browser (ChartSearch and other components) and the /songs page: keep it free of node imports
 import { JARO_PUNCT, jaroWinkler } from "@/phi/lib/jaro";
 
 export type SearchableSong = {

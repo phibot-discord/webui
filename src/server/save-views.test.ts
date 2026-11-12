@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Save } from "@/phi/lib/save";
+import { type SimBaseRecord, simulate } from "@/phi/lib/simulation";
 import type { ChartSummary } from "./charts";
-import { progressView, trendEvents, trendPoints } from "./save-views";
+import {
+	progressView,
+	targetsView,
+	trendEvents,
+	trendPoints,
+} from "./save-views";
 
 const list: ChartSummary[] = [
 	{
@@ -75,4 +81,43 @@ test("each recorded score becomes an improvement, newest first, whatever the sto
 	assert.deepEqual(events[0]?.before, { acc: 97.5, score: 970_000 });
 	assert.deepEqual(events[1]?.before, { acc: 90, score: 900_000 });
 	assert.equal(events[2]?.before, null);
+});
+
+test("the targets view stores each needed accuracy rounded up to four decimals", () => {
+	const base: SimBaseRecord[] = [
+		["PA.p.0", "IN", 100, 16],
+		["PB.p.0", "IN", 100, 15.5],
+		["PC.p.0", "IN", 100, 14.95],
+		["T.t.0", "IN", 99.9, 15],
+		["F.f.0", "IN", 98.4, 10],
+	];
+	const rows = base.map(([id, rank, acc, difficulty]) => ({
+		id,
+		rank,
+		acc,
+		difficulty,
+		score: acc === 100 ? 1_000_000 : Math.round(acc * 9_000),
+	}));
+	const save = {
+		saveInfo: {
+			PlayerId: "1",
+			modifiedAt: { iso: new Date(0) },
+			summary: { rankingScore: 3.9 },
+		},
+		getRecord: () => rows,
+	} as unknown as Save;
+	const view = targetsView(save, []);
+	assert.deepEqual(
+		view.rows.map((r) => [r.id, r.need, r.ap]),
+		[
+			["T.t.0", 99.9227, false],
+			["F.f.0", 98.4352, false],
+		],
+	);
+	for (const r of view.rows) {
+		const reached = simulate(base, [
+			{ id: r.id, rank: r.rank, acc: r.need.toFixed(6) },
+		]).after;
+		assert.ok(reached >= view.goal, `${r.id} ${reached}`);
+	}
 });

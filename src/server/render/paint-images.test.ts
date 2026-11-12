@@ -4,6 +4,7 @@ import sharp from "sharp";
 import {
 	BG_MAX_EDGE,
 	fitPaintImages,
+	LARGE_MAX_EDGE,
 	maxEdgeFor,
 	TILE_MAX_EDGE,
 } from "./paint-images";
@@ -20,7 +21,7 @@ test("tile images larger than the paint budget are downscaled", async () => {
 		.png()
 		.toBuffer();
 	const [out] = await fitPaintImages([
-		{ src: "file:///tmp/ill/song.png", data: new Uint8Array(src) },
+		{ src: "file:///tmp/illLow/song.png", data: new Uint8Array(src) },
 	]);
 	assert.ok(out);
 	const meta = await sharp(out.data).metadata();
@@ -30,7 +31,7 @@ test("tile images larger than the paint budget are downscaled", async () => {
 
 test("blurred backgrounds keep a larger max edge", async () => {
 	assert.equal(maxEdgeFor("/tmp/phi-web-ill-blur/abc.png"), BG_MAX_EDGE);
-	assert.equal(maxEdgeFor("file:///ill/song.png"), TILE_MAX_EDGE);
+	assert.equal(maxEdgeFor("file:///illLow/song.png"), TILE_MAX_EDGE);
 	const src = await sharp({
 		create: {
 			width: 1800,
@@ -51,4 +52,11 @@ test("blurred backgrounds keep a larger max edge", async () => {
 	const meta = await sharp(out.data).metadata();
 	assert.equal(meta.width, 1800);
 	assert.equal(meta.height, 1800);
+});
+
+test("full-size jackets may keep 1536 px", () => {
+	assert.equal(maxEdgeFor("/tmp/x/original_ill/ill/A.png"), 1536);
+	assert.equal(maxEdgeFor("/tmp/x/original_ill/illLow/A.png"), 640);
+	assert.equal(maxEdgeFor("/tmp/x/original_ill/illBlur/A.png"), 2048);
+	assert.equal(LARGE_MAX_EDGE, 1536);
 });

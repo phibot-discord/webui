@@ -74,7 +74,9 @@ export function CollectionNav({
 				{chapters.map((chapter, at) => {
 					const tip = chapterTip(
 						chapter,
-						fill(t.itemCount, { n: chapter.count }),
+						chapter.count === 1
+							? t.itemCountOne
+							: fill(t.itemCount, { n: chapter.count }),
 					);
 					const start = at > 0 && chapters[at - 1]?.kind !== chapter.kind;
 					const end = at >= chapters.length / 2;

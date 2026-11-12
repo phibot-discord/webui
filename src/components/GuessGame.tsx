@@ -1,6 +1,5 @@
 "use client";
 
-import { Check, Play, Timer, X } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import {
 	type KeyboardEvent,
@@ -12,6 +11,7 @@ import {
 	useState,
 } from "react";
 import { comboboxKey, useChartCatalog } from "@/components/ChartSearch";
+import { Check, Play, Timer, X } from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import { Announce, SteadyButton } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
@@ -97,6 +97,7 @@ function SongGuessInput({
 	const activeId = expanded && active >= 0 ? `${ids}-o${active}` : undefined;
 
 	const pick = (i: number) => {
+		if (disabled) return;
 		const hit = hits[i];
 		if (!hit || taken.has(hit.song.id)) return;
 		onPick(hit.song.id);
@@ -106,6 +107,7 @@ function SongGuessInput({
 	};
 
 	const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+		if (disabled) return;
 		if (e.nativeEvent.isComposing) return;
 		const action = comboboxKey(e.key, e.altKey, {
 			expanded,
@@ -133,7 +135,9 @@ function SongGuessInput({
 				role="combobox"
 				autoComplete="off"
 				spellCheck={false}
-				disabled={disabled || !list}
+				disabled={!list}
+				aria-disabled={disabled || undefined}
+				readOnly={disabled}
 				placeholder={list ? t.placeholder : m.score.loadingCharts}
 				value={query}
 				aria-autocomplete="list"
@@ -417,7 +421,9 @@ export function GuessGame({
 				body: JSON.stringify({ p: puzzle }),
 			});
 			if (!res.ok) throw new Error(String(res.status));
-			fromServer(await res.json());
+			const body = (await res.json()) as ServerReply;
+			fromServer(body);
+			if (!body.run) router.refresh();
 		} catch {
 			setError(true);
 		} finally {

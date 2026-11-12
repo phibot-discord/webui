@@ -1,3 +1,4 @@
+import { evictToBudget } from "@/phi/lib/lru";
 import { readFile, stat } from "../vfs";
 
 const MAX_BYTES = 64 * 1024 * 1024;
@@ -16,13 +17,14 @@ export function readAssetCached(path: string): Buffer {
 	}
 	const data = readFile(path);
 	if (hit) totalBytes -= hit.data.byteLength;
+	cache.delete(path);
 	cache.set(path, { stamp, data });
 	totalBytes += data.byteLength;
-	while (totalBytes > MAX_BYTES && cache.size > 1) {
-		const oldest = cache.keys().next().value as string;
-		const evicted = cache.get(oldest);
-		cache.delete(oldest);
-		if (evicted) totalBytes -= evicted.data.byteLength;
-	}
+	totalBytes = evictToBudget(
+		cache,
+		totalBytes,
+		MAX_BYTES,
+		(entry) => entry.data.byteLength,
+	);
 	return data;
 }

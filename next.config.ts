@@ -52,7 +52,6 @@ const foreignBinaries = [
 	"**/@takumi-rs/wasm/**",
 ];
 
-// "/api/public/?slug?/route" is /api/public/[slug] alone (Turbopack route names end in /route)
 export const nonCardRoutes = [
 	"/account",
 	"/account/**",
@@ -77,12 +76,12 @@ export const nonCardRoutes = [
 	"/api/migrate/**",
 	"/api/notes",
 	"/api/phira",
+	"/api/recap",
 	"/api/phira/extras",
 	"/api/refresh",
 	"/api/share",
+	"/api/session",
 	"/api/sim",
-	"/api/songs/**",
-	"/api/public/?slug?/route",
 	"/api/unbind",
 	"/files",
 	"/home",
@@ -103,22 +102,42 @@ export const nonCardRoutes = [
 	"/profile",
 	"/progress",
 	"/trend",
+	"/\\[recap\\]",
 	"/tos",
 	"/versions",
 ];
 export const renderFonts = ["phi-assets/html/common/font/**", "src/fonts/**"];
 // next/font copies these into the static build; no function reads them
-const webFonts = [
-	"src/fonts/noto-sans-sc-500.woff2",
-	"src/fonts/noto-sans-sc-600.woff2",
-	"src/fonts/outfit-*",
-	"src/fonts/OFL-*",
-];
+const webFonts = ["src/fonts/outfit-*", "src/fonts/OFL-*"];
 
 const nextConfig: NextConfig = {
 	agentRules: false,
 	poweredByHeader: false,
 	env: { NEXT_PUBLIC_COMMIT_SHA: commitSha() },
+	async headers() {
+		return [
+			{
+				source: "/:path*",
+				headers: [
+					{ key: "X-Content-Type-Options", value: "nosniff" },
+					{
+						key: "Referrer-Policy",
+						value: "strict-origin-when-cross-origin",
+					},
+				],
+			},
+			{
+				source: "/((?!api/badge/).*)",
+				headers: [
+					{
+						key: "Content-Security-Policy",
+						value: "frame-ancestors 'self'",
+					},
+					{ key: "X-Frame-Options", value: "SAMEORIGIN" },
+				],
+			},
+		];
+	},
 	outputFileTracingRoot: dir,
 	outputFileTracingIncludes: {
 		"/api/card/*": phiRenderAssets,
@@ -133,7 +152,6 @@ const nextConfig: NextConfig = {
 		"/api/manual": phiInfoOnly,
 		"/api/sim": phiInfoOnly,
 		"/api/me/export": phiInfoOnly,
-		"/api/songs/search": phiInfoOnly,
 	},
 	outputFileTracingExcludes: {
 		"/**": [
@@ -157,9 +175,6 @@ const nextConfig: NextConfig = {
 		"qrcode",
 		"sharp",
 	],
-	experimental: {
-		optimizePackageImports: ["@phosphor-icons/react"],
-	},
 	turbopack: {
 		root: dir,
 	},

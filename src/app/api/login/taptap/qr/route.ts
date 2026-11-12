@@ -3,7 +3,7 @@ import {
 	tapLoginIdFrom,
 	tapLoginSetCookie,
 } from "@/server/auth-tickets";
-import { localizedError, localizedErrorBody } from "@/server/i18n-http";
+import { localizedErrorBody, localizedRetryAfter } from "@/server/i18n-http";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 import { clearTapLogin, newLoginId, startTapLogin } from "@/server/tap-login";
 import { tapWaitNdjson } from "@/server/tap-stream";
@@ -14,7 +14,7 @@ export const maxDuration = 60;
 
 export async function POST(request: Request) {
 	const limited = rateLimit({ ip: clientIp(request.headers) });
-	if (!limited.ok) return localizedError(429, "rate_limit");
+	if (!limited.ok) return localizedRetryAfter(limited.retryAfter, "rate_limit");
 
 	const body = (await request.json().catch(() => ({}))) as {
 		server?: string;

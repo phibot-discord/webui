@@ -1,16 +1,17 @@
 "use client";
 
-import { CaretRight } from "@phosphor-icons/react";
 import { type ReactNode, useCallback, useId, useRef, useState } from "react";
 import {
 	type BackgroundOption,
 	BackgroundPicker,
 } from "@/components/BackgroundPicker";
 import { CountSelect } from "@/components/CountSelect";
+import { CaretRight } from "@/components/icons";
 import { OptStatus, SegRadio } from "@/components/SegRadio";
 import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
 import { type CardStats, cardSource, formatDuration } from "@/lib/card-stats";
+import { createNoteSaves } from "@/lib/note-saves";
 import type { CardStyle } from "@/phi/lib/card-styles";
 import type { B30AvgKind, RankBandShow, RankScope } from "@/phi/lib/notes";
 import type { CardKind } from "@/server/card-kinds";
@@ -34,7 +35,7 @@ const RANK_BAND_SHOW_KINDS = [
 	"percent",
 ] as const satisfies readonly RankBandShow[];
 
-async function saveNotes(body: object): Promise<boolean> {
+async function postNotes(body: object): Promise<boolean> {
 	try {
 		const res = await fetch("/api/notes", {
 			method: "POST",
@@ -46,6 +47,8 @@ async function saveNotes(body: object): Promise<boolean> {
 		return false;
 	}
 }
+
+const saveNotes = createNoteSaves(postNotes);
 
 export type NoteSetting<T> = {
 	value: T;

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight } from "@phosphor-icons/react";
+import { ArrowUpRight } from "@/components/icons";
 import { useI18n } from "@/i18n/provider";
 
 const APP_ID = "1543272274952724590";

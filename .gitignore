@@ -7,5 +7,11 @@ data
 src/phi/art-compiled.ts
 src/phi/css/bundle.ts
 .vercel
+.playwright-mcp
+.claude
+.codegraph
+.impeccable
 .env*
 !.env.example
+
+/plans

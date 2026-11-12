@@ -1,18 +1,33 @@
 import assert from "node:assert/strict";
 import { channel } from "node:diagnostics_channel";
-import { createServer, type ServerResponse } from "node:http";
-import test from "node:test";
-import { CF_RETRY_CAP_MS, cfFetch, retryDelayMs } from "./cf-fetch";
+import {
+	createServer,
+	type IncomingMessage,
+	type ServerResponse,
+} from "node:http";
+import test, { beforeEach } from "node:test";
+import {
+	CF_RETRY_CAP_MS,
+	cfFetch,
+	resetCfBlockForTest,
+	retryDelayMs,
+	setCfBlockMsForTest,
+} from "./cf-fetch";
+
+beforeEach(() => {
+	resetCfBlockForTest();
+	setCfBlockMsForTest();
+});
 
 async function withServer(
-	handle: (n: number, res: ServerResponse) => void,
+	handle: (n: number, res: ServerResponse, req: IncomingMessage) => void,
 	fn: (url: string, hits: () => number) => Promise<void>,
 ) {
 	let n = 0;
 	const server = createServer((req, res) => {
 		req.resume();
 		n += 1;
-		handle(n, res);
+		handle(n, res, req);
 	});
 	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 	const { port } = server.address() as { port: number };
@@ -149,6 +164,70 @@ test("a short timeoutMs gives up on a silent server sooner than 12 s", async () 
 			});
 			assert.ok(Date.now() - started < 5_000);
 			assert.equal(hits(), 2, "a timeout is retried once, as before");
+		},
+	);
+});
+
+function rateLimited(res: ServerResponse) {
+	res.writeHead(429, { "retry-after": "0" });
+	res.end();
+}
+
+test("a read that stays rate limited stops later calls to that host for a while", async () => {
+	setCfBlockMsForTest(200);
+	await withServer(
+		(_n, res) => rateLimited(res),
+		async (url, hits) => {
+			const first = await cfFetch(url);
+			assert.equal(first.status, 429);
+			assert.equal(hits(), 3);
+			const second = await cfFetch(url);
+			assert.equal(second.status, 429);
+			assert.equal(second.ok, false);
+			assert.equal(await second.text(), "rate limited");
+			assert.equal(hits(), 3, "no call while the host is blocked");
+			await new Promise((r) => setTimeout(r, 250));
+			const third = await cfFetch(url);
+			assert.equal(third.status, 429);
+			assert.ok(hits() > 3, "the block has expired");
+		},
+	);
+});
+
+test("a rate-limited write does not stop reads", async () => {
+	await withServer(
+		(_n, res, req) => {
+			if (req.method === "PUT") return rateLimited(res);
+			res.end("ok");
+		},
+		async (url) => {
+			const put = await cfFetch(url, { method: "PUT", body: "x" });
+			assert.equal(put.status, 429);
+			const get = await cfFetch(url);
+			assert.equal(get.status, 200);
+			assert.equal(await get.text(), "ok");
+		},
+	);
+});
+
+test("a block on one host leaves another host alone", async () => {
+	await withServer(
+		(_n, res) => rateLimited(res),
+		async (blockedUrl, blockedHits) => {
+			await withServer(
+				(_n, res) => {
+					res.end("ok");
+				},
+				async (otherUrl) => {
+					assert.equal((await cfFetch(blockedUrl)).status, 429);
+					const hitsAfterBlock = blockedHits();
+					assert.equal((await cfFetch(blockedUrl)).status, 429);
+					assert.equal(blockedHits(), hitsAfterBlock);
+					const other = await cfFetch(otherUrl);
+					assert.equal(other.status, 200);
+					assert.equal(await other.text(), "ok");
+				},
+			);
 		},
 	);
 });

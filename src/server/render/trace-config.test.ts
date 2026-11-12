@@ -81,7 +81,11 @@ test("every other route drops the render fonts", () => {
 	assert.deepEqual(new Set(fontExcludeKeys), new Set(nonCardRoutes));
 	// "/" is skipped: the landing page gets no fonts anyway, and a "/" key would match every route
 	const missing = appRoutes()
-		.filter((r) => !CARD_ROUTES.includes(r.route) && r.route !== "/")
+		.filter(
+			(r) =>
+				!CARD_ROUTES.includes(r.route) &&
+				!["/[locale]", "/[locale]/[...missing]"].includes(r.route),
+		)
 		.filter((r) => !keysMatching(nonCardRoutes, r.turbopack).length)
 		.map((r) => r.route);
 	assert.deepEqual(

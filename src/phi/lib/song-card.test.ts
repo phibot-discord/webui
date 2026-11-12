@@ -13,12 +13,11 @@ type Body = Record<string, unknown> & {
 };
 
 // Stand-in phib19: 1000 records per chart (250 in an RKS band), better = 100 − ⌊acc⌋
-function fakePhib19(opts: { delayMs?: number } = {}) {
+function fakePhib19() {
 	const calls: { path: string; body: Body }[] = [];
 	const post = async (path: string, raw: unknown) => {
 		const body = raw as Body;
 		calls.push({ path, body });
-		if (opts.delayMs) await new Promise((r) => setTimeout(r, opts.delayMs));
 		if (path.endsWith("allAccRank")) {
 			const total = body.minRks != null ? 250 : 1000;
 			return {
@@ -188,6 +187,24 @@ test("the card places the record overall and in the player's RKS band, with AP/F
 	);
 });
 
+test("the data date is the China date", async () => {
+	const fake = fakePhib19();
+	const { card } = cardOf(
+		await buildSongCard(
+			runtime(),
+			save({ IN: { score: 991234, acc: 99.25, fc: true } }),
+			undefined,
+			catalog,
+			opts("IN"),
+			{
+				deps: { post: fake.post, known: () => true },
+				now: new Date("2026-10-06T20:00:00Z"),
+			},
+		),
+	);
+	assert.equal(card.asOf, "2026-10-07");
+});
+
 test("a level the song lacks falls back to its hardest chart", async () => {
 	const fake = fakePhib19();
 	const { card } = cardOf(
@@ -204,18 +221,39 @@ test("a level the song lacks falls back to its hardest chart", async () => {
 });
 
 test("lookups past the budget draw what arrived and mark the card partial", async () => {
-	const fake = fakePhib19({ delayMs: 200 });
-	const started = Date.now();
-	const built = await buildSongCard(
-		runtime(),
-		save({ IN: { score: 991234, acc: 99.25, fc: true } }),
-		undefined,
-		catalog,
-		opts("IN"),
-		{ budgetMs: 30, deps: { post: fake.post, known: () => true } },
-	);
-	const { card, partial } = cardOf(built);
-	assert.ok(Date.now() - started < 150);
+	const fake = fakePhib19();
+	let released = false;
+	let open = () => {};
+	let gate = Promise.resolve();
+	const close = () => {
+		gate = new Promise<void>((resolve) => {
+			open = () => {
+				released = true;
+				resolve();
+			};
+		});
+	};
+	const deps = {
+		post: async (path: string, body: unknown) => {
+			await gate;
+			return fake.post(path, body);
+		},
+		known: () => true,
+	};
+	const build = () =>
+		buildSongCard(
+			runtime(),
+			save({ IN: { score: 991234, acc: 99.25, fc: true } }),
+			undefined,
+			catalog,
+			opts("IN"),
+			{ budgetMs: 30, deps },
+		);
+	close();
+	const safety = setTimeout(() => open(), 2_000);
+	const { card, partial } = cardOf(await build());
+	clearTimeout(safety);
+	assert.equal(released, false);
 	assert.equal(partial, true);
 	assert.deepEqual(card.state, {
 		rank: "late",
@@ -225,17 +263,11 @@ test("lookups past the budget draw what arrived and mark the card partial", asyn
 	});
 	assert.equal(card.overall, null);
 	assert.equal(card.board, null);
+	open();
 	await new Promise((r) => setTimeout(r, 300));
-	const again = cardOf(
-		await buildSongCard(
-			runtime(),
-			save({ IN: { score: 991234, acc: 99.25, fc: true } }),
-			undefined,
-			catalog,
-			opts("IN"),
-			{ budgetMs: 30, deps: { post: fake.post, known: () => true } },
-		),
-	);
+	close();
+	const again = cardOf(await build());
+	open();
 	assert.equal(again.partial, false);
 	assert.equal(again.card.overall?.rank, 2);
 });

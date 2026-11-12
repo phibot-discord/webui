@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import sharp from "sharp";
 import type { TagRadar } from "./b30-analysis";
+import { type CacheFiles, markFileUsed, pruneToBudget } from "./disk-budget";
 
 export type LineSeg = [number, number, number, number];
 
@@ -131,10 +132,19 @@ export async function tagRadarPlotPng(radar: TagRadar) {
 		.toBuffer();
 }
 
+const RADAR_CACHE_BYTES = 16 * 1024 * 1024;
+const RADAR_FILES: CacheFiles = {
+	setting: "PHI_RADAR_CACHE",
+	folders: [""],
+	nested: false,
+	name: /^[0-9a-f]{20}\.png$/,
+};
+
 /** Keyed by the SVG source, so an already-plotted radar skips the rasterisation */
 async function radarPlotFileSrc(radar: TagRadar) {
 	const svg = tagRadarPlotSvg(radar, 2);
-	const dir = join(tmpdir(), "phi-tag-radar");
+	const dir =
+		process.env.PHI_RADAR_CACHE?.trim() || join(tmpdir(), "phi-tag-radar");
 	const file = join(
 		dir,
 		`${createHash("sha1").update(svg).digest("hex").slice(0, 20)}.png`,
@@ -147,7 +157,9 @@ async function radarPlotFileSrc(radar: TagRadar) {
 		const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
 		writeFileSync(tmp, png);
 		renameSync(tmp, file);
+		pruneToBudget(dir, RADAR_CACHE_BYTES, RADAR_FILES);
 	}
+	markFileUsed(file);
 	return pathToFileURL(file).href;
 }
 

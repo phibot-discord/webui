@@ -1,5 +1,6 @@
 import { displayPlayerId } from "@/lib/player-display";
 import {
+	exportDocument,
 	exportFileName,
 	exportRows,
 	parseExportFormat,
@@ -8,7 +9,7 @@ import {
 import { authed } from "@/server/authed";
 import { lastSyncedIso, loadBound } from "@/server/bound";
 import { getDataHost } from "@/server/data-host";
-import { localizedError } from "@/server/i18n-http";
+import { localizedError, localizedRetryAfter } from "@/server/i18n-http";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 
 export const runtime = "nodejs";
@@ -20,7 +21,8 @@ export async function GET(request: Request) {
 			userId: `export:${userId}`,
 			ip: `export:${clientIp(request.headers)}`,
 		});
-		if (!limited.ok) return localizedError(429, "rate_limit");
+		if (!limited.ok)
+			return localizedRetryAfter(limited.retryAfter, "rate_limit");
 		const got = await loadBound(await getDataHost(), userId);
 		if ("error" in got) return localizedError(got.status, got.error);
 		const format = parseExportFormat(
@@ -31,13 +33,15 @@ export async function GET(request: Request) {
 		const body =
 			format === "json"
 				? JSON.stringify(
-						{
-							player: displayPlayerId(got.save.saveInfo.PlayerId),
-							rks: got.save.saveInfo.summary?.rankingScore ?? null,
-							savedAt: lastSyncedIso(got.save) ?? null,
-							exportedAt: new Date().toISOString(),
-							records: rows,
-						},
+						exportDocument(
+							{
+								player: displayPlayerId(got.save.saveInfo.PlayerId),
+								rks: got.save.saveInfo.summary?.rankingScore ?? null,
+								savedAt: lastSyncedIso(got.save) ?? null,
+								exportedAt: new Date().toISOString(),
+							},
+							rows,
+						),
 						null,
 						2,
 					)

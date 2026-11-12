@@ -1,14 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import {
 	ArrowsClockwise,
 	CheckCircle,
 	Crown,
 	LockSimple,
+	Question,
 	XCircle,
-} from "@phosphor-icons/react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+} from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import { localeTag } from "@/i18n/config";
 import { useI18n } from "@/i18n/provider";
@@ -85,13 +86,22 @@ export function MpBoard({ data }: { data: MpData }) {
 	});
 
 	useEffect(() => {
-		const id = window.setInterval(() => router.refresh(), 15_000);
-		return () => window.clearInterval(id);
+		const id = window.setInterval(() => {
+			if (!document.hidden) router.refresh();
+		}, 15_000);
+		const onVisible = () => {
+			if (!document.hidden) router.refresh();
+		};
+		document.addEventListener("visibilitychange", onVisible);
+		return () => {
+			window.clearInterval(id);
+			document.removeEventListener("visibilitychange", onVisible);
+		};
 	}, [router]);
 
 	const rooms = data.rooms;
 	const playing = rooms?.filter((r) => r.state === "playing").length;
-	const Icon = data.up ? CheckCircle : XCircle;
+	const Icon = data.up === null ? Question : data.up ? CheckCircle : XCircle;
 
 	return (
 		<>
@@ -102,9 +112,15 @@ export function MpBoard({ data }: { data: MpData }) {
 					{t.address} <code>{PHIRA_MP_SERVER}</code>
 				</p>
 			</header>
-			<div className={`status-banner ${data.up ? "is-up" : "is-down"}`}>
+			<div
+				className={
+					data.up === null
+						? "status-banner"
+						: `status-banner ${data.up ? "is-up" : "is-down"}`
+				}
+			>
 				<Icon size={22} weight="fill" aria-hidden="true" />
-				<p>{data.up ? t.online : t.offline}</p>
+				<p>{data.up === null ? t.unknown : data.up ? t.online : t.offline}</p>
 				<span className="status-updated">
 					{t.updated} {time.format(data.checkedAt)} UTC
 				</span>

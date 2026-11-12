@@ -1,6 +1,7 @@
 import type { Locale } from "@/i18n/config";
 
 type TimelineText = { zh: string; en: string; ja?: string };
+
 import { fill } from "@/phi/lib/card-i18n";
 import {
 	type CollectionIndex,
@@ -881,16 +882,25 @@ export function buildTimeline(
 	const place = (p: Placed, lane: Lane, era: string | undefined) => {
 		const d = p.date;
 		if (d?.cal === "real") (isBefore(d) ? before : after).push(p);
-		else if (d && lane !== "real") {
-			put(towerBuckets, era ?? eraOf(data.eras, d.year)?.id ?? "", p);
-		} else if (!d && era && lane !== "real") put(towerBuckets, era, p);
-		else unplaced.push(p);
+		else if (lane !== "real") {
+			const id =
+				era && data.eras.some((known) => known.id === era)
+					? era
+					: d
+						? eraOf(data.eras, d.year)?.id
+						: undefined;
+			if (id) put(towerBuckets, id, p);
+			else unplaced.push(p);
+		} else unplaced.push(p);
 	};
 
 	for (const e of shown) {
 		const p: Placed = { date: e.date, raw: e.raw, event: e };
-		if (e.lane === "subspace") put(worldPlaced, e.world ?? "", p);
-		else place(p, e.lane, e.era);
+		if (e.lane === "subspace") {
+			if (e.world && data.worlds.some((known) => known.id === e.world))
+				put(worldPlaced, e.world, p);
+			else unplaced.push(p);
+		} else place(p, e.lane, e.era);
 	}
 
 	if (!opts.thread) {

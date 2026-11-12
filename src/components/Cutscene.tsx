@@ -1,6 +1,5 @@
 "use client";
 
-import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import {
 	type CSSProperties,
 	Fragment,
@@ -11,6 +10,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { CaretLeft, CaretRight } from "@/components/icons";
 import { localeTag } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";

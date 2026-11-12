@@ -14,12 +14,14 @@ import {
 import { b19Card, infoCard } from "@/phi/lib/cards";
 import { knownBackground } from "@/phi/lib/catalog";
 import type { CardMissing, CardPhase } from "@/phi/lib/external";
+import { fCompute } from "@/phi/lib/fcompute";
 import {
 	buildUpdateCard,
 	loadHisb30Snaps,
 	loadSaveHistory,
 	updateCardImages,
 } from "@/phi/lib/history";
+import { TtlLru } from "@/phi/lib/lru";
 import { getNotes } from "@/phi/lib/notes";
 import type { Save } from "@/phi/lib/save";
 import { buildSongCard } from "@/phi/lib/song-card";
@@ -54,14 +56,16 @@ import {
 	parseSongLevel,
 	type SongLevel,
 } from "./card-kinds";
+import { dataTimeoutMs, heightInputs, paintTimeoutMs } from "./card-paint-plan";
 import { getDataHost } from "./data-host";
 import { getHost, type WebHost } from "./host";
 import { etagMatches } from "./http";
 import { prefetchIlls } from "./ill";
 import { logger, withDiscordUid } from "./logger";
+import { r2ErrorSince } from "./r2";
 import { type PaintQuality, parsePaintQuality } from "./render/paint-budget";
 import { withTimeout } from "./render-lock";
-import { foolsPending } from "./song-info";
+import { foolsPending, loadedLevelsRevision } from "./song-info";
 
 export type { BoundErr } from "./bound";
 export {
@@ -78,12 +82,11 @@ type RenderOk = {
 	mime?: string;
 	stats: CardStats;
 	transient?: boolean;
+	imagesMissing?: boolean;
 	notModified?: boolean;
 	uiLocale?: PhiLocale;
 };
 
-const DATA_TIMEOUT_MS = 75_000;
-const RENDER_TIMEOUT_MS = 45_000;
 /** Peer badges (notes.peerWait) may wait this long, leaving ~30 s of the route's 90 s for the paint */
 const PEER_WAIT_MS = 60_000;
 
@@ -135,6 +138,7 @@ type CardPrep = {
 	heightId: string;
 	slot: CardSlot;
 	prepMs: number;
+	fresh: boolean;
 };
 
 async function prepareCardCache(
@@ -202,8 +206,9 @@ async function prepareCardCache(
 		sdExcludeP3,
 		style,
 		extra: song
-			? `song:${song.chart}:${song.level}:${new Date().toISOString().slice(0, 10)}`
+			? `song:${song.chart}:${song.level}:${fCompute.formatDate(new Date(), "YYYY-MM-DD")}`
 			: undefined,
+		levels: loadedLevelsRevision(),
 	});
 	const etag = cardEtag(cardCacheParts(cacheInput, "jpeg"));
 	return {
@@ -227,6 +232,7 @@ async function prepareCardCache(
 		key: cacheKey(cacheKind, userId, etag),
 		heightId: cardEtag(cardCacheParts(cacheInput, "height")),
 		prepMs: Math.round(performance.now() - started),
+		fresh: opts.fresh === true,
 	};
 }
 
@@ -238,6 +244,20 @@ function hitResult(prep: CardPrep, hit: CachedCard, cacheMs: number): RenderOk {
 		stats: {
 			cache: "hit",
 			store: durableCardStore(hit.store),
+			prepMs: prep.prepMs,
+			cacheMs,
+			totalMs: Math.round(performance.now() - prep.started),
+		},
+	};
+}
+
+function heldResult(prep: CardPrep, held: RenderOk, cacheMs: number): RenderOk {
+	return {
+		...held,
+		stats: {
+			...held.stats,
+			cache: "hit",
+			store: "mem",
 			prepMs: prep.prepMs,
 			cacheMs,
 			totalMs: Math.round(performance.now() - prep.started),
@@ -305,6 +325,9 @@ async function renderCardFor(
 }
 
 const inflight = new Map<string, Promise<RenderOk | BoundErr>>();
+const HELD_MS = 60_000;
+const HELD_MAX_BYTES = 4 * 1024 * 1024;
+const heldCards = new TtlLru<RenderOk>(16);
 
 async function sharedCard(
 	prep: CardPrep,
@@ -313,6 +336,9 @@ async function sharedCard(
 	const tMem = performance.now();
 	const hot = await readCachedPng(prep.data, prep.key, { durable: false });
 	if (hot) return hitResult(prep, hot, Math.round(performance.now() - tMem));
+	if (prep.fresh) heldCards.delete(prep.key);
+	const held = heldCards.get(prep.key);
+	if (held) return heldResult(prep, held, Math.round(performance.now() - tMem));
 	let job = inflight.get(prep.key);
 	const joined = job != null;
 	if (!job) {
@@ -371,12 +397,15 @@ async function lookupOrPaint(
 }
 
 /** The signal fires with our own timeout, so the engine stops abandoned work and frees its raster slot */
-function renderOpts(prep: CardPrep, heightKey: string, height?: number) {
+function renderOpts(
+	prep: CardPrep,
+	ms: number,
+	inputs: ReturnType<typeof heightInputs>,
+) {
 	return {
 		paintQuality: prep.paintQuality,
-		heightKey,
-		height,
-		signal: AbortSignal.timeout(RENDER_TIMEOUT_MS),
+		...inputs,
+		signal: AbortSignal.timeout(ms),
 	};
 }
 
@@ -403,6 +432,7 @@ async function paintFreshCard(
 ): Promise<RenderOk | BoundErr> {
 	hooks.onPaint?.();
 	try {
+		const elapsed = () => performance.now() - prep.started;
 		const host = await getHost();
 		const tData = performance.now();
 		const built = await withTimeout(
@@ -412,14 +442,18 @@ async function paintFreshCard(
 				Date.now() + PEER_WAIT_MS - (performance.now() - prep.started),
 				(waiting) => hooks.onPhase?.(waiting ? "phib19" : "render"),
 			),
-			DATA_TIMEOUT_MS,
+			dataTimeoutMs(elapsed()),
 			`${prep.kind}-data`,
 		);
 		const dataMs = Math.round(performance.now() - tData);
 		if ("error" in built) return built;
+		const partial =
+			built.data.renderPartial === true || foolsPending(prep.started);
 		const height = cachedHeight.done
 			? await cachedHeight.promise.catch(() => undefined)
 			: undefined;
+		const ms = paintTimeoutMs(elapsed());
+		if (ms === undefined) throw new Error("no time left to paint");
 		let img: Awaited<ReturnType<typeof host.render>>;
 		let fellBack = false;
 		try {
@@ -427,14 +461,16 @@ async function paintFreshCard(
 				host.render(
 					built.templateId,
 					built.data,
-					renderOpts(prep, prep.heightId, height),
+					renderOpts(prep, ms, heightInputs(partial, prep.heightId, height)),
 				),
-				RENDER_TIMEOUT_MS,
+				ms,
 				built.templateId,
 			);
 		} catch (err) {
 			// A broken alternative layout must not cost the user their card
 			if (built.templateId === built.classicTemplateId) throw err;
+			const fallbackMs = paintTimeoutMs(elapsed());
+			if (fallbackMs === undefined) throw err;
 			logger.error(
 				`render ${built.templateId} failed, using classic: ${err instanceof Error ? err.message : err}`,
 			);
@@ -443,17 +479,24 @@ async function paintFreshCard(
 				host.render(
 					built.classicTemplateId,
 					built.data,
-					renderOpts(prep, `${prep.heightId}:classic`),
+					renderOpts(
+						prep,
+						fallbackMs,
+						heightInputs(partial, `${prep.heightId}:classic`, undefined),
+					),
 				),
-				RENDER_TIMEOUT_MS,
+				fallbackMs,
 				built.classicTemplateId,
 			);
 		}
 		// Fallback and partial renders, and ones whose jackets may predate the 4/1 set, are cached nowhere
+		const holed = img.missingImages !== undefined;
 		const transient =
 			fellBack ||
-			built.data.renderPartial === true ||
-			foolsPending(prep.started);
+			partial ||
+			foolsPending(prep.started) ||
+			r2ErrorSince(prep.started) ||
+			holed;
 		if (!transient) {
 			await writeCachedPng(host, prep.key, img.bytes, { slot: prep.slot });
 			if (!height && img.height > 64) {
@@ -463,10 +506,11 @@ async function paintFreshCard(
 		const t = img.timings;
 		const extMs = num(built.data.externalMs);
 		const missing = transient && !fellBack ? missingOf(built.data.missing) : [];
-		return {
+		const result: RenderOk = {
 			bytes: img.bytes,
 			etag: transient ? `${prep.etag}-p` : prep.etag,
 			transient: transient || undefined,
+			imagesMissing: holed || undefined,
 			mime: img.mime ?? "image/jpeg",
 			stats: {
 				cache: "miss",
@@ -485,6 +529,10 @@ async function paintFreshCard(
 				totalMs: Math.round(performance.now() - prep.started),
 			},
 		};
+		if (holed && img.bytes.byteLength <= HELD_MAX_BYTES) {
+			heldCards.set(prep.key, result, HELD_MS);
+		}
+		return result;
 	} catch (err) {
 		logger.error(
 			`render ${prep.kind}: ${err instanceof Error ? err.message : err}`,

@@ -2,8 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { isLocale, LOCALE_COOKIE, type Locale, localeTag } from "@/i18n/config";
-import { ja } from "@/i18n/ja-messages";
-import { en, zh } from "@/i18n/messages";
+import { globalErrorMessages } from "@/i18n/global-error-messages";
 import { localePath, pathLocale } from "@/lib/locale-path";
 import { isTheme, THEME_COOKIE, type Theme } from "@/theme/config";
 import { fontClasses } from "@/theme/fonts";
@@ -48,7 +47,7 @@ export default function GlobalError({
 	const prefs = useSyncExternalStore(subscribe, readPrefs, () => "en|");
 	const [locale, pick] = prefs.split("|") as [Locale, string];
 	const theme: Theme | undefined = isTheme(pick) ? pick : undefined;
-	const m = { en, zh, ja }[locale];
+	const m = globalErrorMessages[locale];
 
 	useEffect(() => {
 		console.error(error);

@@ -274,11 +274,7 @@ function cholesky(a: Float64Array, n: number): Float64Array {
 	return l;
 }
 
-function solveWith(
-	l: Float64Array,
-	n: number,
-	b: ArrayLike<number>,
-): number[] {
+function solveWith(l: Float64Array, n: number, b: ArrayLike<number>): number[] {
 	const y = new Float64Array(n);
 	for (let i = 0; i < n; i++) {
 		const ri = i * n;

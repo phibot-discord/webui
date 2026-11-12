@@ -1,12 +1,12 @@
 "use client";
 
+import { type KeyboardEvent, useId, useRef, useState } from "react";
 import {
 	ArrowSquareOut,
 	DeviceMobile,
 	SquaresFour,
 	Table,
-} from "@phosphor-icons/react";
-import { type KeyboardEvent, useId, useRef, useState } from "react";
+} from "@/components/icons";
 import { LevelChip } from "@/components/landing/LevelChip";
 import { useI18n } from "@/i18n/provider";
 

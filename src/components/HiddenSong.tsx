@@ -1,4 +1,4 @@
-import { ArrowSquareOut, DownloadSimple } from "@phosphor-icons/react/dist/ssr";
+import { ArrowSquareOut, DownloadSimple } from "@/components/icons";
 import type { Messages } from "@/i18n/messages";
 import type { HiddenBackground, HiddenChart } from "@/lib/c9s6";
 import { noteTotal } from "@/lib/c9s6";

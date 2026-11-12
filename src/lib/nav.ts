@@ -1,4 +1,10 @@
 import { CARD_KINDS, CARD_PAGES, TOOL_PAGES } from "@/server/card-kinds";
+import {
+	REVIEW_PATH,
+	type ReviewEnv,
+	reviewLinked,
+	reviewWindow,
+} from "./review-window";
 
 export type NavGroupId = "tools" | "scores" | "files";
 
@@ -17,7 +23,8 @@ type NavItemId =
 	| "collection"
 	| "timeline"
 	| "texts"
-	| "versions";
+	| "versions"
+	| "review";
 
 type NavItem = { id: NavItemId; href: string; match: string[] };
 export type NavGroup = { id: NavGroupId; items: NavItem[] };
@@ -45,6 +52,7 @@ export const NAV_GROUPS: NavGroup[] = [
 		items: [
 			...CARD_KINDS.map((kind) => page(kind, `/me/${kind}`)),
 			...CARD_PAGES.map((p) => page(p.id, p.href)),
+			page("review", REVIEW_PATH),
 			page("compare", "/compare"),
 		],
 	},
@@ -60,6 +68,20 @@ export const NAV_GROUPS: NavGroup[] = [
 		],
 	},
 ];
+
+const WITHOUT_REVIEW: NavGroup[] = NAV_GROUPS.map((g) => ({
+	...g,
+	items: g.items.filter((item) => item.id !== "review"),
+}));
+
+export function navGroupsAt(
+	now: number | null,
+	env: ReviewEnv = {},
+): NavGroup[] {
+	return now !== null && reviewLinked(reviewWindow(now, env))
+		? NAV_GROUPS
+		: WITHOUT_REVIEW;
+}
 
 const GROUP_MATCH: Record<NavGroupId, string[]> = {
 	tools: NAV_GROUPS[0]?.items.flatMap((i) => i.match) ?? [],

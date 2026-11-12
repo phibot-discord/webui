@@ -1,13 +1,14 @@
 "use client";
 
-import {
-	ArrowCounterClockwise,
-	Trash,
-	WarningCircle,
-} from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ChartSearch, useChartCatalog } from "@/components/ChartSearch";
+import {
+	ArrowCounterClockwise,
+	Trash,
+	UploadSimple,
+	WarningCircle,
+} from "@/components/icons";
 import { chartSearchText } from "@/components/ScoreControl";
 import { Announce } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
@@ -17,7 +18,20 @@ import {
 	findChart,
 } from "@/lib/chart-catalog";
 import { localePath } from "@/lib/locale-path";
+import {
+	applyImport,
+	IMPORT_MAX_BYTES,
+	IMPORT_MAX_ROWS,
+	type ImportError,
+	type ImportRecord,
+	type ImportSummary,
+	type ParsedRecords,
+	parseRecordsFile,
+	planImport,
+	rowFields,
+} from "@/lib/records-import";
 import { persistCardReload } from "@/lib/save-refresh";
+import type { LevelKind } from "@/phi/lib/const";
 import {
 	chartRks,
 	estimateScore,
@@ -48,6 +62,7 @@ function parseScore(raw: string): number | undefined | null {
 	if (raw === "") return null;
 	if (!/^\d{1,7}$/.test(raw)) return;
 	const n = Number(raw);
+	if (n === 0) return null;
 	return validScore(n) ? n : undefined;
 }
 
@@ -87,12 +102,18 @@ export function ManualScores({
 	const catalog = useChartCatalog();
 	const ids = useId();
 	const addLabelId = `${ids}-add`;
+	const importHintId = `${ids}-import-hint`;
+	const importTitleId = `${ids}-import-title`;
 	const listRef = useRef<HTMLUListElement>(null);
 	const searchRef = useRef<HTMLDivElement>(null);
 	const clearRef = useRef<HTMLButtonElement>(null);
 	const keepRef = useRef<HTMLButtonElement>(null);
+	const fileRef = useRef<HTMLInputElement>(null);
+	const applyRef = useRef<HTMLButtonElement>(null);
+	const cancelRef = useRef<HTMLButtonElement>(null);
+	const saveRef = useRef<HTMLButtonElement>(null);
 	const focusNext = useRef<
-		{ key: string; field: string } | "search" | undefined
+		{ key: string; field: string } | "search" | "save" | undefined
 	>(undefined);
 	const [name, setName] = useState(initial?.playerId || defaultName);
 	const [rows, setRows] = useState<Row[]>(() =>
@@ -104,6 +125,11 @@ export function ManualScores({
 	const [confirmClear, setConfirmClear] = useState<boolean | "back">(false);
 	const [error, setError] = useState<string>();
 	const [said, setSaid] = useState("");
+	const [preview, setPreview] = useState<
+		{ file: string; parsed: ParsedRecords; summary: ImportSummary } | undefined
+	>();
+	const [importError, setImportError] = useState<ImportError | undefined>();
+	const [importNote, setImportNote] = useState("");
 
 	const list = catalog.status === "ready" ? catalog.list : undefined;
 	const loading = catalog.status === "loading" && rows.length > 0;
@@ -157,6 +183,8 @@ export function ManualScores({
 		focusNext.current = undefined;
 		if (next === "search") {
 			searchRef.current?.querySelector<HTMLInputElement>("input")?.focus();
+		} else if (next === "save") {
+			saveRef.current?.focus();
 		} else {
 			fieldOf(listRef.current, next.key, next.field)?.focus();
 		}
@@ -166,6 +194,74 @@ export function ManualScores({
 		if (confirmClear === true) keepRef.current?.focus();
 		if (confirmClear === "back") clearRef.current?.focus();
 	}, [confirmClear]);
+
+	useEffect(() => {
+		if (!preview) return;
+		const apply = applyRef.current;
+		if (apply && !apply.disabled) apply.focus();
+		else cancelRef.current?.focus();
+	}, [preview]);
+
+	function known(id: string, rank: LevelKind) {
+		return list !== undefined && findChart(list, { id, rank }) !== undefined;
+	}
+
+	function rowOf(rec: ImportRecord): Row {
+		const hit = list ? findChart(list, rec) : undefined;
+		return {
+			key: manualRecordKey(rec.id, rec.rank),
+			id: rec.id,
+			rank: rec.rank,
+			song: hit?.song.song,
+			difficulty: hit?.difficulty,
+			...rowFields(rec),
+		};
+	}
+
+	async function pickFile(file: File | undefined) {
+		if (!file || !list) return;
+		setPreview(undefined);
+		setImportError(undefined);
+		setImportNote("");
+		if (file.size > IMPORT_MAX_BYTES) {
+			setImportError("too_large");
+			return;
+		}
+		let text: string;
+		try {
+			text = await file.text();
+		} catch {
+			setImportError("unreadable");
+			return;
+		}
+		const result = parseRecordsFile(text);
+		if (!result.ok) {
+			setImportError(result.error);
+			return;
+		}
+		const parsedFile: ParsedRecords = {
+			records: result.records,
+			invalid: result.invalid,
+		};
+		setPreview({
+			file: file.name,
+			parsed: parsedFile,
+			summary: planImport(rows, parsedFile, known, MANUAL_MAX_RECORDS).summary,
+		});
+	}
+
+	function applyPreview() {
+		if (!preview || pending) return;
+		const plan = planImport(rows, preview.parsed, known, MANUAL_MAX_RECORDS);
+		setRows(applyImport(rows, plan, rowOf));
+		setPreview(undefined);
+		setImportNote(
+			t.importApplied
+				.replaceAll("{added}", String(plan.summary.added))
+				.replaceAll("{improved}", String(plan.summary.improved)),
+		);
+		focusNext.current = "save";
+	}
 
 	function add(song: ChartSummary, rank: ChartLevel) {
 		const cell = song.charts[rank];
@@ -260,6 +356,21 @@ export function ManualScores({
 		}
 	}
 
+	const reasons = preview
+		? (
+				[
+					[preview.summary.unknown, t.importUnknown],
+					[preview.summary.invalid, t.importInvalid],
+					[preview.summary.repeated, t.importRepeated],
+					[preview.summary.full, t.importFull],
+				] as const
+			).filter(([n]) => n > 0)
+		: [];
+	const skipped = reasons.reduce((sum, [n]) => sum + n, 0);
+	const changes = preview
+		? preview.summary.added + preview.summary.improved
+		: 0;
+
 	async function clear() {
 		if (pending) return;
 		setPending("clear");
@@ -321,6 +432,105 @@ export function ManualScores({
 					) : null}
 				</div>
 			</div>
+
+			<div className="manual-import">
+				<button
+					type="button"
+					className="btn btn-ghost btn-sm"
+					disabled={list === undefined || pending !== undefined}
+					aria-describedby={importHintId}
+					onClick={() => fileRef.current?.click()}
+				>
+					<UploadSimple size={16} aria-hidden />
+					{t.importButton}
+				</button>
+				<input
+					ref={fileRef}
+					type="file"
+					hidden
+					accept=".json,.csv,application/json,text/csv"
+					onChange={(e) => {
+						const file = e.target.files?.[0];
+						e.target.value = "";
+						void pickFile(file);
+					}}
+				/>
+				<p className="field-hint" id={importHintId}>
+					{t.importHint}
+				</p>
+				<p className="field-hint" role="status">
+					{importNote}
+				</p>
+			</div>
+			{importError ? (
+				<p className="manual-error" role="alert">
+					{t.importErrors[importError]
+						.replaceAll("{mb}", "2")
+						.replaceAll("{max}", String(IMPORT_MAX_ROWS))}
+				</p>
+			) : null}
+			{preview ? (
+				<section
+					className="callout manual-import-preview"
+					aria-labelledby={importTitleId}
+				>
+					<h2 id={importTitleId}>
+						{t.importFrom.replaceAll("{file}", preview.file)}
+					</h2>
+					<ul className="manual-import-counts">
+						<li>
+							{t.importAdded.replaceAll("{n}", String(preview.summary.added))}
+						</li>
+						<li>
+							{t.importImproved.replaceAll(
+								"{n}",
+								String(preview.summary.improved),
+							)}
+						</li>
+						<li>
+							{t.importKept.replaceAll("{n}", String(preview.summary.kept))}
+						</li>
+						{skipped > 0 ? (
+							<li>
+								{t.importSkipped
+									.replaceAll("{n}", String(skipped))
+									.replaceAll(
+										"{reasons}",
+										reasons
+											.map(([n, text]) =>
+												text
+													.replaceAll("{max}", String(MANUAL_MAX_RECORDS))
+													.replaceAll("{n}", String(n)),
+											)
+											.join(t.importSep),
+									)}
+							</li>
+						) : null}
+					</ul>
+					<p className="field-hint">
+						{changes > 0 ? t.importNotSaved : t.importNothing}
+					</p>
+					<div className="manual-confirm-actions">
+						<button
+							ref={applyRef}
+							type="button"
+							className="btn btn-primary btn-sm"
+							disabled={changes === 0 || pending !== undefined}
+							onClick={applyPreview}
+						>
+							{t.importApply}
+						</button>
+						<button
+							ref={cancelRef}
+							type="button"
+							className="btn btn-ghost btn-sm"
+							onClick={() => setPreview(undefined)}
+						>
+							{t.importCancel}
+						</button>
+					</div>
+				</section>
+			) : null}
 
 			{catalog.status === "failed" ? (
 				rows.length ? (
@@ -554,6 +764,7 @@ export function ManualScores({
 
 			<div className="manual-actions">
 				<button
+					ref={saveRef}
 					type="button"
 					className="btn btn-primary"
 					disabled={loading || !rows.length}

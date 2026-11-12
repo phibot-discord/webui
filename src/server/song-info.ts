@@ -77,6 +77,7 @@ let syncAliasesSha: string | undefined;
 /** Which cached info set is in the VFS, so an unchanged sync state does not re-read /tmp */
 let mountedFor: string | undefined;
 let initedCommit: string | undefined;
+let initedLevels: string | undefined;
 let checkedAt = 0;
 let inflight: Promise<void> | undefined;
 /** Missing files keep the last complete set in use; after MAX_INFO_TRIES the arrived ones mount as partial */
@@ -115,6 +116,10 @@ export function loadedCatalogRevision(): string {
 	return initedCommit ?? catalogRevision();
 }
 
+export function loadedLevelsRevision(): string {
+	return initedLevels ?? "";
+}
+
 export function aliasesSha(): string | undefined {
 	return syncAliasesSha;
 }
@@ -136,6 +141,7 @@ export function resetSongInfoForTest(
 	syncAliasesSha = undefined;
 	mountedFor = undefined;
 	initedCommit = undefined;
+	initedLevels = undefined;
 	checkedAt = 0;
 	inflight = undefined;
 	staged = undefined;
@@ -547,9 +553,11 @@ async function refresh(): Promise<void> {
 
 export async function reloadCatalog(assets = assetsDir()): Promise<boolean> {
 	const rev = catalogRevision();
+	const levels = kvLevelsSha ?? syncLevelsSha;
 	if (initedCommit === rev) return false;
 	await getInfo.init(assets);
 	initedCommit = rev;
+	initedLevels = levels;
 	return true;
 }
 

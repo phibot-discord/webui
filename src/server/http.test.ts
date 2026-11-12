@@ -9,6 +9,7 @@ import {
 	cardResultResponse,
 	etagMatches,
 	jsonError,
+	privateJson,
 	retryAfter,
 	wantsReload,
 } from "./http";
@@ -32,6 +33,14 @@ test("jsonError is not stored by caches", async () => {
 	assert.equal(res.headers.get("cache-control"), "no-store");
 	const body = (await res.json()) as { error?: string; code?: string };
 	assert.equal(body.code, "not_bound");
+});
+
+test("personalised JSON is never cacheable", async () => {
+	const res = privateJson({ slug: "abc", owner: true });
+	assert.equal(res.status, 200);
+	assert.equal(res.headers.get("cache-control"), "private, no-store");
+	assert.deepEqual(await res.json(), { slug: "abc", owner: true });
+	assert.equal(privateJson({}, { status: 201 }).status, 201);
 });
 
 test("a card image response attaches X-Phi-Stats", () => {

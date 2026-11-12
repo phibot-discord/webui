@@ -19,7 +19,6 @@ function includesFor(name: string): string[] {
 
 test("routes that load the song catalog ship phi-assets/info", () => {
 	for (const route of [
-		"/api/songs/search",
 		"/api/charts",
 		"/api/manual",
 		"/api/sim",
@@ -34,6 +33,32 @@ test("routes that load the song catalog ship phi-assets/info", () => {
 			);
 		}
 	}
+});
+
+test("every page gets the hardening headers and badges keep their own policy", async () => {
+	const rules = await nextConfig.headers?.();
+	assert.ok(rules);
+	assert.equal(rules.length, 2);
+	const all = rules.find((rule) => rule.source === "/:path*");
+	assert.ok(all);
+	assert.equal(
+		all.headers.find((h) => h.key === "X-Content-Type-Options")?.value,
+		"nosniff",
+	);
+	assert.equal(
+		all.headers.find((h) => h.key === "Referrer-Policy")?.value,
+		"strict-origin-when-cross-origin",
+	);
+	const framing = rules.find((rule) => rule !== all);
+	assert.ok(framing);
+	assert.ok(framing.source.includes("api/badge"));
+	assert.ok(
+		framing.headers.some(
+			(h) =>
+				h.key === "Content-Security-Policy" &&
+				h.value === "frame-ancestors 'self'",
+		),
+	);
 });
 
 test("the footer commit is Vercel's when it sets one, else git's HEAD", () => {

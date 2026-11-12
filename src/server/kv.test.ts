@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { connectKv, createKv, type RemoteKv } from "./kv";
+import { connectKv, createKv, kvKeyLabel, type RemoteKv } from "./kv";
 
 function fakeRemote() {
 	const data = new Map<string, string>();
@@ -76,6 +76,22 @@ test("bind keys always go to the remote except right after our own write", async
 			clock += 6_000;
 			data.set("phi:manualSave:u", JSON.stringify({ d: "theirs" }));
 			assert.equal(await store.get("phi:manualSave:u"), "theirs");
+		},
+	);
+});
+
+test("a guess run is always read from the store", async () => {
+	const { remote, data } = fakeRemote();
+	const { store } = createKv(remote);
+	let clock = 7_000_000;
+	await withNow(
+		() => clock,
+		async () => {
+			await store.set("phi:guessRun:d:u", "first");
+			assert.equal(await store.get("phi:guessRun:d:u"), "first");
+			clock += 6_000;
+			data.set("phi:guessRun:d:u", JSON.stringify({ d: "second" }));
+			assert.equal(await store.get("phi:guessRun:d:u"), "second");
 		},
 	);
 });
@@ -284,4 +300,22 @@ test("background writes reach the remote as background", async () => {
 	await store.set("phi:notes:u", "{}");
 	assert.equal(calls.put, 2);
 	assert.equal(calls.background, 1);
+});
+
+test("a key that ends in a session token is masked in labels", () => {
+	for (const kind of ["save", "history", "tokenUser", "banSessionToken"]) {
+		const label = kvKeyLabel(`phi:${kind}:ABCDEFGHIJKLMNOPQRSTUVWXY`);
+		assert.equal(label.includes("EFGHIJKLMNOPQRSTUVWXY"), false, label);
+		assert.ok(label.includes(`phi:${kind}:`), label);
+	}
+});
+
+test("other keys are labelled as they are", () => {
+	for (const key of [
+		"phi:userToken:123456789012345678",
+		"phi:notes:tap:abc",
+		"phi:webShare:AbCdEfGh1234",
+	]) {
+		assert.equal(kvKeyLabel(key), key);
+	}
 });

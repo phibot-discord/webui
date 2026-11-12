@@ -3,7 +3,11 @@ import { clampStep, dayKey, GUESS_STEPS, puzzleKind } from "@/lib/guess";
 import { runStep } from "@/lib/guess-board";
 import { answerFor, answerView, clueUrl } from "@/server/guess";
 import { guessRun } from "@/server/guess-board";
-import { localizedError } from "@/server/i18n-http";
+import {
+	codeError,
+	localizedError,
+	localizedRetryAfter,
+} from "@/server/i18n-http";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 
 export const runtime = "nodejs";
@@ -11,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
 	const limited = rateLimit({ ip: `guess:${clientIp(request.headers)}` });
-	if (!limited.ok) return localizedError(429, "rate_limit");
+	if (!limited.ok) return localizedRetryAfter(limited.retryAfter, "rate_limit");
 	const body = (await request.json().catch(() => ({}))) as {
 		p?: unknown;
 		guess?: unknown;
@@ -21,7 +25,7 @@ export async function POST(request: Request) {
 	};
 	const puzzle = typeof body.p === "string" ? body.p : "";
 	const kind = puzzleKind(puzzle);
-	if (!kind) return Response.json({ error: "bad_request" }, { status: 400 });
+	if (!kind) return codeError(400, "bad_request");
 	const headers = { "Cache-Control": "no-store" };
 	const day = kind === "daily" ? puzzle.slice(2) : "";
 	const live = day !== "" && day === dayKey();
@@ -29,7 +33,7 @@ export async function POST(request: Request) {
 	const user = session?.user?.id;
 	if (live && !user) return localizedError(401, "unauthorized");
 	const answer = await answerFor(puzzle);
-	if (!answer) return Response.json({ error: "unavailable" }, { status: 503 });
+	if (!answer) return codeError(503, "unavailable");
 	const guess =
 		typeof body.guess === "string" && body.guess
 			? body.guess.slice(0, 200)
@@ -61,7 +65,7 @@ export async function POST(request: Request) {
 			);
 		}
 		if (live) {
-			return Response.json({ error: "not_started" }, { status: 409, headers });
+			return codeError(409, "not_started");
 		}
 	}
 

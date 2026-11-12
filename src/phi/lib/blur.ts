@@ -9,6 +9,7 @@ import {
 	stat,
 	touch,
 } from "@/server/vfs";
+import { isStaleTmp } from "./disk-budget";
 import { evictOldest } from "./lru";
 
 const cacheDir = "/tmp/phi-web-ill-blur";
@@ -27,11 +28,21 @@ export function markBlurUsed(path: string, now = Date.now()): boolean {
 	}
 }
 
-export function pruneBlurCache(dir = cacheDir, keep = BLUR_CACHE_FILES) {
+export function pruneBlurCache(
+	dir = cacheDir,
+	keep = BLUR_CACHE_FILES,
+	now = Date.now(),
+) {
 	const files: { path: string; at: number }[] = [];
 	for (const name of readdir(dir)) {
-		if (!name.endsWith(".png")) continue;
 		const path = `${dir}/${name}`;
+		if (name.endsWith(".tmp")) {
+			try {
+				if (isStaleTmp(name, stat(path).mtimeMs, now)) remove(path);
+			} catch {}
+			continue;
+		}
+		if (!name.endsWith(".png")) continue;
 		try {
 			files.push({ path, at: stat(path).mtimeMs });
 		} catch {}

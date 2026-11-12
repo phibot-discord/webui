@@ -1,11 +1,14 @@
 import sharp from "sharp";
+import { evictToBudget } from "@/phi/lib/lru";
 import { poolAll } from "../pool";
 
 /** Song tiles are ~95px CSS (~190px at 2×). 640px is still oversampled */
 export const TILE_MAX_EDGE = 640;
 /** Blurred backgrounds already sit around 1800px and cover the full card */
 export const BG_MAX_EDGE = 2048;
+export const LARGE_MAX_EDGE = 1536;
 const BG_SRC = /illBlur|phi-web-ill-blur|phi-ill-blur|Star[12]\.png/i;
+const LARGE_SRC = /[\\/]ill[\\/]/;
 
 export type PaintImage = {
 	src: string;
@@ -14,7 +17,9 @@ export type PaintImage = {
 };
 
 export function maxEdgeFor(src: string) {
-	return BG_SRC.test(src) ? BG_MAX_EDGE : TILE_MAX_EDGE;
+	if (BG_SRC.test(src)) return BG_MAX_EDGE;
+	if (LARGE_SRC.test(src)) return LARGE_MAX_EDGE;
+	return TILE_MAX_EDGE;
 }
 
 /** Jackets are shared by every card; keyed by src + byte length (disk assets are immutable per stamp) */
@@ -34,13 +39,12 @@ function rememberFitted(key: string, data: Uint8Array) {
 	fitted.delete(key);
 	fitted.set(key, data);
 	fittedBytes += data.byteLength;
-	while (fittedBytes > FITTED_MAX_BYTES && fitted.size > 1) {
-		const oldest = fitted.keys().next().value;
-		if (oldest === undefined) break;
-		const evicted = fitted.get(oldest);
-		fitted.delete(oldest);
-		if (evicted) fittedBytes -= evicted.byteLength;
-	}
+	fittedBytes = evictToBudget(
+		fitted,
+		fittedBytes,
+		FITTED_MAX_BYTES,
+		(value) => value.byteLength,
+	);
 }
 
 export async function fitPaintImages(

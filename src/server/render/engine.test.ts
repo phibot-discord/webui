@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import {
+	copyFileSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import { pathToFileURL } from "node:url";
 import { Renderer } from "@takumi-rs/core";
 import sharp from "sharp";
 import { renderLock } from "../render-lock";
@@ -138,6 +146,15 @@ function painted(bytes: Buffer) {
 		}));
 }
 
+async function waitUntil(done: () => boolean, what: string, limitMs = 2_000) {
+	const until = performance.now() + limitMs;
+	while (!done()) {
+		if (performance.now() > until)
+			assert.fail(`gave up after ${limitMs} ms waiting for ${what}`);
+		await new Promise((resolve) => setTimeout(resolve, 5));
+	}
+}
+
 test("measured cards paint the bottom rows with the body background", async () => {
 	const engine = new RenderEngine();
 	const img = await engine.renderHtml(
@@ -266,7 +283,10 @@ test("an aborted render rejects and leaves the raster lock free", async () => {
 		height: 100,
 		signal: queued.signal,
 	});
-	await new Promise((resolve) => setTimeout(resolve, 20));
+	await waitUntil(
+		() => renderLock.queued === 1,
+		"the render to queue for the raster lock",
+	);
 	assert.equal(renderLock.queued, 1);
 	queued.abort(new Error("queued render timed out"));
 	await assert.rejects(waiting, /queued render timed out/);
@@ -396,4 +416,154 @@ test("fonts register once however many renders start together", async () => {
 	} finally {
 		Renderer.prototype.registerFont = orig;
 	}
+});
+
+async function imageDir(t: TestContext) {
+	const dir = mkdtempSync(join(tmpdir(), "phi-images-"));
+	t.after(() => rmSync(dir, { recursive: true, force: true }));
+	await sharp({
+		create: {
+			width: 8,
+			height: 8,
+			channels: 4,
+			background: { r: 255, g: 0, b: 0, alpha: 1 },
+		},
+	})
+		.png()
+		.toFile(join(dir, "red.png"));
+	return dir;
+}
+
+function imgTag(file: string, style = "display:block;width:100px;height:50px") {
+	return `<img src="${pathToFileURL(file).href}" style="${style}">`;
+}
+
+test("a missing image file is reported and logged once, and the rest of the card still paints", async (t) => {
+	const dir = await imageDir(t);
+	const gone = join(dir, "gone.png");
+	const warns: string[] = [];
+	const origWarn = console.warn;
+	console.warn = (...args: unknown[]) => {
+		warns.push(args.map(String).join(" "));
+	};
+	try {
+		const engine = new RenderEngine();
+		const img = await engine.renderHtml(
+			`<html><body style="margin:0;background:#ffffff">${imgTag(join(dir, "red.png"))}${imgTag(gone)}${imgTag(gone)}</body></html>`,
+			{ width: 100, height: 150, format: "png", id: "missing-one" },
+		);
+		assert.deepEqual(img.missingImages, [gone]);
+		const px = await painted(img.bytes);
+		assert.deepEqual(px.at(20, 20), [255, 0, 0]);
+		assert.deepEqual(px.at(20, 120), [255, 255, 255]);
+		const lines = warns.filter((w) => w.includes("missing-one"));
+		assert.equal(lines.length, 1);
+		assert.match(lines[0] ?? "", /1 image\(s\) missing: gone\.png/);
+		assert.doesNotMatch(lines[0] ?? "", /phi-images-/);
+		await engine.close();
+	} finally {
+		console.warn = origWarn;
+	}
+});
+
+test("a missing image in a stylesheet url() is reported too", async (t) => {
+	const dir = await imageDir(t);
+	const gone = join(dir, "bg-gone.png");
+	const engine = new RenderEngine();
+	const img = await engine.renderHtml(
+		`<html><head><style>.bg { background-image: url("${pathToFileURL(gone).href}"); }</style></head><body style="margin:0"><div class="bg" style="width:100px;height:50px"></div></body></html>`,
+		{ width: 100, height: 50, format: "png" },
+	);
+	assert.deepEqual(img.missingImages, [gone]);
+	await engine.close();
+});
+
+test("an image path that exists but cannot be read is reported instead of failing the render", async (t) => {
+	const dir = await imageDir(t);
+	const unreadable = join(dir, "folder.png");
+	mkdirSync(unreadable);
+	const engine = new RenderEngine();
+	const img = await engine.renderHtml(
+		`<html><body style="margin:0">${imgTag(unreadable)}</body></html>`,
+		{ width: 100, height: 50, format: "png" },
+	);
+	assert.deepEqual(img.missingImages, [unreadable]);
+	await engine.close();
+});
+
+test("a render with every image present paints it, reports nothing missing and keeps its result shape", async (t) => {
+	const dir = await imageDir(t);
+	const engine = new RenderEngine();
+	const img = await engine.renderHtml(
+		`<html><body style="margin:0;background:#ffffff">${imgTag(join(dir, "red.png"))}</body></html>`,
+		{ width: 100, height: 50, format: "png" },
+	);
+	assert.deepEqual(Object.keys(img), [
+		"bytes",
+		"mime",
+		"ext",
+		"width",
+		"height",
+		"timings",
+	]);
+	assert.deepEqual((await painted(img.bytes)).at(20, 20), [255, 0, 0]);
+	await engine.close();
+});
+
+test("a height measured while an image was missing is not remembered", async (t) => {
+	const dir = await imageDir(t);
+	const late = join(dir, "late.png");
+	const html = `<html><body style="margin:0;background:#ffffff">${imgTag(late, "display:block;width:100px")}<div style="height:100px;background:#00ff00"></div></body></html>`;
+	const opts = { width: 100, format: "png" as const, heightKey: "late-image" };
+	const engine = new RenderEngine();
+	const first = await engine.renderHtml(html, opts);
+	assert.deepEqual(first.missingImages, [late]);
+	assert.equal(first.height, 100 + MEASURE_SLACK_PX);
+	copyFileSync(join(dir, "red.png"), late);
+	const second = await engine.renderHtml(html, opts);
+	assert.equal(second.missingImages, undefined);
+	assert.equal(second.timings?.heightCache, "miss");
+	assert.equal(second.height, 200 + MEASURE_SLACK_PX);
+	const third = await engine.renderHtml(html, opts);
+	assert.equal(third.timings?.heightCache, "hit");
+	assert.equal(third.height, second.height);
+	await engine.close();
+});
+
+test("a template render passes the missing images on to its caller", async (t) => {
+	const dir = await imageDir(t);
+	const gone = join(dir, "gone.png");
+	const engine = new RenderEngine();
+	const img = await engine.renderTemplate(
+		{
+			id: "missing-template",
+			width: 100,
+			height: 50,
+			format: "png",
+			html: () => `<html><body style="margin:0">${imgTag(gone)}</body></html>`,
+		},
+		{},
+		{ compileArt: () => "", resources: dir },
+	);
+	assert.deepEqual(img.missingImages, [gone]);
+	assert.equal(typeof img.timings?.htmlMs, "number");
+	await engine.close();
+});
+
+test("an image path the HTML escapes is found", async (t) => {
+	const dir = await imageDir(t);
+	const amp = join(dir, "a&b.png");
+	copyFileSync(join(dir, "red.png"), amp);
+	const tag = (src: string) =>
+		`<img src="${src}" style="display:block;width:100px;height:50px">`;
+	const engine = new RenderEngine();
+	const img = await engine.renderHtml(
+		`<html><body style="margin:0;background:#ffffff">${tag(amp.replaceAll("&", "&amp;"))}${tag(amp.replaceAll("&", "&#38;"))}</body></html>`,
+		{ width: 100, height: 100, format: "png" },
+	);
+	assert.equal(img.missingImages, undefined);
+	const px = await painted(img.bytes);
+	assert.deepEqual(px.at(20, 20), [255, 0, 0]);
+	assert.deepEqual(px.at(20, 120), [255, 0, 0]);
+	await engine.close();
 });

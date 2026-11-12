@@ -1,4 +1,5 @@
 import { kvKey } from "@/phi/lib/const";
+import { evictOldest } from "@/phi/lib/lru";
 import type { PhiRuntime } from "@/phi/lib/runtime";
 import { clearUser, getToken, updateSave } from "@/phi/lib/saves";
 import { isTapApiFailure, isTapRateLimited } from "@/phi/lib/tapapi";
@@ -15,6 +16,8 @@ export type BindServer = "cn" | "gb";
 
 const QR_KEY = (userId: string) => kvKey("webQr", userId);
 const QR_LOCK = (userId: string) => kvKey("qrbind", userId);
+const QR_FINISH_LOCK = (userId: string) => kvKey("webQrLock", userId);
+const QR_FINISH_LOCK_MS = 3 * 60_000;
 
 export type QrStored = {
 	deviceId: string;
@@ -284,11 +287,7 @@ function qrTokenCheckDue(userId: string): boolean {
 	if (last != null && now - last < QR_TOKEN_CHECK_MS) return false;
 	qrTokenCheckedAt.delete(userId);
 	qrTokenCheckedAt.set(userId, now);
-	while (qrTokenCheckedAt.size > QR_TOKEN_CHECK_MAX) {
-		const oldest = qrTokenCheckedAt.keys().next().value;
-		if (oldest === undefined) break;
-		qrTokenCheckedAt.delete(oldest);
-	}
+	evictOldest(qrTokenCheckedAt, QR_TOKEN_CHECK_MAX);
 	return last != null;
 }
 
@@ -321,7 +320,24 @@ export async function finishQrBind(
 	userId: string,
 	resume: QrResume["resume"],
 ): Promise<BindOk | BindErr> {
-	return withDiscordUid(userId, () => finishQrBindFor(userId, resume));
+	return withDiscordUid(userId, () => finishQrBindLocked(userId, resume));
+}
+
+async function finishQrBindLocked(
+	userId: string,
+	resume: QrResume["resume"],
+): Promise<BindOk | BindErr> {
+	const host = await getDataHost();
+	const locked = await host.store.set(QR_FINISH_LOCK(userId), "1", {
+		nx: true,
+		ttlMs: QR_FINISH_LOCK_MS,
+	});
+	if (locked !== "OK") return { error: "qr_busy", status: 409 };
+	try {
+		return await finishQrBindFor(userId, resume);
+	} finally {
+		await host.store.del(QR_FINISH_LOCK(userId)).catch(() => 0);
+	}
 }
 
 async function finishQrBindFor(
@@ -350,11 +366,12 @@ async function finishQrBindFor(
 	}
 	try {
 		await songInfo;
+		const bindStarted = Date.now();
 		const save = await updateSave(host.rt, host.db, userId, {
 			token,
 			global: resume.useGlobal,
 		});
-		await Promise.all([clearQr(userId), leaveManual(userId)]);
+		await Promise.all([clearQr(userId), leaveManual(userId, bindStarted)]);
 		await noteTokenUser(userId, token);
 		return playerFromSave(save);
 	} catch (err) {
@@ -390,11 +407,12 @@ async function bindWithTokenFor(
 		return { error: "invalid_token", status: 400 };
 	try {
 		await songInfo;
+		const bindStarted = Date.now();
 		const save = await updateSave(host.rt, host.db, userId, {
 			token,
 			global: asServer(server, globalFlag) === "gb",
 		});
-		await Promise.all([clearQr(userId), leaveManual(userId)]);
+		await Promise.all([clearQr(userId), leaveManual(userId, bindStarted)]);
 		await noteTokenUser(userId, token);
 		return playerFromSave(save);
 	} catch (err) {
@@ -412,19 +430,20 @@ export async function switchBind(
 	const existing = await getToken(host.rt, userId);
 	if (existing === token)
 		return updateSave(host.rt, host.db, userId, { bound: token, global });
+	const bindStarted = Date.now();
 	const save = await updateSave(host.rt, host.db, userId, {
 		token,
 		bound: existing,
 		global,
 		replace: true,
 	});
-	await leaveManual(userId);
+	await leaveManual(userId, bindStarted);
 	return save;
 }
 
 /** After the token is written the bind has happened, so a failure here is only logged */
-function leaveManual(userId: string) {
-	return leaveManualMode(userId).catch((err) =>
+function leaveManual(userId: string, bindStarted: number) {
+	return leaveManualMode(userId, bindStarted).catch((err) =>
 		logger.warn(
 			`manual mode kept after a bind: ${err instanceof Error ? err.message : err}`,
 		),

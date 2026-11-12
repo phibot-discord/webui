@@ -1,7 +1,7 @@
 "use client";
 
-import { DownloadSimple } from "@phosphor-icons/react";
 import { useState } from "react";
+import { DownloadSimple } from "@/components/icons";
 import { useI18n } from "@/i18n/provider";
 import { saveBlob, versionSpan } from "@/lib/apk-version";
 import { formatSize } from "@/lib/assets";

@@ -57,6 +57,9 @@ export class SaveHistory {
 			for (const level of ALL_LEVEL) {
 				if (!record[level]) continue;
 				for (const item of record[level]) item[2] = new Date(item[2]);
+				record[level].sort(
+					(a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime() || 0,
+				);
 			}
 		}
 		this.scoreHistory = data.scoreHistory || {};
@@ -131,7 +134,7 @@ export class SaveHistory {
 							old.fc !== now.fc
 						) {
 							this.scoreHistory[id]![level]!.splice(
-								idx,
+								idx + 1,
 								0,
 								createHistory(
 									now.acc,
@@ -187,23 +190,25 @@ export class SaveHistory {
 		}
 		if (!this.rks.length)
 			this.rks.push({ date: iso, value: save.saveInfo.summary.rankingScore });
-		for (let i = this.data.length - 1; i >= 0; i--) {
-			if (iso > new Date(this.data[i]!.date)) {
-				if (
-					!this.data[i + 1] ||
-					(checkValue(this.data[i]!.value, save.gameProgress.money) &&
-						checkValue(this.data[i + 1]?.value, save.gameProgress.money))
-				) {
-					this.data.splice(i + 1, 0, {
-						date: iso,
-						value: save.gameProgress.money,
-					});
+		if (!save.moneyUnread) {
+			for (let i = this.data.length - 1; i >= 0; i--) {
+				if (iso > new Date(this.data[i]!.date)) {
+					if (
+						!this.data[i + 1] ||
+						(checkValue(this.data[i]!.value, save.gameProgress.money) &&
+							checkValue(this.data[i + 1]?.value, save.gameProgress.money))
+					) {
+						this.data.splice(i + 1, 0, {
+							date: iso,
+							value: save.gameProgress.money,
+						});
+					}
+					break;
 				}
-				break;
 			}
+			if (!this.data.length)
+				this.data.push({ date: iso, value: save.gameProgress.money });
 		}
-		if (!this.data.length)
-			this.data.push({ date: iso, value: save.gameProgress.money });
 		const clg = save.saveInfo.summary.challengeModeRank;
 		for (let i = this.challengeModeRank.length - 1; i >= 0; i--) {
 			if (iso > new Date(this.challengeModeRank[i]!.date)) {

@@ -38,6 +38,24 @@ test("readJsonWithTapWait keeps JSON error responses", async () => {
 	assert.equal(tapWaitFailed(res, out.data), true);
 });
 
+test("a stream that ends after only the waiting notice is a failure", async () => {
+	const res = new Response(`{"phase":"taptap"}\n`, {
+		headers: { "content-type": "application/x-ndjson; charset=utf-8" },
+	});
+	const out = await readJsonWithTapWait(res, () => undefined);
+	assert.equal(tapWaitFailed(res, out.data), true);
+	assert.equal(out.data.code, "stream_incomplete");
+});
+
+test("an empty stream is a failure", async () => {
+	const res = new Response("", {
+		headers: { "content-type": "application/x-ndjson; charset=utf-8" },
+	});
+	const out = await readJsonWithTapWait(res, () => undefined);
+	assert.equal(tapWaitFailed(res, out.data), true);
+	assert.equal(out.data.code, "stream_incomplete");
+});
+
 test("tapWaitHttpStatus prefers numeric payload status", () => {
 	assert.equal(
 		tapWaitHttpStatus(

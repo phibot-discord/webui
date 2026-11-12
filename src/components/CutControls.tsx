@@ -1,20 +1,20 @@
 "use client";
 
 import {
-	ArrowCounterClockwise,
-	CornersIn,
-	CornersOut,
-	Play,
-	SpeakerHigh,
-	SpeakerSlash,
-} from "@phosphor-icons/react";
-import {
 	type ReactNode,
 	type Ref,
 	type RefObject,
 	useEffect,
 	useState,
 } from "react";
+import {
+	ArrowCounterClockwise,
+	CornersIn,
+	CornersOut,
+	Play,
+	SpeakerHigh,
+	SpeakerSlash,
+} from "@/components/icons";
 import type { Messages } from "@/i18n/messages";
 import {
 	COLLECTION_LANG_NAMES,

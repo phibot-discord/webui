@@ -8,6 +8,7 @@ import type { Save } from "@/phi/lib/save";
 import { profileRecordsOf } from "@/phi/lib/tag-profile";
 import { chartCell } from "@/server/charts";
 import { getDataHost } from "@/server/data-host";
+import { logger } from "@/server/logger";
 
 export async function ProfileTimeline({
 	save,
@@ -23,19 +24,26 @@ export async function ProfileTimeline({
 		getDataHost(),
 	]);
 	const t = m.profile.timeline;
-	const history = await loadSaveHistory(host.rt, host.db, token);
-	const modified = new Date(
-		save.saveInfo.modifiedAt?.iso ?? Number.NaN,
-	).getTime();
-	const view = profileTimeline(
-		history.scoreHistory,
-		(id, rank) => chartCell(id, rank)?.[0],
-		votes,
-		{
-			records: profileRecordsOf(save.gameRecord),
-			t: Number.isFinite(modified) ? modified : Date.now(),
-		},
-	);
+	let view: ReturnType<typeof profileTimeline> | undefined;
+	try {
+		const history = await loadSaveHistory(host.rt, host.db, token);
+		const modified = new Date(
+			save.saveInfo.modifiedAt?.iso ?? Number.NaN,
+		).getTime();
+		view = profileTimeline(
+			history.scoreHistory,
+			(id, rank) => chartCell(id, rank)?.[0],
+			votes,
+			{
+				records: profileRecordsOf(save.gameRecord),
+				t: Number.isFinite(modified) ? modified : Date.now(),
+			},
+		);
+	} catch (err) {
+		logger.warn(
+			`profile timeline unavailable: ${err instanceof Error ? err.message : err}`,
+		);
+	}
 	const fmt = new Intl.DateTimeFormat(localeTag(locale), {
 		timeZone: "Asia/Shanghai",
 		month: "short",

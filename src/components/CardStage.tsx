@@ -1,5 +1,11 @@
 "use client";
 
+import { useCallback, useEffect, useId, useState } from "react";
+import type { BackgroundOption } from "@/components/BackgroundPicker";
+import { CardOptions, useNoteSetting } from "@/components/CardOptions";
+import { type CardView, CardViewer } from "@/components/CardViewer";
+import { useChartCatalog } from "@/components/ChartSearch";
+import { defaultCardSize } from "@/components/card-shape";
 import {
 	ArrowSquareOut,
 	ArrowsOut,
@@ -8,13 +14,7 @@ import {
 	ListMagnifyingGlass,
 	ShareNetwork,
 	SlidersHorizontal,
-} from "@phosphor-icons/react";
-import { useCallback, useEffect, useId, useState } from "react";
-import type { BackgroundOption } from "@/components/BackgroundPicker";
-import { CardOptions, useNoteSetting } from "@/components/CardOptions";
-import { type CardView, CardViewer } from "@/components/CardViewer";
-import { useChartCatalog } from "@/components/ChartSearch";
-import { defaultCardSize } from "@/components/card-shape";
+} from "@/components/icons";
 import { SongPicker } from "@/components/SongPicker";
 import { useI18n } from "@/i18n/provider";
 import type { CardStats } from "@/lib/card-stats";

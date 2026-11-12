@@ -4,9 +4,15 @@ import type { Kv } from "@/server/sdk";
 import { ensureSongInfo } from "@/server/song-info";
 import { kvKey } from "./const";
 import { evictOldest } from "./lru";
+import { isPhigrosCloudError, isSessionAcceptedError } from "./phigros";
 import type { PhiRuntime } from "./runtime";
 import type { Save, SavePayload } from "./save";
-import { isTapApiFailure, isTapRateLimited, tapCnProxyUrl } from "./tapapi";
+import {
+	isTapApiError,
+	isTapApiFailure,
+	isTapRateLimited,
+	tapCnProxyUrl,
+} from "./tapapi";
 
 const SAVE = (token: string) => kvKey("save", token);
 const HISB30 = (userId: string) => kvKey("hisb30", userId);
@@ -237,6 +243,14 @@ async function fetchSaveInfo(rt: PhiRuntime, token: string, global: boolean) {
 	return user;
 }
 
+function attemptText(global: boolean, err: unknown): string {
+	const name = err instanceof Error ? err.name : typeof err;
+	const status =
+		isPhigrosCloudError(err) || isTapApiError(err) ? err.status : undefined;
+	const code = isPhigrosCloudError(err) ? err.code : undefined;
+	return `${global ? "gb" : "cn"} ${name} ${status ?? "-"} ${code ?? "-"}`;
+}
+
 export type UpdateSaveOpts = {
 	token?: string;
 	bound?: string;
@@ -287,9 +301,17 @@ async function updateSaveFor(
 		user = await fetchSaveInfo(rt, token, preferred);
 	} catch (err) {
 		// Only a guessed region tries the other host when the first one is down
-		if (opts.global != null || (known != null && isTapApiFailure(err)))
+		if (
+			opts.global != null ||
+			isSessionAcceptedError(err) ||
+			(known != null && isTapApiFailure(err))
+		)
 			throw err;
 		user = await fetchSaveInfo(rt, token, !preferred).catch((other) => {
+			logger.warn(
+				`region fallback failed (${known == null ? "guessed" : "remembered"}): ${attemptText(preferred, err)}; ${attemptText(!preferred, other)}`,
+			);
+			if (isSessionAcceptedError(other)) throw other;
 			// The other host rejecting the token says nothing; the first one was down
 			if (isTapRateLimited(err)) throw err;
 			throw isTapApiFailure(err) && !isTapApiFailure(other) ? err : other;
@@ -362,8 +384,21 @@ async function updateSaveFor(
 		}),
 		snapshotB30(db, userId, save, snapsJob),
 		history
-			.then((m) => m.applySaveToHistory(rt, db, token, save, historyJob))
-			.catch(() => undefined),
+			.then((m) =>
+				m
+					.applySaveToHistory(rt, db, token, save, historyJob)
+					.catch((err: unknown) => {
+						logger.warn(
+							`history not saved, retrying: ${err instanceof Error ? err.message : err}`,
+						);
+						return m.applySaveToHistory(rt, db, token, save);
+					}),
+			)
+			.catch((err: unknown) => {
+				logger.error(
+					`history not saved: ${err instanceof Error ? err.message : err}`,
+				);
+			}),
 	]);
 	await writeToken();
 	// Unbound elsewhere: that unbind deleted the blob, so forget the copy read above

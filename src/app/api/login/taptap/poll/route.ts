@@ -4,7 +4,9 @@ import {
 	localizedBindError,
 	localizedError,
 	localizedErrorBody,
+	localizedRetryAfter,
 } from "@/server/i18n-http";
+import { rateLimitBy } from "@/server/rate-limit";
 import { finishTapLogin, peekTapLogin } from "@/server/tap-login";
 import { tapWaitNdjson } from "@/server/tap-stream";
 
@@ -16,6 +18,8 @@ export const maxDuration = 180;
 export async function POST(request: Request) {
 	const loginId = tapLoginIdFrom(request.headers);
 	if (!loginId) return localizedError(404, "qr_missing");
+	const limited = rateLimitBy(`poll:${loginId}`, 60);
+	if (!limited.ok) return localizedRetryAfter(limited.retryAfter, "rate_limit");
 	const peeked = await peekTapLogin(loginId);
 	if (isQrResume(peeked)) {
 		return tapWaitNdjson(

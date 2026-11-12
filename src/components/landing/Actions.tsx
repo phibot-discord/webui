@@ -3,6 +3,7 @@
 import { signInDiscord } from "@/auth-actions";
 import Link from "@/components/LocaleLink";
 import { InviteLink } from "@/components/landing/Invite";
+import { usePrefetchOff } from "@/components/landing/SessionSwap";
 import { SignInButton, SignInStatus } from "@/components/landing/SignIn";
 import { useI18n } from "@/i18n/provider";
 
@@ -16,10 +17,15 @@ export function Actions({
 	secondary: "taptap" | "invite";
 }) {
 	const { m } = useI18n();
+	const prefetch = usePrefetchOff() ? false : undefined;
 	if (signedIn) {
 		return (
 			<>
-				<Link className="btn btn-primary btn-lg" href="/me/b30">
+				<Link
+					className="btn btn-primary btn-lg"
+					href="/me/b30"
+					prefetch={prefetch}
+				>
 					{m.home.openDesk}
 				</Link>
 				<InviteLink className="btn btn-ghost btn-lg" />
@@ -38,6 +44,7 @@ export function Actions({
 				<Link
 					className="btn btn-ghost btn-lg"
 					href={`/login/taptap?${new URLSearchParams({ next })}`}
+					prefetch={prefetch}
 				>
 					{m.signInTaptap}
 				</Link>

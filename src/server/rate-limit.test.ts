@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test, { beforeEach } from "node:test";
-import { clientIp, rateLimit, resetRateLimitForTest } from "./rate-limit";
+import {
+	clientIp,
+	rateLimit,
+	rateLimitBy,
+	resetRateLimitForTest,
+} from "./rate-limit";
 
 beforeEach(() => resetRateLimitForTest());
 
@@ -55,6 +60,17 @@ test("rejected requests are not counted", () => {
 	for (let i = 0; i < 50; i++)
 		rateLimit({ userId: "w", ip: "7.7.7.7" }, t0 + 1);
 	assert.equal(rateLimit({ userId: "w", ip: "8.8.8.8" }, t0 + 60_000).ok, true);
+});
+
+test("a named budget counts on its own", () => {
+	const t0 = 5_000_000;
+	for (let i = 0; i < 60; i++) {
+		assert.equal(rateLimitBy("poll:x", 60, t0).ok, true);
+	}
+	const refused = rateLimitBy("poll:x", 60, t0 + 1_000);
+	assert.equal(refused.ok, false);
+	assert.equal(!refused.ok && refused.retryAfter, 59);
+	assert.equal(rateLimit({ userId: "u", ip: "1.1.1.1" }, t0 + 1_000).ok, true);
 });
 
 test("clientIp takes the first forwarded address", () => {

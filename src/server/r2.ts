@@ -1,9 +1,15 @@
 import { refreshedVersion } from "@/lib/asset-refresh";
 import { changesInPlace, publicAssetUrl } from "@/lib/assets";
+import { evictOldest, evictToBudget } from "@/phi/lib/lru";
 import { assetVersion, versionsSettled } from "./assets";
 import { cfFail, cfFetch } from "./cf-fetch";
 import { logger } from "./logger";
-import { objectUrl, type R2Config, r2Config, r2WriteReady } from "./r2-base";
+import {
+	objectRequest,
+	type R2Config,
+	r2Config,
+	r2WriteReady,
+} from "./r2-base";
 
 export {
 	HTML_PREFIX,
@@ -38,11 +44,7 @@ function knownMissing(key: string) {
 function rememberMissing(key: string) {
 	missing.delete(key);
 	missing.set(key, Date.now() + MISSING_TTL_MS);
-	while (missing.size > MISSING_MAX) {
-		const oldest = missing.keys().next().value;
-		if (oldest === undefined) break;
-		missing.delete(oldest);
-	}
+	evictOldest(missing, MISSING_MAX);
 }
 
 /** `token`: the visitor's Refresh files token, for links a page renders (asset-links.ts) */
@@ -62,12 +64,26 @@ function remember(key: string, buf: Buffer) {
 	mem.delete(key);
 	mem.set(key, buf);
 	memBytes += buf.byteLength;
-	while (memBytes > MEM_MAX_BYTES && mem.size > 1) {
-		const oldest = mem.keys().next().value as string;
-		const evicted = mem.get(oldest);
-		mem.delete(oldest);
-		if (evicted) memBytes -= evicted.byteLength;
-	}
+	memBytes = evictToBudget(
+		mem,
+		memBytes,
+		MEM_MAX_BYTES,
+		(value) => value.byteLength,
+	);
+}
+
+let lastReadError: number | undefined;
+
+function recordR2Error() {
+	lastReadError = performance.now();
+}
+
+export function r2ErrorSince(t: number): boolean {
+	return lastReadError !== undefined && lastReadError >= t;
+}
+
+export function resetR2ErrorForTest() {
+	lastReadError = undefined;
 }
 
 async function readPublic(
@@ -79,6 +95,7 @@ async function readPublic(
 	const res = await cfFetch(url);
 	if (res.ok) return Buffer.from(await res.arrayBuffer());
 	if (res.status === 404) return false;
+	recordR2Error();
 	logger.warn(`r2 public ${res.status} ${key}`);
 	return undefined;
 }
@@ -87,12 +104,12 @@ async function readApi(
 	cfg: R2Config,
 	key: string,
 ): Promise<Buffer | false | undefined> {
-	if (!cfg.accountId || !cfg.apiToken || !cfg.bucket) return undefined;
-	const res = await cfFetch(objectUrl(cfg, key), {
-		headers: { Authorization: `Bearer ${cfg.apiToken}` },
-	});
+	if (!r2WriteReady(cfg)) return undefined;
+	const req = objectRequest(cfg, "GET", key);
+	const res = await cfFetch(req.url, { headers: req.headers });
 	if (res.ok) return Buffer.from(await res.arrayBuffer());
 	if (res.status === 404) return false;
+	recordR2Error();
 	logger.warn(`r2 get ${res.status} ${key}`);
 	return undefined;
 }
@@ -125,6 +142,7 @@ async function loadR2Object(
 			const pub = await readPublic(cfg, key);
 			if (Buffer.isBuffer(pub) || pub === false) return pub;
 		} catch (err) {
+			recordR2Error();
 			// Requests already in flight all fail together; report the outage once
 			if (Date.now() >= publicBrokenUntil) {
 				logger.warn(
@@ -166,7 +184,9 @@ async function openStream(
 	}
 	await res.body?.cancel().catch(() => undefined);
 	if (res.status === 404) return false;
-	logger.warn(`r2 stream ${res.status} ${url.replace(/^.*\/objects\//, "")}`);
+	logger.warn(
+		`r2 stream ${res.status} ${new URL(url).pathname.replace(/^.*\/objects\//, "")}`,
+	);
 	return undefined;
 }
 
@@ -194,9 +214,8 @@ export async function streamR2Object(
 		}
 	}
 	if (!r2WriteReady(cfg)) return undefined;
-	const got = await openStream(objectUrl(cfg, k), {
-		Authorization: `Bearer ${cfg.apiToken}`,
-	});
+	const req = objectRequest(cfg, "GET", k);
+	const got = await openStream(req.url, req.headers);
 	if (got === false) rememberMissing(k);
 	return got || undefined;
 }
@@ -249,14 +268,15 @@ export async function putR2Object(
 		throw new Error("R2 write is not configured");
 	}
 	const k = key.replace(/^\//, "");
+	const req = objectRequest(cfg, "PUT", k, body);
 	const headers: Record<string, string> = {
-		Authorization: `Bearer ${cfg.apiToken}`,
+		...req.headers,
 		"Content-Type": contentType,
 	};
 	if (extra.contentDisposition) {
 		headers["Content-Disposition"] = extra.contentDisposition;
 	}
-	const res = await cfFetch(objectUrl(cfg, k), {
+	const res = await cfFetch(req.url, {
 		method: "PUT",
 		headers,
 		body,
@@ -273,9 +293,10 @@ export async function deleteR2Object(
 	cfg = r2Config(),
 ): Promise<void> {
 	if (!r2WriteReady(cfg)) throw new Error("R2 write is not configured");
-	const res = await cfFetch(objectUrl(cfg, key), {
+	const req = objectRequest(cfg, "DELETE", key);
+	const res = await cfFetch(req.url, {
 		method: "DELETE",
-		headers: { Authorization: `Bearer ${cfg.apiToken}` },
+		headers: req.headers,
 	});
 	if (!res.ok && res.status !== 404) await cfFail(res, `R2 DELETE ${key}`);
 	// a private bucket has no public reads to keep in step

@@ -71,7 +71,12 @@ function text(value: unknown): string | undefined {
 	return typeof value === "string" && value ? value : undefined;
 }
 
-export type TicketUser = { id: string; name?: string; image?: string };
+export type TicketUser = {
+	id: string;
+	name?: string;
+	image?: string;
+	proof?: string;
+};
 
 /** Proof that QR sign-in `loginId` finished as `user`; only that browser's cookie can redeem it */
 export function sealTapTicket(
@@ -84,6 +89,7 @@ export function sealTapTicket(
 			name: user.name,
 			picture: user.image,
 			login: loginId,
+			proof: user.proof,
 		},
 		secret: authSecret(),
 		salt: TAP_TICKET_SALT,
@@ -104,7 +110,13 @@ export async function openTapTicket(
 		});
 		const id = text(token?.sub);
 		if (!token || !id || token.login !== loginId) return null;
-		return { id, name: text(token.name), image: text(token.picture) };
+		const proof = text(token.proof);
+		return {
+			id,
+			name: text(token.name),
+			image: text(token.picture),
+			...(proof ? { proof } : {}),
+		};
 	} catch {
 		return null;
 	}

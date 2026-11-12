@@ -1257,6 +1257,65 @@ td > .pg-badge:first-child {
 	margin-bottom: var(--space-4);
 }
 
+.song-tags th[scope="row"] {
+	font-weight: 500;
+	white-space: normal;
+}
+
+.song-tag-share {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.song-tag-bar {
+	--share: 0;
+	position: relative;
+	inline-size: 6rem;
+	block-size: 0.5rem;
+	overflow: hidden;
+	border-radius: var(--radius-xs);
+	background: var(--surface-2);
+}
+
+.song-tag-bar::before {
+	content: "";
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: 0;
+	inline-size: calc(var(--share) * 100%);
+	background: var(--primary);
+}
+
+.song-tag-pct {
+	min-inline-size: 4ch;
+}
+
+@media (max-width: 47.99em) {
+	.song-tags th,
+	.song-tags td {
+		padding-inline: var(--space-2);
+	}
+
+	.song-tag-share {
+		gap: var(--space-1);
+	}
+
+	.song-tag-bar {
+		inline-size: 2.5rem;
+	}
+}
+
+@media (forced-colors: active) {
+	.song-tag-bar {
+		border: 1px solid CanvasText;
+	}
+
+	.song-tag-bar::before {
+		background: Highlight;
+	}
+}
+
 .tg-suggest {
 	margin-top: var(--space-8);
 }

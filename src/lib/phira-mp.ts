@@ -16,7 +16,7 @@ export type MpRoom = {
 
 export type MpData = {
 	checkedAt: number;
-	up: boolean;
+	up: boolean | null;
 	players: number | null;
 	rooms: MpRoom[] | null;
 };

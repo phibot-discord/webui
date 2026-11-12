@@ -1,6 +1,6 @@
 import { clampStep, dailyId, puzzleKind } from "@/lib/guess";
 import { clueTokenOk, puzzleImage } from "@/server/guess";
-import { localizedError } from "@/server/i18n-http";
+import { localizedRetryAfter } from "@/server/i18n-http";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
 	const limited = rateLimit({ ip: `guess-img:${clientIp(request.headers)}` });
-	if (!limited.ok) return localizedError(429, "rate_limit");
+	if (!limited.ok) return localizedRetryAfter(limited.retryAfter, "rate_limit");
 	const params = new URL(request.url).searchParams;
 	const puzzle = params.get("p") || "";
 	const kind = puzzleKind(puzzle);

@@ -1,11 +1,8 @@
+import { Noto_Sans_SC } from "next/font/google";
 import localFont from "next/font/local";
 
-const cjk = localFont({
-	src: [
-		{ path: "../fonts/noto-sans-sc-400.woff2", weight: "400" },
-		{ path: "../fonts/noto-sans-sc-500.woff2", weight: "500" },
-		{ path: "../fonts/noto-sans-sc-600.woff2", weight: "600" },
-	],
+const cjk = Noto_Sans_SC({
+	weight: ["400", "500", "600"],
 	display: "swap",
 	preload: false,
 	variable: "--font-cjk",

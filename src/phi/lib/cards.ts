@@ -48,6 +48,7 @@ import {
 	type ScoreHistoryRows,
 	tagProfile,
 } from "./tag-profile";
+import { headerRks } from "./targets";
 
 function htmlImage(rt: PhiRuntime, rel: string) {
 	return join(rt.getInfo.resources, "html", rel);
@@ -165,7 +166,7 @@ export async function b19Card(
 	const locale = resolvePhiLocale(extra.locale, notes.locale);
 	const t = cardCopy(locale);
 	const nnum = extra.nnum ?? 33;
-	let save_b19: { phi?: unknown[]; b19_list?: unknown[] };
+	let save_b19: { phi?: unknown[]; b19_list?: unknown[]; pushRks: number };
 	let avgJob: Promise<unknown> | undefined;
 	const spInfo = [...(extra.spInfo || [])];
 	if (extra.accMin != null) {
@@ -270,10 +271,14 @@ export async function b19Card(
 		...(b30Analysis?.tagLookupFailed === true ? (["tags"] as const) : []),
 	];
 	const stats = await save.getStats();
+	const shownRks = headerRks(
+		Number(save.saveInfo.summary.rankingScore),
+		save_b19.pushRks,
+	);
 	const gameuser = {
 		avatar: rt.getInfo.idgetavatar(save.gameuser.avatar),
 		...challengeOf(save),
-		rks: save.saveInfo.summary.rankingScore,
+		rks: shownRks,
 		data: moneyText(save.gameProgress?.money),
 		selfIntro: rt.fCompute.convertRichText(save.gameuser.selfIntro),
 		backgroundUrl: await rt.fCompute.getBackground(save.gameuser.background),
@@ -283,7 +288,7 @@ export async function b19Card(
 		phi: save_b19.phi,
 		b19_list: save_b19.b19_list,
 		PlayerId: gameuser.PlayerId,
-		Rks: Number(save.saveInfo.summary.rankingScore).toFixed(4),
+		Rks: shownRks.toFixed(4),
 		Date: rt.fCompute.formatDate(save.saveInfo.summary.updatedAt),
 		ChallengeMode: gameuser.ChallengeMode,
 		ChallengeModeRank: gameuser.ChallengeModeRank,

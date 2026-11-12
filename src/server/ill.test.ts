@@ -3,7 +3,15 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
-import { assetKeyOf, fallbackKeyOf, hydrateIlls, songIllPath } from "./ill";
+import {
+	assetKeyOf,
+	fallbackKeyOf,
+	hydrateIlls,
+	illCacheBytes,
+	pruneIllCache,
+	songIllPath,
+} from "./ill";
+import { logger } from "./logger";
 
 test("jackets, avatars and icons map to R2 keys; css and fonts do not", () => {
 	const res = "/srv/app/phi-assets";
@@ -162,4 +170,19 @@ test("a jacket that exists on disk is used as-is and never fetched", async () =>
 	const map = await hydrateIlls([escaped, local]);
 	assert.equal(map.get(escaped), local);
 	assert.equal(map.has(local), false);
+});
+
+test("the jacket cache budget comes from PHI_ILL_CACHE_MB, 128 MB when unset or not a positive number", () => {
+	for (const raw of [undefined, "", "0", "-5", "abc"]) {
+		assert.equal(illCacheBytes(raw), 128 * 1024 * 1024);
+	}
+	assert.equal(illCacheBytes(" 64 "), 64 * 1024 * 1024);
+});
+
+test("the jacket cache prunes at most once every 30 seconds", (t) => {
+	t.mock.method(logger, "warn", () => undefined);
+	const at = 1_800_000_000_000;
+	assert.notEqual(pruneIllCache(0, at), null);
+	assert.equal(pruneIllCache(0, at + 29_999), null);
+	assert.notEqual(pruneIllCache(0, at + 30_000), null);
 });

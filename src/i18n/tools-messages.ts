@@ -1,3 +1,14 @@
+import type { Pgti, PgtiFamily, PgtiStyle } from "@/lib/pgti";
+
+export type PgtiAxis = "aim" | "range" | "grip" | "pace" | "drive";
+
+export type PgtiLetter = NonNullable<Pgti[PgtiAxis]>["letter"];
+
+type PgtiGroup = { name: string; line: string };
+
+export type PgtiCode =
+	`${Pgti["aim"]["letter"]}${Pgti["range"]["letter"]}${Pgti["grip"]["letter"]}${Pgti["pace"]["letter"]}`;
+
 export type ToolsMessages = {
 	exportRecords: {
 		csv: string;
@@ -204,6 +215,18 @@ export type ToolsMessages = {
 		filesCollection: string;
 		filesPv: string;
 		filesPvHint: string;
+		chartTags: {
+			title: string;
+			hint: string;
+			caption: string;
+			tag: string;
+			category: string;
+			share: string;
+			votes: string;
+			total: string;
+			source: string;
+			how: string;
+		};
 	};
 	chartVersions: {
 		title: string;
@@ -493,6 +516,84 @@ export type ToolsMessages = {
 		progressLegend: string;
 		goal: string;
 	};
+	wrapped: {
+		title: string;
+		range: string;
+		baseline: string;
+		note: string;
+		rks: string;
+		improved: string;
+		newCharts: string;
+		activeDays: string;
+		ap: string;
+		fc: string;
+		jump: string;
+		jumpSub: string;
+		mostImproved: string;
+		hardest: string;
+		thin: string;
+		none: string;
+		manual: string;
+		page: string;
+		heading: string;
+		lede: string;
+		soon: string;
+		soonHint: string;
+		soFar: string;
+		years: string;
+		alt: string;
+		facts: string;
+		loading: string;
+		deck: {
+			label: string;
+			next: string;
+			prev: string;
+			again: string;
+			skip: string;
+			hint: string;
+			count: string;
+			cover: string;
+			day: string;
+			dayOne: string;
+			ap: string;
+			fc: string;
+			daysNote: string;
+			rksNote: string;
+			chartsNote: string;
+			hardest: string;
+			jumpNote: string;
+			stepNote: string;
+			typeLead: string;
+			why: string;
+			done: string;
+			bye: string;
+			show: string;
+			busiest: string;
+			name: string;
+			flick: string;
+			keep: string;
+			motion: string;
+		};
+		pgti: {
+			title: string;
+			sub: string;
+			none: string;
+			axes: Record<PgtiAxis, string>;
+			poles: Record<PgtiLetter, string>;
+			traits: Record<PgtiLetter, string>;
+			facts: Record<PgtiAxis, string>;
+			names: Record<PgtiCode, string>;
+			family: string;
+			style: string;
+			families: Record<PgtiFamily, PgtiGroup>;
+			styles: Record<PgtiStyle, PgtiGroup>;
+		};
+		prompt: {
+			ready: string;
+			open: string;
+			later: string;
+		};
+	};
 	search: {
 		open: string;
 		label: string;
@@ -502,6 +603,7 @@ export type ToolsMessages = {
 		pages: string;
 		viaAlias: string;
 		results: string;
+		resultsOne: string;
 		none: string;
 		loading: string;
 		keys: string;
@@ -794,6 +896,18 @@ export const toolsEn: ToolsMessages = {
 		filesPv: "PV",
 		filesPvHint:
 			"Clips that name this song come first, then the rest of its chapter's.",
+		chartTags: {
+			title: "Chart tags",
+			hint: "A tag's share is its part of all the votes on this chart. The chart profile weighs this chart's tags by their share.",
+			caption: "Tags voted onto the {level} chart",
+			tag: "Tag",
+			category: "Category",
+			share: "Share",
+			votes: "Votes",
+			total: "{n} votes on the {level} chart.",
+			source: "Votes from kyou.net.cn, copied {date}.",
+			how: "What the tags mean",
+		},
 	},
 	chartVersions: {
 		title: "Chart versions",
@@ -1122,6 +1236,170 @@ export const toolsEn: ToolsMessages = {
 			"Each cell: charts cleared out of charts, with FC and AP counts. The bar shows the cleared share.",
 		goal: "next {goal}",
 	},
+	wrapped: {
+		title: "{year} Recap",
+		range: "{from} to {to}, China time",
+		baseline:
+			"Counted from {day}, the day after PhiBot first saw your save; earlier progress is not in its records.",
+		note: "Dates are when your save was uploaded, not when you played. Plays between two uploads count as one. RKS is the in-game value at each upload, so a change of chart constants moves it too.",
+		rks: "RKS",
+		improved: "Charts improved",
+		newCharts: "New charts",
+		activeDays: "Days with progress",
+		ap: "New all perfects",
+		fc: "New full combos",
+		jump: "Biggest jump",
+		jumpSub: "{gain} RKS since {since}",
+		mostImproved: "Biggest step on one chart",
+		hardest: "Hardest: {chart}",
+		thin: "Not enough data",
+		none: "PhiBot has no score history for {year}. It records your progress each time your save is refreshed on the site or through the bot.",
+		manual:
+			"Manual profiles have no score history, so there is nothing to review.",
+		page: "{year} Recap",
+		heading: "Your {year} Recap",
+		lede: "Your year from PhiBot's records of your save: a deck of cards to flick through, the same facts as a list, and an image to download and post.",
+		soon: "Your recap opens on {day}.",
+		soonHint:
+			"Until then, refresh your save after you play: PhiBot only records what it sees when your save is refreshed.",
+		soFar:
+			"The year is not over yet: this covers your uploads so far and grows each time you refresh your save.",
+		years: "Year",
+		alt: "Your {year} recap as an image. The same facts are listed above.",
+		facts: "The same facts as a list",
+		loading: "Loading your recap…",
+		deck: {
+			label: "Your {year} in cards",
+			next: "Next card",
+			prev: "Previous card",
+			again: "Deal again",
+			skip: "Skip to the numbers",
+			hint: "Tap, swipe or use the arrow keys",
+			count: "Card {n} of {total}",
+			cover: "Your year, one card at a time.",
+			day: "{day} · {n} charts",
+			dayOne: "{day} · 1 chart",
+			ap: "{n} new AP",
+			fc: "{n} new FC",
+			daysNote: "Every dot is a day with an upload. Tap one.",
+			rksNote: "{delta} since the year began",
+			chartsNote: "Old favourites polished, new ones opened.",
+			hardest: "The hardest one",
+			jumpNote: "Your best day.",
+			stepNote: "Same chart, better hands.",
+			typeLead: "And you are",
+			why: "Why this type",
+			done: "That was {year}",
+			bye: "See you on the next chart.",
+			show: "Show its card",
+			busiest: "Busiest month: {month}",
+			name: "Recap",
+			flick: "Flick me",
+			keep: "Keep the combo going",
+			motion: "Tilt to flick",
+		},
+		pgti: {
+			title: "Your PGTI",
+			sub: "Phigros Type Indicator: letters from how you play, plus a family and a style. For fun, not science.",
+			none: "Not enough records for a type yet.",
+			axes: {
+				aim: "Aim",
+				range: "Range",
+				grip: "Grip",
+				pace: "Pace",
+				drive: "Drive",
+			},
+			poles: {
+				P: "Polish",
+				R: "Reach",
+				E: "Explorer",
+				F: "Focused",
+				S: "Steady",
+				W: "Wild",
+				M: "Marathon",
+				B: "Burst",
+				G: "Growing",
+				K: "Keeping",
+			},
+			traits: {
+				P: "Your rating comes from clean scores.",
+				R: "Your rating comes from charts above your comfort zone.",
+				E: "You try most of what sits at your level.",
+				F: "You keep to a chosen few and know them well.",
+				S: "When you play well, the combo usually holds.",
+				W: "You score high even when the combo breaks.",
+				M: "You kept at it across the year.",
+				B: "Your progress came in bursts.",
+				G: "Your RKS climbed this year.",
+				K: "You held your level this year.",
+			},
+			facts: {
+				aim: "Average accuracy of your best 27: {acc}%",
+				range: "{played} of the {total} charts at your level and above",
+				grip: "Full combo on {fc} of your {total} cleanest scores",
+				pace: "Progress in {months} of {total} months",
+				drive: "RKS change this year: {gain}",
+			},
+			names: {
+				PESM: "The Cartographer",
+				PESB: "The Curator",
+				PEWM: "The Wanderer",
+				PEWB: "The Comet",
+				PFSM: "The Metronome",
+				PFSB: "The Sniper",
+				PFWM: "The Sculptor",
+				PFWB: "The Jeweler",
+				RESM: "The Trailblazer",
+				RESB: "The Storm Chaser",
+				REWM: "The Daredevil",
+				REWB: "The Wildfire",
+				RFSM: "The Climber",
+				RFSB: "The Sprinter",
+				RFWM: "The Boss Hunter",
+				RFWB: "The Meteor",
+			},
+			family: "Family",
+			style: "Style",
+			families: {
+				collector: {
+					name: "Collectors",
+					line: "Clean scores across a wide shelf.",
+				},
+				crafter: {
+					name: "Crafters",
+					line: "A few charts, polished until they shine.",
+				},
+				adventurer: {
+					name: "Adventurers",
+					line: "Always somewhere new, usually somewhere hard.",
+				},
+				challenger: {
+					name: "Challengers",
+					line: "A handful of walls, climbed again and again.",
+				},
+			},
+			styles: {
+				clockwork: {
+					name: "Clockwork",
+					line: "Steady hands, steady calendar.",
+				},
+				ambush: {
+					name: "Ambush",
+					line: "Quiet for a while, then a clean strike.",
+				},
+				grinder: {
+					name: "Grinder",
+					line: "Shows up all year and swings hard.",
+				},
+				fireworks: { name: "Fireworks", line: "Rare, loud and bright." },
+			},
+		},
+		prompt: {
+			ready: "Your {year} recap is ready.",
+			open: "Deal my cards",
+			later: "Not now",
+		},
+	},
 	search: {
 		open: "Search",
 		label: "Search songs and pages",
@@ -1131,6 +1409,7 @@ export const toolsEn: ToolsMessages = {
 		pages: "Pages",
 		viaAlias: "Nickname: {alias}",
 		results: "{n} results",
+		resultsOne: "1 result",
 		none: "Nothing matches.",
 		loading: "Loading songs…",
 		keys: "↑ ↓ to move · Enter to open · Esc to close",
@@ -1189,624 +1468,5 @@ export const toolsEn: ToolsMessages = {
 		seriesVersion: "Version",
 		seriesReleased: "Released",
 		seriesCharts: "Charts",
-	},
-};
-
-export const toolsZh: ToolsMessages = {
-	exportRecords: {
-		csv: "下载 CSV",
-		json: "下载 JSON",
-		hint: "包含你玩过的所有谱面，取自 PhiBot 当前保存的存档。CSV 可用 Excel、Numbers 或 Google 表格打开。",
-	},
-	badge: {
-		title: "RKS 徽章",
-		hint: "一张显示你的名字和 RKS 的小图，可放在 GitHub 主页或论坛签名里。它会链接到此分享页，关闭分享后即失效。",
-		alt: "你的 RKS 徽章",
-		copy: "复制 Markdown",
-		copyHtml: "复制 HTML",
-		copied: "已复制",
-		styleLabel: "样式",
-		styles: {
-			flat: "扁平",
-			"flat-square": "扁平直角",
-			"for-the-badge": "大号",
-			rks: "仅 RKS",
-			card: "卡片（浅色）",
-			"card-dark": "卡片（深色）",
-		},
-	},
-	targets: {
-		title: "推分目标",
-		lede: "根据 PhiBot 保存的存档，算出每张谱面要把 RKS 推高一档所需的准确率。",
-		now: "当前",
-		next: "下一档",
-		goalNote:
-			"Phigros 显示两位小数的 RKS。你的 RKS 需达到 {goal} 才会显示 {shown}；下表中任意一个目标单独达成即可。",
-		levels: "难度",
-		unplayed: "包括未玩过的谱面",
-		sortLabel: "排序",
-		sort: {
-			gap: "差距最小",
-			need: "目标最低",
-			constant: "定数最高",
-			ap: "AP 收益最大",
-		},
-		song: "曲目",
-		level: "难度",
-		constant: "定数",
-		acc: "你的准确率",
-		target: "目标",
-		gap: "差距",
-		apGain: "AP 增益",
-		apOnly: "仅 AP",
-		notPlayed: "未玩",
-		more: "再显示 {n} 张",
-		count: "显示 {shown} / {total} 张谱面",
-		none: "没有符合筛选条件的谱面。",
-		stuck: "另有 {n} 张谱面即使 AP 也无法把 RKS 推到下一档。",
-		empty: "请先玩几张谱面，目前还没有可计算的数据。",
-	},
-	progress: {
-		title: "完成度",
-		lede: "按定数查看每个难度的通关、Full Combo 与 All Perfect 进度。",
-		showLabel: "统计",
-		show: { clear: "通关", fc: "Full Combo", ap: "All Perfect" },
-		constant: "定数",
-		total: "全部",
-		cell: "{level} 定数 {constant}：{total} 张中 {n} 张{what}",
-		status: {
-			ap: "AP",
-			fc: "FC",
-			clear: "已通关",
-			played: "已玩",
-			none: "未玩",
-		},
-		statusCol: "状态",
-		listTitle: "{level} · 定数 {constant}",
-		listTitleAll: "{level} · 全部定数",
-		pick: "选择一个格子以列出其中的谱面。",
-		song: "曲目",
-		acc: "准确率",
-		score: "分数",
-		legend: "格子越满，该组越接近完成。",
-		empty: "谱面数据尚未加载，请稍后再试。",
-	},
-	profile: {
-		title: "玩家画像",
-		lede: "文字版 B30 成绩图：每个槽位、B30 数据分析，以及完整的谱面标签画像和计入每个标签的谱面。",
-		bestTitle: "Best 30",
-		extraTitle: "候补（B28–B33）",
-		slot: "#",
-		song: "曲目",
-		level: "难度",
-		constant: "定数",
-		score: "分数",
-		acc: "准确率",
-		rks: "RKS",
-		push: "推分线",
-		noPush: "无法推分",
-		fc: "FC",
-		ap: "AP",
-		analysisTitle: "B30 数据分析",
-		average: "平均 RKS（P1–P3 + B1–B27）",
-		stddev: "标准差",
-		tagsTitle: "谱面标签画像",
-		meta: "定数 {min}–{max} · 成绩 {scores} · 已投票谱面 {charts} · 选票 {votes}",
-		baseline:
-			"这里的每个数字都是 RKS：假如每张谱面都打得像你在带该标签的谱面上那样，你会有的 RKS。具体是按该标签的影响，让每张谱面损失的准确率（Good 与 Bad 都算）按比例变多或变少，再照常重算 RKS，AP 保持不变。你的 RKS 是 {rks}：高于它的标签适合你，低于它的拖累你。标签的影响与其余谱面的预期相比得出：预期由一条随定数变化的曲线加上该谱面其他标签的影响组成，计算时不含该谱面本身。",
-		howLink: "数值的计算方式",
-		source: "投票来自 kyou.net.cn，同步于 {date}。",
-		categoriesTitle: "分类",
-		allTagsTitle: "全部标签",
-		allTagsHint:
-			"展开标签可查看计入它的谱面。「平均」把你在这些谱面上的差值换算成 RKS；「净值」对扣除同一谱面上其他标签的影响后该标签自身的贡献做同样换算，判定以它为准；「稳定」是重抽谱面时净值保持方向的比例，列出需要 {hold}% 且至少 {n} 张谱面，达到 {firm}% 才算确定。",
-		tag: "标签",
-		category: "分类",
-		curve: "曲线 RKS",
-		charts: "谱面",
-		mean: "平均",
-		net: "净值",
-		hold: "稳定",
-		verdict: "判定",
-		sides: { strong: "擅长", weak: "薄弱", even: "–" },
-		slight: { strong: "略擅长", weak: "略薄弱" },
-		leaning: { strong: "倾向擅长", weak: "倾向薄弱" },
-		faint: { strong: "微弱擅长", weak: "微弱薄弱" },
-		aps: { strong: "较难的 AP", weak: "较易的 AP" },
-		apsNote:
-			"这里所有谱面都在 99.9% 以上，成绩中没有差距可比。",
-		historyNote:
-			"这里所有谱面现在都在 99.9% 以上，因此画像使用 {date} 的成绩，那是最后一次仍有谱面低于 99.9% 的时候。",
-		slightHint:
-			"倾向：净值的稳定不足 99%，成绩图上正常显示。略：该标签让你损失的准确率变化不到约 12%，成绩图上数值变暗。微弱：不到约 7%，排在其他标签之后，成绩图上变暗。正常的成绩波动也可能造成这些，仅供参考。",
-		few: "出现在你少于 {n} 张谱面上：不会列在成绩图上。",
-		chartsFor: "计入「{name}」的谱面",
-		expected: "预期准确率",
-		share: "权重",
-		third: "三等分",
-		groups: { best: "最佳", middle: "中间", worst: "最差" },
-		insufficient:
-			"你所在难度及以上目前只有 {n} 张已投票谱面，成绩图需要 {min} 张。可前往 kyou.net.cn/phigros 为谱面标签投票。",
-		votesMissing: "谱面标签数据暂时无法读取，请稍后再试。",
-		empty: "还没有已计分的谱面。",
-		timeline: {
-			title: "随时间变化",
-			lede: "用你在之前某些日期的成绩计算同一份画像，定数和投票都按现在的。每个数字都是按当天成绩算出的 RKS，会随你的 RKS 一起上升，请与 RKS 一行对照。只列出曾经是强项或弱项的标签。",
-			loading: "正在计算你在之前日期的画像…",
-			none: "存档历史还不够。PhiBot 需要至少两个不同日期的成绩。",
-			date: "日期",
-			now: "现在",
-			rks: "RKS",
-			pool: "计入谱面",
-			few: "过少",
-			partial:
-				"你的存档历史包含你玩过谱面的 {pct}%，因此较早的日期会缺少一部分谱面。",
-			noTags: "这些日期里没有标签成为强项或弱项。",
-			leaningHint: "加粗的数值表示当天被列为强项或弱项，变淡的则没有。",
-		},
-	},
-	trend: {
-		title: "RKS 走势",
-		lede: "PhiBot 每次读取存档时记录的 RKS，以及提升过的成绩。",
-		range: "范围",
-		ranges: { m1: "1 个月", m3: "3 个月", y1: "1 年", all: "全部" },
-		chartLabel: "{from} 至 {to} 的 RKS",
-		change: "此范围内 {delta}",
-		tableTitle: "以表格显示读数",
-		date: "日期",
-		rks: "RKS",
-		improvedTitle: "最近的提升",
-		improvedLede: "提升过的成绩，按时间从新到旧排列。",
-		firstPlay: "首次游玩",
-		song: "曲目",
-		level: "难度",
-		before: "之前",
-		after: "之后",
-		more: "再显示 {n} 条",
-		empty:
-			"还没有历史记录。PhiBot 每次读取存档都会记录 RKS，玩完后点一下「刷新」即可。",
-		one: "目前只有一次读数。下次游玩后刷新，即可开始绘制走势。",
-		noImproved: "还没有记录到提升的成绩。",
-		milestones: {
-			title: "里程碑",
-			lede: "PhiBot 开始保存你的存档历史以来的首次达成与纪录，最新的在前。难度按当前定数计算。",
-			start:
-				"PhiBot 从 {date} 开始保存你的历史。当天你的 RKS 为 {rks}，在 {played} 张谱面中有 {ap} 个 AP、{fc} 个 FC。",
-			startNoRks:
-				"PhiBot 从 {date} 开始保存你的历史。当天你在 {played} 张谱面中有 {ap} 个 AP、{fc} 个 FC。",
-			none: "此后还没有新的里程碑。",
-			rks: "RKS 达到 {at}",
-			ap: "首次 AP {level}+ 的谱面",
-			fc: "首次 FC {level}+ 的谱面",
-			apCount: "第 {n} 个 AP",
-			fcCount: "第 {n} 个 FC",
-			bestDay: "单日最大进步：RKS {gain}",
-			more: "再显示 {n} 条",
-		},
-	},
-	songPage: {
-		back: "搜索曲目",
-		composer: "曲师",
-		illustrator: "画师",
-		chapter: "章节",
-		bpm: "BPM",
-		length: "时长",
-		nicknames: "别名",
-		levelsTitle: "谱面",
-		level: "难度",
-		constant: "定数",
-		notes: "物量",
-		charter: "谱师",
-		kinds: "Tap · Drag · Hold · Flick",
-		phira: "下载 Phira 谱面",
-		score: "规划分数",
-		songCard: "单曲排名图",
-		yoursTitle: "你的成绩",
-		yoursSignedOut: "登录后可查看你在这些谱面上的成绩与排名。",
-		signIn: "登录",
-		yoursNotBound: "绑定 Phigros 存档后即可在此查看成绩。",
-		yoursNone: "你还没有玩过这首歌。",
-		acc: "准确率",
-		scoreCol: "分数",
-		rks: "RKS",
-		rank: "排名",
-		rankOf: "{of} 人中第 {rank}",
-		rankLoading: "查询中…",
-		rankFailed: "暂不可用",
-		notPlayed: "未玩",
-		jacketAlt: "{title} 的曲绘",
-		levelJacket: "{level} 曲绘",
-		description:
-			"{title}（{composer}）：谱面定数 {levels}、物量、谱师，以及各谱面的所有旧版本。",
-		history: "历史",
-		historyOne: "仅一条记录，{date}",
-		historySummary: "自 {date} 起记录了 {n} 次成绩，从 {from} 到 {to}",
-		filesTitle: "相关资源",
-		filesCollection: "收藏品",
-		filesPv: "PV",
-		filesPvHint: "先列出与本曲相关的 PV，再列出同一章节的其他 PV。",
-	},
-	chartVersions: {
-		title: "谱面版本",
-		lede: "这些谱面在旧版 Phigros 中的样子，取自 PhiBot 保存的安装包。",
-		none: "就 PhiBot 现有的安装包而言，这些谱面自加入以来没有改动过。",
-		versions: "版本",
-		current: "当前",
-		compareTitle: "对比两个版本",
-		level: "难度",
-		from: "从",
-		to: "到",
-		loading: "正在加载谱面…",
-		failed: "无法加载这些谱面，请稍后再试。",
-		notes: "物量",
-		duration: "时长",
-		peak: "单秒最多音符",
-		lines: "判定线",
-		bpm: "BPM",
-		change: "变化",
-		kind: { tap: "Tap", drag: "Drag", hold: "Hold", flick: "Flick" },
-		densityTitle: "每秒音符数",
-		densityLabel: "{version}：{duration} 内每秒的音符数",
-		diffTitle: "改动",
-		diffLabel: "从 {from} 到 {to} 每秒音符数的变化",
-		more: "音符增加",
-		fewer: "音符减少",
-		same: "每一秒的音符数都相同。",
-		changed: "有 {n} 秒的音符数不同。",
-		readout: "{time}：{from} → {to} 个音符",
-		readoutHint: "指向或聚焦图表，再用方向键逐秒查看。",
-	},
-	compare: {
-		title: "玩家对比",
-		lede: "并排查看两位玩家的成绩：RKS、各难度的通关情况、各自的 Best 30，以及两人都玩过的每一张谱面。",
-		a: "玩家 A",
-		b: "玩家 B",
-		placeholder: "分享链接或代码",
-		useMine: "使用我的存档",
-		submit: "对比",
-		hint: "玩家需在「分享链接」菜单中打开「允许对比」后才能被对比。",
-		unavailable:
-			"{label}：无法对比此玩家。链接可能有误，或对方没有打开「允许对比」。",
-		bad: "{label}：请粘贴分享链接，例如 phibot.dev/p/abc123…",
-		signin: "{label}：登录后才能用自己的存档对比。",
-		rks: "RKS",
-		challenge: "课题模式",
-		challengeColors: ["", "绿", "蓝", "红", "金", "彩"],
-		levelsTitle: "按难度",
-		played: "已玩",
-		clear: "通关",
-		fc: "FC",
-		ap: "AP",
-		h2hTitle: "逐谱对比",
-		h2hSummary:
-			"在两人都玩过的 {n} 张谱面中，{a} 领先 {wa} 张，{b} 领先 {wb} 张。",
-		ties: "{n} 张持平。",
-		only: "{name} 有 {n} 张谱面是对方没玩过的。",
-		filter: "显示",
-		filters: { all: "全部", a: "{name} 领先", b: "{name} 领先" },
-		song: "曲目",
-		level: "难度",
-		constant: "定数",
-		gap: "差距",
-		more: "再显示 {n} 张",
-		none: "没有可显示的谱面。",
-		bestTitle: "Best 30",
-		optIn: "允许对比",
-		optInHint:
-			"打开后，任何拥有你分享链接的人都能把你的全部成绩与他们的逐谱对比。默认关闭；关闭分享时也会一并关闭。",
-		optInFailed: "无法更改，请重试。",
-		openCompare: "与他人对比",
-		compareWith: "与我对比",
-		pastName: "{name}（{date}）",
-		pastLabel: "或与过去的自己对比",
-		pastSubmit: "与这一天对比",
-		pastHint: "取存档记录中那一天结束时（北京时间）的成绩。",
-		pastNote:
-			"过去的成绩按现在的谱面定数计算，单曲 RKS 可能与当时游戏中显示的不同。顶部的 RKS 是游戏当时记录的数值。",
-		noHistory:
-			"{label}：那一天没有存档记录。存档记录从本站第一次读取你的存档时开始；未通过 TapTap 登录添加的账号没有存档记录。",
-	},
-	guess: {
-		title: "猜曲绘",
-		lede: "一张 Phigros 曲绘的放大特写，经过模糊、变色和反色处理。每猜错一次，画面就会拉远并变得更清晰。共六次机会。",
-		daily: "每日",
-		practice: "练习",
-		modeLabel: "题目",
-		dailyOf: "{date} 每日题",
-		practiceLabel: "练习题",
-		clue: "线索 {n} / {total}",
-		imageAlt: "线索 {n} / {total}：曲绘的放大特写，经过模糊和变色处理",
-		inputLabel: "你的答案",
-		placeholder: "曲名或别名",
-		submit: "提交",
-		giveUp: "查看答案",
-		wrong: "不是 {song}。",
-		won: "第 {n} 次就猜中了！",
-		lost: "答案是：",
-		openSong: "打开曲目页面",
-		share: "复制结果",
-		copied: "已复制",
-		newPractice: "新的练习题",
-		tomorrow: "新的每日题会在北京时间零点出现。",
-		already: "已经猜过",
-		noMatch: "没有匹配的曲目。",
-		results: "{n} 首曲目",
-		failed: "无法检查答案，请重试。",
-		guesses: "你的答案",
-		howTitle: "玩法",
-		how: [
-			"每日题对所有人都一样；练习题随机生成，可无限游玩。",
-			"第一条线索是曲绘的一小块放大特写：经过模糊、像素化、变色和反色处理，有时还会左右翻转。",
-			"每猜错一次，画面就会拉远，处理效果也随之减弱。第六条线索就是完整的原图。",
-			"今天的每日题需要登录。从你点击「开始」起，记录就保存在 PhiBot 上，计时无法重来。练习题和往日的每日题无需登录，只保存在此浏览器中。",
-			"只有今天的题目计入排行榜：先比尝试次数，次数相同再比用时。",
-		],
-		shareLabel: "PhiBot 猜曲绘",
-		start: "开始",
-		startHint: "点击「开始」后计时。",
-		time: "用时",
-		rankMe: "在排行榜上显示我",
-		rankHint:
-			"所有人都能看到你的显示名称、尝试次数和用时。随时取消勾选即可移除。",
-		signInToPlay:
-			"登录后即可游玩今天的题目并参与排行榜。练习题和往日的每日题无需登录。",
-		pastUnranked: "往日的每日题不计入排行榜。",
-		signIn: "登录",
-		boardTitle: "今日排行榜",
-		boardTitleDay: "{date} 排行榜",
-		boardLede: "尝试次数少者优先；次数相同时按用时排名。",
-		boardEmpty: "这道题的排行榜上还没有人。",
-		boardFailed: "无法加载排行榜。",
-		boardPlayer: "玩家",
-		boardTries: "次数",
-		boardTime: "用时",
-		boardYou: "你",
-		boardMine: "你在 {total} 人中排第 {rank}。",
-		boardMore: "共有 {n} 人猜中。",
-		wonIn: "用 {n} 次、{time} 猜中。",
-	},
-	rankCurve: {
-		title: "准确率与排名",
-		signedOut: "登录后可查看各准确率在这张谱面上的排名。",
-		lede: "在 phib19.top 记录的所有玩家中，各准确率在这张谱面上排第几，以及再提升一点能前进多少名。",
-		level: "难度",
-		load: "显示曲线",
-		loading: "加载中…",
-		gathering: "正在收集这张谱面的全部记录，第一次可能需要一分钟。",
-		failed: "暂时无法获取排名数据。",
-		retry: "重试",
-		none: "这张谱面还没有记录。",
-		summary: "{n} 条记录 · {ap} 个 AP · {fc} 个 FC",
-		chartLabel: "{n} 条记录的排名与准确率曲线，从 {lo}% 到 100%",
-		topTick: "前 {p}%",
-		acc: "准确率",
-		rank: "排名",
-		top: "前",
-		gain: "前进名次",
-		ap: "AP",
-		you: "你",
-		tied: "与 {n} 人并列第一",
-		about: "约第 {rank} 名",
-		places: "+{n}",
-		source: "排名根据 phib19.top 截至 {date} 的记录估算。",
-	},
-	songFiles: {
-		music: "音乐",
-		art: "曲绘",
-		charts: "谱面",
-		chartsHint:
-			"PhiBot 保存的这首曲子的全部谱面：游戏的谱面 JSON 与 Phira 谱面包，包括当前版本以及所有旧版本和已移除的版本。",
-		download: "下载",
-		saving: "保存中…",
-		saveLabel: "下载 {name}，{size}",
-		listen: "试听 {name}",
-		full: "原图",
-		small: "小图",
-		blur: "模糊图",
-		sp: "SP",
-		json: "JSON",
-		pack: "Phira 谱面包",
-	},
-	chartPlayer: {
-		title: "谱面预览",
-		lede: "在浏览器里直接用游戏的谱面文件自动播放每张谱面。不是游戏原图。",
-		level: "难度",
-		start: "播放预览",
-		startLabel: "播放 {level} 谱面预览",
-		loadingChart: "正在加载谱面…",
-		loadingAudio: "正在加载音乐 {p}%",
-		failed: "谱面加载失败。",
-		retry: "重试",
-		noAudio: "此浏览器无法播放这首曲子的音频，预览将静音播放。",
-		noGl: "此浏览器无法显示预览：需要 WebGL 2。",
-		play: "播放",
-		pause: "暂停",
-		seek: "播放位置",
-		hardest: "最难 10 秒",
-		hardestHint:
-			"跳到最难的 10 秒（{n} 个音符）：按音符种类、多押和下落速度加权的物量",
-		hardestNoise:
-			"跳到最难的 10 秒（{n} 个音符，含噪域）：按音符种类、多押和下落速度加权的物量，并计入噪域",
-		back: "后退 5 秒",
-		forward: "前进 5 秒",
-		hitSounds: "打击音",
-		hitVolume: "打击音音量",
-		hitKinds: { tap: "Tap", drag: "Drag", flick: "Flick" },
-		hitTest: "试听 {kind} 音效",
-		settings: "设置",
-		settingsTitle: "预览设置",
-		soundSection: "声音",
-		lookSection: "画面",
-		noteSize: "音符大小",
-		reset: "恢复默认",
-		close: "关闭",
-		speed: "播放速度",
-		video: "下载视频",
-		videoHint: "按当前设置把这张谱面渲染成带音乐和打击音的 1080p 60 帧 MP4。",
-		videoProgress: "正在生成视频：{p}%",
-		videoCancel: "取消",
-		videoFailed: "此浏览器无法生成视频，请使用较新的 Chrome、Edge 或 Safari。",
-		videoDone: "视频已保存到下载文件夹。",
-		version: "版本",
-		current: "当前版本",
-		removed: "已移除的谱面",
-		removedFrom: "已移除的谱面 · 来自 {version}",
-		fools: "愚人节",
-		noise: "噪域",
-		noiseHint: "显示谱面的噪域，即游戏中屏蔽触摸的红色区域。",
-		chordColors: "多押分色",
-		chordColorsHint: "相邻的多押或三押及以上的多押，各用不同颜色的光晕区分。",
-		fullscreen: "全屏",
-		exitFullscreen: "退出全屏",
-		canvas: "{title} {level} 谱面预览",
-		keys: "空格键播放或暂停，方向键前进或后退 5 秒，F 键切换全屏。",
-	},
-	similar: {
-		title: "相似谱面",
-		lede: "定数、物量密度、音符构成和 BPM 相近的谱面；两张谱面都有 kyou 投票时，标签相同的更靠前。",
-		level: "难度",
-		song: "曲目",
-		levelCol: "难度",
-		constant: "定数",
-		yours: "你的成绩",
-	},
-	suggest: {
-		title: "接下来可以试试",
-		basis: {
-			ap: "你还没玩过、与你 AP 过的最难谱面相似的谱面。",
-			fc: "你还没玩过、与你 Full Combo 过的最难谱面相似的谱面。",
-			best: "你还没玩过、与你的最佳成绩相似的谱面。",
-		},
-		song: "曲目",
-		level: "难度",
-		constant: "定数",
-		like: "类似",
-		likeOf: "{song} {level}",
-	},
-	charts: {
-		title: "谱面一览",
-		lede: "所有计分谱面集中在一张表里。可按难度、定数、谱面标签或章节筛选，并按任意一列排序；登录后还能按你自己的成绩筛选。",
-		search: "曲名、曲师或谱师",
-		searchHint: "输入以筛选",
-		levels: "难度",
-		constant: "定数",
-		from: "最低",
-		to: "最高",
-		tag: "谱面标签",
-		anyTag: "任意标签",
-		otherTags: "其他",
-		chapter: "章节",
-		anyChapter: "任意章节",
-		status: "你的成绩",
-		statuses: {
-			all: "全部谱面",
-			none: "未游玩",
-			notFc: "尚未 FC",
-			notAp: "尚未 AP",
-			played: "已游玩",
-		},
-		signInHint: "登录并绑定存档后，可按你自己的成绩筛选。",
-		count: "显示 {total} 张谱面中的 {shown} 张。",
-		song: "曲目",
-		level: "难度",
-		notes: "物量",
-		nps: "每秒物量",
-		bpm: "BPM",
-		length: "时长",
-		tags: "主要标签",
-		yours: "你的准确率",
-		more: "再显示 {n} 张",
-		none: "没有符合筛选条件的谱面。",
-		tagsNote:
-			"标签来自 kyou.net.cn 的谱面标签投票：一个标签获得该谱面至少 5% 的票数时，谱面即带有该标签。每秒物量为物量除以曲目时长。",
-	},
-	formTargets: {
-		title: "低于你平时水平的谱面",
-		lede: "你玩过、准确率低于画像中预期准确率的谱面。预期准确率是你的其余谱面按它的定数和标签给出的预期，达到它可以增加表中所示的 RKS。弱项标签是这张谱面带有的画像弱项。",
-		song: "曲目",
-		level: "难度",
-		constant: "定数",
-		acc: "准确率",
-		expected: "预期",
-		gain: "RKS 增加",
-		weak: "弱项标签",
-		none: "你没有明显低于平时水平、足以影响 RKS 的谱面。",
-		profileLink: "打开玩家画像",
-	},
-	snapshot: {
-		open: "以图片打开",
-		download: "下载图片",
-		progress: "把这张表做成图片分享，包含各难度的通关、FC 和 AP 数量。",
-		targets: "把离你最近的十个推分目标做成图片分享。",
-		progressLegend:
-			"每格：已通关 / 谱面数，以及 FC 和 AP 数量。色条表示通关比例。",
-		goal: "下一档 {goal}",
-	},
-	search: {
-		open: "搜索",
-		label: "搜索曲目和页面",
-		placeholder: "曲名、别名、曲师或页面",
-		close: "关闭",
-		songs: "曲目",
-		pages: "页面",
-		viaAlias: "别名：{alias}",
-		results: "{n} 个结果",
-		none: "没有匹配的结果。",
-		loading: "正在加载曲目…",
-		keys: "↑ ↓ 选择 · Enter 打开 · Esc 关闭",
-	},
-	versions: {
-		title: "版本变化",
-		loading: "正在加载版本曲目表…",
-		lede: "两个 Phigros 版本之间的变化：新增和移除的曲目、谱面定数调整，以及更新说明。登录后还能看到你在两个版本定数下的 RKS。",
-		from: "从",
-		to: "到",
-		submit: "对比",
-		currentLabel: "{label}（当前）",
-		coverage:
-			"共有 {n} 个版本有曲目表，从 {first} 到 {last}。3.19.5 及以前的表来自 phi-plugin；之后的由本站的游戏数据流程在每个版本发布时保存，因此两个已列出版本之间的版本会并入后一个。",
-		unavailable: "暂时无法获取版本曲目表。",
-		summaryTitle: "{from} 到 {to}",
-		added: "首新增曲目",
-		removed: "首移除曲目",
-		changed: "张谱面定数调整",
-		newCharts: "张新谱面",
-		dates: "发布于 {from} 和 {to}。",
-		yoursTitle: "你的 RKS",
-		yoursSignedOut: "登录后可查看你在两个版本定数下的 RKS。",
-		yoursNotBound: "绑定 Phigros 存档后可查看你在两个版本定数下的 RKS。",
-		yoursNone: "你玩过的谱面都不同时出现在两张表中。",
-		yoursHint:
-			"用你现在的成绩，分别按两个版本的定数计算。某个版本没有的谱面不计入该版本的总分。",
-		delta: "变化",
-		yourRks: "你的 RKS 变化",
-		notesTitle: "更新说明",
-		changedTitle: "定数调整",
-		addedTitle: "新增曲目",
-		removedTitle: "移除曲目",
-		chartsTitle: "新增或移除的谱面",
-		song: "曲目",
-		level: "难度",
-		what: "变化",
-		constant: "定数",
-		chartAdded: "新增",
-		chartRemoved: "移除",
-		acc: "准确率",
-		chartRks: "单曲 RKS",
-		b30: "B30",
-		move: { in: "进入", out: "移出", stay: "保持" },
-		enteredTitle: "在 {to} 下进入你的 B30",
-		leftTitle: "在 {to} 下移出你的 B30",
-		movesNone: "两个版本下你的 B30 包含相同的谱面。",
-		yoursCharts: "你玩过且定数调整的谱面",
-		yoursChartsHint:
-			"你玩过、定数有调整的谱面，按你现在的准确率计算。进入或移出 B30 的谱面排在前面。",
-		seriesTitle: "你在每个版本下的 RKS",
-		seriesLede:
-			"用你现在的成绩，按每个版本的定数计算，最新的在前。RKS 没有变化的版本不列出。",
-		seriesLoading: "正在按每个版本的定数计算你的成绩…",
-		seriesVersion: "版本",
-		seriesReleased: "发布日期",
-		seriesCharts: "谱面数",
 	},
 };

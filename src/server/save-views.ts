@@ -2,12 +2,13 @@ import { type ChartStatus, chartStatus } from "@/lib/chart-status";
 import { type FormTarget, formTargets } from "@/lib/form-targets";
 import { type Milestones, milestonesOf } from "@/lib/milestones";
 import { type SimilarIndex, suggestFrom } from "@/lib/similar";
-import { LEVEL, type LevelKind } from "@/phi/lib/const";
 import type { TagVotes } from "@/phi/lib/chart-tag-votes";
+import { LEVEL, type LevelKind } from "@/phi/lib/const";
 import type { Save } from "@/phi/lib/save";
 import { openHistory, type SaveHistory } from "@/phi/lib/save-history";
 import { profileRecordsOf } from "@/phi/lib/tag-profile";
 import {
+	roundUp,
 	type TargetChart,
 	type TargetRow,
 	targetsFor,
@@ -93,7 +94,7 @@ export function targetsView(
 			rank: t.rank,
 			c: t.difficulty,
 			acc: t.acc,
-			need: Number(t.need.toFixed(4)),
+			need: roundUp(t.need, 4),
 			ap: t.viaAp,
 			gain: Number(t.apGain.toFixed(4)),
 		});

@@ -5,6 +5,7 @@ import type { Kv } from "@/server/sdk";
 import type { PhiLocale } from "./card-i18n";
 import type { Catalog } from "./catalog";
 import { type CardMissing, watchExternal } from "./external";
+import { fCompute } from "./fcompute";
 import {
 	type ApFcCounts,
 	apiSongId,
@@ -314,7 +315,7 @@ export async function buildSongCard(
 		board: board.state === "ok" ? board.value : null,
 		levels,
 		state,
-		asOf: (extra.now ?? new Date()).toISOString().slice(0, 10),
+		asOf: fCompute.formatDate(extra.now ?? new Date(), "YYYY-MM-DD"),
 	};
 	// Also when another level's row is missing: the level table would lack it
 	const late = Object.values(state).some((s) => PARTIAL_STATES.has(s));

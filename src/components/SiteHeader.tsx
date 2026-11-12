@@ -1,6 +1,5 @@
 "use client";
 
-import { CaretDown, List, UserCircle, X } from "@phosphor-icons/react";
 import { usePathname } from "next/navigation";
 import {
 	type KeyboardEvent,
@@ -12,23 +11,47 @@ import {
 	useState,
 } from "react";
 import { signOutAction } from "@/auth-actions";
+import { CaretDown, List, UserCircle, X } from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import { LocaleSwitch } from "@/components/LocaleSwitch";
-import { SearchPalette } from "@/components/SearchPalette";
+import {
+	type SearchHandle,
+	SearchPalette,
+	SearchTrigger,
+} from "@/components/SearchPalette";
 import { focusMain } from "@/components/SkipLink";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { useToolDismiss } from "@/components/Tool";
+import {
+	markSessionChanged,
+	useHeaderSession,
+} from "@/components/useHeaderSession";
+import { useNavGroups } from "@/components/useNavGroups";
 import { useI18n } from "@/i18n/provider";
 import { stripLocale } from "@/lib/locale-path";
 import {
 	currentGroup,
 	isHere,
-	NAV_GROUPS,
 	type NavGroup,
 	type NavGroupId,
 } from "@/lib/nav";
+import { forgetRecapNote } from "@/lib/recap-note";
+import { isRedirectSignal } from "@/lib/redirect-signal";
+import { REVIEW_YEAR } from "@/lib/review-window";
 import { fill } from "@/phi/lib/card-i18n";
-import type { ThemeChoice } from "@/theme/config";
+
+function leaveAccount() {
+	markSessionChanged();
+	forgetRecapNote();
+}
+
+async function signOutHere() {
+	try {
+		await signOutAction();
+	} catch (err) {
+		if (!isRedirectSignal(err)) throw err;
+	}
+}
 
 const CLOSE_MS = 180;
 const WIDE = "(min-width: 64em) and (hover: hover)";
@@ -134,7 +157,7 @@ function NavGroupMenu({
 							aria-current={isHere(path, item.match) ? "page" : undefined}
 							onClick={() => onPick(item.href)}
 						>
-							{m.nav[item.id]}
+							{fill(m.nav[item.id], { year: REVIEW_YEAR })}
 						</Link>
 					</li>
 				))}
@@ -143,25 +166,19 @@ function NavGroupMenu({
 	);
 }
 
-export function SiteHeader({
-	signedIn,
-	name,
-	image,
-	theme,
-}: {
-	signedIn: boolean;
-	name?: string | null;
-	image?: string | null;
-	theme: ThemeChoice;
-}) {
+export function SiteHeader() {
+	const { signedIn, name, image } = useHeaderSession();
 	const { m } = useI18n();
 	const path = usePathname();
 	const bare = stripLocale(path);
 	const here = currentGroup(bare);
+	const groups = useNavGroups();
 	const menuId = useId();
 	const root = useRef<HTMLElement>(null);
 	const toggle = useRef<HTMLButtonElement>(null);
 	const leftFrom = useRef<string | null>(null);
+	const search = useRef<SearchHandle>(null);
+	const openSearch = useCallback(() => search.current?.show(), []);
 	const [open, setOpen] = useState(false);
 	const [group, setGroup] = useState<NavGroupId | null>(null);
 	const [openedOn, setOpenedOn] = useState(path);
@@ -235,7 +252,7 @@ export function SiteHeader({
 				</button>
 				<div id={menuId} className="topbar-menu" data-open={open || undefined}>
 					<nav className="topbar-links" aria-label={m.nav.menu}>
-						{NAV_GROUPS.map((g) => (
+						{groups.map((g) => (
 							<NavGroupMenu
 								key={g.id}
 								group={g}
@@ -251,9 +268,10 @@ export function SiteHeader({
 							/>
 						))}
 					</nav>
+					<SearchTrigger className="sp-slot-wide" onOpen={openSearch} />
 					<div className="topbar-end">
 						<LocaleSwitch />
-						<ThemeSwitch initial={theme} />
+						<ThemeSwitch />
 						{signedIn ? (
 							<div className="topbar-account">
 								<Link
@@ -282,8 +300,12 @@ export function SiteHeader({
 									)}
 									<span>{name || m.signedIn}</span>
 								</Link>
-								<form action={signOutAction}>
-									<button className="btn btn-ghost btn-sm" type="submit">
+								<form action={signOutHere}>
+									<button
+										className="btn btn-ghost btn-sm"
+										type="submit"
+										onClick={leaveAccount}
+									>
 										{m.signOut}
 									</button>
 								</form>
@@ -291,7 +313,8 @@ export function SiteHeader({
 						) : null}
 					</div>
 				</div>
-				<SearchPalette signedIn={signedIn} />
+				<SearchTrigger className="sp-slot-bar" onOpen={openSearch} />
+				<SearchPalette ref={search} signedIn={signedIn} />
 			</div>
 		</header>
 	);

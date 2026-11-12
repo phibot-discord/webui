@@ -9,8 +9,7 @@ import {
 import { runInBackground } from "@/server/background";
 import { chartCell } from "@/server/charts";
 import { getDataHost } from "@/server/data-host";
-import { jsonError } from "@/server/http";
-import { localizedRetryAfter } from "@/server/i18n-http";
+import { codeError, localizedRetryAfter } from "@/server/i18n-http";
 import { logger } from "@/server/logger";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 import { ensureSongInfo } from "@/server/song-info";
@@ -25,7 +24,7 @@ const NO_STORE = { "Cache-Control": "no-store" };
 
 export async function GET(request: Request) {
 	const userId = await sessionUserId();
-	if (!userId) return jsonError(401, "unauthorized");
+	if (!userId) return codeError(401, "unauthorized");
 	const limited = rateLimit({
 		ip: `board:${clientIp(request.headers)}`,
 		userId: `board:${userId}`,
@@ -36,7 +35,7 @@ export async function GET(request: Request) {
 	const level = (params.get("level") ?? "").toUpperCase();
 	await ensureSongInfo();
 	if (chart === ".0" || !isLbLevel(level) || !chartCell(chart, level)) {
-		return jsonError(400, "bad_request");
+		return codeError(400, "bad_request");
 	}
 	const host = await getDataHost();
 	const work = songBoard(chart, level, { db: host.db });
@@ -61,9 +60,8 @@ export async function GET(request: Request) {
 	} catch (err) {
 		logger.warn(`chart board: ${err instanceof Error ? err.message : err}`);
 		const busy = err instanceof LeaderboardError && err.code === "busy";
-		return Response.json(
-			{ error: busy ? "upstream_busy" : "upstream_unavailable" },
-			{ status: 503, headers: { ...NO_STORE, "Retry-After": "30" } },
-		);
+		return codeError(503, busy ? "upstream_busy" : "upstream_unavailable", {
+			headers: { "Retry-After": "30" },
+		});
 	}
 }

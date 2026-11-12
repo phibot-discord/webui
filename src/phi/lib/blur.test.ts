@@ -122,6 +122,22 @@ test("the blur cache keeps only the most recently used backgrounds", () => {
 	assert.equal(readdirSync(dir).length, 25);
 });
 
+test("the blur cache deletes a .tmp file left for more than ten minutes", () => {
+	const dir = mkdtempSync(join(tmpdir(), "phi-blur-"));
+	const now = 1_800_000_000_000;
+	for (const [name, ago] of [
+		["a.png.1.x.tmp", 11 * 60_000],
+		["b.png.1.y.tmp", 60_000],
+	] as const) {
+		const file = join(dir, name);
+		writeFileSync(file, "partial");
+		const at = new Date(now - ago);
+		utimesSync(file, at, at);
+	}
+	pruneBlurCache(dir, 24, now);
+	assert.deepEqual(readdirSync(dir), ["b.png.1.y.tmp"]);
+});
+
 test("a blur-cache hit moves the mtime at most once an hour", () => {
 	const dir = mkdtempSync(join(tmpdir(), "phi-blur-"));
 	const file = join(dir, "hit.png");

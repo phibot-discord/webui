@@ -1,5 +1,6 @@
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { evictOldest } from "@/phi/lib/lru";
 import { exists, readFile, stat } from "@/server/vfs";
 
 const flattenCache = new Map<string, { stamp: string; css: string }>();
@@ -124,11 +125,9 @@ function flattenCssCached(path: string): string {
 	const hit = flattenCache.get(path);
 	if (hit && hit.stamp === stamp) return hit.css;
 	const css = flattenCss(readFile(path, "utf8"), path);
-	if (flattenCache.size >= FLATTEN_CACHE_MAX) {
-		const oldest = flattenCache.keys().next().value;
-		if (oldest !== undefined) flattenCache.delete(oldest);
-	}
+	flattenCache.delete(path);
 	flattenCache.set(path, { stamp, css });
+	evictOldest(flattenCache, FLATTEN_CACHE_MAX);
 	return css;
 }
 

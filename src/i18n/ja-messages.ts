@@ -1,3 +1,4 @@
+import { globalErrorMessages } from "./global-error-messages";
 import { toolsJa } from "./ja-tools-messages";
 import type { ClientMessages } from "./messages";
 
@@ -17,7 +18,7 @@ export const ja: ClientMessages = {
 		label: "ファイルを再読み込み",
 		hint: "このブラウザーが保持しているコピーを使わず、イラスト、音楽、動画、パックを読み込み直します",
 	},
-	brand: "PhiBot",
+	brand: globalErrorMessages.ja.brand,
 	skip: "本文へスキップ",
 	backToTop: "ページの先頭へ",
 	loading: "読み込み中…",
@@ -244,6 +245,7 @@ export const ja: ClientMessages = {
 		cores: "コア",
 		upFor: "稼働時間",
 		days: "{n} 日",
+		daysOne: "1 日",
 		usage: "CPU とメモリ",
 		players: "プレイヤー",
 		rooms: "ルーム",
@@ -261,6 +263,7 @@ export const ja: ClientMessages = {
 		online: "サーバーはオンラインです。",
 		offline:
 			"現在サーバーに接続できません。しばらくしてからもう一度お試しください。",
+		unknown: "サーバーの状態を確認できません。",
 		updated: "更新",
 		players: "オンラインのプレイヤー",
 		rooms: "ルーム",
@@ -292,6 +295,9 @@ export const ja: ClientMessages = {
 		open: "お知らせ",
 		earlier: "以前の更新",
 	},
+	toast: {
+		signIn: "そのページを開くには、先にサインインしてください。",
+	},
 	nav: {
 		cards: "カード",
 		menu: "ページ",
@@ -306,6 +312,7 @@ export const ja: ClientMessages = {
 		profile: "プロフィール",
 		progress: "進捗",
 		trend: "推移",
+		review: "{year} 年の振り返り",
 		account: "アカウント",
 		accountOf: "アカウント：{name}",
 		groups: { tools: "ツール", scores: "スコア", files: "ファイル" },
@@ -521,6 +528,38 @@ export const ja: ClientMessages = {
 			"譜面リストを読み込めなかったため、現在は譜面を追加できません。",
 		full: "上限の {n} 譜面に達しました。",
 		listLabel: "あなたの譜面",
+		importButton: "記録ファイルを読み込む",
+		importHint:
+			"PhiBot の記録ダウンロードで得た CSV または JSON ファイルを使います。精度が高いときだけ今のスコアを置き換え、何も削除しません。",
+		importFrom: "{file} から",
+		importAdded: "追加する譜面：{n}",
+		importImproved: "更新するスコア：{n}",
+		importKept: "変更なし（今のスコアが同じかそれ以上）：{n}",
+		importSkipped: "スキップ：{n}（{reasons}）",
+		importUnknown: "譜面リストにない：{n}",
+		importInvalid: "読み取れない行：{n}",
+		importRepeated: "重複した行：{n}",
+		importFull: "{max} 譜面の上限を超えた分：{n}",
+		importSep: "、",
+		importNotSaved: "「保存してカードを描画」を押すまで何も保存されません。",
+		importNothing: "このファイルには今のスコアより良い記録がありません。",
+		importApply: "リストに反映",
+		importCancel: "キャンセル",
+		importApplied:
+			"リストに反映しました。追加した譜面：{added}、更新したスコア：{improved}。残すには「保存してカードを描画」を押してください。",
+		importErrors: {
+			too_large: "ファイルが {mb} MB を超えているため読み込みませんでした。",
+			unreadable: "ファイルを読み込めませんでした。",
+			empty: "ファイルにスコアがありません。",
+			raw_save:
+				"これはクラウドセーブの生データで、TapTap のログイントークンが含まれています。破棄したので何も読み込んでいません。PhiBot の記録ダウンロードで得た CSV か JSON を使い、生のセーブデータは誰にも渡さないでください。",
+			unknown_format: "PhiBot の記録ファイルではありません。",
+			newer_version:
+				"このファイルは新しいバージョンのサイトで作られています。ページを再読み込みしてもう一度お試しください。",
+			bad_json: "このファイルの JSON が壊れています。",
+			bad_csv: "このファイルの CSV が壊れています。",
+			too_many_rows: "ファイルが {max} 行を超えています。",
+		},
 	},
 	tags: {
 		title: "譜面タグ",
@@ -528,6 +567,7 @@ export const ja: ClientMessages = {
 		empty: "タグ一覧は現在利用できません。",
 		index: "カテゴリ",
 		count: "{n} 個のタグ",
+		countOne: "1 個のタグ",
 		plainTitle: "かんたんな説明",
 		plain: [
 			"譜面プロフィールは、あなたが普段より上手く、または苦手にプレイしている種類の譜面を探します。比べる相手はあなた自身だけで、ほかのプレイヤーとは比べません。",
@@ -1111,17 +1151,10 @@ export const ja: ClientMessages = {
 		body: "このページまたは共有リンクは存在しません。",
 		home: "ホームページへ",
 	},
-	error: {
-		code: "エラー",
-		title: "このページを読み込めませんでした",
-		body: "こちら側で問題が発生しました。もう一度試すか、ホームページに戻ってください。",
-		retry: "再試行",
-		home: "ホームページ",
-		digest: "参照番号",
-	},
+	error: globalErrorMessages.ja.error,
 	errors: {
 		unauthorized: "未認証",
-		unknown_card: "不明なカード",
+		unknown_card: "このカードは利用できません。",
 		not_bound: "Phigros アカウントが連携されていません。",
 		banned: "このアカウントは利用停止中です。",
 		no_save:
@@ -1164,5 +1197,8 @@ export const ja: ClientMessages = {
 			"移行先のセーブデータは書き込まれましたが、PhiBot はコピーを確認できませんでした。もう一度試す前に、Phigros で確認してください。",
 		migrate_bind_expired:
 			"連携の案内は終了しました。案内はコピー後の短い間だけ有効で、やり直すと閉じます。移行先アカウントがまだ連携されていない場合は、別のアカウントが連携されているなら「アカウント」で連携を解除し、そのあと「カード」で連携してください。",
+		bad_request: "リクエストが正しくありません。",
+		too_many: "スコアが多すぎます。いくつか削除してから保存してください。",
+		unknown_chart: "曲の一覧にない譜面があります。",
 	},
 };

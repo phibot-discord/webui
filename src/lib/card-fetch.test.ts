@@ -62,6 +62,31 @@ test("loadCardBlob reuses a just-finished blob instead of refetching", async () 
 	}
 });
 
+test("a card older than the reuse window is fetched again", async () => {
+	resetCardFetchCacheForTest();
+	let calls = 0;
+	const orig = globalThis.fetch;
+	const origNow = Date.now;
+	let clock = 50_000_000;
+	Date.now = () => clock;
+	globalThis.fetch = (async () => {
+		calls += 1;
+		return new Response(new Uint8Array([4]), {
+			headers: { "content-type": "image/jpeg" },
+		});
+	}) as typeof fetch;
+	try {
+		await loadCardBlob("/api/card/b30?_=old");
+		clock += 2_501;
+		await loadCardBlob("/api/card/b30?_=old");
+		assert.equal(calls, 2);
+	} finally {
+		globalThis.fetch = orig;
+		Date.now = origNow;
+		resetCardFetchCacheForTest();
+	}
+});
+
 test("private card not_bound retries once then succeeds", async () => {
 	resetCardFetchCacheForTest();
 	let calls = 0;

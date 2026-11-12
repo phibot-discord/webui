@@ -1,6 +1,6 @@
 import { leaderboardJson, parseLeaderboardQuery } from "@/phi/lib/leaderboard";
 import { chartCell } from "@/server/charts";
-import { localizedRetryAfter } from "@/server/i18n-http";
+import { codeError, localizedRetryAfter } from "@/server/i18n-http";
 import { logger } from "@/server/logger";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 import { ensureSongInfo } from "@/server/song-info";
@@ -28,10 +28,7 @@ export async function GET(request: Request) {
 			(id, level) => Boolean(chartCell(id, level)),
 		);
 		if (!query) {
-			return Response.json(
-				{ error: "bad_request" },
-				{ status: 400, headers: { "Cache-Control": "no-store" } },
-			);
+			return codeError(400, "bad_request", { stable: true });
 		}
 		const res = await leaderboardJson(query, { budgetMs: BUDGET_MS });
 		const headers: Record<string, string> =
@@ -40,17 +37,17 @@ export async function GET(request: Request) {
 				: res.status === 404
 					? { "Cache-Control": CACHE_NO_DATA }
 					: { "Cache-Control": "no-store", "Retry-After": "30" };
+		if ("error" in res.body) {
+			return codeError(res.status, res.body.error, { stable: true, headers });
+		}
 		return Response.json(res.body, { status: res.status, headers });
 	} catch (err) {
 		logger.warn(
 			`leaderboard route: ${err instanceof Error ? err.message : err}`,
 		);
-		return Response.json(
-			{ error: "upstream_unavailable" },
-			{
-				status: 503,
-				headers: { "Cache-Control": "no-store", "Retry-After": "30" },
-			},
-		);
+		return codeError(503, "upstream_unavailable", {
+			stable: true,
+			headers: { "Retry-After": "30" },
+		});
 	}
 }

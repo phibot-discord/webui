@@ -12,7 +12,6 @@ import { getMessages, localeHref } from "@/i18n/server";
 import { displayPlayerId, displayRks } from "@/lib/player-display";
 import {
 	type Bound,
-	bypassCacheCooldownRemaining,
 	lastSyncedIso,
 	loadBound,
 	refreshCooldownRemaining,
@@ -32,11 +31,10 @@ export async function loadCardDesk(
 	host: DataHost,
 	userId: string,
 ): Promise<{ gate: ReactNode } | { bound: Bound; desk: CardDeskProps }> {
-	const [got, shareSlug, cooldown, bypassCooldown, { m }] = await Promise.all([
+	const [got, shareSlug, cooldown, { m }] = await Promise.all([
 		loadBound(host, userId),
 		getShareSlug(userId),
 		refreshCooldownRemaining(userId),
-		bypassCacheCooldownRemaining(userId),
 		getMessages(),
 	]);
 	if ("error" in got) {
@@ -72,7 +70,7 @@ export async function loadCardDesk(
 					)}
 					<ShareToggle slug={shareSlug} />
 					<MoreMenu>
-						<BypassCacheButton cooldownMs={bypassCooldown} />
+						<BypassCacheButton cooldownMs={0} />
 						<ExportRecords />
 						{got.manual ? <UnbindButton manual inline /> : null}
 					</MoreMenu>

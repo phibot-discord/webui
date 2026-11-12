@@ -1,4 +1,4 @@
-import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight } from "@/components/icons";
 import type { Messages } from "@/i18n/messages";
 import {
 	type CollectionLang,
@@ -240,7 +240,9 @@ export function CollectionChapter({
 		<article className="doc" aria-labelledby="doc-title">
 			<DocHead crumbs={crumbs} crumbLabel={crumbLabel} title={current.name}>
 				{current.label ? `${current.label} · ` : ""}
-				{fill(t.itemCount, { n: items.length })}
+				{items.length === 1
+					? t.itemCountOne
+					: fill(t.itemCount, { n: items.length })}
 			</DocHead>
 			<CollectionSearchForm lang={picked} t={t} />
 			<LangSwitch

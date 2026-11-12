@@ -277,7 +277,13 @@ function rksLine(history: unknown): string {
 
 function prepareUpdate(data: CardData): CardData {
 	const titled = (song: Row | null) =>
-		song ? { ...song, titlePx: updateTitlePx(song.song) } : song;
+		song
+			? {
+					...song,
+					titlePx: updateTitlePx(song.song),
+					accText: Number(song.acc_new).toFixed(4),
+				}
+			: song;
 	return {
 		...data,
 		PlayerId: richText(data.PlayerId),

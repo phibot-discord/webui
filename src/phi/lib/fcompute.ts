@@ -63,42 +63,48 @@ export const fCompute = {
 	},
 	convertRichText(richText?: string, onlyText = false) {
 		if (!richText) return richText;
-		let out = richText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-		const colorRe = /&lt;color\s*=\s*.*?&gt;(.*?)&lt;\/color&gt;/;
-		const italicRe = /&lt;i&gt;(.*?)&lt;\/i&gt;/;
-		const boldRe = /&lt;b&gt;(.*?)&lt;\/b&gt;/;
-		for (;;) {
-			let matched = out.match(colorRe);
-			if (matched?.[1]) {
-				const color =
-					matched[0]
-						.match(/&lt;color\s*=\s*(.*?)&gt;/)?.[1]
-						?.replace(/[\s"]/g, "") || "inherit";
-				out = out.replace(
-					colorRe,
-					onlyText
-						? matched[1]
-						: `<span style="color:${color}">${matched[1]}</span>`,
-				);
-				continue;
-			}
-			matched = out.match(italicRe);
-			if (matched) {
-				out = out.replace(
-					italicRe,
-					onlyText ? matched[1]! : `<i>${matched[1]}</i>`,
-				);
-				continue;
-			}
-			matched = out.match(boldRe);
-			if (matched) {
-				out = out.replace(
-					boldRe,
-					onlyText ? matched[1]! : `<b>${matched[1]}</b>`,
-				);
-				continue;
-			}
-			break;
+		let out = richText
+			.slice(0, 2000)
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;")
+			.replace(/'/g, "&#39;");
+		const colorRe = /&lt;color\s*=\s*(.*?)&gt;(.*?)&lt;\/color&gt;/g;
+		const italicRe = /&lt;i&gt;(.*?)&lt;\/i&gt;/g;
+		const boldRe = /&lt;b&gt;(.*?)&lt;\/b&gt;/g;
+		const colorValue =
+			/^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$|^[a-zA-Z]{1,20}$/;
+		const max = 1000;
+		let count = 0;
+		let last = -1;
+		const wrap = (
+			whole: string,
+			inner: string,
+			open: string,
+			close: string,
+		) => {
+			if (count >= max) return whole;
+			count++;
+			return onlyText ? inner : `${open}${inner}${close}`;
+		};
+		while (count < max && count !== last) {
+			last = count;
+			out = out.replace(
+				colorRe,
+				(whole: string, raw: string, inner: string) => {
+					if (!inner) return whole;
+					const value = raw.replace(/&quot;|&#39;|\s/g, "");
+					const color = colorValue.test(value) ? value : "inherit";
+					return wrap(whole, inner, `<span style="color:${color}">`, "</span>");
+				},
+			);
+			out = out.replace(italicRe, (whole: string, inner: string) =>
+				wrap(whole, inner, "<i>", "</i>"),
+			);
+			out = out.replace(boldRe, (whole: string, inner: string) =>
+				wrap(whole, inner, "<b>", "</b>"),
+			);
 		}
 		return out.replace(/\n\r?/g, "<br>");
 	},

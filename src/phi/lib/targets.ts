@@ -57,6 +57,17 @@ export function shownGoal(goal: number): string {
 	return ((Math.floor(goal * 100) + 1) / 100).toFixed(2);
 }
 
+export function roundUp(value: number, digits: number): number {
+	const scale = 10 ** digits;
+	return Math.ceil(value * scale - 1e-6) / scale;
+}
+
+export function headerRks(stored: number, recomputed: number): number {
+	return Number.isFinite(stored) && Math.abs(stored - recomputed) < 0.0001
+		? stored
+		: recomputed;
+}
+
 function accForRks(rks: number, difficulty: number): number {
 	if (!(difficulty > 0)) return Number.POSITIVE_INFINITY;
 	return 55 + 45 * Math.sqrt(Math.max(0, rks) / difficulty);

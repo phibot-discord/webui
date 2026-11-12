@@ -3,11 +3,9 @@ import test from "node:test";
 import {
 	type AliasDeps,
 	ensureAliases,
-	liveAliasKey,
 	mergeAliasLayers,
 	parseApprovedSnapshot,
 	resetAliasesForTest,
-	resolveAliasLive,
 	setAliasDepsForTest,
 } from "./aliases";
 
@@ -42,7 +40,7 @@ function deferred<T>() {
 function setup(overrides: Partial<AliasDeps> = {}) {
 	resetAliasesForTest();
 	const clock = { now: 1_000_000 };
-	const calls = { approved: 0, base: 0, resolve: 0 };
+	const calls = { approved: 0, base: 0 };
 	const env = { sha: undefined as string | undefined, catalog: "cat1" };
 	setAliasDepsForTest({
 		ensureCatalog: async () => {},
@@ -60,7 +58,6 @@ function setup(overrides: Partial<AliasDeps> = {}) {
 		background: () => {},
 		now: () => clock.now,
 		coldWaitMs: 20,
-		liveBudgetMs: 20,
 		...overrides,
 	});
 	return { clock, calls, env };
@@ -318,147 +315,4 @@ test("a catalog change re-reads the bundled layer and re-filters orphans", async
 	} finally {
 		KNOWN.delete("Orphan.0");
 	}
-});
-
-function resolveDeps(
-	reply: (alias: string) => Promise<{ status: number; body: unknown }>,
-) {
-	const seen: string[] = [];
-	const ctx = setup({
-		fetchResolve: async (alias) => {
-			seen.push(alias);
-			return reply(alias);
-		},
-	});
-	return { ...ctx, seen };
-}
-
-const RESOLVE_ASA = {
-	status: 200,
-	body: {
-		items: [
-			{ alias: "ASA", songId: "000AinSophAur.Yumeji.0" },
-			{ alias: "ASA", songId: "000AinSophAur.Yumeji.0" },
-		],
-	},
-};
-
-test("live resolve caches hits for 6 h, keyed on trim + lowercase", async () => {
-	const { seen, clock } = resolveDeps(async () => RESOLVE_ASA);
-	assert.deepEqual(await resolveAliasLive("ASA"), {
-		status: "hit",
-		ids: ["000AinSophAur.Yumeji.0"],
-	});
-	assert.equal((await resolveAliasLive(" asa ")).status, "hit");
-	assert.deepEqual(seen, ["ASA"]);
-	clock.now += 6 * 60 * 60 * 1000 - 1;
-	await resolveAliasLive("asa");
-	assert.equal(seen.length, 1);
-	clock.now += 2;
-	await resolveAliasLive("asa");
-	assert.deepEqual(seen, ["ASA", "asa"]);
-});
-
-test("live resolve does not fold full-width input the way upstream does not", async () => {
-	const { seen } = resolveDeps(async () => ({
-		status: 200,
-		body: { items: [] },
-	}));
-	assert.notEqual(liveAliasKey("ＡＳＡ"), liveAliasKey("ASA"));
-	await resolveAliasLive("ＡＳＡ");
-	await resolveAliasLive("ASA");
-	assert.deepEqual(seen, ["ＡＳＡ", "ASA"]);
-});
-
-test("live resolve caches misses 15 min and errors 60 s", async () => {
-	let reply: { status: number; body: unknown } | Error = {
-		status: 200,
-		body: { items: [] },
-	};
-	const { seen, clock } = resolveDeps(async () => {
-		if (reply instanceof Error) throw reply;
-		return reply;
-	});
-	assert.deepEqual(await resolveAliasLive("鸽游"), { status: "miss", ids: [] });
-	clock.now += 15 * 60 * 1000 - 1;
-	await resolveAliasLive("鸽游");
-	assert.equal(seen.length, 1);
-
-	reply = new Error("socket hang up");
-	assert.equal((await resolveAliasLive("雨晴")).status, "error");
-	clock.now += 59_000;
-	assert.equal((await resolveAliasLive("雨晴")).status, "error");
-	assert.equal(seen.length, 2);
-	reply = { status: 502, body: { error: "upstream" } };
-	clock.now += 2_000;
-	assert.equal((await resolveAliasLive("雨晴")).status, "error");
-	assert.equal(seen.length, 3);
-});
-
-test("a Worker without the alias route turns live resolve off for a while", async () => {
-	const { seen, clock } = resolveDeps(async () => ({
-		status: 404,
-		body: undefined,
-	}));
-	assert.equal((await resolveAliasLive("a")).status, "off");
-	assert.equal((await resolveAliasLive("b")).status, "off");
-	assert.deepEqual(seen, ["a"]);
-	clock.now += 15 * 60 * 1000;
-	await resolveAliasLive("b");
-	assert.deepEqual(seen, ["a", "b"]);
-});
-
-test("upstream failures in a row open a one-minute breaker", async () => {
-	const { seen, clock } = resolveDeps(async () => ({
-		status: 502,
-		body: undefined,
-	}));
-	for (const q of ["e1", "e2", "e3"]) {
-		assert.equal((await resolveAliasLive(q)).status, "error");
-	}
-	assert.equal((await resolveAliasLive("e4")).status, "off");
-	assert.deepEqual(seen, ["e1", "e2", "e3"]);
-	clock.now += 60_000;
-	assert.equal((await resolveAliasLive("e4")).status, "error");
-	assert.deepEqual(seen, ["e1", "e2", "e3", "e4"]);
-});
-
-test("one client cannot spend the whole live budget", async () => {
-	const { seen } = resolveDeps(async () => ({
-		status: 200,
-		body: { items: [] },
-	}));
-	const statuses: string[] = [];
-	for (let i = 0; i < 12; i++) {
-		statuses.push((await resolveAliasLive(`q${i}`, "203.0.113.7")).status);
-	}
-	assert.equal(seen.length, 10);
-	assert.deepEqual(statuses.slice(10), ["skipped", "skipped"]);
-	assert.equal((await resolveAliasLive("q0", "203.0.113.7")).status, "miss");
-	for (let i = 0; i < 25; i++)
-		await resolveAliasLive(`p${i}`, `198.51.100.${i}`);
-	assert.equal(seen.length, 30);
-});
-
-test("live resolve is single-flight and fills the cache after a timeout", async () => {
-	const slow = deferred<{ status: number; body: unknown }>();
-	const { seen } = resolveDeps(() => slow.promise);
-	const [a, b] = await Promise.all([
-		resolveAliasLive("ASA"),
-		resolveAliasLive("asa"),
-	]);
-	assert.equal(a.status, "timeout");
-	assert.equal(b.status, "timeout");
-	assert.equal(seen.length, 1);
-	slow.resolve(RESOLVE_ASA);
-	await new Promise((r) => setImmediate(r));
-	assert.equal((await resolveAliasLive("ASA")).status, "hit");
-	assert.equal(seen.length, 1);
-});
-
-test("live resolve skips empty or over-long input", async () => {
-	const { seen } = resolveDeps(async () => RESOLVE_ASA);
-	assert.equal((await resolveAliasLive("  ")).status, "skipped");
-	assert.equal((await resolveAliasLive("x".repeat(65))).status, "skipped");
-	assert.deepEqual(seen, []);
 });

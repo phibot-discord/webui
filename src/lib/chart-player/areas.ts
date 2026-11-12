@@ -5,6 +5,7 @@ export const AREA_STRIDE = 12;
 export const DISABLED_LEVEL = 0.55;
 
 const SLICE = 1;
+const SLICE_TIME_MAX = 3_600;
 const SAMPLES = 100;
 
 export type Areas = {
@@ -257,7 +258,9 @@ export function compileAreas(input: unknown): Areas {
 		});
 		last = Math.max(last, disappear);
 	});
-	const slices = n ? Math.max(1, Math.ceil(last / SLICE) + 1) : 0;
+	const slices = n
+		? Math.max(1, Math.ceil(Math.min(last, SLICE_TIME_MAX) / SLICE) + 1)
+		: 0;
 	const counts = new Int32Array(slices + 1);
 	const span = (i: number): [number, number] => [
 		Math.min(slices - 1, Math.max(0, Math.floor(out.appear[i]! / SLICE))),

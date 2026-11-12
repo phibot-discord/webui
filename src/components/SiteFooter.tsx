@@ -1,7 +1,7 @@
 "use client";
 
-import { Heart } from "@phosphor-icons/react";
 import { useEffect } from "react";
+import { Heart } from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import { useI18n } from "@/i18n/provider";
 import { adoptStoredRefresh, markRefresh } from "@/lib/asset-refresh";

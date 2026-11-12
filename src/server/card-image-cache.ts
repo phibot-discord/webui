@@ -7,7 +7,7 @@ import {
 } from "@/phi/lib/notes";
 import type { CardSlot } from "./cache";
 
-export const RENDER_VERSION = "v55";
+export const RENDER_VERSION = "v57";
 
 export type CardImageCacheInput = {
 	kind: string;
@@ -26,6 +26,7 @@ export type CardImageCacheInput = {
 	background: string;
 	style: string;
 	extra?: string;
+	levels?: string;
 	renderVersion: string;
 };
 
@@ -53,6 +54,7 @@ export function cardCacheInput(args: {
 	sdExcludeP3?: boolean;
 	style?: string;
 	extra?: string;
+	levels?: string;
 }): CardImageCacheInput {
 	const { notes } = args;
 	return {
@@ -73,6 +75,7 @@ export function cardCacheInput(args: {
 		background: notes.cardBackground?.trim() || "random",
 		style: args.style || "classic",
 		extra: args.extra,
+		levels: args.levels,
 	};
 }
 
@@ -118,6 +121,7 @@ export function cardCacheParts(
 			? [`style:${input.style}`]
 			: []),
 		...(input.extra ? [input.extra] : []),
+		...(input.levels ? [`lv:${input.levels.slice(0, 12)}`] : []),
 		input.renderVersion,
 		suffix,
 	];

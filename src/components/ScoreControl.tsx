@@ -1,14 +1,14 @@
 "use client";
 
-import { localeTag } from "@/i18n/config";
-import { X } from "@phosphor-icons/react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
 	ChartSearch,
 	type ChartSearchText,
 	useChartCatalog,
 } from "@/components/ChartSearch";
+import { X } from "@/components/icons";
 import { Announce, useSettled } from "@/components/Tool";
+import { localeTag } from "@/i18n/config";
 import type { ClientMessages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
 import {
@@ -17,6 +17,7 @@ import {
 	type ChartSummary,
 	findChart,
 } from "@/lib/chart-catalog";
+import { fetchRank, rankUrl } from "@/lib/rank-lookup";
 import {
 	MAX_NOTES,
 	MAX_SCORE,
@@ -73,13 +74,7 @@ function useChartRank(chart: ChartRef | undefined, acc: number | undefined) {
 	const [state, setState] = useState<RankState>({ status: "idle" });
 	const [attempt, setAttempt] = useState(0);
 	const url =
-		chart && acc != null
-			? `/api/leaderboard?${new URLSearchParams({
-					chart: chart.id,
-					level: chart.rank,
-					acc: acc.toFixed(6),
-				})}`
-			: undefined;
+		chart && acc != null ? rankUrl(chart.id, chart.rank, acc) : undefined;
 	const request = url ? `${url}#${attempt}` : undefined;
 
 	useEffect(() => {
@@ -90,34 +85,20 @@ function useChartRank(chart: ChartRef | undefined, acc: number | undefined) {
 		setState({ status: "loading" });
 		const ac = new AbortController();
 		const timer = window.setTimeout(() => {
-			fetch(request, { signal: ac.signal })
-				.then(async (res) => {
-					if (res.status === 404) return setState({ status: "none" });
-					if (!res.ok) return setState({ status: "busy" });
-					const body = (await res.json()) as Partial<{
-						rank: number;
-						of: number;
-						percent: number;
-						tied: number;
-					}>;
-					if (
-						typeof body.rank !== "number" ||
-						typeof body.of !== "number" ||
-						typeof body.percent !== "number"
-					) {
-						return setState({ status: "busy" });
-					}
+			void fetchRank(request, ac.signal).then((got) => {
+				if (ac.signal.aborted) return;
+				if (got.kind === "ranked" && got.percent !== null) {
 					setState({
 						status: "ok",
-						rank: body.rank,
-						of: body.of,
-						percent: body.percent,
-						tied: body.tied ?? 0,
+						rank: got.rank,
+						of: got.of,
+						percent: got.percent,
+						tied: got.tied,
 					});
-				})
-				.catch(() => {
-					if (!ac.signal.aborted) setState({ status: "busy" });
-				});
+				} else {
+					setState({ status: got.kind === "none" ? "none" : "busy" });
+				}
+			});
 		}, 600);
 		return () => {
 			window.clearTimeout(timer);

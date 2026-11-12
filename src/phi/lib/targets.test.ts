@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { LevelKind } from "./const";
 import { type SimBaseRecord, simulate } from "./simulation";
-import { rksGoal, shownGoal, sortTargets, targetsFor } from "./targets";
+import {
+	headerRks,
+	rksGoal,
+	roundUp,
+	shownGoal,
+	sortTargets,
+	targetsFor,
+} from "./targets";
 
 function seeded(seed: number) {
 	let s = seed >>> 0;
@@ -106,4 +113,59 @@ test("APs are skipped and the sort keeps unreachable charts last", () => {
 	if (firstNull >= 0) {
 		assert.ok(sorted.slice(firstNull).every((t) => t.need == null));
 	}
+});
+
+test("roundUp never rounds down and ignores float noise", () => {
+	assert.equal(roundUp(99.92263720367862, 2), 99.93);
+	assert.equal(roundUp(99.92263720367862, 4), 99.9227);
+	assert.equal(roundUp(98.0002, 4), 98.0002);
+	assert.equal(roundUp(70, 4), 70);
+	assert.equal(roundUp(99.99995, 4), 100);
+});
+
+test("a target rounded up still reaches the goal where rounding to nearest misses", () => {
+	const base: SimBaseRecord[] = [
+		["PA.p.0", "IN", 100, 16],
+		["PB.p.0", "IN", 100, 15.5],
+		["PC.p.0", "IN", 100, 14.95],
+		["T.t.0", "IN", 99.9, 15],
+		["F.f.0", "IN", 98.4, 10],
+	];
+	const { goal, targets } = targetsFor(base);
+	const t = targets.find((x) => x.id === "T.t.0");
+	assert.ok(t?.need != null);
+	assert.equal(t.viaAp, false);
+	assert.equal(t.need, 99.92263720367862);
+	assert.equal(goal.toFixed(3), "3.905");
+	assert.ok(after(base, "T.t.0", "IN", roundUp(t.need, 2)) >= goal);
+	assert.ok(after(base, "T.t.0", "IN", roundUp(t.need, 4)) >= goal);
+	assert.ok(after(base, "T.t.0", "IN", Number(t.need.toFixed(2))) < goal);
+	assert.ok(after(base, "T.t.0", "IN", Number(t.need.toFixed(4))) < goal);
+});
+
+test("headerRks keeps the stored RKS when it is closer than 0.0001", () => {
+	assert.equal(headerRks(16.1, 16.1), 16.1);
+	const stored = Math.fround(16.7075499);
+	assert.equal(stored, 16.707550048828125);
+	assert.equal(headerRks(stored, 16.7075499), stored);
+	assert.equal(stored.toFixed(4), "16.7076");
+	assert.equal((16.7075499).toFixed(4), "16.7075");
+	assert.equal(headerRks(16.5, 16.50009999), 16.5);
+	assert.equal(headerRks(16.50009999, 16.5), 16.50009999);
+	assert.equal(headerRks(16, 16.0001), 16);
+});
+
+test("headerRks prints the recomputed RKS at a difference of 0.0001 or more", () => {
+	assert.equal(headerRks(0, 0.0001), 0.0001);
+	assert.equal(headerRks(0.0001, 0), 0);
+	assert.equal(headerRks(16, 16.00010001), 16.00010001);
+	assert.equal(headerRks(16.00010001, 16), 16);
+	assert.equal(headerRks(15, 0.3160493827160494), 0.3160493827160494);
+	assert.equal(headerRks(3.9, 3.904497942386832), 3.904497942386832);
+});
+
+test("headerRks prints the recomputed RKS when the stored one is not a finite number", () => {
+	assert.equal(headerRks(Number.NaN, 3.9045), 3.9045);
+	assert.equal(headerRks(Number.POSITIVE_INFINITY, 3.9045), 3.9045);
+	assert.equal(headerRks(Number(undefined), 3.9045), 3.9045);
 });

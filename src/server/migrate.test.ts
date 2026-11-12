@@ -70,6 +70,7 @@ const store = {
 	},
 };
 let tapDown = false;
+const banned = new Set<string>();
 class FakeUser {
 	saveInfo = {
 		gameFile: { url: `${FILES}/cnOldFile` },
@@ -104,7 +105,8 @@ class FakeUser {
 			clearLocalCredentials: (userId: string) =>
 				db.del(kvKey("userToken", userId)),
 			clearSessionSave: (token: string) => db.del(kvKey("save", token)),
-			isSessionTokenBanned: async () => false,
+			isSessionTokenBanned: async (token?: string | null) =>
+				banned.has(token ?? ""),
 		},
 	},
 	lib: {},
@@ -183,6 +185,7 @@ beforeEach(async () => {
 	resetSaveBlobMemForTest();
 	markSongInfoReadyForTest();
 	tapDown = false;
+	banned.clear();
 	calls = [];
 	writeStatus = 200;
 	ignoreWrites = false;
@@ -460,6 +463,34 @@ test("a From account without a cloud save is refused", async () => {
 		status: 409,
 	});
 	assert.equal(kv.has(kvKey("webMigrate", "u5")), false);
+});
+
+test("a banned token cannot be connected to a slot", async () => {
+	banned.add(CN_A);
+	assert.deepEqual(await connectMigrateToken("u5c", "from", CN_A, "cn"), {
+		error: "banned",
+		status: 403,
+	});
+	assert.equal(kv.has(kvKey("webMigrate", "u5c")), false);
+	ok(await connectMigrateToken("u5c", "from", GB_A, "gb"));
+	assert.deepEqual(await connectMigrateToken("u5c", "to", CN_A, "cn"), {
+		error: "banned",
+		status: 403,
+	});
+	assert.equal(saveWrites().length, 0);
+});
+
+test("a token banned after it was connected cannot run the copy", async () => {
+	ok(await connectMigrateToken("u5d", "from", GB_A, "gb"));
+	previewOf(await connectMigrateToken("u5d", "to", CN_B, "cn"));
+	banned.add(CN_B);
+	assert.deepEqual(await runMigrate("u5d"), {
+		error: "banned",
+		status: 403,
+	});
+	assert.equal(saveWrites().length, 0);
+	assert.ok(!calls.some((c) => c.url.includes("/fileTokens")));
+	assert.ok(!calls.some((c) => c.url.includes("qiniup.com")));
 });
 
 test("connecting From again drops the To sign-in", async () => {

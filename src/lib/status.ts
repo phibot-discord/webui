@@ -68,3 +68,16 @@ export type StatusData = {
 	host: StatusHost;
 	phira?: StatusPhira;
 };
+
+export type StatusAge = "fresh" | "late" | "stale";
+
+export function statusAge(
+	generatedAt: number | null,
+	now: number,
+	periodMs: number,
+): StatusAge {
+	if (generatedAt === null) return "late";
+	const age = now - generatedAt;
+	if (age >= 5 * periodMs) return "stale";
+	return age >= 2.5 * periodMs ? "late" : "fresh";
+}

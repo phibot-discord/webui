@@ -618,6 +618,30 @@ test("an opened card finds its details by event or term id", () => {
 	assert.deepEqual(threads.get("a"), { events: inThread });
 });
 
+test("an event with an unknown era or world is listed as undated, not dropped", () => {
+	const data: TimelineData = {
+		...SMALL,
+		events: [
+			{ ...later("lost", "", []), era: "nope" },
+			{ ...later("away", "", []), lane: "subspace", world: "nope" },
+		],
+	};
+	const { sections } = buildTimeline(
+		data,
+		{ ...SOURCES, index: { chapters: [], items: [] } },
+		{ locale: "en", thread: undefined, community: false },
+		COPY,
+	);
+	assert.deepEqual(
+		sections.map((s) => s.id),
+		["unplaced"],
+	);
+	assert.deepEqual(
+		sections[0]?.years.flatMap((y) => y.events.map((e) => e.id)).sort(),
+		["away", "lost"],
+	);
+});
+
 test("an era with no year keeps its events, and interview notes always show", () => {
 	const data: TimelineData = {
 		...SMALL,

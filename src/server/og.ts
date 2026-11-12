@@ -1,10 +1,10 @@
-import { after } from "next/server";
 import sharp from "sharp";
-import type { Locale } from "@/i18n/config";
+import { type Locale, localeTag } from "@/i18n/config";
 import { catalogs } from "@/i18n/server";
 import { configuredAuthOrigins } from "@/lib/auth-url";
 import { OG_SIZE, OG_VERSION } from "@/lib/og";
 import { getInfo } from "@/phi/lib/get-info";
+import { runInBackground } from "./background";
 import type { BoundErr } from "./bound";
 import { type CardKind, renderCard } from "./cards";
 import { getHost } from "./host";
@@ -85,10 +85,12 @@ async function paintTitleCard(
 		accent: ACCENTS[hash(id) % ACCENTS.length] as string,
 		backdrop: backdrop || undefined,
 		tiles: tiles.filter(Boolean),
+		lang: localeTag(locale),
 	};
 	const img = await host.render(OG_PAGE_TEMPLATE, data, {
 		signal: AbortSignal.timeout(PAINT_TIMEOUT_MS),
 	});
+	if (img.missingImages) throw new Error(`title card ${id}: images missing`);
 	return toOg(img.bytes);
 }
 
@@ -119,6 +121,7 @@ export async function cardOgImage(
 ): Promise<Buffer | BoundErr> {
 	const card = await renderCard(userId, kind, { locale });
 	if ("error" in card) return card;
+	if (card.imagesMissing) return { error: "render_failed", status: 503 };
 	let crop = cardCrops.get(card.bytes);
 	if (!crop) {
 		const bytes = card.bytes;
@@ -151,7 +154,7 @@ export async function cardOgResponse(
 	job: Promise<Buffer | BoundErr>,
 	fallback: string,
 ): Promise<Response> {
-	after(job.catch(() => undefined));
+	runInBackground(job);
 	const out = await withTimeout(job, CARD_WAIT_MS, "og card").catch(
 		() => undefined,
 	);

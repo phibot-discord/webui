@@ -3,6 +3,7 @@ import test from "node:test";
 import JSZip from "jszip";
 import {
 	checkSaveZip,
+	downloadSaveZip,
 	latestRow,
 	md5Hex,
 	qiniuObjectName,
@@ -11,6 +12,7 @@ import {
 	uploadCloudSave,
 	verifyCloudSave,
 } from "./cloud-save";
+import { SAVE_URL_REFUSED } from "./save-host";
 import { setTapHttpForTest } from "./tapapi";
 
 const CN = "https://rak3ffdi.cloud.tds1.tapapis.cn/1.1";
@@ -46,6 +48,7 @@ function fakeCloud(
 		host?: string;
 		provider?: string;
 		noRow?: boolean;
+		fileUrl?: string;
 	},
 ) {
 	const calls: Call[] = [];
@@ -104,7 +107,7 @@ function fakeCloud(
 				objectId: row?.objectId ?? "row2",
 				summary: sent.summary,
 				modifiedAt: { iso: "2026-10-22T00:00:00.000Z" },
-				gameFile: { objectId: "newFile", url: NEW_URL },
+				gameFile: { objectId: "newFile", url: opts.fileUrl ?? NEW_URL },
 			};
 			return method === "POST"
 				? json({ objectId: row.objectId, createdAt: row.modifiedAt.iso }, 201)
@@ -333,6 +336,47 @@ test("an upload host outside Qiniu never gets the token", async () => {
 		);
 		assert.ok(!calls.some((c) => c.url.includes("example.com")));
 		assert.ok(!calls.some((c) => c.url.includes("/classes/_GameSave/")));
+	} finally {
+		setTapHttpForTest();
+	}
+});
+
+test("downloadSaveZip refuses a save URL that fails the host check", async () => {
+	let calls = 0;
+	setTapHttpForTest(async () => {
+		calls += 1;
+		return new Response(new Uint8Array(await saveZip()));
+	});
+	try {
+		await assert.rejects(downloadSaveZip("https://127.0.0.1/save"), {
+			message: SAVE_URL_REFUSED,
+		});
+		await assert.rejects(downloadSaveZip(""), { message: SAVE_URL_REFUSED });
+		assert.equal(calls, 0);
+	} finally {
+		setTapHttpForTest();
+	}
+});
+
+test("verifyCloudSave does not fetch an upload URL that fails the host check", async () => {
+	const zip = await saveZip();
+	const calls = fakeCloud(zip, { fileUrl: "http://files.example/new.save" });
+	const upload = {
+		userId: "cnUser",
+		rowId: "row1",
+		zip,
+		summary: "Z2Itc3VtbWFyeQ==",
+	};
+	try {
+		const written = await uploadCloudSave(
+			"cnSession",
+			false,
+			upload,
+			new Date("2026-10-22T08:00:00.000Z"),
+		);
+		const row = await verifyCloudSave("cnSession", false, written, upload);
+		assert.equal(row.gameFile?.objectId, "newFile");
+		assert.ok(!calls.some((c) => c.url.startsWith("http://files.example")));
 	} finally {
 		setTapHttpForTest();
 	}

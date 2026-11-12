@@ -45,16 +45,34 @@ const nextAuth = NextAuth({
 			]);
 			return result;
 		},
-		jwt({ token, account, profile }) {
+		jwt({ token, user, account, profile }) {
 			// A Discord snowflake, or the user a TapTap ticket names (`tap:…` or a linked snowflake)
 			const id =
 				account?.providerAccountId ||
 				(profile && "id" in profile ? String(profile.id) : "");
 			if (id) token.id = id;
+			if (account?.provider === "taptap") {
+				if (user && "proof" in user && typeof user.proof === "string")
+					token.tp = user.proof;
+			} else if (account?.provider === "discord") delete token.tp;
 			return token;
 		},
-		session({ session, token }) {
-			if (session.user) session.user.id = String(token.id || token.sub || "");
+		async session({ session, token }) {
+			let id = String(token.id || token.sub || "");
+			if (typeof token.tp === "string" && id) {
+				try {
+					const [{ proofHolds }, { getDataHost }] = await Promise.all([
+						import("@/server/session-proof"),
+						import("@/server/data-host"),
+					]);
+					const host = await getDataHost();
+					const ok = await proofHolds(id, token.tp, (u) =>
+						host.lib.getBoundToken(host.rt, u),
+					);
+					if (!ok) id = "";
+				} catch {}
+			}
+			if (session.user) session.user.id = id;
 			return session;
 		},
 	},
@@ -62,7 +80,15 @@ const nextAuth = NextAuth({
 
 export const { handlers, auth, signIn, signOut } = nextAuth;
 
+let sessionOverride: string | null | undefined;
+
+export function setSessionForTest(userId?: string | null): void {
+	if (process.env.PHI_TEST_SEAMS !== "1") return;
+	sessionOverride = userId;
+}
+
 export async function sessionUserId(): Promise<string | null> {
+	if (sessionOverride !== undefined) return sessionOverride;
 	const session = await auth();
 	const id = session?.user?.id;
 	return id || null;

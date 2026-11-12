@@ -1,12 +1,5 @@
 "use client";
 
-import {
-	ArrowRight,
-	ArrowSquareOut,
-	Info,
-	MagnifyingGlass,
-	X,
-} from "@phosphor-icons/react";
 import Form from "next/form";
 import { useSearchParams } from "next/navigation";
 import {
@@ -22,6 +15,13 @@ import {
 	useState,
 } from "react";
 import { useChartCatalog } from "@/components/ChartSearch";
+import {
+	ArrowRight,
+	ArrowSquareOut,
+	Info,
+	MagnifyingGlass,
+	X,
+} from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import { Announce, useHydrated } from "@/components/Tool";
 import type { Locale } from "@/i18n/config";

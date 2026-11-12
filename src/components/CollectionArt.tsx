@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowsOut } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
+import { ArrowsOut } from "@/components/icons";
 import type { ViewArt } from "@/lib/collection-art";
 import { CardLightbox } from "./CardLightbox";
 

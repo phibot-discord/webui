@@ -1,8 +1,9 @@
 import { escapeHtml } from "@/phi/lib/html";
-import { clipEm } from "@/phi/lib/text-fit";
+import { clipEm, textEm } from "@/phi/lib/text-fit";
 
 export const SNAP_PROGRESS = "snap/progress";
 export const SNAP_TARGETS = "snap/targets";
+export const SNAP_WRAPPED = "snap/wrapped";
 export const SNAP_W = 1200;
 
 const LEVEL_COLOR: Record<string, string> = {
@@ -19,6 +20,7 @@ type SnapHead = {
 	player: string;
 	meta: string;
 	accent: string;
+	lang?: string;
 };
 
 export type SnapCell = { clear: number; fc: number; ap: number; total: number };
@@ -110,8 +112,8 @@ function foot(d: SnapHead): string {
 	return `<div class="foot"><span>${escapeHtml(d.host)}</span></div>`;
 }
 
-const page = (css: string, body: string) =>
-	`<!doctype html><html><head><meta charset="utf-8"><style>${BASE}${css}</style></head><body><div class="snap">${body}</div></body></html>`;
+const page = (css: string, body: string, lang?: string) =>
+	`<!doctype html>${lang ? `<html lang="${escapeHtml(lang)}">` : "<html>"}<head><meta charset="utf-8"><style>${BASE}${css}</style></head><body><div class="snap">${body}</div></body></html>`;
 
 function cellHtml(
 	cell: SnapCell | null,
@@ -150,6 +152,7 @@ export function progressSnapHtml(d: ProgressSnap): string {
 	return page(
 		PROGRESS_CSS,
 		`${head(d)}<div class="grid"><div class="row row-head"><div class="k">${escapeHtml(d.labels.constant)}</div>${levelHead}</div>${rows}${totals}</div><div class="legend">${escapeHtml(d.labels.legend)}</div>${foot(d)}`,
+		d.lang,
 	);
 }
 
@@ -176,5 +179,81 @@ export function targetsSnapHtml(d: TargetsSnap): string {
 	return page(
 		TARGETS_CSS,
 		`${head(d)}${list}<div style="height:24px"></div>${foot(d)}`,
+		d.lang,
+	);
+}
+
+export type WrappedSnap = SnapHead & {
+	range: string;
+	tiles: { label: string; value: string; sub: string }[];
+	message: string;
+	note: string;
+	pgti?: {
+		label: string;
+		letters: string[];
+		suffix?: string;
+		name: string;
+		groups: string;
+	};
+};
+
+const TILE_H = 150;
+const TILE_GAP = 20;
+const TYPE_H = 172;
+
+const WRAPPED_CSS = `
+.range { margin-top: 10px; font-size: 20px; color: #8790ab; }
+.tiles { display: flex; flex-wrap: wrap; justify-content: space-between; margin-top: 28px; }
+.tile { width: 534px; height: ${TILE_H}px; margin-bottom: ${TILE_GAP}px; display: flex; flex-direction: column; justify-content: center; padding: 0 28px; border: 1px solid #262c45; border-radius: 12px; background: #141a31; }
+.tile-label { font-size: 19px; font-weight: 700; color: #8790ab; }
+.tile-value { margin-top: 8px; font-size: 38px; font-weight: 700; color: #f4f6fc; white-space: nowrap; overflow: hidden; }
+.tile-sub { margin-top: 6px; font-size: 19px; color: #c3cadf; white-space: nowrap; overflow: hidden; }
+.pgti { display: flex; align-items: center; height: ${TYPE_H}px; margin-bottom: ${TILE_GAP}px; padding: 0 28px; border: 1px solid #262c45; border-radius: 12px; background: #141a31; }
+.pgti-code { display: flex; align-items: center; margin-right: 32px; }
+.pgti-l { display: flex; align-items: center; justify-content: center; width: 76px; height: 104px; margin-right: 10px; border-radius: 10px; background: #f4f6fc; color: #0b0d14; font-family: Aldrich, NotoSansSC, sans-serif; font-size: 58px; font-weight: 700; }
+.pgti-dash { width: 18px; height: 6px; margin-right: 10px; border-radius: 3px; background: #8790ab; }
+.pgti-s { width: 60px; height: 84px; background: #8be3ff; font-size: 44px; }
+.pgti-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.pgti-label { font-size: 19px; font-weight: 700; color: #8790ab; }
+.pgti-name { margin-top: 6px; font-size: 40px; font-weight: 700; color: #f4f6fc; white-space: nowrap; overflow: hidden; }
+.pgti-groups { margin-top: 6px; font-size: 22px; color: #c3cadf; white-space: nowrap; overflow: hidden; }
+.message { margin-top: 40px; font-size: 26px; line-height: 1.5; color: #c3cadf; }
+.note { margin-top: 8px; font-size: 17px; line-height: 1.5; color: #8790ab; }
+`;
+
+export function wrappedSnapHeight(
+	d: Pick<WrappedSnap, "tiles">,
+	typed = false,
+): number {
+	const rows = Math.ceil(d.tiles.length / 2);
+	const type = rows && typed ? TYPE_H + TILE_GAP : 0;
+	const body = rows ? 28 + rows * (TILE_H + TILE_GAP) + type : 200;
+	return PAD + HEAD_H + 40 + body + 100 + FOOT_H;
+}
+
+function clipped(text: string, em: number): string {
+	const whole = clipEm(text, em);
+	if (!whole.cut) return whole.text;
+	return `${clipEm(text, em - textEm("…")).text.trimEnd()}…`;
+}
+
+export function wrappedSnapHtml(d: WrappedSnap): string {
+	const tiles = d.tiles
+		.map(
+			(tile) =>
+				`<div class="tile"><div class="tile-label">${escapeHtml(tile.label)}</div><div class="tile-value">${escapeHtml(clipped(tile.value, 12))}</div><div class="tile-sub">${escapeHtml(clipped(tile.sub, 24))}</div></div>`,
+		)
+		.join("");
+	const p = d.pgti;
+	const type = p
+		? `<div class="pgti"><div class="pgti-code">${p.letters.map((letter) => `<div class="pgti-l">${escapeHtml(letter)}</div>`).join("")}${p.suffix ? `<div class="pgti-dash"></div><div class="pgti-l pgti-s">${escapeHtml(p.suffix)}</div>` : ""}</div><div class="pgti-text"><div class="pgti-label">${escapeHtml(p.label)}</div><div class="pgti-name">${escapeHtml(clipped(p.name, 13))}</div><div class="pgti-groups">${escapeHtml(clipped(p.groups, 24))}</div></div></div>`
+		: "";
+	const body = d.tiles.length
+		? `<div class="tiles">${tiles}</div>${type}`
+		: `<div class="message">${escapeHtml(d.message)}</div>`;
+	return page(
+		WRAPPED_CSS,
+		`${head({ ...d, player: clipped(d.player, 24) })}<div class="range">${escapeHtml(d.range)}</div>${body}<div class="note">${escapeHtml(d.note)}</div>${foot(d)}`,
+		d.lang,
 	);
 }

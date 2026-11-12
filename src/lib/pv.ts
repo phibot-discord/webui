@@ -38,19 +38,27 @@ export function parseOverlayIndex(raw: unknown): OverlayIndex | undefined {
 	>();
 	for (const [id, entry] of Object.entries(body.clips)) {
 		const e = entry as { kind?: unknown; variants?: unknown } | null;
-		const kind = e?.kind as OverlayKind;
-		if (!e || !(kind in OVERLAY_KEYS) || !Array.isArray(e.variants)) continue;
+		const kind = e?.kind;
+		if (
+			!e ||
+			typeof kind !== "string" ||
+			!Object.hasOwn(OVERLAY_KEYS, kind) ||
+			!Array.isArray(e.variants)
+		)
+			continue;
+		const allowed = OVERLAY_KEYS[kind as OverlayKind];
 		const versions = e.variants.flatMap((row) => {
+			if (!row || typeof row !== "object") return [];
 			const r = row as Record<string, unknown>;
 			const key = typeof r.key === "string" ? r.key : undefined;
 			const file = text(r.file);
 			const size = nonNegative(r.size);
-			if (!OVERLAY_KEYS[kind].includes(key) || !size) return [];
+			if (!allowed.includes(key) || !size) return [];
 			const name = `${id}${key ? `-${key}` : ""}.mp4`;
 			if (file !== `${PV_OVERLAY_PREFIX}${name}`) return [];
 			return [{ ...(key ? { key } : {}), file, size }];
 		});
-		if (versions.length) out.set(id, { kind, versions });
+		if (versions.length) out.set(id, { kind: kind as OverlayKind, versions });
 	}
 	return out;
 }

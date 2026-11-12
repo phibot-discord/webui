@@ -1,7 +1,7 @@
 "use client";
 
-import { Eye, EyeSlash } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
+import { Eye, EyeSlash } from "@/components/icons";
 import { UnbindButton } from "@/components/UnbindButton";
 import { useI18n } from "@/i18n/provider";
 import { apiErrorText } from "@/lib/api-error";

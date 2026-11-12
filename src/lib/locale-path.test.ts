@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+	isEnglishSegment,
 	localeAlternates,
 	localePath,
 	pathLocale,
+	segmentPath,
 	stripLocale,
 } from "./locale-path";
 
@@ -83,4 +85,29 @@ test("/ja pages are Japanese and switch prefixes cleanly", () => {
 		localePath("/api/og/home?lang=ja", "ja"),
 		"/api/og/home?lang=ja",
 	);
+});
+
+test("the internal English segment is stripped like the others", () => {
+	assert.equal(stripLocale("/en/songs"), "/songs");
+	assert.equal(stripLocale("/en"), "/");
+	assert.equal(stripLocale("/enx"), "/enx");
+	assert.equal(pathLocale("/en/songs"), "en");
+	assert.equal(localePath("/en/songs", "zh"), "/zh/songs");
+	assert.equal(localePath("/en/songs", "en"), "/songs");
+});
+
+test("only /en and /en/… are the English segment", () => {
+	for (const p of ["/en", "/en/", "/en/songs", "/en?x=1"]) {
+		assert.equal(isEnglishSegment(p), true, p);
+	}
+	for (const p of ["/", "/enx", "/zh/en", "/songs/en"]) {
+		assert.equal(isEnglishSegment(p), false, p);
+	}
+});
+
+test("segmentPath puts a page under its locale folder", () => {
+	assert.equal(segmentPath("/songs", "en"), "/en/songs");
+	assert.equal(segmentPath("/", "en"), "/en");
+	assert.equal(segmentPath("/zh/songs", "zh"), "/zh/songs");
+	assert.equal(segmentPath("/zh/songs", "en"), "/en/songs");
 });

@@ -134,7 +134,7 @@ test("infoView: progress per difficulty, totals, hidden empty bits", () => {
 		},
 		"en",
 		GEO,
-		new Date(2026, 9, 7),
+		new Date("2026-10-07T04:00:00Z"),
 	);
 	assert.equal(v.rks, "16.5614");
 	assert.equal(v.challenge, null);
@@ -157,5 +157,10 @@ test("infoView: progress per difficulty, totals, hidden empty bits", () => {
 		["2026/07/06", "2026/09/21"],
 	);
 	assert.equal(v.trends.length, 2);
+	assert.equal(v.generated, "2026/10/07");
+});
+
+test("the generated date is the China date", () => {
+	const v = infoView({}, "en", GEO, new Date("2026-10-06T20:00:00Z"));
 	assert.equal(v.generated, "2026/10/07");
 });

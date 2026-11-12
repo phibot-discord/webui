@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "@phosphor-icons/react";
+import { X } from "@/components/icons";
 import { useI18n } from "@/i18n/provider";
 
 export function ToolAlert({

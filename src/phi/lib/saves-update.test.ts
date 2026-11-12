@@ -4,6 +4,7 @@ import type { KvStore } from "@/server/kv";
 import type { Kv } from "@/server/sdk";
 import { kvKey } from "./const";
 import { initCredentials } from "./credentials";
+import { markSessionAccepted, PhigrosCloudError } from "./phigros";
 import type { PhiRuntime } from "./runtime";
 import { Save } from "./save";
 import {
@@ -201,6 +202,58 @@ test("a changed save reads the B30 ring and history during the download and writ
 	assert.ok(log.includes(`set:${SAVE_KEY}`));
 	assert.ok(log.includes(`set:${HISB30_KEY("changed")}`));
 	assert.ok(log.includes(`set:${HISTORY_KEY}`));
+});
+
+test("a history write that fails once is retried", async () => {
+	const log: string[] = [];
+	const rt = mockRt({
+		log,
+		saveUrl: "https://example.test/retry.zip",
+		getSaveInfo: async () => undefined,
+	});
+	const kv = new Map<string, string>();
+	const db: Kv = mockDb({ log, save: cachedSave() });
+	let historyWrites = 0;
+	db.set = async (key: string, value: string) => {
+		log.push(`set:${key}`);
+		if (key === HISTORY_KEY && historyWrites++ === 0)
+			throw new Error("KV write failed");
+		kv.set(key, value);
+	};
+	await updateSave(rt, db, "history-retry", { bound: TOKEN });
+	assert.equal(historyWrites, 2);
+	const stored = kv.get(HISTORY_KEY);
+	assert.ok(stored, "history written on the second try");
+	assert.equal(typeof JSON.parse(stored), "object");
+});
+
+test("a history read that fails once is retried", async () => {
+	const log: string[] = [];
+	const rt = mockRt({
+		log,
+		saveUrl: "https://example.test/read-retry.zip",
+		getSaveInfo: async () => undefined,
+	});
+	const kv = new Map<string, string>();
+	const db: Kv = mockDb({ log, save: cachedSave() });
+	const get = db.get;
+	let historyReads = 0;
+	db.get = async (key: string) => {
+		if (key === HISTORY_KEY && historyReads++ === 0) {
+			log.push(`kv:${key}`);
+			throw new Error("KV read failed");
+		}
+		return get(key);
+	};
+	db.set = async (key: string, value: string) => {
+		log.push(`set:${key}`);
+		kv.set(key, value);
+	};
+	await updateSave(rt, db, "history-read-retry", { bound: TOKEN });
+	const stored = kv.get(HISTORY_KEY);
+	assert.ok(stored, "history written after a fresh read");
+	assert.equal(typeof JSON.parse(stored), "object");
+	assert.equal(historyReads, 2);
 });
 
 test("binding a new token writes it", async () => {
@@ -431,6 +484,171 @@ test("a save blob already in memory picks the TapTap host it was saved under", a
 		["user:true", "taptap"],
 		"no CN hop first, and no CN retry while GB is down",
 	);
+});
+
+const empty = () => new Error("TK 对应存档列表为空，请检查是否同步存档QAQ！");
+const userSteps = (log: string[]) =>
+	log.filter((step) => step.startsWith("user:"));
+
+function regionPair(
+	log: string[],
+	first: () => unknown,
+	second: () => unknown,
+	failing = true,
+) {
+	const state = { failing };
+	const rt = mockRt({
+		log,
+		getSaveInfo: async (global) => {
+			if (!state.failing) return;
+			throw global ? second() : first();
+		},
+	});
+	return { rt, state };
+}
+
+async function remembered(log: string[], userId: string, rt: PhiRuntime) {
+	const db = mockDb({ log, save: cachedSave() });
+	await updateSave(rt, db, userId, { bound: TOKEN });
+	log.length = 0;
+	return db;
+}
+
+test("a guessed region that accepted the session reports its own error and the other region is not tried", async () => {
+	const log: string[] = [];
+	const { rt } = regionPair(
+		log,
+		() => markSessionAccepted(empty()),
+		() => new Error("Phigros cloud 400 "),
+	);
+	const db = mockDb({ log, save: cachedSave() });
+	await assert.rejects(
+		() => updateSave(rt, db, "accepted-guessed", { bound: TOKEN }),
+		/存档列表为空/,
+	);
+	assert.deepEqual(userSteps(log), ["user:false"]);
+});
+
+test("a remembered region that accepted the session reports its own error and the other region is not tried", async () => {
+	const log: string[] = [];
+	const { rt, state } = regionPair(
+		log,
+		() => markSessionAccepted(empty()),
+		() => new Error("Phigros cloud 400 "),
+		false,
+	);
+	const db = await remembered(log, "accepted-known", rt);
+	state.failing = true;
+	await assert.rejects(
+		() => updateSave(rt, db, "accepted-known", { bound: TOKEN }),
+		/存档列表为空/,
+	);
+	assert.deepEqual(userSteps(log), ["user:false"]);
+});
+
+test("an outage after a guessed region accepted the session is not retried on the other region", async () => {
+	const log: string[] = [];
+	const { rt } = regionPair(
+		log,
+		() => markSessionAccepted(new TapApiError("TapAPI timed out", true)),
+		() => new Error("Phigros cloud 400 "),
+	);
+	const db = mockDb({ log, save: cachedSave() });
+	await assert.rejects(
+		() => updateSave(rt, db, "accepted-outage", { bound: TOKEN }),
+		(err: unknown) => err instanceof TapApiError,
+	);
+	assert.deepEqual(userSteps(log), ["user:false"]);
+});
+
+test("an error from a second region that accepted the session wins over the first region's outage", async () => {
+	const log: string[] = [];
+	const { rt } = regionPair(
+		log,
+		() => new TapApiError("TapAPI timed out", true),
+		() => markSessionAccepted(empty()),
+	);
+	const db = mockDb({ log, save: cachedSave() });
+	await assert.rejects(
+		() => updateSave(rt, db, "accepted-second", { bound: TOKEN }),
+		/存档列表为空/,
+	);
+});
+
+test("a TapTap rate limit on the first region is reported when the other region also fails", async () => {
+	const log: string[] = [];
+	const { rt } = regionPair(
+		log,
+		() => new TapApiError("TapAPI 429 ", false, 429),
+		() => new Error("Phigros cloud 400 "),
+	);
+	const db = mockDb({ log, save: cachedSave() });
+	await assert.rejects(
+		() => updateSave(rt, db, "limited-first", { bound: TOKEN }),
+		(err: unknown) => err instanceof TapApiError && err.status === 429,
+	);
+});
+
+test("when both regions are down the second region's outage is reported", async () => {
+	const log: string[] = [];
+	const { rt } = regionPair(
+		log,
+		() => new TapApiError("TapAPI timed out", true),
+		() => new TapApiError("TapAPI 503 ", false, 503),
+	);
+	const db = mockDb({ log, save: cachedSave() });
+	await assert.rejects(
+		() => updateSave(rt, db, "both-down", { bound: TOKEN }),
+		(err: unknown) => err instanceof TapApiError && err.status === 503,
+	);
+});
+
+test("a remembered region that rejects the session still tries the other region and reports its error", async () => {
+	const log: string[] = [];
+	const { rt, state } = regionPair(
+		log,
+		() => new Error("Phigros cloud 401 first"),
+		() => new Error("Phigros cloud 400 second"),
+		false,
+	);
+	const db = await remembered(log, "rejected-known", rt);
+	state.failing = true;
+	await assert.rejects(
+		() => updateSave(rt, db, "rejected-known", { bound: TOKEN }),
+		/second/,
+	);
+	assert.deepEqual(userSteps(log), ["user:false", "user:true"]);
+});
+
+test("when both regions fail one log line names both attempts and carries no token", async () => {
+	const log: string[] = [];
+	const { rt } = regionPair(
+		log,
+		() => new PhigrosCloudError(`Phigros cloud 401 ${TOKEN}`, 401, 4242),
+		() => new Error(`body text ${TOKEN}`),
+	);
+	const db = mockDb({ log, save: cachedSave() });
+	const warns: string[] = [];
+	const orig = console.warn;
+	console.warn = (...args: unknown[]) => {
+		warns.push(args.map(String).join(" "));
+	};
+	try {
+		await assert.rejects(
+			() => updateSave(rt, db, "both-fail-log", { bound: TOKEN }),
+			/body text/,
+		);
+	} finally {
+		console.warn = orig;
+	}
+	const lines = warns.filter((line) => line.includes("region fallback failed"));
+	assert.equal(lines.length, 1);
+	const [line] = lines as [string];
+	assert.ok(line.includes("(guessed)"));
+	assert.ok(line.includes("cn PhigrosCloudError 401 4242"));
+	assert.ok(line.includes("gb Error - -"));
+	assert.equal(line.includes(TOKEN), false);
+	assert.equal(line.includes("body text"), false);
 });
 
 test("re-signed save URL with the same modified time does not re-download", async () => {

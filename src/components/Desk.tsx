@@ -1,11 +1,11 @@
 "use client";
 
-import { localeTag } from "@/i18n/config";
 import type { ReactNode } from "react";
 import Link from "@/components/LocaleLink";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useHydrated } from "@/components/Tool";
 import { UnbindButton } from "@/components/UnbindButton";
+import { localeTag } from "@/i18n/config";
 import { formatDateTime } from "@/i18n/datetime";
 import { useI18n } from "@/i18n/provider";
 

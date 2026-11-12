@@ -14,7 +14,7 @@ export function jaroWinkler(s1: string, s2: string): number {
 
 	for (let i = 0; i < s1.length; i++) {
 		const low = i >= range ? i - range : 0;
-		const high = i + range <= s2.length - 1 ? i + range : s2.length - 1;
+		const high = Math.min(i + range, s2.length - 1);
 		for (let j = low; j <= high; j++) {
 			if (!s1Matches[i] && !s2Matches[j] && s1[i] === s2[j]) {
 				m++;

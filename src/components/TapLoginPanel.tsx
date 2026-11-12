@@ -4,6 +4,7 @@ import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { signInDiscord, signInTaptap } from "@/auth-actions";
 import { SignInStatus } from "@/components/landing/SignIn";
 import { Announce } from "@/components/Tool";
+import { markSessionChanged } from "@/components/useHeaderSession";
 import { TapQrColumn, TapServerSeg, useTapQr } from "@/components/useTapQr";
 import { useI18n } from "@/i18n/provider";
 import { persistCardReload } from "@/lib/save-refresh";
@@ -35,7 +36,10 @@ export function TapLoginPanel({ next }: { next: string }) {
 		qr;
 
 	useEffect(() => {
-		if (ticket) ticketForm.current?.requestSubmit();
+		if (ticket) {
+			markSessionChanged();
+			ticketForm.current?.requestSubmit();
+		}
 	}, [ticket]);
 
 	useEffect(() => {

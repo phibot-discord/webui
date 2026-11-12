@@ -198,6 +198,7 @@ function TagDetails({
 }) {
 	const [open, setOpen] = useState(false);
 	return (
+		// biome-ignore lint/a11y/useSemanticElements: each row is a <details> placed by the grid, so the list roles are set by hand
 		<details
 			className="pp-tag"
 			role="listitem"
@@ -223,6 +224,7 @@ function TagList({
 			? profile.tags
 			: profile.categories.filter((c) => c.hasVotes);
 	return (
+		// biome-ignore lint/a11y/useSemanticElements: each row is a <details> placed by the grid, so the list roles are set by hand
 		<div className="pp-tags" role="list">
 			<div className="pp-tag-head" aria-hidden="true">
 				<span>{kind === "tags" ? t.tag : t.category}</span>

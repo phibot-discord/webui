@@ -1,8 +1,8 @@
-import { noiseSpans, noteWeights, type Span } from "./density";
 import { evictOldest } from "@/phi/lib/lru";
 import { AreaBuilder } from "./areas";
 import { AudioEngine } from "./audio";
 import type { CompiledChart } from "./chart";
+import { noiseSpans, noteWeights, type Span } from "./density";
 import { FrameBuilder, NOTE_SCALE_MAX, NOTE_SCALE_MIN } from "./frame";
 import { type AreaFrame, type CaptionText, ChartRenderer } from "./gl";
 import { fetchBytes, loadBackdrop, loadChart } from "./load";
@@ -127,11 +127,17 @@ export class ChartPlayer {
 		key: string,
 		bytes: () => Promise<ArrayBuffer>,
 	): Promise<AudioBuffer | null> {
-		const job =
+		const job: Promise<AudioBuffer | null> =
 			this.decoded.get(key) ??
 			bytes()
 				.then((b) => this.audio.decode(b))
-				.catch(() => null);
+				.catch(() => null)
+				.then((buffer) => {
+					if (!buffer && this.decoded.get(key) === job) {
+						this.decoded.delete(key);
+					}
+					return buffer;
+				});
 		this.decoded.delete(key);
 		this.decoded.set(key, job);
 		evictOldest(this.decoded, DECODED_KEPT);
@@ -153,6 +159,7 @@ export class ChartPlayer {
 			if (playing && this.chart) {
 				this.audio.play(pos, this.chart.hits, this.chart.offset);
 			}
+			if (!buffer) this.current = "";
 		}
 		this.events.onAudio(buffer ? { kind: "ready" } : { kind: "failed" });
 		this.request();
@@ -183,7 +190,14 @@ export class ChartPlayer {
 	): Promise<{ music: Promise<boolean> } | null> {
 		const job = ++this.job;
 		const early = source.music ? this.loadMusic(source.music) : null;
-		const { chart, music } = await loadChart(source.chart, source.pack);
+		let loaded: Awaited<ReturnType<typeof loadChart>>;
+		try {
+			loaded = await loadChart(source.chart, source.pack);
+		} catch (err) {
+			if (job !== this.job || this.disposed) return null;
+			throw err;
+		}
+		const { chart, music } = loaded;
 		if (job !== this.job || this.disposed) return null;
 		this.chart = chart;
 		this.frame = new FrameBuilder(chart);

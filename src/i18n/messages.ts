@@ -1,6 +1,7 @@
 import type { FigureMessages } from "./figure-messages";
 import type { FilesMessages } from "./files-messages";
-import { type ToolsMessages, toolsEn, toolsZh } from "./tools-messages";
+import { globalErrorMessages } from "./global-error-messages";
+import { type ToolsMessages, toolsEn } from "./tools-messages";
 
 export type ClientMessages = ToolsMessages & {
 	meta: { title: string; description: string };
@@ -112,6 +113,7 @@ export type ClientMessages = ToolsMessages & {
 		cores: string;
 		upFor: string;
 		days: string;
+		daysOne: string;
 		usage: string;
 		players: string;
 		rooms: string;
@@ -128,6 +130,7 @@ export type ClientMessages = ToolsMessages & {
 		address: string;
 		online: string;
 		offline: string;
+		unknown: string;
 		updated: string;
 		players: string;
 		rooms: string;
@@ -157,6 +160,9 @@ export type ClientMessages = ToolsMessages & {
 		open: string;
 		earlier: string;
 	};
+	toast: {
+		signIn: string;
+	};
 	nav: {
 		cards: string;
 		menu: string;
@@ -171,6 +177,7 @@ export type ClientMessages = ToolsMessages & {
 		profile: string;
 		progress: string;
 		trend: string;
+		review: string;
 		account: string;
 		accountOf: string;
 		groups: Record<"tools" | "scores" | "files", string>;
@@ -360,6 +367,34 @@ export type ClientMessages = ToolsMessages & {
 		catalogFailedEmpty: string;
 		full: string;
 		listLabel: string;
+		importButton: string;
+		importHint: string;
+		importFrom: string;
+		importAdded: string;
+		importImproved: string;
+		importKept: string;
+		importSkipped: string;
+		importUnknown: string;
+		importInvalid: string;
+		importRepeated: string;
+		importFull: string;
+		importSep: string;
+		importNotSaved: string;
+		importNothing: string;
+		importApply: string;
+		importCancel: string;
+		importApplied: string;
+		importErrors: {
+			too_large: string;
+			unreadable: string;
+			empty: string;
+			raw_save: string;
+			unknown_format: string;
+			newer_version: string;
+			bad_json: string;
+			bad_csv: string;
+			too_many_rows: string;
+		};
 	};
 	tags: {
 		title: string;
@@ -367,6 +402,7 @@ export type ClientMessages = ToolsMessages & {
 		empty: string;
 		index: string;
 		count: string;
+		countOne: string;
 		plainTitle: string;
 		plain: string[];
 		howTitle: string;
@@ -787,6 +823,9 @@ export type ClientMessages = ToolsMessages & {
 		migrate_failed: string;
 		migrate_unverified: string;
 		migrate_bind_expired: string;
+		bad_request: string;
+		too_many: string;
+		unknown_chart: string;
 	};
 };
 
@@ -809,7 +848,7 @@ export const en: ClientMessages = {
 		label: "Refresh files",
 		hint: "Load illustrations, music, videos and packs again instead of using the copies this browser keeps",
 	},
-	brand: "PhiBot",
+	brand: globalErrorMessages.en.brand,
 	skip: "Skip to content",
 	backToTop: "Back to top",
 	loading: "Loading…",
@@ -1037,6 +1076,7 @@ export const en: ClientMessages = {
 		cores: "Cores",
 		upFor: "Up for",
 		days: "{n} days",
+		daysOne: "1 day",
 		usage: "CPU and memory",
 		players: "Players",
 		rooms: "Rooms",
@@ -1053,6 +1093,7 @@ export const en: ClientMessages = {
 		address: "Server address",
 		online: "The server is online.",
 		offline: "Can't reach the server right now. Try again in a minute.",
+		unknown: "Can't check the server right now.",
 		updated: "Updated",
 		players: "Players online",
 		rooms: "Rooms",
@@ -1084,6 +1125,9 @@ export const en: ClientMessages = {
 		open: "What's new",
 		earlier: "Earlier updates",
 	},
+	toast: {
+		signIn: "Sign in to open that page.",
+	},
 	nav: {
 		cards: "Cards",
 		menu: "Pages",
@@ -1098,6 +1142,7 @@ export const en: ClientMessages = {
 		profile: "Profile",
 		progress: "Progress",
 		trend: "Trend",
+		review: "{year} Recap",
 		account: "Account",
 		accountOf: "Account: {name}",
 		groups: { tools: "Tools", scores: "Scores", files: "Files" },
@@ -1307,6 +1352,38 @@ export const en: ClientMessages = {
 			"The chart list didn't load, so charts can't be added right now.",
 		full: "That's the limit of {n} charts.",
 		listLabel: "Your charts",
+		importButton: "Import a records file",
+		importHint:
+			"The CSV or JSON file from PhiBot's records download. A score replaces yours only when its accuracy is higher, and nothing is removed.",
+		importFrom: "From {file}",
+		importAdded: "New charts: {n}",
+		importImproved: "Better scores: {n}",
+		importKept: "Unchanged, yours is as good or better: {n}",
+		importSkipped: "Skipped: {n} ({reasons})",
+		importUnknown: "not in the chart list: {n}",
+		importInvalid: "rows that could not be read: {n}",
+		importRepeated: "repeated rows: {n}",
+		importFull: "over the {max}-chart limit: {n}",
+		importSep: "; ",
+		importNotSaved: 'Nothing is saved until you press "Save and draw cards".',
+		importNothing: "Nothing in this file is better than what you have.",
+		importApply: "Add to my list",
+		importCancel: "Cancel",
+		importApplied:
+			'Added to the list. New charts: {added}, better scores: {improved}. Press "Save and draw cards" to keep them.',
+		importErrors: {
+			too_large: "The file is larger than {mb} MB, so it was not read.",
+			unreadable: "The file could not be read.",
+			empty: "The file has no scores in it.",
+			raw_save:
+				"This is a raw cloud save, which contains your TapTap login token. It was discarded and nothing was imported. Use the CSV or JSON from PhiBot's records download, and do not share the raw save with anyone.",
+			unknown_format: "This is not a PhiBot records file.",
+			newer_version:
+				"This file was made by a newer version of the site. Reload the page and try again.",
+			bad_json: "The JSON in this file is damaged.",
+			bad_csv: "The CSV in this file is damaged.",
+			too_many_rows: "The file has more than {max} rows.",
+		},
 	},
 	tags: {
 		title: "Chart tags",
@@ -1314,6 +1391,7 @@ export const en: ClientMessages = {
 		empty: "The tag list is not available right now.",
 		index: "Categories",
 		count: "{n} tags",
+		countOne: "1 tag",
 		plainTitle: "In plain words",
 		plain: [
 			"The chart profile looks for the kinds of charts you play better or worse than your usual. It only compares you with yourself, never with other players.",
@@ -1888,17 +1966,10 @@ export const en: ClientMessages = {
 		body: "This page or share link does not exist.",
 		home: "Go to the home page",
 	},
-	error: {
-		code: "Error",
-		title: "This page failed to load",
-		body: "Something went wrong on our side. Try again, or go back to the home page.",
-		retry: "Try again",
-		home: "Home page",
-		digest: "Reference",
-	},
+	error: globalErrorMessages.en.error,
 	errors: {
-		unauthorized: "unauthorized",
-		unknown_card: "unknown card",
+		unauthorized: "You are not signed in.",
+		unknown_card: "This card is not available.",
 		not_bound: "No Phigros account is bound.",
 		banned: "This account is banned.",
 		no_save: "No cached save yet. Use Refresh on this site.",
@@ -1908,8 +1979,8 @@ export const en: ClientMessages = {
 			"Cache bypass is on cooldown. Try again in a few minutes.",
 		refresh_failed: "Refresh failed.",
 		rate_limit: "Too many requests. Wait a minute.",
-		share_not_found: "share link not found",
-		profile_unavailable: "profile unavailable",
+		share_not_found: "This share link does not exist.",
+		profile_unavailable: "This profile cannot be shown.",
 		render_failed: "Could not render this card.",
 		already_bound: "An account is already bound. Unbind first.",
 		invalid_token: "That is not a 25-character sessionToken.",
@@ -1937,1086 +2008,8 @@ export const en: ClientMessages = {
 			"The To save was written, but PhiBot could not confirm the copy. Check it in Phigros before trying again.",
 		migrate_bind_expired:
 			"The bind offer is closed. It stays open only a short time after the copy, and starting over closes it. If the To account is not bound yet, unbind on Account if another account is bound, then bind it on Cards.",
-	},
-};
-
-export const zh: ClientMessages = {
-	...toolsZh,
-	meta: {
-		title: "PhiBot · Phigros B30 成绩图、RKS 和游戏文件",
-		description:
-			"查询你的 Phigros B30、历史成绩和玩家信息。和 Discord 机器人同一套成绩图",
-	},
-	og: {
-		cardAlt: "PhiBot B30 成绩图：玩家信息，下面是最好成绩的谱面、分数和准确率",
-		pageAlt: "PhiBot：{title}",
-	},
-	assetRefresh: {
-		label: "刷新文件缓存",
-		hint: "重新加载曲绘、音乐、视频和谱面包，不使用浏览器保存的副本",
-	},
-	brand: "PhiBot",
-	skip: "跳到正文",
-	backToTop: "回到顶部",
-	loading: "正在加载…",
-	signIn: "使用 Discord 继续",
-	signInTaptap: "使用 TapTap 继续",
-	invite: "邀请到 Discord",
-	inviteUser: "添加到我的应用",
-	inviteUserHint:
-		"在任何服务器或私信里使用 PhiBot 的命令，即使机器人不在该服务器中",
-	signOut: "退出",
-	signedIn: "已登录",
-	credit: { before: "用", after: "打造 ·", heart: "心", name: "MiyukiYue" },
-	locale: { en: "EN", zh: "中文", ja: "日本語", label: "语言" },
-	theme: {
-		label: "颜色主题",
-		light: "浅色",
-		dark: "深色",
-		system: "跟随系统",
-	},
-	footer: { credit: "制作", revision: "版本", more: "更多", source: "源代码" },
-	home: {
-		eyebrow: "Discord 和网页都能用的 Phigros 查分器",
-		title: "打完一首\n快速\n查询你的 *B30*",
-		lede: "用 *TapTap* 登录，存档随登录一起绑定。也可以用 *Discord* 登录，再绑定一次 TapTap。B30、成绩历史和玩家信息都能在这里打开，也可以在 Discord 里发 */b30*",
-		ledeSignedIn:
-			"*B30*、成绩历史和玩家信息都能在这里打开，也可以在 Discord 里发 */b30*",
-		lookupsTitle: "能查什么",
-		lookupsSignedIn: "点一项，直接打开你的成绩图",
-		lookupsSignedOut: "点一项会先用 Discord 登录，登录后回到这张图",
-		lookups: {
-			b30: { name: "B30", blurb: "最好的 30 首，外加三个 AP" },
-			hisb30: { name: "历史", blurb: "最近更新的成绩和 RKS 走势" },
-			info: { name: "信息", blurb: "名字、RKS、玩家信息" },
-			x30: { name: "x30", blurb: "算上 1 Good 时最好的谱" },
-			fc30: { name: "fc30", blurb: "Full Combo 最好的谱" },
-			song: {
-				name: "单曲排名",
-				blurb: "你在一张谱面上的准确率，在 phib19.top 的记录里排第几",
-			},
-			tags: { name: "谱面标签", blurb: "B30 标签画像里每个标签的含义" },
-			simulate: {
-				name: "曲目模拟",
-				blurb: "给一些谱面填上更好的成绩，看看 RKS 会变成多少",
-			},
-			targets: {
-				name: "推分目标",
-				blurb: "每张谱面把 RKS 推高一档所需的准确率",
-			},
-			profile: {
-				name: "玩家画像",
-				blurb: "文字版 B30 成绩图，列出全部谱面标签和计入它们的谱面",
-			},
-			progress: {
-				name: "完成度",
-				blurb: "按难度和定数统计通关、FC 与 AP",
-			},
-			trend: {
-				name: "RKS 走势",
-				blurb: "RKS 随时间的变化，以及提升过的成绩",
-			},
-		},
-		explore: {
-			title: "人人都能用",
-			intro: "无需登录。谱面、视频和游戏里的剧情，当前版本和旧版本都有",
-			hint: "无需登录",
-			items: {
-				songs: {
-					name: "曲目别名",
-					blurb: "用玩家常用的叫法找歌，比如“无限光”“ASA”",
-				},
-				phira: {
-					name: "Phira 谱面包",
-					blurb:
-						"任意谱面的 .pez 包：1.2.0 以来的旧版、愚人节谱面、已删除曲目和 Legacy",
-				},
-				score: {
-					name: "控分计算",
-					blurb: "算出恰好达到目标分数的 Perfect / Good / Bad / Miss 组合",
-				},
-				files: {
-					name: "资源",
-					blurb: "曲绘、音乐、谱面包和谱面 JSON，在线查看或下载",
-				},
-				pv: {
-					name: "PV",
-					blurb: "章节与活动视频，可开启游戏内界面；「推演」可以逐页点按游玩",
-				},
-				collection: {
-					name: "收藏品",
-					blurb: "按章节收录的全部条目与线索，五种语言可选，支持搜索",
-				},
-				guess: {
-					name: "猜曲绘",
-					blurb: "每日一题：从模糊、变色的曲绘特写中猜出曲目",
-				},
-			},
-		},
-		signInHint: "登录",
-		signingIn: "正在前往 Discord…",
-		newLabel: "新",
-		boardTitle: "一张图看完你的 B30",
-		layoutsTitle: "三种版式",
-		boardLede:
-			"玩家信息、Best 30 与溢出曲目、RKS 分析全在一张图里。在 Discord 里发 /b30，或直接在这里查看",
-		layouts: {
-			classic: {
-				name: "经典",
-				blurb: "每格一张谱面，显示曲绘、分数和准确率",
-				alt: "经典版式的 B30 成绩图示例：顶部是玩家信息和 RKS 16.7073，下面每格一张谱面，显示曲绘、分数和准确率",
-			},
-			table: {
-				name: "表格",
-				blurb: "每行一首，附带推分需要的准确率",
-				alt: "表格版式的 B30 成绩图示例：顶部是玩家信息和 RKS 16.7073，下面每行一张谱面，显示定数、分数、准确率、RKS 和推分准确率",
-			},
-			phone: {
-				name: "手机",
-				blurb: "窄版成绩图，手机上不用放大也能看清",
-				alt: "手机版式的 B30 成绩图示例：窄版玩家信息和 RKS 16.7073，下面单列排列每张谱面",
-			},
-		},
-		layoutsLabel: "成绩图版式",
-		showFull: "查看完整成绩图",
-		newTab: "在新标签页打开",
-		closingTitle: "查看你的 B30",
-		closingCaption: "再打一首就睡",
-		openDesk: "查看成绩图",
-	},
-	legal: {
-		nav: "条款与隐私",
-		terms: "使用条款",
-		privacy: "隐私政策",
-		updated: "最后更新",
-		contents: "本页目录",
-		tldr: "一句话总结",
-		agree: {
-			before: "登录即表示你同意",
-			terms: "使用条款",
-			and: "和",
-			privacy: "隐私政策",
-			after: "",
-		},
-	},
-	status: {
-		title: "运行状态",
-		lede: "PhiBot 背后各项服务的实时状态，每分钟检查一次",
-		overall: {
-			up: "所有服务运行正常",
-			degraded: "部分服务响应较慢",
-			down: "部分服务不可用",
-			unavailable: "暂时无法获取状态数据，请稍后再试",
-		},
-		updated: "更新于",
-		range: "范围",
-		range30d: "30 天",
-		range24h: "24 小时",
-		targets: {
-			workers: {
-				name: "Workers",
-				blurb: "同步曲绘、转发 TapTap 请求的 Cloudflare Worker",
-			},
-			kv: { name: "KV 存储", blurb: "保存绑定、存档和设置的 Cloudflare KV" },
-			assets: { name: "资源 Worker", blurb: "运行资源处理流程的机器" },
-			phira: {
-				name: "多人游戏服务器",
-				blurb: "PhiBot 自己运行的 Phira 多人游戏服务器",
-			},
-		},
-		states: {
-			up: "正常",
-			degraded: "缓慢",
-			down: "不可用",
-			unknown: "无数据",
-		},
-		uptime: "可用率",
-		latency: "延迟",
-		latencyNow: "当前",
-		latencyAvg: "平均",
-		p95: "p95",
-		checks: "次检查",
-		noData: "无数据",
-		errors: {
-			timeout: "超时",
-			network: "无法连接",
-			not_configured: "未配置",
-			http: "HTTP {code}",
-		},
-		cpu: "CPU",
-		memory: "内存",
-		load: "负载",
-		cores: "核心",
-		upFor: "已运行",
-		days: "{n} 天",
-		usage: "CPU 和内存",
-		players: "玩家",
-		rooms: "房间",
-		playing: "{n} 个游戏中",
-		serverProcess: "服务器进程 {v}",
-		playersRooms: "玩家和房间",
-		showTable: "以表格显示",
-		time: "时间",
-		utcNote: "时间均为 UTC，每分钟检查一次",
-	},
-	mp: {
-		title: "多人游戏服务器",
-		lede: "PhiBot 的 Phira 多人游戏服务器上此刻的房间和玩家，页面每 15 秒更新一次",
-		address: "服务器地址",
-		online: "服务器运行正常",
-		offline: "暂时无法连接服务器，请稍后再试",
-		updated: "更新于",
-		players: "在线玩家",
-		rooms: "房间",
-		playing: "{n} 个游戏中",
-		roomList: "房间列表",
-		noRooms: "目前没有开放的房间",
-		roomsFailed: "暂时无法获取房间列表",
-		states: {
-			select_chart: "选择谱面中",
-			waiting_for_ready: "准备中",
-			playing: "游戏中",
-			other: "未知",
-		},
-		locked: "已锁定",
-		cycle: "轮流房主",
-		chart: "谱面",
-		noChart: "尚未选择谱面",
-		host: "房主",
-		members: "玩家（{n}）",
-		noPlayers: "暂无玩家",
-		statusLink: "可用率历史请见运行状态页",
-		open: "查看房间和玩家",
-	},
-	notice: {
-		title: "更新内容",
-		coffee: "请我喝杯咖啡",
-		dismiss: "知道了",
-		close: "关闭",
-		open: "更新内容",
-		earlier: "更早的更新",
-	},
-	nav: {
-		cards: "成绩图",
-		menu: "页面",
-		toggle: "菜单",
-		tags: "标签",
-		songs: "歌曲",
-		phira: "Phira",
-		files: "资源",
-		score: "控分",
-		simulate: "模拟",
-		targets: "推分目标",
-		profile: "画像",
-		progress: "完成度",
-		trend: "走势",
-		account: "账号",
-		accountOf: "账号：{name}",
-		groups: { tools: "工具", scores: "成绩", files: "资源" },
-		compare: "玩家对比",
-		guess: "猜曲绘",
-		pv: "PV",
-		collection: "收藏品",
-		timeline: "剧情时间线",
-		texts: "其他资源",
-		versions: "版本变化",
-		charts: "谱面一览",
-		b30: "B30",
-		hisb30: "历史",
-		info: "信息",
-		x30: "x30",
-		fc30: "fc30",
-		song: "单曲排名",
-	},
-	score: {
-		title: "控分计算",
-		lede: "根据谱面物量和目标分数，算出恰好达成所需的 Perfect / Good / Bad / Miss 数量和最大连击。",
-		chart: "谱面",
-		clearChart: "清除谱面",
-		searchPlaceholder: "按曲名、别名或曲师搜索",
-		loadingCharts: "正在加载曲目列表…",
-		chartsFailed: "曲目列表暂不可用。",
-		notes: "物量",
-		notesShort: "物量",
-		notesHint: "谱面总物量。选择曲目后会自动填入。",
-		target: "目标分数",
-		mode: "模式",
-		modeNormal: "普通",
-		modeChallenge: "课题模式",
-		challengeHint: "课题模式只计判定分，不看连击。",
-		plan: "最接近的方案",
-		allSplits: "全部方案（{n}）",
-		perfect: "Perfect",
-		good: "Good",
-		badMiss: "Bad / Miss",
-		maxCombo: "最大连击",
-		acc: "准确率",
-		exactScore: "精确分数",
-		tip: "按与目标分数的差距排序，其次 Good 越少越优先，再看最大连击是否接近 Perfect 数。",
-		roundingHint:
-			"游戏显示整数分，但并不总是把精确分数四舍五入（1671 物量、FC 且 5 个 Good 为 999057.45，显示为 999058）。与目标相差 1 分以内的方案都会列出精确分数和偏差。",
-		noteAccuracy:
-			"准确率按完整精度显示。游戏内和成绩图只显示两位小数，存档中保留更多位数。",
-		none: "{notes} 物量下没有与 {score} 分相差 1 分以内的方案。",
-		nearest: "最接近的可达分数",
-		useScore: "改为 {score}",
-		chartsFailedHint: "曲目列表加载失败，暂时无法搜索曲目。请手动输入物量。",
-		notesRange: "物量需在 1 到 5000 之间。",
-		targetRange: "目标分数需在 0 到 1000000 之间。",
-		announce:
-			"最接近的方案：Perfect {perfect}，Good {good}，Bad/Miss {badMiss}。精确分数 {exact}。",
-		rankTitle: "该准确率的排名",
-		rankLoading: "正在查询 phib19 记录…",
-		rankResult: "第 {rank} 名，共 {of} 条 · 前 {percent}%",
-		rankTied: "与 {n} 条记录并列",
-		rankNoData: "phib19 暂无该谱面的记录。",
-		rankBusy: "排名查询没有响应。",
-		rankHint: "按 phib19.top 的匿名记录估算，并计入你自己。",
-	},
-	chartSearch: {
-		label: "搜索曲目",
-		viaAlias: "别名",
-		resultsOne: "找到 1 首曲目",
-		results: "找到 {n} 首曲目",
-		noResults: "没有匹配的曲目",
-	},
-	phira: {
-		title: "Phira 谱面",
-		lede: "搜索曲目，按难度下载 .pez 包。",
-		searchLabel: "曲目",
-		searchPlaceholder: "按曲名、别名或曲师搜索",
-		download: "下载 .pez",
-		empty: "选择一首曲目后会列出各难度。",
-		change: "换一首",
-		notes: "{n} 物量",
-		levels: "难度",
-		loadingMore: "正在查找这首曲目的 Legacy、SP 谱面与旧版本…",
-		downloading: "正在下载…",
-		downloadingPct: "正在下载 {pct}%",
-		downloaded: "已保存 {file}",
-		missing: "这个难度暂时没有 .pez 包。",
-		failed: "下载失败，请检查网络后重试。",
-		chartsFailed: "曲目列表加载失败，暂时无法搜索曲目。",
-		reload: "重新加载页面",
-		goneSong: "游戏里已经没有这首曲目，以下谱面来自 {v} 版本。",
-		removedLevel: "已移除 · 来自 {v}",
-		version: "游戏版本",
-		versionCurrent: "当前（{v}）",
-		versionNote: "显示该版本时的谱面。Legacy 谱面不随版本切换，始终显示。",
-		sameAsCurrent: "与最新相同",
-		mpTitle: "多人游戏服务器",
-		mpBody:
-			"PhiBot 现在有自己的 Phira 多人游戏服务器。在 Phira 设置里开启多人游戏，把服务器地址改成下面这个即可。",
-		mpCopy: "复制",
-		mpCopied: "已复制",
-		mpCopyFailed: "复制失败，请选中地址手动复制。",
-	},
-	simulate: {
-		listLabel: "可编辑的谱面",
-		moreCharts: "再显示 {n} 张已游玩谱面（已显示 {shown} / {total}）",
-		title: "曲目模拟",
-		lede: "给一些谱面填写更高的准确率或分数，看看你的 RKS 和 P3 + B27 会变成什么样。",
-		notice: "这里的任何操作都不会改动你的真实存档。模拟只保存在当前浏览器里。",
-		basedOn: "基于以下时间的存档",
-		stale:
-			"你开始模拟之后存档已经更新。同步会载入新存档，并重置你的所有模拟修改。",
-		sync: "同步到最新存档",
-		syncing: "同步中…",
-		syncHint:
-			"载入 PhiBot 当前保存的存档，并重置所有模拟修改。要从 TapTap 拉取更新的存档，请先在成绩图页点击刷新。",
-		syncConfirm: "重置你的 {n} 项模拟修改并载入最新存档？",
-		synced: "已同步到最新存档，所有模拟修改已重置。",
-		alreadyLatest: "已经是最新存档。",
-		syncFailed: "无法加载最新存档，请重试。",
-		reset: "重置模拟",
-		resetConfirm: "清除所有模拟的准确率？",
-		resetDone: "已重置模拟。",
-		addChart: "添加下方列表里没有的谱面",
-		searchPlaceholder: "搜索要模拟的曲目",
-		full: "一次模拟最多 {n} 张谱面。",
-		alreadyListed: "{chart} 已在下方列表中，请在那里编辑。",
-		noRecord: "暂无记录",
-		newAcc: "新准确率",
-		currentAcc: "当前",
-		chartRks: "单曲 RKS",
-		removeRow: "移除 {chart}",
-		clearRow: "清除 {chart} 的修改",
-		added: "已添加 {chart}。",
-		removed: "已移除 {chart}。",
-		cleared: "已清除 {chart}。",
-		noGain: "没有超过你的最好成绩，所以不会有变化。",
-		unknown: "这张谱面没有已知的定数。",
-		rksBefore: "当前 RKS",
-		rksAfter: "模拟后 RKS",
-		p3Title: "模拟后的 P3",
-		p3None: "没有 AP 谱面。",
-		listTitle: "你的 P3 + B27",
-		listLede:
-			"每一行都以你当前的准确率和分数为起点。修改其中一项，另一项会随之变化；也可以勾选 AP。编辑时各行位置不变，「模拟后」一列显示每张谱面最终的位置。回车和上下方向键可在同一列中上下移动。",
-		scoreHint:
-			"分数按全连（FC）折算，得到的是该分数对应的最低准确率，因此 RKS 不会被高估。",
-		slot: "当前",
-		chart: "谱面",
-		acc: "准确率",
-		score: "分数",
-		ap: "AP",
-		after: "模拟后",
-		out: "移出",
-		isNew: "新进入",
-		movedUp: "自 {from} 上升",
-		movedDown: "自 {from} 下降",
-		storageOff: "当前浏览器无法保存模拟，关闭页面后将丢失。",
-		loading: "正在加载你的存档…",
-	},
-	manual: {
-		title: "手动录入成绩",
-		lede: "逐谱面填写准确率：可以填游戏内显示的两位小数，也可以填已知的精确值。分数和 FC 可选；分数留空时按准确率估算。",
-		notice:
-			"按两位小数填写的准确率只是游戏显示值，并非存档中的精确值，因此据此算出的 RKS 可能与游戏内略有差异。",
-		playerName: "玩家名",
-		playerNamePlaceholder: "显示在成绩图上",
-		addChart: "添加谱面",
-		searchPlaceholder: "按曲名、别名或曲师搜索",
-		empty: "还没有谱面。在上方搜索添加。",
-		acc: "ACC %",
-		score: "分数",
-		scoreEstimated: "估算",
-		fc: "FC",
-		rks: "RKS",
-		remove: "删除",
-		charts: "{n} 张谱面",
-		chartsOne: "1 张谱面",
-		save: "保存并出图",
-		saving: "正在保存…",
-		saveFailed: "保存失败。",
-		edit: "编辑成绩",
-		clear: "删除手动成绩",
-		clearConfirm: "删除当前登录下所有手动录入的成绩？",
-		clearing: "正在删除…",
-		clearFailed: "无法删除。",
-		deskNote:
-			"手动模式：成绩图由你填写的准确率生成。若填的是游戏显示的两位小数，RKS 为近似值。",
-		badge: "手动",
-		invalid: "请检查高亮的行：准确率范围 0–100，分数范围 0–1000000。",
-		accRequired: "请填写准确率。",
-		accInvalid: "准确率范围 0–100，最多 6 位小数。",
-		scoreInvalid: "分数范围 0–1000000，也可以留空。",
-		removeRow: "删除 {chart}",
-		added: "已添加 {chart}。",
-		removed: "已删除 {chart}。",
-		loading: "正在加载谱面…",
-		catalogFailed:
-			"曲目列表加载失败。已保存的成绩仍在下方，也可以继续保存，但曲名和 RKS 可能无法显示。",
-		catalogFailedEmpty: "曲目列表加载失败，暂时无法添加谱面。",
-		full: "最多 {n} 张谱面。",
-		listLabel: "你的谱面",
-	},
-	tags: {
-		title: "谱面标签",
-		lede: "B30 标签画像用的分类。标签、说明和投票来自 kyou.net.cn。",
-		empty: "暂时无法加载标签列表。",
-		index: "分类",
-		count: "{n} 个标签",
-		plainTitle: "简单来说",
-		plain: [
-			"谱面画像找的是你比平时打得更好或更差的那类谱面。它只拿你和你自己比，从不和其他玩家比。",
-			"「那类谱面」来自玩家在 kyou.net.cn 给每张谱面投的标签，比如楼梯、长纵连、多条判定线同时出现等。",
-			"PhiBot 先算出你在每个定数通常能保住多少准确率。某张谱面打得比平时好，就给它的标签加分；打得比平时差，就给它的标签减分。很多张谱面合在一起就形成规律。",
-			"然后每个标签都会得到一个 RKS。比如你的 RKS 是 15.20：某个标签显示 15.35 说明它适合你，反之亦然。",
-			"标签至少要出现在你的 4 张谱面上，并且把成绩重新抽样后仍指向同一方向，才会被列出。把它当作练习方向的提示，而不是定论。",
-		],
-		howTitle: "标签画像的计算方式",
-
-		how: [
-			{
-				term: "投票",
-				text: "玩家在 kyou.net.cn/phigros 为每张谱面的难点投票，PhiBot 每天同步一次。",
-			},
-			{
-				term: "统计范围",
-				formula: "C ≥ F − 0.25",
-				text: "你玩过的、定数 C 不低于 F 减 0.25 的全部谱面，F 为你第 27 好的单曲 RKS，没有上限。准确率高于 90% 全额计入，85% 计一半，80% 及以下不计。",
-			},
-			{
-				term: "准确率损失",
-				formula: "y = −log10(1 − acc)",
-				text: "把准确率换算成损失了多少（Good 与 Bad 都算）并取对数：90% 为 1.0，99% 为 2.0，99.9% 为 3.0。每差 1 代表损失少十倍，所以 99% 到 99.9% 与 90% 到 99% 分量相同。99.9% 及以上按「至少 3.0」处理：只在拟合预期更低的地方计入，所以简单谱面上的 100% 不会算作你的弱项。",
-			},
-			{
-				term: "预期值",
-				formula: "ŷ = g(C) + Σ β × 占比",
-				text: "一条随定数变化的平滑曲线 g（每 0.1 一个点，尽量接近直线）与各标签效应 β 一起，用你统计范围内的全部谱面拟合。没有定数窗口，也不要求附近有多少谱面，所以最难的谱面同样计入。每张谱面自己的预期值来自不含该谱面的拟合。",
-			},
-			{
-				term: "差值",
-				formula: "d = y − g(C)",
-				text: "与不含该谱面的拟合曲线相比，因此 0 即你在该定数的基准，+ 表示更好。99.9% 以上的谱面只按曲线预期低于 99.9% 的部分计入。",
-			},
-			{
-				term: "权重",
-				formula: "w = 该标签票数 ÷ 谱面总票数 × 谱面权重",
-				text: "谱面至少要有 3 票，标签至少占其中 5%。",
-			},
-			{
-				term: "平均",
-				formula: "A = Σ(w × d) ÷ (Σw + 2)",
-				text: "+ 2 让谱面较少的标签向 0 收拢。分类使用这个数值，按各分类所占票数计算。",
-			},
-			{
-				term: "净值",
-				formula: "β，岭回归 0.5",
-				text: "与曲线在同一次拟合中得到的标签效应，岭回归惩罚起到先验的作用。标签只能获得定数和同谱其他标签解释不了的部分。β 乘以该标签的平均占比即净值：该标签在一张典型谱面上的影响。",
-			},
-			{
-				term: "RKS",
-				formula: "acc′ = 100 − (100 − acc) × 10^(−净值)",
-				text: "把净值显示成 RKS 时，你玩过的每张谱面损失的准确率都乘以 10^(−净值)：擅长时损失变少，薄弱时变多，AP 保持 AP。然后照常计算 RKS：最好的 27 张加最好的 3 张 AP，除以 30。净值为 0 时正好是你的 RKS。平均和分类也用同样方法显示。",
-			},
-			{
-				term: "稳定",
-				text: "把你的谱面重抽 400 次并重复整个拟合（包括 99.9% 以上的谱面），稳定是净值保持同号的比例。",
-			},
-			{
-				term: "擅长",
-				formula: "净值 ≥ +0.03 且稳定 ≥ 90%",
-				text: "薄弱同理：净值 ≤ −0.03。出现在你少于 4 张谱面上的标签不会列出。净值小于 ±0.03 但仍稳定的，排在其他标签之后，标为「微弱」并在成绩图上变暗；小于 ±0.05 的数值变暗。稳定不足 99% 的条目在成绩图上仍正常显示，但玩家画像页面会标为「倾向」。",
-			},
-			{
-				term: "全部 99.9%+",
-				text: "统计范围内低于 99.9% 的谱面少于 3 张时，没有差距可比。若 PhiBot 有你的成绩历史，画像取自最后一次仍有谱面低于 99.9% 的那天，并显示日期。否则按带该标签的 99.9%+ 谱面有多难来排序，变暗且不显示数值。",
-			},
-		],
-		readTitle: "如何理解这些数值",
-		read: [
-			"你的 RKS 为 15.20 时，标签旁的 15.35：假如每张谱面都打得像你在带该标签的谱面上那样，你的 RKS 会是 15.35，说明这类谱面适合你。14.95 则说明它让你少了约 0.25。",
-			"升降并不对称：接近 99.9% 时能再提升的准确率很少，所以同样程度的擅长加的 RKS 比薄弱扣的少。你的准确率越高，所有标签离你的 RKS 越近。",
-			"成绩图上变暗的条目是「微弱」（该标签让损失的准确率变化不到约 7%，排在最后）或「略」（不到约 12%，数值变暗）。玩家画像页面还会把稳定不足 99% 的条目标为「倾向」。正常的成绩波动也可能造成这些，只作参考。",
-			"基准是你自己，而不是其他玩家，并且只计入你所在难度及以上的谱面。对所有人都难的谱面本身不会算作你的弱项，因为它与你自己的曲线在该定数的预期相比。",
-			"总是出现在同一批谱面上的标签无法区分，净值会把功劳平分。当某个标签也单独出现在别的谱面上时，就由那些谱面来判断。在玩家画像里展开标签可查看它来自哪些谱面。",
-			"稳定达到 99% 的条目仍有约二十分之一只是运气，「倾向」的条目约五分之一。单次出现当作提示，多次存档都在列才算规律。",
-		],
-		profileLink: "在玩家画像中查看每个标签以及计入它的谱面",
-		guide: "说明",
-		loading: "正在加载谱面标签…",
-		clipIntro:
-			"每个标签都附有一段短片，取自玩家投给该标签的谱面，由谱面预览绘制。",
-		clipFor: "观看{tag}：{title} {level}",
-		clipNote: "短片循环播放这张谱面中体现该配置的 {n} 秒。",
-		clipVotes: "这张谱面在 kyou 的 {total} 票中有 {votes} 票投给了这个标签。",
-		clipSong: "完整谱面",
-		clipReplay: "重播",
-		exampleTitle: "计算示例",
-		exampleLede:
-			"三张 IN 谱面、两个标签，一步步算一遍。准确率是假设的；定数和 kyou 投票是真实数据（{date} 的投票）。",
-		exampleCaption:
-			"三张谱面的准确率、准确率损失 y、曲线 g(C)、差值 d 和标签占比",
-		exampleChart: "谱面",
-		exampleAcc: "准确率",
-		exampleSteps: {
-			pool: {
-				term: "统计范围",
-				text: "假设你第 27 好的单曲 RKS F 为 {floor}。三张谱面的定数都不低于 {min}，准确率都高于 90%，所以每张都全额计入。",
-			},
-			lost: {
-				term: "准确率损失",
-				text: "每个准确率换算成对数尺度上的损失，三张谱面的值见 y 列。",
-			},
-			gap: {
-				term: "差值",
-				text: "g(C) 是你的曲线在该定数处的值，由你全部谱面的拟合得出。{a} 高于曲线，{b} 基本持平，{c} 低于曲线。",
-			},
-			share: {
-				term: "占比",
-				text: "标签占比 = 该标签票数 ÷ 谱面总票数。{b} 同时带有两个标签。{c} 上的{tag}只有 {n} 票中的 {v} 票，不到 5%，所以在这张谱面上不计入。",
-			},
-			average: {
-				term: "平均",
-				text: "每个标签的简单平均。+ 2 让三张谱面说明不了太多。分类使用这个数值。",
-			},
-			net: {
-				term: "净值",
-				text: "成绩图用的是拟合：每个标签让 y 偏离曲线多少，岭惩罚 0.5 把两者都拉向 0。{b} 带有两个标签且差值很小，所以 {c} 的损失落在{y}上，{a} 的优势落在{x}上。",
-			},
-			centre: {
-				term: "居中",
-				text: "两个值平移同样的量，使平均谱面为 0。",
-			},
-			shown: {
-				term: "显示值",
-				text: "β 乘以该标签在你的谱面上的平均占比，即净值：该标签在一张典型谱面上的影响。",
-			},
-			read: {
-				term: "解读",
-				text: "{y} {ny}：在带这个标签的谱面上，比你的曲线预测多损失约 {more}% 的准确率。{x} {nx}：少损失约 {less}%。",
-			},
-			rks: {
-				term: "换算成 RKS",
-				text: "成绩图把每个净值显示为 RKS。每张谱面损失的准确率乘以 10^(−净值)：{a} 的 {accA} 按{x}的净值变为 {accA2}，RKS {ra} → {ra2}；{c} 的 {accC} 按{y}的净值变为 {accC2}，RKS {rc} → {rc2}。对你玩过的每张谱面都这样做，再照常重算 RKS（最好的 27 张加最好的 3 张 AP，除以 30），就得到标签旁的数字。",
-			},
-			listed: {
-				term: "会列出吗",
-				text: "还不会：标签至少要出现在你的 4 张谱面上，且在 400 次重抽样中至少 90% 保持同号。真实的画像会有几十张谱面。",
-			},
-		},
-	},
-	songs: {
-		title: "曲目别名",
-		lede: "用曲名、玩家常用的别名或曲师查找曲目，再打开曲目页面查看所有谱面、旧版本和你的成绩。",
-		songPage: "曲目页面",
-		songPageFor: "曲目页面：{song}",
-		label: "曲名、别名或曲师",
-		placeholder: "无限光、ASA、Ad…",
-		search: "搜索",
-		clear: "清空搜索",
-		cleared: "已清空搜索",
-		loading: "正在加载曲目列表…",
-		failed: "曲目列表加载失败。按“搜索”改由服务器查找。",
-		unavailable: "暂时无法搜索曲目，请稍后再试。",
-		countOne: "“{q}”匹配到 1 首曲目",
-		count: "“{q}”匹配到 {n} 首曲目",
-		countTop: "“{q}”共匹配 {n} 首，显示最接近的 {shown} 首",
-		refine: "多输入一些曲名或别名可以缩小范围。",
-		none: "没有与“{q}”匹配的曲目",
-		noneHint:
-			"检查一下拼写，或试试曲名的一部分、曲师名。如果这是还没收录的叫法，可以提交为别名。",
-		shared: "“{q}”是 {n} 首曲目共用的别名，请根据曲师和难度确认是哪一首。",
-		viaAlias: "别名“{text}”",
-		viaId: "曲目 ID",
-		viaComposer: "曲师匹配",
-		viaFuzzy: "与“{text}”相近",
-		composer: "曲师：",
-		levels: "难度与定数",
-		nicknames: "别名",
-		noNicknames: "暂无别名。",
-		matched: "（与搜索匹配）",
-		card: "查看单曲成绩图",
-		cardFor: "查看单曲成绩图：{song}",
-		exampleFinds: "对应",
-		examplesTitle: "试试这些别名",
-		examplesBody: "别名和正式曲名一样能搜到曲目。点一个看看：",
-		aboutTitle: "别名来源",
-		aboutBody:
-			"别名表由 phi-plugin 自带的别名和 phib19.top 社区投票通过的别名合并而成。",
-		proposeBody:
-			"缺少别名？到 phib19.top 提交。提交和投票需要 phib19 账号，本站无法代为提交。",
-		proposeLink: "前往 phib19.top 提交别名",
-	},
-	me: {
-		title: "你的成绩",
-		banned: "这个账号已被封禁，无法查看成绩图",
-		rks: "RKS",
-		lastSynced: "上次同步",
-		cachedSave: "缓存存档",
-		timeZone: "你的时区：{zone}",
-		more: "更多",
-		moreLabel: "更多操作",
-		bannedTitle: "无法查看成绩图",
-		noSaveTitle: "还没有存档",
-		noSaveBody:
-			"PhiBot 还没有下载你的 Phigros 存档。点「刷新存档」从 TapTap 拉取，通常只需几秒。",
-		loading: "正在加载你的成绩图…",
-	},
-	bind: {
-		title: "绑定 Phigros",
-		lede: "用 Phigros 登录的那个 TapTap 账号扫码或打开登录链接，或粘贴你的 sessionToken。",
-		server: "区服",
-		cn: "国服",
-		gb: "国际服",
-		qr: "获取二维码和链接",
-		cancel: "取消",
-		starting: "正在取码…",
-		waitingTap: "正在等待 TapTap…",
-		scan: "用 TapTap App 扫码。不方便扫码？在任意浏览器打开登录链接并登录 TapTap 也可以。",
-		scanned: "已在 TapTap 打开，请在那里确认登录。",
-		openLink: "打开登录链接",
-		copyLink: "复制链接",
-		copied: "已复制",
-		copyFailed: "复制失败。请选中链接手动复制。",
-		link: "TapTap 登录链接",
-		expires: "{seconds} 秒后失效",
-		qrAlt: "TapTap 登录二维码",
-		tokenLabel: "sessionToken",
-		tokenPlaceholder: "25 位",
-		tokenHint: "请保护好你的 sessionToken。不要发到任何聊天室内。",
-		tokenSubmit: "用 sessionToken 绑定",
-		binding: "绑定中…",
-		tokenNeeds: "需要 25 位字母或数字 · {n}/25",
-		tokenTooLong: "太长了：sessionToken 是 25 位字母或数字 · {n}/25",
-		tokenInvalid: "只能包含字母和数字 · {n}/25",
-		tokenReady: "25/25 · 可以绑定",
-		qrTitle: "用 TapTap 登录",
-		tokenTitle: "粘贴 sessionToken",
-		openPhoneHint: "也可以用另一台设备扫描这个二维码：",
-		or: "或",
-		failed: "绑定失败。",
-		manualTitle: "无账号模式",
-		manualLede:
-			"不用 TapTap。按游戏内显示逐谱面填写准确率，就能生成同样的成绩图。",
-		manualStart: "手动录入成绩",
-		unbind: "解绑",
-		unbindConfirm: "从当前登录账号解除 Phigros 绑定？",
-		unbindYes: "解绑",
-		unbindNo: "取消",
-		unbinding: "正在解绑…",
-		unbindFailed: "无法解绑。",
-	},
-	tapLogin: {
-		title: "用 TapTap 登录",
-		lede: "用 Phigros 登录的那个 TapTap 账号：用 TapTap App 扫码，或在浏览器打开登录链接。登录和绑定存档一步完成，不需要 Discord。",
-		qrTitle: "TapTap 二维码或链接",
-		signingIn: "正在登录…",
-		failed: "登录失败，请重试。",
-		discordTitle: "改用 Discord",
-		discordLede:
-			"已经在用 Discord 机器人？用 Discord 登录即可。TapTap 登录之后也可以在「账号」里关联 Discord。",
-	},
-	account: {
-		title: "账号",
-		lede: "你登录 PhiBot 的方式。",
-		discord: "Discord",
-		taptap: "TapTap",
-		thisLogin: "当前登录",
-		linked: "已关联",
-		notLinked: "未关联",
-		linkDiscord: "关联 Discord",
-		linkDiscordLede:
-			"Phigros 绑定、成绩图设置、B30 历史和分享链接会转到那个 Discord 账号。之后用 TapTap 或 Discord 都会登录到它，Discord 机器人里的 /b30 也能用。",
-		tapLinked: "用 TapTap 登录会打开这个账号。",
-		tapHint:
-			"在这里或 Discord 机器人里绑定 Phigros 存档后，用 TapTap 登录也会打开这个账号。",
-		discordHere: "你是用 Discord 登录的。",
-		tapHere: "你是用 TapTap 登录的，存档已绑定到这个登录。",
-		linkedOk: "已关联 Discord。现在用 TapTap 或 Discord 都会登录到这个账号。",
-		discord_taken:
-			"那个 Discord 账号绑定了另一个 Phigros 存档。请先在那边解绑，再来关联。",
-		link_expired: "关联请求已过期，请重试。",
-		link_failed: "无法关联 Discord，请重试。",
-		sessionToken: "会话 Token",
-		sessionTokenLede:
-			"你的存档绑定所用的 Phigros sessionToken。拿到它的人可以读取和修改你的存档，请妥善保管。",
-		sessionTokenNone: "还没有绑定 Phigros 存档，所以暂时没有 Token。",
-		tokenShow: "显示",
-		tokenHide: "隐藏",
-		tokenLoading: "加载中…",
-		tokenHidden: "已隐藏",
-		tokenFailed: "无法加载 Token，请重试。",
-		migrateTitle: "迁移存档",
-		migrateLede:
-			"把 Phigros 云存档复制到另一个 TapTap 账号，国服或国际服都可以。",
-		migrateOpen: "迁移存档",
-	},
-	migrate: {
-		title: "迁移存档",
-		lede: "把一个 TapTap 账号的 Phigros 云存档复制到另一个账号，国服或国际服都可以。来源存档只会被读取，目标账号的云存档会被替换。",
-		back: "返回账号",
-		fromTitle: "1. 来源",
-		fromLede: "要复制哪个账号的存档。",
-		toTitle: "2. 目标",
-		toLede: "登录接收存档的账号。如果它已有云存档，那份存档会被替换。",
-		useBound: "使用已绑定的账号",
-		boundNote: "在 PhiBot 绑定的账号",
-		otherFrom: "或登录另一个账号",
-		tokenHint: "上面所选区服中该账号的 25 位 Token，只用于这次迁移。",
-		tokenSubmit: "使用 Token",
-		connecting: "正在读取存档…",
-		failed: "无法读取这个账号，请重试。",
-		change: "更换",
-		realName:
-			"国服 TapTap 账号需要先在 TapTap App 里完成实名认证，国服 Phigros 才能登录并下载存档。",
-		previewTitle: "3. 核对两边的存档",
-		previewLede: "目标账号的云存档会被来源存档替换。来源存档不会改动。",
-		compare: "来源存档与目标存档",
-		field: "存档",
-		source: "来源",
-		target: "目标（将被替换）",
-		player: "玩家",
-		rks: "RKS",
-		challenge: "课题模式",
-		modified: "上次上传",
-		none: "无",
-		noSave: "没有云存档",
-		challengeColors: ["", "绿", "蓝", "红", "金", "彩"],
-		overwrite: "目标账号已有云存档。继续会替换它，游戏里无法找回。",
-		fresh: "目标账号还没有云存档。继续会新建一份。",
-		newer:
-			"来源存档来自比目标存档更新的游戏版本。在目标那边下载前，请先更新 Phigros。",
-		changed: "核对之后有存档发生了变动。请重新核对两边再继续。",
-		wait: "继续（{seconds}）",
-		run: "继续",
-		running: "正在复制存档…",
-		restart: "重新开始",
-		doneTitle: "存档已复制",
-		doneLede: "目标账号的云存档现在是来源存档。",
-		doneSteps: [
-			"打开{server} Phigros，用目标 TapTap 账号登录。",
-			"同步云存档，并选择下载到设备。",
-			"下载之前不要在那台设备上上传，否则它本地的旧存档会覆盖这份副本。",
-		],
-		doneBound:
-			"目标账号就是在 PhiBot 绑定的账号。请在成绩图页面刷新以载入新存档。",
-		bindTitle: "要在 PhiBot 绑定目标账号吗？",
-		bindSwitch:
-			"PhiBot 现在跟踪你已绑定的账号。绑定目标账号会替换原来的绑定，之后成绩图和 Discord 里的 /b30 都使用复制过去的存档。成绩图设置和 B30 历史会保留。",
-		bindNew: "绑定后，成绩图和 Discord 里的 /b30 都会使用复制过去的存档。",
-		bindYes: "绑定目标账号",
-		bindNo: "暂不绑定",
-		bindDone: "目标账号已绑定，成绩图会载入复制过去的存档。",
-		bindFailed: "无法绑定目标账号，请重试。",
-		bindTap:
-			"你是用 TapTap 登录的，PhiBot 跟踪的是那个 TapTap 账号。想在这里使用目标账号，请改用它登录。",
-		bindTapMoves:
-			"现在用 TapTap 登录会通过你已绑定的账号进入这个 PhiBot 账号。绑定目标账号后，请改用目标账号的 TapTap 登录。",
-		doneBind:
-			"PhiBot 仍然跟踪你已绑定的账号。想在这里跟踪目标账号，请解绑后重新绑定它。",
-	},
-	public: {
-		hint: "这是他们成绩图的公开副本。打开页面不会刷新存档。",
-		cta: "生成你自己的成绩图",
-		ctaLede:
-			"用 TapTap 登录，或用 Discord 登录并绑定 Phigros，即可生成你的成绩图。",
-		metaDescription: "{player} 的 Phigros {card}。RKS {rks}。",
-	},
-	card: {
-		options: "成绩图选项",
-		optionsSaving: "正在保存…",
-		saveFailed: "设置保存失败，请重试。",
-		charts: "谱面数",
-		quality: "画质",
-		qualityFast: "更快 · 普通",
-		qualityHigh: "高画质 · 较慢",
-		background: "背景",
-		backgroundRandom: "随机",
-		backgroundSearch: "搜索曲目",
-		backgroundNone: "没有匹配的曲目",
-		backgroundResults: "匹配的曲目：{n} 首",
-		backgroundCurrent: "当前",
-		style: "版式",
-		styleNames: {
-			classic: "经典",
-			table: "表格",
-			portrait: "手机竖版",
-			timeline: "时间线",
-			summary: "摘要",
-		},
-		styleHints: {
-			classic: "曲绘网格，与 Discord 机器人相同",
-			table: "紧凑表格，数字一目了然",
-			portrait: "适合手机的竖向单列",
-			timeline: "按存档日期分组的变化",
-			summary: "最近一次更新的总计与亮点",
-			classicHistory: "最近更新与 RKS 走势，与 Discord 机器人相同",
-			classicInfo: "个人资料、各难度进度与走势",
-		},
-		styleFailed: "版式保存失败，请重试。",
-		show: "图上显示",
-		peer: "与其他玩家对比",
-		peerNames: {
-			none: "关闭",
-			all: "平均",
-			top: "前百分比",
-			rank: "排名",
-		},
-		peerHints: {
-			none: "谱面行上不显示对比标记。",
-			all: "与你 RKS 相近玩家的平均准确率。",
-			top: "你在 RKS 相近玩家中的前百分比。",
-			rank: "你在 phib19.top 记录中的估计名次。",
-		},
-		rankScope: "排名范围",
-		rankScopeNames: {
-			all: "全部记录",
-			band: "±0.05 RKS",
-			both: "两者",
-		},
-		rankScopeHints: {
-			all: "你在该谱面所有 phib19.top 记录中的名次。",
-			band: "只与 RKS 和你相差约 0.05 以内的玩家比较。",
-			both: "每个谱面两行：全部记录，以及 RKS 相近（约 ±0.05）的玩家。",
-		},
-		rankBandShow: "±0.05 标记显示",
-		rankBandShowNames: {
-			place: "#名次 / 人数",
-			percent: "前百分比",
-		},
-		rankBandShowHints: {
-			place: "你在 RKS 相近玩家中的名次，如 #12 / 400。",
-			percent: "你在 RKS 相近玩家中的前百分比，如 Top 3.0%。",
-		},
-		peerWaitLegend: "查询较慢时",
-		peerWait: "等待全部标记",
-		peerWaitHint:
-			"phib19.top 较慢时最多等待约一分钟，而不是 2.5 秒后先画出缺少部分标记的图片。",
-		download: "下载",
-		share: "分享图片",
-		shareFailed: "无法分享图片。",
-		openFull: "打开原图",
-		zoom: "全屏查看",
-		fullScreen: "全屏",
-		original: "原图",
-		zoomScreen: "适应屏幕",
-		zoomFit: "适应宽度",
-		zoomActual: "100%",
-		zoomHint: "双指缩放或拖动查看。轻点两下放大或还原。",
-		zoomHintMouse: "滚动查看。双击放大或还原。",
-		zoomArea: "成绩图图像，可滚动查看",
-		close: "关闭",
-		size: "{w} × {h} 像素",
-		tagProfile: "谱面标签",
-		recordStats: "完成 / FC / AP 数量",
-		stddev: "标准差",
-		stddevExcludeP3: "不计入 P1–P3",
-		stddevHint:
-			"B30 分析里的 ± 数值只统计 B1–B27，并以它们自己的平均值计算。柱状图和平均值仍包含 P1–P3。",
-		rendering: "正在出图…",
-		waitingPhib19: "正在等待 phib19.top…",
-		missingData: "部分数据未及时取得，这张图缺少{list}。请稍后重试以补全。",
-		missingParts: {
-			peers: "部分对比标记",
-			tags: "谱面标签分析",
-			song: "部分排行数据",
-		},
-		missingJoin: "和",
-		staleData:
-			"phib19.top 未及时响应，部分排名来自较早的查询，可能已过时。请稍后重试以更新。",
-		emptyData:
-			"phib19.top 暂时没有这种对比方式的数据，所以图上没有对比标记。可在出图选项中换一种，或稍后再看。",
-		elapsed: "{seconds} 秒",
-		slow: "仍在出图。大图可能需要一分钟。",
-		renderFailed: "无法生成这张成绩图",
-		unreachable: "无法连接到出图服务",
-		retry: "重试",
-		ready: "{name} 成绩图已加载。",
-		failed: "{name} 成绩图加载失败：{error}",
-		alt: "{player} 的 {name} 成绩图，RKS {rks}",
-		titles: {
-			b30: "B30",
-			x30: "x30（1 Good）",
-			fc30: "fc30（Full Combo）",
-			hisb30: "成绩历史",
-			info: "玩家信息",
-			song: "单曲排名",
-		},
-		songChart: "谱面",
-		songSearch: "按曲名、别名或曲师搜索",
-		songLevel: "难度",
-		songNoLevel: "没有 {level} 谱面",
-		songUnknown: "未知谱面",
-		songEmptyTitle: "选择一张谱面",
-		songEmpty: "按准确率估算你在这张谱面的 phib19.top 记录中的位置。",
-		songNotFoundTitle: "找不到这个谱面",
-		songNotFound: "链接里的谱面不在曲目列表中，请在上方重新搜索。",
-		songTitle: "{title}：{song}",
-		diagnostics: "出图详情",
-		stats: "耗时",
-		statsHit: "命中",
-		statsMiss: "未命中",
-		statsCache: "JPEG",
-		statsStoreR2: "R2",
-		statsStoreKv: "KV",
-		statsStoreBrowser: "浏览器缓存",
-		statsRender: "渲染",
-		statsHeight: "高度",
-		statsLookup: "缓存查找",
-		statsData: "数据",
-		statsHtml: "HTML",
-		statsAssets: "资源",
-		statsMeasure: "测量",
-		statsRaster: "栅格",
-		statsEncode: "编码",
-		statsPaint: "绘制",
-		statsServer: "服务端",
-		statsExternal: "phib19.top",
-		statsWait: "请求",
-		statsHintCache:
-			"成品 JPEG。命中直接返回已存图片；未命中则当场绘制。存档、语言、画质不变即可复用。",
-		statsHintHeight:
-			"这张图的像素高度。命中可跳过测量。存档、语言、画质不变即可复用。",
-		statsHintLookup: "查找已存 JPEG 的耗时。",
-		statsHintData: "加载存档、曲目目录和谱面标签。",
-		statsHintHtml: "生成卡片 HTML。",
-		statsHintAssets: "加载曲绘、字体和其他图片。",
-		statsHintMeasure: "测量卡片高度。高度缓存命中时可跳过。",
-		statsHintRaster: "把卡片画成像素。",
-		statsHintEncode: "编码 JPEG。",
-		statsHintPaint: "测量、栅格和编码合计。",
-		statsHintServer: "本次请求的服务端耗时。",
-		statsHintExternal: "出图时等待 phib19.top 的时间：对比标记与排名。",
-		statsHintWait: "等到图片的总时间，含下载。",
-	},
-	refresh: {
-		save: "刷新存档",
-		pending: "正在刷新…",
-		waitingTap: "正在等待 TapTap…",
-		wait: "请等待 {seconds} 秒",
-		failed: "刷新失败",
-		bypass: "绕过缓存",
-		bypassPending: "正在重绘…",
-		bypassFailed: "无法绕过缓存",
-		bypassHint: "从头重绘所有成绩图。成绩图看起来没更新时使用。",
-		dismiss: "关闭",
-	},
-	share: {
-		menu: "分享链接",
-		creating: "正在生成…",
-		link: "公开链接",
-		hint: "任何拿到链接的人都能看到你的 B30、历史和玩家信息。",
-		open: "打开",
-		copy: "复制",
-		copied: "已复制",
-		copyFailed: "复制失败。请选中链接手动复制。",
-		failed: "无法创建链接，请重试。",
-		revoke: "停止分享",
-		revokeFailed: "无法停止分享，请重试。",
-		on: "已开启",
-	},
-	notFound: {
-		title: "未找到",
-		body: "该页面或分享链接不存在",
-		home: "返回首页",
-	},
-	error: {
-		code: "错误",
-		title: "页面加载失败",
-		body: "服务端出了点问题。请重试，或返回首页",
-		retry: "重试",
-		home: "返回首页",
-		digest: "错误编号",
-	},
-	errors: {
-		unauthorized: "未登录",
-		unknown_card: "未知成绩图",
-		not_bound: "尚未绑定 Phigros。",
-		banned: "这个账号已被封禁",
-		no_save: "还没有缓存存档。请在本页刷新",
-		refresh_cooldown: "刷新仍在冷却中 请稍后再试",
-		cache_bypass_cooldown: "绕过缓存仍在冷却中 请稍后再试",
-		refresh_failed: "刷新失败",
-		rate_limit: "请求过于频繁，请稍等一分钟",
-		share_not_found: "分享链接不存在",
-		profile_unavailable: "无法显示该主页",
-		render_failed: "无法生成这张成绩图",
-		already_bound: "已经绑定过账号 请先解绑",
-		invalid_token: "这不是 25 位 sessionToken",
-		qr_busy: "已有扫码绑定正在进行",
-		qr_expired: "二维码已过期，请重新扫码",
-		qr_missing: "没有进行中的扫码，请重新扫码",
-		bind_failed: "绑定失败",
-		unbind_failed: "无法解绑",
-		tapapi_unavailable:
-			"TapTap 云端（TapAPI）超时了。这是 TapTap 的问题，不是本站故障。请稍后再试",
-		tapapi_rate_limited:
-			"TapTap 返回了 429 Too Many Requests：PhiBot 正在被 TapTap 限流。如果一直这样，请等几分钟再试",
-		migrate_rejected: "所选区服不接受这个账号，请确认国服或国际服选对了",
-		migrate_no_source_save: "来源账号没有云存档，请先在 Phigros 上传一次",
-		migrate_same_account: "来源和目标是同一个账号，请登录另一个目标账号",
-		migrate_expired: "登录已过期，请重新开始",
-		migrate_busy: "已有一次存档迁移正在进行",
-		migrate_changed: "存档在你核对后有变动，请重新核对",
-		migrate_unconfirmed: "请先确认迁移",
-		migrate_failed: "存档迁移失败",
-		migrate_unverified:
-			"目标存档已写入，但 PhiBot 无法确认复制结果。请先在 Phigros 里检查，再决定是否重试",
-		migrate_bind_expired:
-			"绑定提示已关闭。它只在复制后保留一小段时间，重新开始迁移也会关闭它。如果目标账号还没绑定，而已绑定其他账号，请先在账号页解绑，再到成绩图页绑定",
+		bad_request: "The request was not valid.",
+		too_many: "Too many scores. Remove some and save again.",
+		unknown_chart: "A chart is not in the song list.",
 	},
 };

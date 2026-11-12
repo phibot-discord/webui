@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { basename } from "node:path";
 import {
 	type ImageSource,
 	type Node,
@@ -7,6 +8,7 @@ import {
 } from "@takumi-rs/core";
 import sharp from "sharp";
 import { fromHtml } from "takumi-js/helpers/html";
+import { evictOldest } from "@/phi/lib/lru";
 import { logger } from "../logger";
 import { renderLock } from "../render-lock";
 import type {
@@ -15,8 +17,6 @@ import type {
 	RenderFormat,
 	TemplateDefinition,
 } from "../sdk";
-import { exists } from "../vfs";
-import { readAssetCached } from "./asset-cache";
 import {
 	collectRootVars,
 	collectStylesheets,
@@ -27,7 +27,7 @@ import {
 	stripUnsupportedCss,
 } from "./css";
 import { PHI_FONT_FAMILIES } from "./fonts";
-import { type ImageAsset, rewriteLocalUrls } from "./html";
+import { type ImageAsset, readLocalImage, rewriteLocalUrls } from "./html";
 import {
 	fitPaint,
 	type PaintQuality,
@@ -83,11 +83,9 @@ function paintRootCss(cssWidth: number, paint: PaintSize) {
 }
 
 function rememberHeight(key: string, height: number) {
-	if (heightCache.size >= HEIGHT_CACHE_MAX) {
-		const oldest = heightCache.keys().next().value;
-		if (oldest !== undefined) heightCache.delete(oldest);
-	}
+	heightCache.delete(key);
 	heightCache.set(key, height);
+	evictOldest(heightCache, HEIGHT_CACHE_MAX);
 }
 
 const cssTransformCache = new Map<string, string>();
@@ -110,11 +108,8 @@ function transformSheet(
 		return hit;
 	}
 	const out = stripUnsupportedCss(resolveCssVars(sheet, vars));
-	if (cssTransformCache.size >= CSS_CACHE_MAX) {
-		const oldest = cssTransformCache.keys().next().value;
-		if (oldest !== undefined) cssTransformCache.delete(oldest);
-	}
 	cssTransformCache.set(key, out);
+	evictOldest(cssTransformCache, CSS_CACHE_MAX);
 	return out;
 }
 
@@ -139,7 +134,7 @@ function ext(format: RenderFormat) {
 	return format === "jpeg" ? "jpg" : format;
 }
 
-function collectCssImages(css: string): ImageAsset[] {
+function collectCssImages(css: string, missing: Set<string>): ImageAsset[] {
 	const out: ImageAsset[] = [];
 	const re = /url\("?(file:[^")]+|phi-css:[^")]+)"?\)/gi;
 	const seen = new Set<string>();
@@ -154,7 +149,8 @@ function collectCssImages(css: string): ImageAsset[] {
 		const file = src.startsWith("file:")
 			? decodeURIComponent(src.replace(/^file:\/\//, ""))
 			: src;
-		if (exists(file)) out.push({ src, data: readAssetCached(file) });
+		const data = readLocalImage(file, missing);
+		if (data) out.push({ src, data });
 		m = re.exec(css);
 	}
 	return out;
@@ -292,14 +288,21 @@ export class RenderEngine {
 			.digest("hex");
 		const sharedSheets = rawSheets.map((s) => transformSheet(s, vars, varsKey));
 		const tAssets = performance.now();
+		const missing = new Set(rewritten.missingImages);
+		const cssImages = sharedSheets.flatMap((s) => collectCssImages(s, missing));
+		const missingImages = [...missing];
+		if (missingImages.length) {
+			const names = missingImages.slice(0, 5).map((f) => basename(f));
+			logger.warn(
+				`card ${id}: ${missingImages.length} image(s) missing: ${names.join(", ")}`,
+			);
+		}
 		const local = await fitPaintImages(
-			[...rewritten.images, ...sharedSheets.flatMap(collectCssImages)].map(
-				(i) => ({
-					src: i.src,
-					data: i.data,
-					cache: "auto" as const,
-				}),
-			),
+			[...rewritten.images, ...cssImages].map((i) => ({
+				src: i.src,
+				data: i.data,
+				cache: "auto" as const,
+			})),
 		);
 		// One tree for both passes (the pixel ratio is a render option); emoji are fetched here, before the raster lock
 		const remote = await withRemoteImages(
@@ -380,7 +383,8 @@ export class RenderEngine {
 					if (ratio !== PIXEL_RATIO) height = await measureHeight(ratio);
 					measureMs = performance.now() - tMeasure;
 					if (heightKey) heightCached = "miss";
-					if (heightKey && height > 64) rememberHeight(heightKey, height);
+					if (heightKey && height > 64 && !missingImages.length)
+						rememberHeight(heightKey, height);
 				}
 
 				const paint = fitPaint(
@@ -468,6 +472,7 @@ export class RenderEngine {
 				paintMs: ms,
 				heightCache: heightCached,
 			},
+			...(missingImages.length ? { missingImages } : {}),
 		};
 	}
 

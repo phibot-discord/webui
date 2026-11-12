@@ -1,12 +1,5 @@
 "use client";
 
-import {
-	ArrowUp,
-	DownloadSimple,
-	SpeakerHigh,
-	Subtitles,
-	WarningCircle,
-} from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import {
 	type ReactNode,
@@ -17,6 +10,13 @@ import {
 	useRef,
 	useState,
 } from "react";
+import {
+	ArrowUp,
+	DownloadSimple,
+	SpeakerHigh,
+	Subtitles,
+	WarningCircle,
+} from "@/components/icons";
 import type { Messages } from "@/i18n/messages";
 import { parseCollectionLang } from "@/lib/collection";
 import { pvHref } from "@/lib/files-view";
@@ -98,31 +98,20 @@ export function Pv({
 		(playable.find((c) => c.id === initial) ?? playable[0])?.id,
 	);
 	const [chosen, setChosen] = useState(false);
-	const [failed, setFailed] = useState(false);
 	const clip = playable.find((c) => c.id === pickedId);
 
 	const pick = useCallback((next: PlayerClip) => {
 		setPickedId(next.id);
 		setChosen(true);
-		setFailed(false);
 		replaceUrl(
 			localePath(pvHref(next.id), pathLocale(window.location.pathname)),
 		);
 	}, []);
 
-	const fail = useCallback(() => setFailed(true), []);
-
 	if (!clip) return null;
 	return (
 		<div className="pv-layout">
-			<PvStage
-				m={t}
-				clip={clip}
-				chosen={chosen}
-				failed={failed}
-				stage={stage}
-				fail={fail}
-			/>
+			<PvStage m={t} clip={clip} chosen={chosen} stage={stage} />
 			<PvList t={t.pv} groups={groups} clip={clip} pick={pick} />
 		</div>
 	);
@@ -190,21 +179,18 @@ function PvStage({
 	m,
 	clip,
 	chosen,
-	failed,
 	stage,
-	fail,
 }: {
 	m: PvCopy;
 	clip: PlayerClip;
 	chosen: boolean;
-	failed: boolean;
 	stage: RefObject<HTMLDivElement | null>;
-	fail: () => void;
 }) {
 	const t = m.pv;
 	const video = useRef<HTMLVideoElement>(null);
 	const screen = useRef<HTMLDivElement>(null);
 	const resume = useRef<{ time: number; playing: boolean } | null>(null);
+	const [failedSrc, setFailedSrc] = useState<string>();
 	const [overlayOn, setOverlayOn] = useState(false);
 	const [picked, setPicked] = useState<Partial<Record<OverlayKind, string>>>(
 		{},
@@ -262,7 +248,7 @@ function PvStage({
 			<div className="pv-screen" ref={screen}>
 				{interactive && clip.replay ? (
 					<Deduction view={clip.replay} t={m} />
-				) : failed ? (
+				) : failedSrc === src ? (
 					<div className="pv-failed" role="alert">
 						<WarningCircle size={20} weight="fill" aria-hidden />
 						<p>{t.playFailed}</p>
@@ -287,7 +273,10 @@ function PvStage({
 							player.currentTime = Math.min(place.time, player.duration || 0);
 							if (place.playing) player.play().catch(() => undefined);
 						}}
-						onError={fail}
+						onError={() => {
+							resume.current = null;
+							setFailedSrc(src);
+						}}
 					/>
 				)}
 			</div>

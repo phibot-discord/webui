@@ -80,7 +80,8 @@ export type MigrateErr = {
 		| "migrate_changed"
 		| "migrate_failed"
 		| "migrate_unverified"
-		| "migrate_bind_expired";
+		| "migrate_bind_expired"
+		| "banned";
 	status: number;
 	detail?: string;
 };
@@ -287,6 +288,8 @@ async function connectSlot(
 	slot: Slot,
 	account: Account,
 ): Promise<SlotReady | MigrateErr> {
+	if (await host.rt.store.isSessionTokenBanned(account.token))
+		return { error: "banned", status: 403 };
 	if (slot === "from") {
 		const read = await readAccount(account);
 		if ("error" in read) return read;
@@ -470,6 +473,11 @@ async function runMigrateFor(
 	const state = await readState(host, userId);
 	if (!state.from || !state.to || !state.revs)
 		return { error: "migrate_expired", status: 410 };
+	const bans = await Promise.all([
+		host.rt.store.isSessionTokenBanned(state.from.token),
+		host.rt.store.isSessionTokenBanned(state.to.token),
+	]);
+	if (bans.some(Boolean)) return { error: "banned", status: 403 };
 	const pair = await readPair(state.from, state.to);
 	if ("error" in pair) return pair;
 	const { from, to } = pair;
@@ -485,7 +493,10 @@ async function runMigrateFor(
 			preview: preview(pair, bound),
 		};
 	}
-	const zip = await downloadSaveZip(from.row.gameFile?.url ?? "");
+	const zip = await downloadSaveZip(
+		from.row.gameFile?.url ?? "",
+		from.account.global,
+	);
 	const toServer = serverOf(to.account);
 	await host.store.set(
 		UNDO_KEY(userId, toServer, to.save.userId),

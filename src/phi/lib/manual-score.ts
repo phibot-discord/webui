@@ -61,7 +61,7 @@ export function estimateScore(acc: number, fc: boolean) {
 export function effectiveScore(
 	rec: Pick<ManualRecord, "acc" | "score" | "fc">,
 ) {
-	return rec.score ?? estimateScore(rec.acc, rec.fc === true || rec.acc >= 100);
+	return rec.score || estimateScore(rec.acc, rec.fc === true || rec.acc >= 100);
 }
 
 /** In-game RKS: three best AP charts plus the best 27 overall, over 30 */

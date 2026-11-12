@@ -1,4 +1,5 @@
 import type { PhiLocale } from "../card-i18n";
+import { fCompute } from "../fcompute";
 import { escapeHtml } from "../html";
 import { clipEm, fitFontPx, textEm } from "../text-fit";
 import type { CardData } from "./types";
@@ -488,6 +489,6 @@ export function infoView(
 			},
 		],
 		tip: tips,
-		generated: `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")}`,
+		generated: fCompute.formatDate(now, "YYYY/MM/DD"),
 	};
 }

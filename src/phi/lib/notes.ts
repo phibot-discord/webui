@@ -7,6 +7,7 @@ import {
 	sanitizeCardStyles,
 } from "./card-styles";
 import { kvKey } from "./const";
+import { evictOldest } from "./lru";
 
 /** No "b30": phib19 answers it with no figures, so a stored "b30" reads as "all" */
 export const B30_AVG_KINDS = ["all", "top", "rank", "none"] as const;
@@ -123,32 +124,109 @@ export async function setNotes(db: Kv, userId: string, notes: UserNotes) {
 	await db.set(kvKey("notes", userId), JSON.stringify(rest));
 }
 
+const NOTES_QUEUE_MAX = 1_000;
+const notesQueue = new Map<string, Promise<unknown>>();
+
+function queued<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+	const prev = notesQueue.get(userId) ?? Promise.resolve();
+	const next = prev.then(fn, fn);
+	const tail: Promise<unknown> = next.then(
+		() => undefined,
+		() => undefined,
+	);
+	notesQueue.delete(userId);
+	notesQueue.set(userId, tail);
+	evictOldest(notesQueue, NOTES_QUEUE_MAX);
+	void tail.then(() => {
+		if (notesQueue.get(userId) === tail) notesQueue.delete(userId);
+	});
+	return next;
+}
+
 export async function setUserLocale(db: Kv, userId: string, locale: PhiLocale) {
-	const notes = await getNotes(db, userId);
-	notes.locale = locale;
-	await setNotes(db, userId, notes);
+	await queued(userId, async () => {
+		const notes = await getNotes(db, userId);
+		notes.locale = locale;
+		await setNotes(db, userId, notes);
+	});
 }
 
 export function tagAnalysisEnabled(notes: UserNotes) {
 	return notes.showTagAnalysis !== false;
 }
 
+export type NotesPatch = {
+	showTagAnalysis?: boolean;
+	showRecordStats?: boolean;
+	stddevExcludeP3?: boolean;
+	cardQuality?: "high" | "fast";
+	cardBackground?: string;
+	cardStyle?: { kind: StyledKind; style: CardStyle };
+	b30AvgKind?: B30AvgKind;
+	rankScope?: RankScope;
+	rankBandShow?: RankBandShow;
+	peerWait?: boolean;
+	theme?: string;
+	b30AvgColor?: UserNotes["b30AvgColor"];
+	allowApiUsage?: boolean;
+	showB30Analysis?: boolean;
+};
+
+export async function patchNotes(
+	db: Kv,
+	userId: string,
+	patch: NotesPatch,
+): Promise<void> {
+	await queued(userId, async () => {
+		const notes = await getNotes(db, userId);
+		if (patch.showTagAnalysis !== undefined) {
+			notes.showTagAnalysis = patch.showTagAnalysis;
+		}
+		if (patch.showRecordStats !== undefined) {
+			notes.showRecordStats = patch.showRecordStats;
+		}
+		if (patch.stddevExcludeP3 !== undefined) {
+			notes.stddevExcludeP3 = patch.stddevExcludeP3;
+		}
+		if (patch.cardQuality !== undefined) notes.cardQuality = patch.cardQuality;
+		if (patch.cardBackground !== undefined) {
+			notes.cardBackground = patch.cardBackground;
+		}
+		if (patch.cardStyle !== undefined) {
+			const { kind, style } = patch.cardStyle;
+			const next = { ...notes.cardStyle };
+			if (style === DEFAULT_CARD_STYLE) delete next[kind];
+			else next[kind] = style;
+			notes.cardStyle = Object.keys(next).length ? next : undefined;
+		}
+		if (patch.b30AvgKind !== undefined) notes.b30AvgKind = patch.b30AvgKind;
+		if (patch.rankScope !== undefined) notes.rankScope = patch.rankScope;
+		if (patch.rankBandShow !== undefined) {
+			notes.rankBandShow = patch.rankBandShow;
+		}
+		if (patch.peerWait !== undefined) notes.peerWait = patch.peerWait;
+		if (patch.theme !== undefined) notes.theme = patch.theme;
+		if (patch.b30AvgColor !== undefined) notes.b30AvgColor = patch.b30AvgColor;
+		if (patch.allowApiUsage !== undefined) {
+			notes.allowApiUsage = patch.allowApiUsage;
+		}
+		if (patch.showB30Analysis !== undefined) {
+			notes.showB30Analysis = patch.showB30Analysis;
+		}
+		await setNotes(db, userId, notes);
+	});
+}
+
 export async function setShowTagAnalysis(db: Kv, userId: string, on: boolean) {
-	const notes = await getNotes(db, userId);
-	notes.showTagAnalysis = on;
-	await setNotes(db, userId, notes);
+	await patchNotes(db, userId, { showTagAnalysis: on });
 }
 
 export async function setShowRecordStats(db: Kv, userId: string, on: boolean) {
-	const notes = await getNotes(db, userId);
-	notes.showRecordStats = on;
-	await setNotes(db, userId, notes);
+	await patchNotes(db, userId, { showRecordStats: on });
 }
 
 export async function setStddevExcludeP3(db: Kv, userId: string, on: boolean) {
-	const notes = await getNotes(db, userId);
-	notes.stddevExcludeP3 = on;
-	await setNotes(db, userId, notes);
+	await patchNotes(db, userId, { stddevExcludeP3: on });
 }
 
 export async function setCardQuality(
@@ -156,21 +234,15 @@ export async function setCardQuality(
 	userId: string,
 	cardQuality: "high" | "fast",
 ) {
-	const notes = await getNotes(db, userId);
-	notes.cardQuality = cardQuality;
-	await setNotes(db, userId, notes);
+	await patchNotes(db, userId, { cardQuality });
 }
 
 export async function setB30AvgKind(db: Kv, userId: string, kind: B30AvgKind) {
-	const notes = await getNotes(db, userId);
-	notes.b30AvgKind = kind;
-	await setNotes(db, userId, notes);
+	await patchNotes(db, userId, { b30AvgKind: kind });
 }
 
 export async function setRankScope(db: Kv, userId: string, scope: RankScope) {
-	const notes = await getNotes(db, userId);
-	notes.rankScope = scope;
-	await setNotes(db, userId, notes);
+	await patchNotes(db, userId, { rankScope: scope });
 }
 
 export async function setRankBandShow(
@@ -178,15 +250,11 @@ export async function setRankBandShow(
 	userId: string,
 	show: RankBandShow,
 ) {
-	const notes = await getNotes(db, userId);
-	notes.rankBandShow = show;
-	await setNotes(db, userId, notes);
+	await patchNotes(db, userId, { rankBandShow: show });
 }
 
 export async function setPeerWait(db: Kv, userId: string, on: boolean) {
-	const notes = await getNotes(db, userId);
-	notes.peerWait = on;
-	await setNotes(db, userId, notes);
+	await patchNotes(db, userId, { peerWait: on });
 }
 
 export async function setCardBackground(
@@ -194,9 +262,7 @@ export async function setCardBackground(
 	userId: string,
 	cardBackground: string,
 ) {
-	const notes = await getNotes(db, userId);
-	notes.cardBackground = cardBackground;
-	await setNotes(db, userId, notes);
+	await patchNotes(db, userId, { cardBackground });
 }
 
 export async function setCardStyle(
@@ -205,10 +271,5 @@ export async function setCardStyle(
 	kind: StyledKind,
 	style: CardStyle,
 ) {
-	const notes = await getNotes(db, userId);
-	const next = { ...notes.cardStyle };
-	if (style === DEFAULT_CARD_STYLE) delete next[kind];
-	else next[kind] = style;
-	notes.cardStyle = Object.keys(next).length ? next : undefined;
-	await setNotes(db, userId, notes);
+	await patchNotes(db, userId, { cardStyle: { kind, style } });
 }

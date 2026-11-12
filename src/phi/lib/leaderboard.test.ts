@@ -930,14 +930,33 @@ test("a late leaderboardJson hands its lookups to the background, and the retry 
 });
 
 test("too many uncached leaderboardJson lookups at once are refused; cached ones are not", async () => {
-	const fake = fakePhib19({ delayMs: 40 });
+	const fake = fakePhib19();
+	let open = () => {};
+	let gate = Promise.resolve();
+	const close = () => {
+		gate = new Promise<void>((resolve) => {
+			open = resolve;
+		});
+	};
+	const post = async (path: string, body: unknown) => {
+		if (path.endsWith("songApFcCount")) {
+			return {
+				status: 200,
+				body: { data: { AT: { total: 1000, apCount: 7, fcCount: 30 } } },
+			};
+		}
+		await gate;
+		return fake.post(path, body);
+	};
 	const background: Promise<unknown>[] = [];
 	const ask = (acc: number) =>
 		leaderboardJson(
 			{ chart: "Song.X.0", level: "AT", acc },
 			{ budgetMs: 5, background: (work) => background.push(work) },
-			{ post: fake.post, known },
+			{ post, known },
 		);
+	assert.equal((await ask(70)).status, 200);
+	close();
 	for (let i = 0; i < LB_API_FRESH_MAX; i++) {
 		assert.equal((await ask(90 + i)).status, 503);
 	}
@@ -945,10 +964,15 @@ test("too many uncached leaderboardJson lookups at once are refused; cached ones
 		status: 503,
 		body: { error: "upstream_busy" },
 	});
+	assert.equal((await ask(70)).status, 200);
+	open();
 	await Promise.all(background);
 	assert.equal((await ask(90)).status, 200);
+	close();
 	assert.deepEqual(await ask(80), {
 		status: 503,
 		body: { error: "upstream_slow" },
 	});
+	open();
+	await Promise.all(background);
 });

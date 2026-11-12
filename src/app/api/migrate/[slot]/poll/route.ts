@@ -1,6 +1,11 @@
 import { authed } from "@/server/authed";
-import { localizedBindError, localizedErrorBody } from "@/server/i18n-http";
+import {
+	localizedBindError,
+	localizedErrorBody,
+	localizedRetryAfter,
+} from "@/server/i18n-http";
 import { asSlot, finishMigrateQr, peekMigrateQr } from "@/server/migrate";
+import { rateLimitBy } from "@/server/rate-limit";
 import { tapWaitNdjson } from "@/server/tap-stream";
 
 export const runtime = "nodejs";
@@ -14,6 +19,9 @@ export async function POST(
 	const slot = asSlot((await ctx.params).slot);
 	if (!slot) return new Response("not found", { status: 404 });
 	return authed(async (userId) => {
+		const limited = rateLimitBy(`poll:${userId}:${slot}`, 60);
+		if (!limited.ok)
+			return localizedRetryAfter(limited.retryAfter, "rate_limit");
 		const peeked = await peekMigrateQr(userId, slot);
 		if ("resume" in peeked) {
 			return tapWaitNdjson(

@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { kvKey } from "@/phi/lib/const";
+import { evictOldest } from "@/phi/lib/lru";
 import { getDataHost } from "./data-host";
 
 const SHARE = (slug: string) => kvKey("webShare", slug);
@@ -13,11 +14,7 @@ const SLUG_MEM_MAX = 2_000;
 function rememberSlug(slug: string, userId: string) {
 	slugMem.delete(slug);
 	slugMem.set(slug, { userId, at: Date.now() });
-	while (slugMem.size > SLUG_MEM_MAX) {
-		const oldest = slugMem.keys().next().value;
-		if (oldest === undefined) break;
-		slugMem.delete(oldest);
-	}
+	evictOldest(slugMem, SLUG_MEM_MAX);
 }
 
 export function resetShareMemForTest() {
@@ -37,6 +34,10 @@ export async function userIdForSlug(slug: string): Promise<string | undefined> {
 	if (hot && Date.now() - hot.at < SLUG_MEMO_MS) return hot.userId;
 	const host = await getDataHost();
 	const userId = (await host.db.get(SHARE(slug))) || undefined;
+	if (userId && (await host.db.get(SHARE_USER(userId))) !== slug) {
+		slugMem.delete(slug);
+		return undefined;
+	}
 	if (userId) rememberSlug(slug, userId);
 	else slugMem.delete(slug);
 	return userId;

@@ -1,8 +1,8 @@
 "use client";
 
-import { Coffee, X } from "@phosphor-icons/react";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import { Coffee, X } from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import type { Locale } from "@/i18n/config";
 import { formatDay } from "@/i18n/datetime";

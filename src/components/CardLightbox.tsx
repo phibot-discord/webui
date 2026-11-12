@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowSquareOut, X } from "@phosphor-icons/react";
 import {
 	type MouseEvent,
 	useEffect,
@@ -9,6 +8,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { ArrowSquareOut, X } from "@/components/icons";
 import { useI18n } from "@/i18n/provider";
 
 type Zoom = "screen" | "width" | "actual";
@@ -175,6 +175,7 @@ export function CardLightbox({
 				aria-describedby={hintId}
 				onDoubleClick={zoomAt}
 			>
+				{/* biome-ignore lint/performance/noImgElement: a rendered card held as a blob URL, not a static asset */}
 				<img
 					ref={image}
 					src={url}

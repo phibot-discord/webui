@@ -17,6 +17,7 @@ import { CollectionToc } from "./CollectionToc";
 import { DocHead } from "./DocHead";
 import { FilesSwap } from "./FilesFrame";
 import { FilesLink } from "./FilesLink";
+import { LocaleAnchor } from "./LocaleAnchor";
 import {
 	type DetailsCopy,
 	DetailsCopyProvider,
@@ -151,20 +152,20 @@ function EventCard({
 				<ul className="tl-tags">
 					{event.chapters.map((c) => (
 						<li key={`c-${c.id}`}>
-							<a className="tl-tag tl-tag-chapter" href={c.href}>
+							<LocaleAnchor className="tl-tag tl-tag-chapter" href={c.href}>
 								<span className="tl-tag-short">{c.short}</span>
 								{c.name}
-							</a>
+							</LocaleAnchor>
 						</li>
 					))}
 					{event.threads.map((th) => (
 						<li key={`t-${th.id}`}>
-							<a
+							<LocaleAnchor
 								className="tl-tag"
 								href={timelineHref({ thread: th.id, community })}
 							>
 								{th.name}
-							</a>
+							</LocaleAnchor>
 						</li>
 					))}
 				</ul>
@@ -214,7 +215,7 @@ function Archive({ year, t }: { year: ViewYear; t: Copy }) {
 								{day.entries.map((entry) => (
 									<li key={entry.id}>
 										<span className="tl-entry-chapter">{entry.chapter}</span>
-										<a href={entry.href}>{entry.title}</a>
+										<LocaleAnchor href={entry.href}>{entry.title}</LocaleAnchor>
 									</li>
 								))}
 							</ul>
@@ -488,14 +489,14 @@ function TrackTab({
 					) : null}
 					<p>
 						{t.filtered}{" "}
-						<a
+						<LocaleAnchor
 							href={timelineHref(
 								{ tab: "threads", community },
 								`thread-${picked.id}`,
 							)}
 						>
 							{t.wikiPages}
-						</a>
+						</LocaleAnchor>
 					</p>
 				</div>
 			) : null}
@@ -623,7 +624,9 @@ function ErasTab({
 									<span className="tl-era-count">
 										{n === 1 ? t.eraEventsOne : fill(t.eraEvents, { n })}
 									</span>
-									<a href={timelineHref({ community }, s.id)}>{t.eraOpen}</a>
+									<LocaleAnchor href={timelineHref({ community }, s.id)}>
+										{t.eraOpen}
+									</LocaleAnchor>
 								</p>
 							</section>
 						</li>
@@ -723,9 +726,11 @@ function ChaptersTab({
 					<p className="tl-thread-summary">{c.synopsis}</p>
 					<p className="tl-era-links">
 						{c.first ? (
-							<a href={timelineHref({ community }, c.first)}>{t.jump}</a>
+							<LocaleAnchor href={timelineHref({ community }, c.first)}>
+								{t.jump}
+							</LocaleAnchor>
 						) : null}
-						<a href={c.href}>{t.openChapter}</a>
+						<LocaleAnchor href={c.href}>{t.openChapter}</LocaleAnchor>
 					</p>
 				</section>
 			))}
@@ -756,13 +761,13 @@ function TermCard({
 			<p className="tl-meta">
 				<span className="tl-source">{t.sources[term.source]}</span>
 				{term.threads.map((th) => (
-					<a
+					<LocaleAnchor
 						key={th.id}
 						className="tl-tag"
 						href={timelineHref({ thread: th.id, community })}
 					>
 						{th.name}
-					</a>
+					</LocaleAnchor>
 				))}
 			</p>
 			<p className="tl-summary">{term.summary}</p>
@@ -905,7 +910,9 @@ function SettingTab({
 									{t.kinds[group.kind]} · {t.sources[part.source]}
 								</a>
 								<span className="tl-chip-count">
-									{fill(t.settingCount, { n: part.terms.length })}
+									{part.terms.length === 1
+										? t.settingCountOne
+										: fill(t.settingCount, { n: part.terms.length })}
 								</span>
 							</h2>
 							<div className="tl-terms">
@@ -933,7 +940,9 @@ function SettingTab({
 								<h2 id={`tl-kind-${g.kind}`}>
 									<a href={`#tl-kind-${g.kind}`}>{t.kinds[g.kind]}</a>
 									<span className="tl-chip-count">
-										{fill(t.settingCount, { n: official.length })}
+										{official.length === 1
+											? t.settingCountOne
+											: fill(t.settingCount, { n: official.length })}
 									</span>
 								</h2>
 								<div className="tl-terms">

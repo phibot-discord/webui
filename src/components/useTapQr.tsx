@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowSquareOut, CheckCircle } from "@phosphor-icons/react";
 import {
 	type FormEvent,
 	type RefObject,
@@ -10,6 +9,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { ArrowSquareOut, CheckCircle } from "@/components/icons";
 import { Announce, SteadyButton } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 import { apiErrorText } from "@/lib/api-error";
@@ -48,6 +48,7 @@ export function useTapQr<X extends string>({
 	const [touch, setTouch] = useState(false);
 	const expiresAt = useRef(0);
 	const intervalMs = useRef(2500);
+	const pollBusy = useRef(false);
 	const startRef = useRef<HTMLButtonElement>(null);
 	const statusRef = useRef<HTMLParagraphElement>(null);
 	const lastPhase = useRef(phase);
@@ -79,7 +80,7 @@ export function useTapQr<X extends string>({
 				Math.ceil((expiresAt.current - Date.now()) / 1000),
 			);
 			setRemain(left);
-			if (left === 0) {
+			if (left === 0 && !pollBusy.current) {
 				fail(m.errors.qr_expired);
 				void fetch(`${base}/cancel`, { method: "POST" }).catch(() => undefined);
 			}
@@ -96,6 +97,7 @@ export function useTapQr<X extends string>({
 		const poll = async () => {
 			if (dead || busy || document.hidden) return;
 			busy = true;
+			pollBusy.current = true;
 			try {
 				const res = await fetch(`${base}/poll`, {
 					method: "POST",
@@ -128,6 +130,7 @@ export function useTapQr<X extends string>({
 				if (!dead) fail(failedText);
 			} finally {
 				busy = false;
+				pollBusy.current = false;
 			}
 		};
 		const onVisible = () => {
@@ -138,6 +141,7 @@ export function useTapQr<X extends string>({
 		void poll();
 		return () => {
 			dead = true;
+			pollBusy.current = false;
 			ctrl.abort();
 			window.clearInterval(id);
 			document.removeEventListener("visibilitychange", onVisible);

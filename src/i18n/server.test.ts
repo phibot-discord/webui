@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cookieLocale, localeSetCookie } from "./server";
+import {
+	cookieLocale,
+	localeSetCookie,
+	setRequestLocaleForTest,
+	signInHref,
+	signInLink,
+} from "./server";
 
 test("cookieLocale reads phi-locale from a raw Cookie header", () => {
 	const h = (cookie?: string) => new Headers(cookie == null ? {} : { cookie });
@@ -20,4 +26,17 @@ test("localeSetCookie matches what the page side reads back", () => {
 		cookieLocale(new Headers({ cookie: value.split(";")[0] ?? "" })),
 		"zh",
 	);
+});
+
+test("a sign-in link the visitor clicks is marked, a redirect is not", async () => {
+	setRequestLocaleForTest("zh");
+	try {
+		assert.equal(await signInHref("/me/b30"), "/zh?next=%2Fzh%2Fme%2Fb30");
+		assert.equal(
+			await signInLink("/versions"),
+			"/zh?next=%2Fzh%2Fversions&asked=1",
+		);
+	} finally {
+		setRequestLocaleForTest();
+	}
 });

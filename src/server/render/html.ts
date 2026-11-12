@@ -71,12 +71,49 @@ export function collectLocalAssetPaths(
 	return out;
 }
 
+const ENTITIES: Record<string, string> = {
+	amp: "&",
+	lt: "<",
+	gt: ">",
+	quot: '"',
+	"#34": '"',
+	"#38": "&",
+	"#39": "'",
+	"#60": "<",
+	"#62": ">",
+};
+
+function imageFileFromSpec(spec: string, baseDir: string): string | undefined {
+	const file = localFileFromSpec(spec, baseDir);
+	if (!file || !spec.includes("&") || exists(file)) return file;
+	const plain = localFileFromSpec(
+		spec.replace(
+			/&(amp|lt|gt|quot|#34|#38|#39|#60|#62);/g,
+			(m, name: string) => ENTITIES[name] ?? m,
+		),
+		baseDir,
+	);
+	return plain && exists(plain) ? plain : file;
+}
+
+export function readLocalImage(
+	file: string,
+	missing: Set<string>,
+): Buffer | undefined {
+	try {
+		if (exists(file)) return readAssetCached(file);
+	} catch {}
+	if (isImage(file)) missing.add(file);
+	return undefined;
+}
+
 export function rewriteLocalUrls(
 	html: string,
 	baseDir: string,
-): { html: string; images: ImageAsset[] } {
+): { html: string; images: ImageAsset[]; missingImages: string[] } {
 	SRC_RE.lastIndex = 0;
 	const images: ImageAsset[] = [];
+	const missing = new Set<string>();
 	const seen = new Set<string>();
 	const html2 = html.replace(SRC_RE, (m, spec: string) => {
 		if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(spec)) {
@@ -89,17 +126,19 @@ export function rewriteLocalUrls(
 			}
 			return m;
 		}
-		const file = localFileFromSpec(spec, baseDir);
+		const file = imageFileFromSpec(spec, baseDir);
 		if (!file) return m;
-		if (!exists(file)) return m;
 		const url = file.startsWith("phi-css://") ? file : pathToFileURL(file).href;
-		if (!seen.has(url) && isImage(file)) {
+		if (!isImage(file)) return exists(file) ? m.replace(spec, url) : m;
+		if (!seen.has(url)) {
+			const data = readLocalImage(file, missing);
+			if (!data) return m;
 			seen.add(url);
-			images.push({ src: url, data: readAssetCached(file) });
+			images.push({ src: url, data });
 		}
 		return m.replace(spec, url);
 	});
-	return { html: html2, images };
+	return { html: html2, images, missingImages: [...missing] };
 }
 
 function isImage(file: string) {

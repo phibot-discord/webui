@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isExtraPackLevel, packLevelName } from "./chart-catalog";
+import { isChartId, isExtraPackLevel, packLevelName } from "./chart-catalog";
 
 test("a pack level reads as its difficulty, with any variant after it", () => {
 	assert.deepEqual(packLevelName("IN"), { base: "IN", tag: "", label: "IN" });
@@ -48,5 +48,34 @@ test("extra packs are every level beyond the four the song list scores", () => {
 	}
 	for (const level of ["EZ", "HD", "IN", "AT", "", "../x", "SP.pez"]) {
 		assert.equal(isExtraPackLevel(level), false, level);
+	}
+});
+
+test("a catalog id is a chart id", () => {
+	for (const id of [
+		"Glaciaxion.SunsetRay.0",
+		"Rrharil.TeamGrimoire",
+		"もぺもぺ.LeaF.0",
+		"A B.C.0",
+		"a".repeat(160),
+	]) {
+		assert.equal(isChartId(id), true, id);
+	}
+});
+
+test("an id that could leave its folder is not a chart id", () => {
+	for (const id of [
+		"",
+		".",
+		"..",
+		"../x",
+		"a/b",
+		"a\\b",
+		"a\u0000b",
+		"a\tb",
+		"a\u007fb",
+		"a".repeat(161),
+	]) {
+		assert.equal(isChartId(id), false, JSON.stringify(id));
 	}
 });

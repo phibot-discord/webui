@@ -1,6 +1,15 @@
 "use client";
 
 import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { useFullscreen } from "@/components/CutControls";
+import {
 	CornersIn,
 	CornersOut,
 	FastForward,
@@ -12,26 +21,32 @@ import {
 	SpeakerHigh,
 	SpeakerSlash,
 	X,
-} from "@phosphor-icons/react";
-import {
-	useCallback,
-	useEffect,
-	useId,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
-import { useFullscreen } from "@/components/CutControls";
+} from "@/components/icons";
 import { SegRadio } from "@/components/SegRadio";
 import { useI18n } from "@/i18n/provider";
 import { saveBlob, shownVersion, versionSpan } from "@/lib/apk-version";
 import { WATERMARK } from "@/lib/chart-player/base";
-import type { CaptionText } from "@/lib/chart-player/gl";
 import {
 	densityOf,
 	type Hardest,
 	hardestWindow,
 } from "@/lib/chart-player/density";
+import type { CaptionText } from "@/lib/chart-player/gl";
+import {
+	CHORD_KEY,
+	loadedPlayerModule,
+	MIX_KEY,
+	NOISE_KEY,
+	type PlayerModule,
+	playerModule,
+	SIZE_KEY,
+	SIZE_MAX,
+	SIZE_MIN,
+	storedMix,
+	storedNumber,
+	VOLUME_KEY,
+	VOLUME_MAX,
+} from "@/lib/chart-player/host";
 import type { AudioState, ChartPlayer } from "@/lib/chart-player/player";
 import { readLocal, writeLocal } from "@/lib/local-store";
 import { fill } from "@/phi/lib/card-i18n";
@@ -45,39 +60,14 @@ type VideoState =
 	| { state: "rendering"; progress: number }
 	| { state: "done" }
 	| { state: "failed" };
-type PlayerModule = typeof import("@/lib/chart-player/player");
 
 const SKIP = 5;
 const DENSITY_BINS = 160;
 const HARD_WINDOW = 10;
 const LEAD_IN = 1;
-const VOLUME_KEY = "webChartHitVolume";
-const MIX_KEY = "webChartHitMix";
-const CHORD_KEY = "webChartChordColors";
-const NOISE_KEY = "webChartNoise";
-const SIZE_KEY = "webChartNoteSize";
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5];
 const HIT_KINDS = ["tap", "drag", "flick"] as const;
-const VOLUME_MAX = 1.5;
-const SIZE_MIN = 0.6;
-const SIZE_MAX = 1.5;
 const DEFAULT_MIX = [1, 1, 1];
-
-let moduleJob: Promise<PlayerModule> | null = null;
-let loadedModule: PlayerModule | null = null;
-
-function playerModule(): Promise<PlayerModule> {
-	if (!moduleJob) {
-		moduleJob = import("@/lib/chart-player/player").then((mod) => {
-			loadedModule = mod;
-			return mod;
-		});
-		moduleJob.catch(() => {
-			moduleJob = null;
-		});
-	}
-	return moduleJob;
-}
 
 function clock(s: number): string {
 	const v = Math.max(0, Math.floor(s));
@@ -99,25 +89,6 @@ function isField(target: EventTarget | null): boolean {
 		target instanceof HTMLElement &&
 		Boolean(target.closest("select, input, textarea, button, a, dialog"))
 	);
-}
-
-function bounded(
-	raw: string | null | undefined,
-	min: number,
-	max: number,
-): number | null {
-	if (raw === null || raw === "") return null;
-	const n = Number(raw);
-	return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : null;
-}
-
-function readMix(): number[] {
-	const raw = readLocal(MIX_KEY);
-	if (!raw) return DEFAULT_MIX;
-	const parts = raw.split(",").map((p) => bounded(p, 0, 1));
-	return parts.length === 3 && parts.every((p) => p !== null)
-		? (parts as number[])
-		: DEFAULT_MIX;
 }
 
 function pct(v: number): string {
@@ -226,11 +197,11 @@ export function ChartPreview({
 	useEffect(() => {
 		if (readLocal(CHORD_KEY) === "1") setChords(true);
 		if (readLocal(NOISE_KEY) === "0") setNoise(false);
-		const saved = bounded(readLocal(VOLUME_KEY), 0, VOLUME_MAX);
+		const saved = storedNumber(VOLUME_KEY, 0, VOLUME_MAX);
 		if (saved !== null) setVolume(saved);
-		const size = bounded(readLocal(SIZE_KEY), SIZE_MIN, SIZE_MAX);
+		const size = storedNumber(SIZE_KEY, SIZE_MIN, SIZE_MAX);
 		if (size !== null) setNoteSize(size);
-		setMix(readMix());
+		setMix(storedMix() ?? DEFAULT_MIX);
 	}, []);
 
 	useEffect(() => {
@@ -373,7 +344,8 @@ export function ChartPreview({
 		setTiming(null);
 		let p = player.current;
 		if (!p) {
-			const mod = loadedModule ?? (await playerModule().catch(() => null));
+			const mod =
+				loadedPlayerModule() ?? (await playerModule().catch(() => null));
 			if (!mod) {
 				setPhase("failed");
 				return;
@@ -395,6 +367,7 @@ export function ChartPreview({
 			if (!got) return;
 			music = got.music;
 		} catch {
+			p.pause();
 			setPhase("failed");
 			return;
 		}

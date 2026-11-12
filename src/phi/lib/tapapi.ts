@@ -135,21 +135,25 @@ export class TapApiError extends Error {
 	}
 }
 
+export function isTapApiError(err: unknown): err is TapApiError {
+	return err instanceof Error && err.name === "TapApiError";
+}
+
 function toTapApiError(err: unknown): TapApiError {
-	if (err instanceof TapApiError) return err;
+	if (isTapApiError(err)) return err;
 	const timeout = isTimeoutError(err);
 	const message = err instanceof Error ? err.message : "TapAPI request failed";
 	return new TapApiError(timeout ? "TapAPI timed out" : message, timeout);
 }
 
 export function isTapApiFailure(err: unknown): boolean {
-	return err instanceof TapApiError || isTimeoutError(err);
+	return isTapApiError(err) || isTimeoutError(err);
 }
 
 /** TapTap answered 429 Too Many Requests, after undici's own retries */
 export function isTapRateLimited(err: unknown): boolean {
 	for (let cur = err, i = 0; cur && i < 4; i++) {
-		if (cur instanceof TapApiError) return cur.status === 429;
+		if (isTapApiError(cur)) return cur.status === 429;
 		cur = (cur as { cause?: unknown }).cause;
 	}
 	return false;
@@ -168,7 +172,7 @@ export function withTapWait<T>(
 
 /** Kernel SYN to TapTap often dies ~15s; undici's 30s connect timer never fires */
 export function isRetryableTapNet(err: unknown): boolean {
-	if (err instanceof TapApiError) return err.timeout;
+	if (isTapApiError(err)) return err.timeout;
 	let cur: unknown = err;
 	for (let i = 0; i < 4 && cur; i++) {
 		if (!(cur instanceof Error)) return false;
@@ -242,16 +246,20 @@ export async function tapFetch(
 			if (!res.ok) {
 				const text = await res.text().catch(() => "");
 				if (!isOauthWait(res.status, text)) {
+					const code = bodyCode(text);
 					logger.warn(
-						`tap ${method} ${tapUrl(url)} ${res.status} ${ms}ms${text ? ` ${text.slice(0, 160)}` : ""}`,
+						`tap ${method} ${tapUrl(url)} ${res.status} ${ms}ms${code === undefined ? "" : ` code ${code}`}`,
 					);
 				}
-				return new Response(text, { status: res.status, headers: res.headers });
+				return new Response(text || null, {
+					status: res.status,
+					headers: res.headers,
+				});
 			}
 			return res;
 		} catch (err) {
 			last = err;
-			if (err instanceof TapApiError && /TapAPI \d+/.test(err.message)) {
+			if (isTapApiError(err) && /TapAPI \d+/.test(err.message)) {
 				throw err;
 			}
 			const elapsed = Math.round(performance.now() - started);
@@ -281,4 +289,13 @@ function tapUrl(url: string | URL) {
 function isOauthWait(status: number, body: string) {
 	if (status !== 400 && status !== 401 && status !== 428) return false;
 	return /authorization_pending|authorization_waiting|slow_down/i.test(body);
+}
+
+export function bodyCode(text: string): number | undefined {
+	try {
+		const code = (JSON.parse(text) as { code?: unknown } | null)?.code;
+		return typeof code === "number" ? code : undefined;
+	} catch {
+		return undefined;
+	}
 }

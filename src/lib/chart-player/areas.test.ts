@@ -183,6 +183,23 @@ test("the time index finds areas across slice boundaries", () => {
 	assert.equal(a.peak, 1);
 });
 
+test("an area that ends very late keeps the slice table small and still draws", () => {
+	const a = compileAreas([
+		area(),
+		area({
+			appearTime: 5000,
+			enableTime: 5000,
+			disableTime: 5001,
+			disappearTime: 1e7,
+		}),
+	]);
+	assert.ok(a.sliceOff.length <= 3602);
+	const b = new AreaBuilder(a);
+	assert.equal(b.build(2.5), 1);
+	assert.equal(b.build(5000.5), 1);
+	assert.equal(b.build(9e6), 1);
+});
+
 test("charts without blockAreaList compile with no areas", () => {
 	const c = compileChart({
 		formatVersion: 3,

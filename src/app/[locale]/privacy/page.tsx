@@ -1,0 +1,21 @@
+import type { Metadata } from "next";
+import { LegalPage } from "@/components/LegalDoc";
+import { privacy } from "@/i18n/legal";
+import { getMessages } from "@/i18n/server";
+import { pageMetadata } from "@/server/og-meta";
+
+export const dynamic = "error";
+
+export function generateMetadata(): Promise<Metadata> {
+	return pageMetadata("privacy", { path: "/privacy" });
+}
+
+export default async function PrivacyPage() {
+	const { locale, m } = await getMessages();
+	return (
+		<LegalPage
+			doc={privacy[locale]}
+			other={{ href: "/tos", label: m.legal.terms }}
+		/>
+	);
+}

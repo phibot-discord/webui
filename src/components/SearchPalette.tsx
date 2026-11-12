@@ -1,20 +1,23 @@
 "use client";
 
-import { MagnifyingGlass } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import {
 	type KeyboardEvent,
+	type Ref,
 	useCallback,
 	useEffect,
 	useId,
+	useImperativeHandle,
 	useMemo,
 	useRef,
 	useState,
 } from "react";
+import { MagnifyingGlass } from "@/components/icons";
+import { useNavGroups } from "@/components/useNavGroups";
 import { useI18n } from "@/i18n/provider";
 import { type ChartSummary, loadChartCatalog } from "@/lib/chart-catalog";
 import { localePath } from "@/lib/locale-path";
-import { NAV_GROUPS } from "@/lib/nav";
+import { REVIEW_YEAR } from "@/lib/review-window";
 import { songPath } from "@/lib/song-path";
 import { looseFold, rankSongs } from "@/lib/song-search";
 import { fill } from "@/phi/lib/card-i18n";
@@ -29,10 +32,19 @@ type Hit = {
 
 const SONG_LIMIT = 8;
 
-export function SearchPalette({ signedIn }: { signedIn: boolean }) {
+export type SearchHandle = { show: () => void };
+
+export function SearchPalette({
+	signedIn,
+	ref,
+}: {
+	signedIn: boolean;
+	ref?: Ref<SearchHandle>;
+}) {
 	const { m, locale } = useI18n();
 	const t = m.search;
 	const router = useRouter();
+	const groups = useNavGroups();
 	const ids = useId();
 	const dialog = useRef<HTMLDialogElement>(null);
 	const input = useRef<HTMLInputElement>(null);
@@ -41,11 +53,6 @@ export function SearchPalette({ signedIn }: { signedIn: boolean }) {
 	const [active, setActive] = useState(0);
 	const [list, setList] = useState<ChartSummary[] | null>(null);
 	const [failed, setFailed] = useState(false);
-	const [mac, setMac] = useState(false);
-
-	useEffect(() => {
-		setMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
-	}, []);
 
 	const show = useCallback(() => {
 		setOpen(true);
@@ -54,6 +61,8 @@ export function SearchPalette({ signedIn }: { signedIn: boolean }) {
 		dialog.current?.showModal();
 		requestAnimationFrame(() => input.current?.focus());
 	}, []);
+
+	useImperativeHandle(ref, () => ({ show }), [show]);
 
 	useEffect(() => {
 		const onKey = (e: globalThis.KeyboardEvent) => {
@@ -88,12 +97,12 @@ export function SearchPalette({ signedIn }: { signedIn: boolean }) {
 
 	const pages = useMemo(() => {
 		const out: Hit[] = [];
-		for (const g of NAV_GROUPS) {
+		for (const g of groups) {
 			for (const item of g.items) {
 				out.push({
 					key: `p:${item.id}`,
 					href: item.href,
-					title: m.nav[item.id],
+					title: fill(m.nav[item.id], { year: REVIEW_YEAR }),
 					meta: m.nav.groups[g.id],
 					kind: "page",
 				});
@@ -109,7 +118,7 @@ export function SearchPalette({ signedIn }: { signedIn: boolean }) {
 			});
 		}
 		return out;
-	}, [m, signedIn]);
+	}, [groups, m, signedIn]);
 
 	const hits = useMemo(() => {
 		const text = q.trim();
@@ -144,6 +153,7 @@ export function SearchPalette({ signedIn }: { signedIn: boolean }) {
 	};
 
 	const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+		if (e.nativeEvent.isComposing || e.keyCode === 229) return;
 		const n = hits.all.length;
 		if (e.key === "ArrowDown" && n) {
 			e.preventDefault();
@@ -170,7 +180,9 @@ export function SearchPalette({ signedIn }: { signedIn: boolean }) {
 	const count = hits.all.length;
 	const status = q.trim()
 		? count
-			? fill(t.results, { n: count })
+			? count === 1
+				? t.resultsOne
+				: fill(t.results, { n: count })
 			: list || failed
 				? t.none
 				: t.loading
@@ -206,81 +218,105 @@ export function SearchPalette({ signedIn }: { signedIn: boolean }) {
 		) : null;
 
 	return (
-		<>
+		// biome-ignore lint/a11y/useKeyWithClickEvents: a click on the backdrop closes it; Esc closes the dialog natively
+		<dialog
+			ref={dialog}
+			className="sp-dialog"
+			aria-label={t.label}
+			onClose={() => setOpen(false)}
+			onClick={(e) => {
+				if (e.target === e.currentTarget) dialog.current?.close();
+			}}
+		>
+			{open ? (
+				<div className="sp-panel">
+					<div className="sp-field">
+						<MagnifyingGlass size={18} weight="bold" aria-hidden />
+						<input
+							ref={input}
+							className="sp-input"
+							type="text"
+							role="combobox"
+							aria-expanded={count > 0}
+							aria-controls={listId}
+							aria-autocomplete="list"
+							aria-activedescendant={count ? optionId(at) : undefined}
+							aria-label={t.label}
+							placeholder={t.placeholder}
+							autoComplete="off"
+							spellCheck={false}
+							value={q}
+							onChange={(e) => {
+								setQ(e.target.value);
+								setActive(0);
+							}}
+							onKeyDown={onKeyDown}
+						/>
+						<button
+							type="button"
+							className="btn btn-ghost btn-sm"
+							onClick={() => dialog.current?.close()}
+						>
+							{t.close}
+						</button>
+					</div>
+					<div
+						id={listId}
+						role="listbox"
+						aria-label={t.label}
+						className="sp-list"
+					>
+						{group(t.songs, hits.songs, 0, `${ids}-gs`)}
+						{group(t.pages, hits.pages, hits.songs.length, `${ids}-gp`)}
+					</div>
+					<p className="sr-only" role="status" aria-live="polite">
+						{status}
+					</p>
+					{q.trim() && !count ? <p className="sp-empty">{status}</p> : null}
+					<p className="sp-foot" aria-hidden="true">
+						{t.keys}
+					</p>
+				</div>
+			) : null}
+		</dialog>
+	);
+}
+
+export function SearchTrigger({
+	onOpen,
+	className,
+}: {
+	onOpen: () => void;
+	className?: string;
+}) {
+	const t = useI18n().m.search;
+	const [mac, setMac] = useState(false);
+
+	useEffect(() => {
+		setMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
+	}, []);
+
+	return (
+		<span className={className ? `sp-slot ${className}` : "sp-slot"}>
 			<button
 				type="button"
 				className="btn btn-quiet sp-trigger"
-				onClick={show}
+				onClick={onOpen}
 				aria-haspopup="dialog"
 				aria-keyshortcuts={mac ? "Meta+K" : "Control+K"}
 			>
-				<MagnifyingGlass size={18} weight="bold" aria-hidden />
-				<span className="sp-trigger-text">{t.open}</span>
-				<span className="sp-kbd" aria-hidden="true">
-					{mac ? "⌘K" : "Ctrl K"}
+				<span className="sp-icon">
+					<MagnifyingGlass size={18} weight="bold" aria-hidden />
+				</span>
+				<span className="sp-reveal">
+					<span className="sp-reveal-in">
+						<span className="sp-trigger-text">{t.open}</span>
+						<span className="sp-kbd" aria-hidden="true">
+							{mac ? "⌘ K" : "Ctrl K"}
+						</span>
+					</span>
 				</span>
 			</button>
-			{/* biome-ignore lint/a11y/useKeyWithClickEvents: a click on the backdrop closes it; Esc closes the dialog natively */}
-			<dialog
-				ref={dialog}
-				className="sp-dialog"
-				aria-label={t.label}
-				onClose={() => setOpen(false)}
-				onClick={(e) => {
-					if (e.target === e.currentTarget) dialog.current?.close();
-				}}
-			>
-				{open ? (
-					<div className="sp-panel">
-						<div className="sp-field">
-							<MagnifyingGlass size={18} weight="bold" aria-hidden />
-							<input
-								ref={input}
-								className="sp-input"
-								type="text"
-								role="combobox"
-								aria-expanded={count > 0}
-								aria-controls={listId}
-								aria-autocomplete="list"
-								aria-activedescendant={count ? optionId(at) : undefined}
-								aria-label={t.label}
-								placeholder={t.placeholder}
-								autoComplete="off"
-								spellCheck={false}
-								value={q}
-								onChange={(e) => {
-									setQ(e.target.value);
-									setActive(0);
-								}}
-								onKeyDown={onKeyDown}
-							/>
-							<button
-								type="button"
-								className="btn btn-ghost btn-sm"
-								onClick={() => dialog.current?.close()}
-							>
-								{t.close}
-							</button>
-						</div>
-						<div
-							id={listId}
-							role="listbox"
-							aria-label={t.label}
-							className="sp-list"
-						>
-							{group(t.songs, hits.songs, 0, `${ids}-gs`)}
-							{group(t.pages, hits.pages, hits.songs.length, `${ids}-gp`)}
-						</div>
-						<p className="sr-only" role="status" aria-live="polite">
-							{status}
-						</p>
-						{q.trim() && !count ? <p className="sp-empty">{status}</p> : null}
-						<p className="sp-foot" aria-hidden="true">
-							{t.keys}
-						</p>
-					</div>
-				) : null}
-			</dialog>
-		</>
+		</span>
 	);
 }

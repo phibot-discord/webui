@@ -11,6 +11,41 @@ const CF_NET_RETRIES = 1;
 const CF_HTTP_RETRIES = 2;
 export const CF_RETRY_CAP_MS = 2_000;
 const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
+const CF_BLOCK_MS = 30_000;
+const CF_BLOCK_CAP_MS = 60_000;
+
+const blockedUntil = new Map<string, number>();
+let blockMs = CF_BLOCK_MS;
+
+export function resetCfBlockForTest(): void {
+	blockedUntil.clear();
+}
+
+export function setCfBlockMsForTest(ms?: number): void {
+	blockMs = ms ?? CF_BLOCK_MS;
+}
+
+function blockWindowMs(retryAfter: string | null): number {
+	const sec = retryAfter ? Number(retryAfter.trim()) : Number.NaN;
+	if (Number.isFinite(sec) && sec > 0) {
+		return Math.min(CF_BLOCK_CAP_MS, sec * 1000);
+	}
+	return blockMs;
+}
+
+function blockedResponse(): CfResponse {
+	return {
+		ok: false,
+		status: 429,
+		headers: { get: () => null },
+		body: null,
+		arrayBuffer: async () => new ArrayBuffer(0),
+		text: async () => "rate limited",
+		json: async () => {
+			throw new Error("rate limited");
+		},
+	};
+}
 
 export const cfAgent = {
 	connections: 64,
@@ -103,6 +138,13 @@ export async function cfFetch(
 	url: string,
 	init: CfFetchInit = {},
 ): Promise<CfResponse> {
+	const host = new URL(url).host;
+	const until = blockedUntil.get(host);
+	if (until !== undefined) {
+		if (Date.now() < until) return blockedResponse();
+		blockedUntil.delete(host);
+	}
+	const isRead = (init.method ?? "GET").toUpperCase() === "GET";
 	const timeoutMs = init.timeoutMs || CF_TIMEOUT_MS;
 	const dispatcher =
 		timeoutMs === CF_TIMEOUT_MS ? agent : withHeadersTimeout(timeoutMs);
@@ -136,6 +178,12 @@ export async function cfFetch(
 			await res.body?.cancel().catch(() => undefined);
 			await new Promise((resolve) => setTimeout(resolve, wait));
 			continue;
+		}
+		if (isRead && res.status === 429) {
+			blockedUntil.set(
+				host,
+				Date.now() + blockWindowMs(res.headers.get("retry-after")),
+			);
 		}
 		return res;
 	}

@@ -1,11 +1,20 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import test from "node:test";
+import test, { afterEach, beforeEach } from "node:test";
+import { setRequestLocaleForTest } from "@/i18n/server";
+import { resetRateLimitForTest } from "@/server/rate-limit";
 
 // No Cloudflare: the catalog check reads KV through this stub, and R2 is a local server
 (globalThis as Record<string, unknown>).__phiDataHost = Promise.resolve({
 	store: { get: async () => undefined },
 });
+
+beforeEach(() => {
+	resetRateLimitForTest();
+	setRequestLocaleForTest("en");
+});
+
+afterEach(() => setRequestLocaleForTest());
 
 test("a pack is piped from R2 with its download name and length", async () => {
 	const body = Buffer.alloc(256 * 1024, 7);
@@ -46,10 +55,16 @@ test("a pack is piped from R2 with its download name and length", async () => {
 			),
 		);
 		assert.equal(missing.status, 404);
+		const gone = (await missing.json()) as { error: string; code: string };
+		assert.equal(gone.error, gone.code);
 		const bad = await GET(
 			new Request("http://localhost/api/phira?id=x&level=..%2FXX"),
 		);
 		assert.equal(bad.status, 400);
+		assert.deepEqual(await bad.json(), {
+			error: "bad_level",
+			code: "bad_level",
+		});
 	} finally {
 		process.env = env;
 		server.closeAllConnections();
@@ -192,9 +207,14 @@ test("extra packs come from their own level folder, and are listed only when the
 	process.env.CLOUDFLARE_R2_BUCKET = "off";
 	const { resetFoolsForTest } = await import("@/server/fools");
 	const { resetHiddenSongForTest } = await import("@/server/c9s6");
+	const { ensureSongInfo } = await import("@/server/song-info");
+	const { getInfo } = await import("@/phi/lib/get-info");
+	const message = "Message.くるぶっこちゃん.0";
 	resetFoolsForTest();
 	resetHiddenSongForTest();
 	try {
+		await ensureSongInfo();
+		getInfo.ori_info[message] = { id: message, song: "Message", chart: {} };
 		const { GET } = await import("./route");
 		const pack = (id: string, level: string) =>
 			GET(
@@ -259,10 +279,30 @@ test("extra packs come from their own level folder, and are listed only when the
 			[],
 		);
 	} finally {
+		delete getInfo.ori_info[message];
 		process.env = env;
 		resetFoolsForTest();
 		resetHiddenSongForTest();
 		server.closeAllConnections();
 		server.close();
 	}
+});
+
+test("an address gets 60 pack requests a minute, other addresses are not affected", async () => {
+	const { GET } = await import("./route");
+	const from = (ip: string) =>
+		GET(
+			new Request("http://localhost/api/phira?id=x&level=..%2FXX", {
+				headers: { "x-forwarded-for": ip },
+			}),
+		);
+	for (let i = 0; i < 60; i++) {
+		assert.equal((await from("203.0.113.20")).status, 400, `request ${i + 1}`);
+	}
+	const refused = await from("203.0.113.20");
+	assert.equal(refused.status, 429);
+	const body = (await refused.json()) as { code: string };
+	assert.equal(body.code, "rate_limit");
+	assert.ok(refused.headers.get("retry-after"));
+	assert.equal((await from("203.0.113.21")).status, 400);
 });

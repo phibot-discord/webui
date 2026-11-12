@@ -1,13 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
 	CheckCircle,
 	Question,
 	WarningCircle,
 	XCircle,
-} from "@phosphor-icons/react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+} from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import { SegRadio } from "@/components/SegRadio";
 import { localeTag } from "@/i18n/config";
@@ -20,6 +20,7 @@ import {
 	type StatusPhira,
 	type StatusState,
 	type StatusTarget,
+	statusAge,
 } from "@/lib/status";
 import { rollup } from "@/lib/status-chart";
 import { LineChart } from "./LineChart";
@@ -29,6 +30,7 @@ type Range = "30d" | "24h";
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
+const CATCH_UP_MS = 5000;
 
 const ICONS = {
 	up: CheckCircle,
@@ -143,7 +145,9 @@ function HostPanel({ host, range }: { host: StatusHost; range: Range }) {
 				</div>
 				<div>
 					<dt>{t.upFor}</dt>
-					<dd>{t.days.replace("{n}", String(days))}</dd>
+					<dd>
+						{days === 1 ? t.daysOne : t.days.replace("{n}", String(days))}
+					</dd>
 				</div>
 			</dl>
 			<UsageChart points={points} range={range} />
@@ -468,25 +472,55 @@ function placeholder(id: StatusTarget["id"]): StatusTarget {
 	};
 }
 
-export function StatusBoard({ data }: { data: StatusData | null }) {
+export function StatusBoard({
+	data,
+	refreshMs,
+}: {
+	data: StatusData | null;
+	refreshMs: number;
+}) {
 	const f = useFormats();
 	const t = f.m.status;
 	const router = useRouter();
 	const [range, setRange] = useState<Range>("30d");
+	const [checkedAt, setCheckedAt] = useState(0);
 
 	useEffect(() => {
-		const id = window.setInterval(() => router.refresh(), 60_000);
-		return () => window.clearInterval(id);
-	}, [router]);
+		const id = window.setInterval(() => {
+			if (document.hidden) return;
+			setCheckedAt(Date.now());
+			router.refresh();
+		}, refreshMs);
+		const onVisible = () => {
+			if (!document.hidden) router.refresh();
+		};
+		document.addEventListener("visibilitychange", onVisible);
+		return () => {
+			window.clearInterval(id);
+			document.removeEventListener("visibilitychange", onVisible);
+		};
+	}, [router, refreshMs]);
+
+	const generatedAt = data?.generatedAt ?? null;
+	useEffect(() => {
+		if (statusAge(generatedAt, Date.now(), refreshMs) === "fresh") return;
+		const id = window.setTimeout(() => router.refresh(), CATCH_UP_MS);
+		return () => window.clearTimeout(id);
+	}, [generatedAt, refreshMs, router]);
 
 	const targets = data?.targets ?? STATUS_TARGETS.map(placeholder);
-	const overall = !data
-		? "unavailable"
-		: targets.some((x) => x.status === "down")
-			? "down"
-			: targets.some((x) => x.status !== "up")
-				? "degraded"
-				: "up";
+	const stale =
+		data !== null &&
+		checkedAt > 0 &&
+		statusAge(data.generatedAt, checkedAt, refreshMs) === "stale";
+	const overall =
+		!data || stale
+			? "unavailable"
+			: targets.some((x) => x.status === "down")
+				? "down"
+				: targets.some((x) => x.status !== "up")
+					? "degraded"
+					: "up";
 	const OverallIcon = ICONS[overall === "unavailable" ? "unknown" : overall];
 
 	return (

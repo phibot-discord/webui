@@ -17,6 +17,7 @@ export async function cooldownRemaining(
 	key: string,
 ): Promise<number> {
 	const n = await store.ttlMs(key);
+	// biome-ignore lint/complexity/useMathMinMax: NaN must read as 0, which Math.max would not do
 	return n > 0 ? n : 0;
 }
 

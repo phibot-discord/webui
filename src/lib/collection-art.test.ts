@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import {
 	type ArtEntry,
@@ -428,19 +428,17 @@ test("the overlay replaces the fields it gives and adds entries the manifest lac
 	assert.equal(artRows({ v: 2, entries: [] }), undefined);
 });
 
-test("the live manifest is phi-unpackd's generic one with phi-specials' overlay laid over it", () => {
-	let live: unknown;
-	let overlay: unknown;
-	try {
-		live = JSON.parse(
-			readFileSync("/tmp/phi-fixtures/collection-art-index.json", "utf8"),
-		);
-		overlay = JSON.parse(
-			readFileSync("/tmp/phi-fixtures/collection-art-specials.json", "utf8"),
-		);
-	} catch {
-		return;
-	}
+const LIVE_INDEX = "/tmp/phi-fixtures/collection-art-index.json";
+const LIVE_SPECIALS = "/tmp/phi-fixtures/collection-art-specials.json";
+
+test("the live manifest is phi-unpackd's generic one with phi-specials' overlay laid over it", {
+	skip:
+		existsSync(LIVE_INDEX) && existsSync(LIVE_SPECIALS)
+			? false
+			: "needs /tmp/phi-fixtures",
+}, () => {
+	const live: unknown = JSON.parse(readFileSync(LIVE_INDEX, "utf8"));
+	const overlay: unknown = JSON.parse(readFileSync(LIVE_SPECIALS, "utf8"));
 	const rows = artRows(live) ?? [];
 	const extra = artRows(overlay) ?? [];
 	assert.equal(rows.length, 34);

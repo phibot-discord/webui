@@ -1,4 +1,4 @@
-import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
+import { MagnifyingGlass } from "@/components/icons";
 import type { Messages } from "@/i18n/messages";
 import {
 	type CollectionLang,

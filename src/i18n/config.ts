@@ -4,6 +4,7 @@ export type Bilingual = Record<Locale, string>;
 
 const DEFAULT_LOCALE: Locale = "en";
 export const LOCALE_COOKIE = "phi-locale";
+export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 export function isLocale(v: string | undefined | null): v is Locale {
 	return v === "en" || v === "zh" || v === "ja";

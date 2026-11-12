@@ -1,11 +1,6 @@
 "use client";
 
 import {
-	ArrowClockwise,
-	ArrowsOut,
-	WarningCircle,
-} from "@phosphor-icons/react";
-import {
 	useEffect,
 	useMemo,
 	useRef,
@@ -14,6 +9,7 @@ import {
 } from "react";
 import { CardLightbox } from "@/components/CardLightbox";
 import type { CardSize } from "@/components/card-shape";
+import { ArrowClockwise, ArrowsOut, WarningCircle } from "@/components/icons";
 import { Announce, useHydrated } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
 import { loadCardBlob, peekCardBlob } from "@/lib/card-fetch";
@@ -345,6 +341,7 @@ export function CardViewer({
 				{shown ? (
 					// biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: the toolbar button does the same with the keyboard
 					<div className="frame-zoom" tabIndex={-1} onClick={openZoom}>
+						{/* biome-ignore lint/performance/noImgElement: a rendered card held as a blob URL, not a static asset */}
 						<img
 							src={shown.url}
 							alt={alt}

@@ -1,7 +1,7 @@
 "use client";
 
-import { Play } from "@phosphor-icons/react";
 import { useState } from "react";
+import { Play } from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import { type ActiveClip, TagClipDialog } from "@/components/TagClipDialog";
 import { TagExample } from "@/components/TagExample";
@@ -161,7 +161,9 @@ export function TagGlossary({
 								<div className="tag-cat-head">
 									<h3 id={`${cat.id}-h`}>{cat.name}</h3>
 									<span className="tag-cat-count">
-										{t.count.replaceAll("{n}", String(cat.tags.length))}
+										{cat.tags.length === 1
+											? t.countOne
+											: t.count.replaceAll("{n}", String(cat.tags.length))}
 									</span>
 								</div>
 								{cat.description ? (

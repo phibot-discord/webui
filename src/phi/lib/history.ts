@@ -374,8 +374,10 @@ function updateGroups(
 		const tem = history.scoreHistory[id];
 		if (!tem) continue;
 		for (const level of LEVELS) {
-			const rows = tem[level];
-			if (!rows?.length) continue;
+			if (!tem[level]?.length) continue;
+			const rows = [...tem[level]].sort(
+				(a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime() || 0,
+			);
 			const difficulty = chartDifficulty(rt, id, level);
 			for (let i = 0; i < rows.length; i++) {
 				const row = rows[i]!;

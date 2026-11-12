@@ -11,6 +11,7 @@ export type OgPageData = {
 	accent: string;
 	backdrop?: string;
 	tiles: string[];
+	lang?: string;
 };
 
 const TEXT_W = 620;
@@ -39,7 +40,8 @@ export function ogPageHtml(d: OgPageData): string {
 	const lede = fit.cut ? `${fit.text.trimEnd()}…` : fit.text;
 	const img = (cls: string, src: string) =>
 		`<img class="${cls}" src="${escapeHtml(src)}" alt="">`;
-	return `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body><div class="og">${
+	const html = d.lang ? `<html lang="${escapeHtml(d.lang)}">` : "<html>";
+	return `<!doctype html>${html}<head><meta charset="utf-8"><style>${CSS}</style></head><body><div class="og">${
 		d.backdrop ? img("og-bg", d.backdrop) : ""
 	}<div class="og-tiles">${d.tiles.map((t) => img("og-tile", t)).join("")}</div><div class="og-shade"></div><div class="og-text"><div class="og-brand"><div class="og-bar" style="background:${escapeHtml(d.accent)}"></div>${escapeHtml(d.brand)}</div><div class="og-title" style="font-size:${titlePx}px">${escapeHtml(d.title)}</div>${
 		lede ? `<div class="og-lede">${escapeHtml(lede)}</div>` : ""

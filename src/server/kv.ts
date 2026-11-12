@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { evictOldest } from "@/phi/lib/lru";
 import { cfFail, cfFetch } from "./cf-fetch";
 import { logger } from "./logger";
 import type { Kv, KvMeta } from "./sdk";
@@ -100,6 +101,21 @@ export type RemoteKv = {
 	listRaw: (prefix: string) => Promise<KvListItem[]>;
 };
 
+const TOKEN_KEY_KINDS = new Set([
+	"save",
+	"history",
+	"tokenUser",
+	"banSessionToken",
+]);
+
+export function kvKeyLabel(key: string): string {
+	const parts = key.split(":");
+	const last = parts.pop() ?? "";
+	const kind = parts[parts.length - 1];
+	if (!kind || !TOKEN_KEY_KINDS.has(kind)) return key;
+	return `${parts.join(":")}:${last.slice(0, 4)}…`;
+}
+
 function multipart(fields: Record<string, string>) {
 	const boundary = `phi${crypto.randomUUID().replaceAll("-", "")}`;
 	const body = Object.entries(fields)
@@ -133,7 +149,7 @@ function restRemote(cfg: KvConfig): RemoteKv {
 				headers,
 			});
 			if (res.status === 404) return undefined;
-			if (!res.ok) await cfFail(res, `KV GET ${key}`);
+			if (!res.ok) await cfFail(res, `KV GET ${kvKeyLabel(key)}`);
 			return (await res.text()) || undefined;
 		},
 		putRaw: async (key, value, ttlSec, opts) => {
@@ -153,14 +169,15 @@ function restRemote(cfg: KvConfig): RemoteKv {
 				body: form?.body ?? value,
 				background: opts?.background,
 			});
-			if (!res.ok) await cfFail(res, `KV PUT ${key}`);
+			if (!res.ok) await cfFail(res, `KV PUT ${kvKeyLabel(key)}`);
 		},
 		delRaw: async (key) => {
 			const res = await cfFetch(`${base}/values/${encodeURIComponent(key)}`, {
 				method: "DELETE",
 				headers,
 			});
-			if (!res.ok && res.status !== 404) await cfFail(res, `KV DELETE ${key}`);
+			if (!res.ok && res.status !== 404)
+				await cfFail(res, `KV DELETE ${kvKeyLabel(key)}`);
 		},
 		listRaw: async (prefix) => {
 			const items: KvListItem[] = [];
@@ -200,7 +217,7 @@ const BAN_MISS_TTL_MS = 60_000;
 const BAN_KEY = /:banSessionToken:/;
 const MISS_MAX = 2_000;
 const BIND_KEY =
-	/:userToken:|:save:|:notes:|:hisb30:|:history:|:manualSave:|:webShare/;
+	/:userToken:|:save:|:notes:|:hisb30:|:history:|:manualSave:|:webShare|:guessRun:/;
 
 /** Dev only: swaps Cloudflare KV for an in-memory store */
 function localDataMode(): boolean {
@@ -278,13 +295,6 @@ export function createKv(remote: RemoteKv): KvBundle & { label: string } {
 	/** Keys deleted while a remote read of them was in flight; cleared when that read ends */
 	const deletedMidRead = new Set<string>();
 
-	const evictOldest = (map: Map<string, unknown>, max: number) => {
-		while (map.size > max) {
-			const oldest = map.keys().next().value;
-			if (oldest === undefined) break;
-			map.delete(oldest);
-		}
-	};
 	const missFresh = (key: string) => {
 		const until = knownMissing.get(key);
 		if (until == null) return false;

@@ -1,10 +1,10 @@
 "use client";
 
-import { GlobeSimple } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { BadgeSnippet } from "@/components/BadgeSnippet";
 import { CompareOptIn } from "@/components/CompareOptIn";
+import { GlobeSimple } from "@/components/icons";
 import {
 	Announce,
 	SteadyButton,

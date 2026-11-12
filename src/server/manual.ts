@@ -1,5 +1,6 @@
 import { kvKey, LEVEL_NUM } from "@/phi/lib/const";
 import { getInfo } from "@/phi/lib/get-info";
+import { evictOldest } from "@/phi/lib/lru";
 import {
 	effectiveScore,
 	isLevelKind,
@@ -46,11 +47,7 @@ let manualGen = 0;
 function rememberManual(userId: string, raw: string) {
 	manualMem.delete(userId);
 	manualMem.set(userId, { raw, at: Date.now() });
-	while (manualMem.size > MANUAL_MEM_MAX) {
-		const oldest = manualMem.keys().next().value;
-		if (oldest === undefined) break;
-		manualMem.delete(oldest);
-	}
+	evictOldest(manualMem, MANUAL_MEM_MAX);
 }
 
 function forgetManual(userId: string) {
@@ -126,7 +123,12 @@ export function normalizeManualInput(
 			return { error: "bad_request", status: 400 };
 		const r = raw as Record<string, unknown>;
 		const id = typeof r.id === "string" ? r.id : "";
-		if (!id || !isLevelKind(r.rank) || !validAcc(r.acc)) {
+		if (
+			!id ||
+			typeof r.rank !== "string" ||
+			!isLevelKind(r.rank) ||
+			!validAcc(r.acc)
+		) {
 			return {
 				error: "bad_request",
 				status: 400,
@@ -144,7 +146,7 @@ export function normalizeManualInput(
 		seen.add(key);
 		const acc = roundAcc(r.acc);
 		const rec: ManualRecord = { id, rank: r.rank, acc };
-		if (validScore(r.score)) rec.score = r.score;
+		if (validScore(r.score) && r.score > 0) rec.score = r.score;
 		if (r.fc === true || acc >= 100) rec.fc = true;
 		records.push(rec);
 	}
@@ -243,7 +245,20 @@ export async function saveManual(
 	});
 }
 
-export async function clearManual(userId: string): Promise<boolean> {
+function snapsSince(raw: string | undefined, since: number): unknown[] {
+	try {
+		const rows: unknown = JSON.parse(raw || "[]");
+		if (!Array.isArray(rows)) return [];
+		return rows.filter((row) => Number(row?.t) >= since);
+	} catch {
+		return [];
+	}
+}
+
+export async function clearManual(
+	userId: string,
+	bindStarted?: number,
+): Promise<boolean> {
 	const host = await getDataHost();
 	forgetManual(userId);
 	const had = await hasManual(host.db, userId);
@@ -251,13 +266,18 @@ export async function clearManual(userId: string): Promise<boolean> {
 	await host.db.del(MANUAL(userId));
 	// A read that started before the delete must not bring the profile back
 	forgetManual(userId);
-	await host.db.del(HISB30(userId));
+	const kept =
+		bindStarted == null
+			? []
+			: snapsSince(await host.db.get(HISB30(userId)), bindStarted);
+	if (kept.length) await host.db.set(HISB30(userId), JSON.stringify(kept));
+	else await host.db.del(HISB30(userId));
 	return true;
 }
 
-export async function leaveManualMode(userId: string) {
+export async function leaveManualMode(userId: string, bindStarted?: number) {
 	try {
-		await clearManual(userId);
+		await clearManual(userId, bindStarted);
 	} catch (err) {
 		logger.warn(
 			`manual cleanup skipped: ${err instanceof Error ? err.message : err}`,

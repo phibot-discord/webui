@@ -1,12 +1,6 @@
 "use client";
 
 import {
-	ArrowCounterClockwise,
-	ArrowsClockwise,
-	Trash,
-	X,
-} from "@phosphor-icons/react";
-import {
 	type KeyboardEvent,
 	useCallback,
 	useEffect,
@@ -17,6 +11,12 @@ import {
 } from "react";
 import { ChartSearch, useChartCatalog } from "@/components/ChartSearch";
 import { SyncTime } from "@/components/Desk";
+import {
+	ArrowCounterClockwise,
+	ArrowsClockwise,
+	Trash,
+	X,
+} from "@/components/icons";
 import { chartSearchText } from "@/components/ScoreControl";
 import { Announce } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
@@ -144,6 +144,7 @@ export function SongSimulation({
 		const start = startFrom(readSim(userId), initial);
 		setBase(start.base);
 		setEdits(start.edits);
+		setLatestRev(initial.rev);
 		setReady(true);
 	}, [userId, initial]);
 

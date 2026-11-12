@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getInfo } from "@/phi/lib/get-info";
+import { estimateScore } from "@/phi/lib/manual-score";
 import type { PhiRuntime } from "@/phi/lib/runtime";
 import { Save } from "@/phi/lib/save";
 import { saveIdentity } from "@/phi/lib/saves";
@@ -120,6 +121,17 @@ test("normalizeManualInput rejects unknown charts and bad numbers", () => {
 	);
 	const empty = normalizeManualInput({ records: [] }, "Fallback");
 	assert.deepEqual(empty, { playerId: "Fallback", records: [] });
+});
+
+test("normalizeManualInput refuses a difficulty that is not a string", () => {
+	seedCatalog();
+	for (const rank of [["IN"], [["IN"]]]) {
+		const out = normalizeManualInput(
+			{ records: [{ id: "Credits.Frums.0", rank, acc: 99 }] },
+			"P",
+		) as { error: string };
+		assert.equal(out.error, "bad_request");
+	}
 });
 
 test("manualSave computes RKS from the current constants", () => {
@@ -278,4 +290,33 @@ test("clearing a profile while a read is in flight does not bring it back", asyn
 	assert.equal(await loadManual(db, "gone", { memo: true }), undefined);
 	assert.equal(reads, 1, "the late read was not remembered");
 	resetManualMemForTest();
+});
+
+test("a manual score of 0 keeps the chart, scored from its accuracy", () => {
+	seedCatalog();
+	assert.deepEqual(
+		normalizeManualInput(
+			{ records: [{ id: "Credits.Frums.0", rank: "IN", acc: 99, score: 0 }] },
+			"P",
+		),
+		{
+			playerId: "P",
+			records: [{ id: "Credits.Frums.0", rank: "IN", acc: 99 }],
+		},
+	);
+	const save = manualSave(
+		rt,
+		{
+			v: 1,
+			playerId: "P",
+			updatedAt: "2026-09-20T10:00:00.000Z",
+			rks: 0,
+			records: [{ id: "Credits.Frums.0", rank: "IN", acc: 99, score: 0 }],
+		},
+		"u",
+	);
+	const records = save.getRecord();
+	assert.equal(records.length, 1);
+	assert.equal(records[0]?.score, estimateScore(99, false));
+	assert.ok(save.saveInfo.summary.rankingScore > 0);
 });

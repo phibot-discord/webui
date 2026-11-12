@@ -29,6 +29,7 @@
 	letter-spacing: -0.02em;
 	font-size: 1.125rem;
 	white-space: nowrap;
+	transition: color var(--dur) var(--ease);
 }
 
 .wordmark::before {
@@ -38,11 +39,17 @@
 	background: var(--primary);
 	box-shadow: 0 0 10px color-mix(in srgb, var(--primary) 70%, transparent);
 	transform: skewX(-24deg);
+	transform-origin: left center;
+	transition: transform 220ms var(--ease);
 }
 
 @media (hover: hover) {
 	.wordmark:hover {
 		color: var(--primary);
+	}
+
+	.wordmark:hover::before {
+		transform: skewX(-24deg) scaleX(1.5);
 	}
 }
 
@@ -102,15 +109,34 @@
 	color: var(--ink);
 }
 
-.nav-trigger[data-current]::after {
+.nav-trigger::after {
 	content: "";
 	position: absolute;
-	left: var(--space-3);
-	right: var(--space-3);
-	bottom: calc((2.5rem - var(--nav-h)) / 2);
-	height: 2px;
 	background: var(--primary);
-	transform: skewX(-24deg);
+	transition: transform 220ms var(--ease);
+}
+
+@media (min-width: 64em) {
+	.nav-trigger::after {
+		left: var(--space-3);
+		right: var(--space-3);
+		bottom: calc((2.5rem - var(--nav-h)) / 2);
+		height: 2px;
+		transform: skewX(-24deg) scaleX(0);
+		transform-origin: left center;
+	}
+
+	.nav-trigger[data-current]::after,
+	.nav-group[data-open] .nav-trigger::after,
+	.nav-trigger:focus-visible::after {
+		transform: skewX(-24deg) scaleX(1);
+	}
+}
+
+@media (min-width: 64em) and (hover: hover) {
+	.nav-trigger:hover::after {
+		transform: skewX(-24deg) scaleX(1);
+	}
 }
 
 .nav-caret {
@@ -123,7 +149,7 @@
 
 .nav-panel {
 	position: absolute;
-	top: calc(100% + 6px);
+	top: calc(100% + 16px);
 	left: 0;
 	z-index: var(--z-dropdown);
 	display: grid;
@@ -142,11 +168,34 @@
 	display: none;
 }
 
+@media (min-width: 64em) and (prefers-reduced-motion: no-preference) {
+	.nav-panel {
+		transform-origin: top left;
+		transition:
+			opacity 160ms var(--ease),
+			transform 160ms var(--ease),
+			display 160ms allow-discrete;
+	}
+
+	.nav-panel[hidden] {
+		opacity: 0;
+		transform: translateY(-4px) scale(0.98);
+		pointer-events: none;
+	}
+
+	@starting-style {
+		.nav-panel:not([hidden]) {
+			opacity: 0;
+			transform: translateY(-6px) scale(0.98);
+		}
+	}
+}
+
 .nav-panel::before {
 	content: "";
 	position: absolute;
-	inset: -8px 0 auto;
-	height: 8px;
+	inset: -18px 0 auto;
+	height: 18px;
 }
 
 .nav-panel a {
@@ -160,6 +209,9 @@
 	font-size: var(--text-sm);
 	text-decoration: none;
 	white-space: nowrap;
+	transition:
+		background-color var(--dur) var(--ease),
+		color var(--dur) var(--ease);
 }
 
 @media (hover: hover) {
@@ -400,14 +452,17 @@
 		font-weight: 600;
 	}
 
-	.nav-trigger[data-current]::after {
+	.nav-trigger::after {
 		top: var(--space-3);
 		bottom: var(--space-3);
 		left: 0;
-		right: auto;
 		width: 3px;
-		height: auto;
-		transform: skewY(-24deg);
+		transform: skewY(-24deg) scaleY(0);
+		transform-origin: center top;
+	}
+
+	.nav-trigger[data-current]::after {
+		transform: skewY(-24deg) scaleY(1);
 	}
 
 	.nav-panel {
@@ -494,6 +549,16 @@
 	.who span {
 		display: inline;
 		max-width: 22ch;
+	}
+}
+
+@media (max-width: 63.99em) and (prefers-reduced-motion: no-preference) {
+	.topbar-menu[data-open] {
+		animation: tool-pop-in 200ms var(--ease) both;
+	}
+
+	.topbar-scrim {
+		animation: scrim-in 200ms ease-out both;
 	}
 }
 

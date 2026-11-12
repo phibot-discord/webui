@@ -54,6 +54,42 @@ test("streamR2Object pipes the public object and remembers a 404", async () => {
 	}
 });
 
+test("a failed read is remembered, a missing object is not", async () => {
+	const { createServer } = await import("node:http");
+	const { fetchR2Object, r2ErrorSince, resetR2ErrorForTest } = await import(
+		"./r2"
+	);
+	const server = createServer((req, res) => {
+		if (req.url?.startsWith("/err/")) {
+			res.statusCode = 500;
+			res.setHeader("retry-after", "0");
+			res.end();
+			return;
+		}
+		res.statusCode = 404;
+		res.end();
+	});
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const { port } = server.address() as { port: number };
+	const env = { ...process.env };
+	process.env.CLOUDFLARE_R2_PUBLIC_BASE = `http://127.0.0.1:${port}`;
+	process.env.CLOUDFLARE_R2_BUCKET = "off";
+	resetR2ErrorForTest();
+	try {
+		const t0 = performance.now();
+		assert.equal(await fetchR2Object("ill/missing.png"), undefined);
+		assert.equal(r2ErrorSince(t0), false, "a 404 is not an error");
+		assert.equal(await fetchR2Object("err/broken.png"), undefined);
+		assert.equal(r2ErrorSince(t0), true);
+		assert.equal(r2ErrorSince(performance.now() + 1), false);
+	} finally {
+		resetR2ErrorForTest();
+		process.env = env;
+		server.closeAllConnections();
+		server.close();
+	}
+});
+
 test("streamR2Object asks for unencoded bytes and drops the length of an encoded body", async () => {
 	const { createServer } = await import("node:http");
 	const { gzipSync } = await import("node:zlib");
@@ -126,6 +162,153 @@ test("data that changes in place is read through the API even when versioned", (
 		assert.equal(readsViaEdge("info/oldInfo/a.csv", true), true);
 	} finally {
 		setAssetVersionsForTest(new Map());
+	}
+});
+
+test("with a key pair set, reads, writes, deletes and listings go to the S3 endpoint, signed", async () => {
+	const { createServer } = await import("node:http");
+	const {
+		deleteR2Object,
+		fetchR2Object,
+		putR2Object,
+		r2Config,
+		readPrivateR2Object,
+	} = await import("./r2");
+	const { listAssetPrefix } = await import("./assets");
+	const { sha256Hex, signV4 } = await import("./sigv4");
+	const firstPage =
+		"<ListBucketResult><Contents><Key>cards/a.jpg</Key><ETag>&quot;0123456789abcdef0123456789abcdef&quot;</ETag><Size>4</Size></Contents><IsTruncated>true</IsTruncated><NextContinuationToken>t1</NextContinuationToken></ListBucketResult>";
+	const lastPage =
+		"<ListBucketResult><Contents><Key>cards/b.jpg</Key><ETag>&quot;fedcba9876543210fedcba9876543210&quot;</ETag><Size>5</Size></Contents><IsTruncated>false</IsTruncated></ListBucketResult>";
+	const seen: Array<{
+		method: string;
+		url: string;
+		headers: Record<string, string | string[] | undefined>;
+		body: Buffer;
+	}> = [];
+	const server = createServer((req, res) => {
+		const chunks: Buffer[] = [];
+		req.on("data", (chunk: Buffer) => chunks.push(chunk));
+		req.on("end", () => {
+			const method = req.method ?? "";
+			const url = req.url ?? "";
+			seen.push({
+				method,
+				url,
+				headers: req.headers,
+				body: Buffer.concat(chunks),
+			});
+			const route = `${method} ${url}`;
+			if (route === "GET /test-bucket/info/a%20b%28c%29.json") {
+				res.end("hello");
+				return;
+			}
+			if (route === "GET /test-bucket/info/none.json") {
+				res.statusCode = 404;
+				res.end();
+				return;
+			}
+			if (route === "PUT /test-bucket/cards/x.jpg") {
+				res.end();
+				return;
+			}
+			if (route === "DELETE /test-bucket/cards/x.jpg") {
+				res.statusCode = 204;
+				res.end();
+				return;
+			}
+			if (method === "GET" && url.startsWith("/test-bucket?")) {
+				const token = new URLSearchParams(url.slice(url.indexOf("?") + 1)).get(
+					"continuation-token",
+				);
+				if (token === null || token === "t1") {
+					res.setHeader("content-type", "application/xml");
+					res.end(token === null ? firstPage : lastPage);
+					return;
+				}
+			}
+			res.statusCode = 400;
+			res.end();
+		});
+	});
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const { port } = server.address() as { port: number };
+	const env = { ...process.env };
+	delete process.env.CLOUDFLARE_API_TOKEN;
+	delete process.env.CLOUDFLARE_R2_PUBLIC_BASE;
+	process.env.CLOUDFLARE_R2_S3_ENDPOINT = `http://127.0.0.1:${port}`;
+	process.env.CLOUDFLARE_R2_ACCESS_KEY_ID = "test-key-id";
+	process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY = "test-secret";
+	process.env.CLOUDFLARE_R2_BUCKET = "test-bucket";
+	setAssetVersionsForTest(new Map());
+	try {
+		const got = await fetchR2Object("info/a b(c).json", {
+			fresh: true,
+			cache: "no-store",
+		});
+		assert.equal(got?.toString(), "hello");
+		assert.equal(
+			await readPrivateR2Object("info/none.json", r2Config()),
+			undefined,
+		);
+		await putR2Object("cards/x.jpg", Buffer.from("jpeg"), "image/jpeg", {
+			cache: "no-store",
+		});
+		await deleteR2Object("cards/x.jpg");
+		assert.deepEqual(await listAssetPrefix("cards/", r2Config()), [
+			{ key: "cards/a.jpg", size: 4, v: "0123456789ab" },
+			{ key: "cards/b.jpg", size: 5, v: "fedcba987654" },
+		]);
+		assert.deepEqual(
+			seen.map((r) => `${r.method} ${r.url}`),
+			[
+				"GET /test-bucket/info/a%20b%28c%29.json",
+				"GET /test-bucket/info/none.json",
+				"PUT /test-bucket/cards/x.jpg",
+				"DELETE /test-bucket/cards/x.jpg",
+				"GET /test-bucket?list-type=2&max-keys=1000&prefix=cards%2F",
+				"GET /test-bucket?continuation-token=t1&list-type=2&max-keys=1000&prefix=cards%2F",
+			],
+		);
+		for (const r of seen) {
+			const header = (name: string) => {
+				const value = r.headers[name];
+				return typeof value === "string" ? value : "";
+			};
+			const q = r.url.indexOf("?");
+			assert.equal(
+				signV4({
+					method: r.method,
+					path: q < 0 ? r.url : r.url.slice(0, q),
+					query: q < 0 ? "" : r.url.slice(q + 1),
+					headers: {
+						host: header("host"),
+						"x-amz-content-sha256": header("x-amz-content-sha256"),
+						"x-amz-date": header("x-amz-date"),
+					},
+					payloadHash: header("x-amz-content-sha256"),
+					region: "auto",
+					service: "s3",
+					accessKeyId: "test-key-id",
+					secretAccessKey: "test-secret",
+					amzDate: header("x-amz-date"),
+				}),
+				header("authorization"),
+				`${r.method} ${r.url}`,
+			);
+			if (r.method === "PUT") {
+				assert.equal(header("x-amz-content-sha256"), sha256Hex(r.body));
+			}
+			assert.ok(!r.url.includes("test-secret"), r.url);
+			for (const value of Object.values(r.headers)) {
+				assert.ok(!String(value).includes("test-secret"), String(value));
+			}
+		}
+	} finally {
+		process.env = env;
+		setAssetVersionsForTest(new Map());
+		server.closeAllConnections();
+		server.close();
 	}
 });
 

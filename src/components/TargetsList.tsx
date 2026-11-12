@@ -8,6 +8,7 @@ import { songPath } from "@/lib/song-path";
 import { fill } from "@/phi/lib/card-i18n";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
 import {
+	roundUp,
 	shownGoal,
 	sortTargets,
 	type TargetSort,
@@ -176,10 +177,12 @@ export function TargetsList({ view }: { view: TargetsView }) {
 											)}
 										</td>
 										<td className="num tgt-need">
-											{r.viaAp ? t.apOnly : pct(r.need)}
+											{r.viaAp ? t.apOnly : pct(roundUp(r.need, 2))}
 										</td>
 										<td className="num">
-											{r.acc != null ? `+${(r.need - r.acc).toFixed(2)}` : "—"}
+											{r.acc != null
+												? `+${(roundUp(r.need, 2) - r.acc).toFixed(2)}`
+												: "—"}
 										</td>
 										<td className="num">+{r.apGain.toFixed(4)}</td>
 									</tr>
