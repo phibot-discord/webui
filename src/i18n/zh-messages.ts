@@ -695,6 +695,10 @@ export const zh: ClientMessages = {
 		exampleFinds: "对应",
 		examplesTitle: "试试这些别名",
 		examplesBody: "别名和正式曲名一样能搜到曲目。点一个看看：",
+		allTitle: "全部曲目（{n}）",
+		allBody: "已从游戏中移除的曲目排在最后。",
+		allSong: "曲目",
+		allComposer: "曲师",
 		aboutTitle: "别名来源",
 		aboutBody:
 			"别名表由 phi-plugin 自带的别名和 phib19.top 社区投票通过的别名合并而成。",

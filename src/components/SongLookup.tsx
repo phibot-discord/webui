@@ -46,6 +46,11 @@ export type SongLookupInitial = {
 
 export type SongLookupExample = { q: string; songs: string[] };
 
+export type SongRow = Pick<
+	ChartSummary,
+	"id" | "song" | "composer" | "charts" | "gone"
+>;
+
 type Ranked = Omit<SongLookupInitial, "failed">;
 type Text = Messages["songs"];
 
@@ -106,12 +111,14 @@ function hardest(song: ChartSummary) {
 export function SongLookup({
 	initial,
 	examples,
+	all,
 	shown,
 	maxLength,
 	signedIn,
 }: {
 	initial: SongLookupInitial;
 	examples: SongLookupExample[];
+	all: SongRow[];
 	shown: number;
 	maxLength: number;
 	signedIn: boolean;
@@ -260,11 +267,14 @@ export function SongLookup({
 	let body: ReactNode;
 	if (!trimmed) {
 		body = (
-			<section className="songs-empty" aria-labelledby={`${ids}-ex`}>
-				<h2 id={`${ids}-ex`}>{t.examplesTitle}</h2>
-				<p>{t.examplesBody}</p>
-				{exampleList}
-			</section>
+			<>
+				<section className="songs-empty" aria-labelledby={`${ids}-ex`}>
+					<h2 id={`${ids}-ex`}>{t.examplesTitle}</h2>
+					<p>{t.examplesBody}</p>
+					{exampleList}
+				</section>
+				{all.length ? <AllSongs songs={all} t={t} id={`${ids}-all`} /> : null}
+			</>
 		);
 	} else if (!ranked) {
 		body = (
@@ -381,6 +391,62 @@ export function SongLookup({
 				</aside>
 			</div>
 		</>
+	);
+}
+
+function AllSongs({ songs, t, id }: { songs: SongRow[]; t: Text; id: string }) {
+	const levels = CHART_LEVELS.filter((rank) =>
+		songs.some((s) => s.charts[rank]),
+	);
+	return (
+		<section className="songs-all" aria-labelledby={id}>
+			<h2 id={id}>{fill(t.allTitle, { n: songs.length })}</h2>
+			<p>{t.allBody}</p>
+			<div className="data-scroll">
+				<table className="data-table songs-all-table">
+					<thead>
+						<tr>
+							<th scope="col">{t.allSong}</th>
+							<th scope="col" className="songs-all-composer">
+								{t.allComposer}
+							</th>
+							{levels.map((rank) => (
+								<th key={rank} scope="col" className="num">
+									<span className={`chart-level chart-level-${rank}`}>
+										{rank}
+									</span>
+								</th>
+							))}
+						</tr>
+					</thead>
+					<tbody>
+						{songs.map((s) => (
+							<tr key={s.id}>
+								<th scope="row" className="songs-all-title">
+									<Link href={songPath(s.id)} prefetch={false}>
+										<span lang={langOf(s.song)}>{s.song}</span>
+									</Link>
+									{s.gone ? (
+										<span className="songs-all-gone">{t.removed}</span>
+									) : null}
+								</th>
+								<td className="songs-all-composer">
+									<span lang={langOf(s.composer)}>{s.composer || "—"}</span>
+								</td>
+								{levels.map((rank) => {
+									const cell = s.charts[rank];
+									return (
+										<td key={rank} className="num">
+											{cell ? cellLabel(cell) : "—"}
+										</td>
+									);
+								})}
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+		</section>
 	);
 }
 

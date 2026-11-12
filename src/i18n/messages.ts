@@ -473,6 +473,10 @@ export type ClientMessages = ToolsMessages & {
 		exampleFinds: string;
 		examplesTitle: string;
 		examplesBody: string;
+		allTitle: string;
+		allBody: string;
+		allSong: string;
+		allComposer: string;
 		aboutTitle: string;
 		aboutBody: string;
 		proposeBody: string;
@@ -1575,6 +1579,10 @@ export const en: ClientMessages = {
 		exampleFinds: "finds",
 		examplesTitle: "Try a nickname",
 		examplesBody: "Nicknames find songs just like titles do. Pick one:",
+		allTitle: "All songs ({n})",
+		allBody: "Songs no longer in the game are listed last.",
+		allSong: "Song",
+		allComposer: "Composer",
 		aboutTitle: "Where nicknames come from",
 		aboutBody:
 			"The list combines phi-plugin's bundled nicknames with the ones the phib19.top community has voted in.",

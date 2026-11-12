@@ -751,6 +751,10 @@ export const ja: ClientMessages = {
 		examplesTitle: "通称を試す",
 		examplesBody:
 			"通称も曲名と同じように曲を見つけられます。1 つ選んでください：",
+		allTitle: "すべての曲（{n}）",
+		allBody: "ゲームから削除された曲は最後に並んでいます。",
+		allSong: "曲",
+		allComposer: "作曲者",
 		aboutTitle: "通称の出どころ",
 		aboutBody:
 			"phi-plugin に同梱されている通称と、phib19.top コミュニティが投票で採用した通称を合わせたリストです。",
