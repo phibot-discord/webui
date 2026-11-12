@@ -24,9 +24,9 @@ export const CHANGELOG_RELEASES: ChangeRelease[] = [
 				},
 				items: [
 					{
-						en: "Your 2026 Recap opens on 1 December in the Scores menu. It looks back at your year from PhiBot's record of your save: how your RKS moved, the charts you improved or played for the first time, your APs and FCs, your biggest jump and more, as a page and as an image you can download. Until it opens, its address shows the opening date. Once it opens, players who have a recap get a note that it is ready.",
-						zh: "「2026 年度回顾」将于 12 月 1 日在「成绩」菜单中开放。它根据 PhiBot 对你存档的记录回顾这一年：RKS 的变化、有进步和首次游玩的谱面、AP 与 FC、单日最大进步等，既有页面，也有可下载的图片。开放之前，打开该地址会显示开放日期。开放后，有年度回顾可看的玩家会收到回顾已就绪的提示。",
-						ja: "「2026 年の振り返り」が 12 月 1 日に「スコア」メニューで公開されます。PhiBot が記録したセーブデータから 1 年を振り返り、RKS の変化、伸びた譜面や初めてプレイした譜面、AP と FC、最大の伸びなどを、ページとダウンロードできる画像で確認できます。公開までは、そのアドレスに公開日が表示されます。公開後、振り返りがあるプレイヤーには、準備ができたことをお知らせします。",
+						en: "Your 2026 Recap opens on 1 December in the Scores menu. It looks back at your year from PhiBot's record of your save: how your RKS moved, the charts you improved or played for the first time, your APs and FCs, your biggest jump and more, as a page and as an image you can download. Until it opens, its address counts down to the opening on a flip clock. Once it opens, players who have a recap get a note that it is ready.",
+						zh: "「2026 年度回顾」将于 12 月 1 日在「成绩」菜单中开放。它根据 PhiBot 对你存档的记录回顾这一年：RKS 的变化、有进步和首次游玩的谱面、AP 与 FC、单日最大进步等，既有页面，也有可下载的图片。开放之前，打开该地址会看到翻页时钟样式的开放倒计时。开放后，有年度回顾可看的玩家会收到回顾已就绪的提示。",
+						ja: "「2026 年の振り返り」が 12 月 1 日に「スコア」メニューで公開されます。PhiBot が記録したセーブデータから 1 年を振り返り、RKS の変化、伸びた譜面や初めてプレイした譜面、AP と FC、最大の伸びなどを、ページとダウンロードできる画像で確認できます。公開までは、そのアドレスにフリップ時計のカウントダウンが表示されます。公開後、振り返りがあるプレイヤーには、準備ができたことをお知らせします。",
 						href: "/2026-recap",
 					},
 					{

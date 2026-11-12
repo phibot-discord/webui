@@ -11,6 +11,7 @@ import { CardViewer } from "@/components/CardViewer";
 import { DownloadSimple } from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import { PgtiCard } from "@/components/review/PgtiCard";
+import { RecapCountdown } from "@/components/review/RecapCountdown";
 import { ReviewBoard } from "@/components/review/ReviewBoard";
 import { type DeckHandle, ReviewDeck } from "@/components/review/ReviewDeck";
 import { useHydrated } from "@/components/Tool";
@@ -58,12 +59,18 @@ export function YearReview({ view }: { view: ReviewView }) {
 		</h1>
 	);
 	if (view.state === "soon") {
+		const [soonBefore = "", soonAfter = ""] = t.soon.split("{day}");
 		return (
-			<>
+			<div className="recap-soon">
 				{heading(REVIEW_YEAR)}
-				<p className="lede">{fill(t.soon, { day: view.opens })}</p>
-				<p>{t.soonHint}</p>
-			</>
+				<p className="lede">
+					{soonBefore}
+					<span className="recap-soon-day">{view.opens}</span>
+					{soonAfter}
+				</p>
+				<RecapCountdown />
+				<p className="recap-soon-hint">{t.soonHint}</p>
+			</div>
 		);
 	}
 	const title = fill(t.title, { year: view.year });

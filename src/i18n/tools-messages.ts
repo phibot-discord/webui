@@ -539,6 +539,19 @@ export type ToolsMessages = {
 		lede: string;
 		soon: string;
 		soonHint: string;
+		countdown: {
+			label: string;
+			day: string;
+			days: string;
+			hour: string;
+			hours: string;
+			minute: string;
+			minutes: string;
+			second: string;
+			seconds: string;
+			opening: string;
+			open: string;
+		};
 		soFar: string;
 		years: string;
 		alt: string;
@@ -1259,9 +1272,22 @@ export const toolsEn: ToolsMessages = {
 		page: "{year} Recap",
 		heading: "Your {year} Recap",
 		lede: "Your year from PhiBot's records of your save: a deck of cards to flick through, the same facts as a list, and an image to download and post.",
-		soon: "Your recap opens on {day}.",
+		soon: "Your recap opens on {day} at 00:00 China time (UTC+8).",
 		soonHint:
 			"Until then, refresh your save after you play: PhiBot only records what it sees when your save is refreshed.",
+		countdown: {
+			label: "Time until your recap opens",
+			day: "day",
+			days: "days",
+			hour: "hour",
+			hours: "hours",
+			minute: "min",
+			minutes: "mins",
+			second: "sec",
+			seconds: "secs",
+			opening: "Opening your recap…",
+			open: "Open your recap",
+		},
 		soFar:
 			"The year is not over yet: this covers your uploads so far and grows each time you refresh your save.",
 		years: "Year",

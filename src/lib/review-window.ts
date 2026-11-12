@@ -24,14 +24,14 @@ export type ReviewEnv = {
 
 const YEAR = /^\d{4}$/;
 const chinaMidnight = (day: string) => Date.parse(`${day}T00:00:00+08:00`);
-const OPENS_AT = chinaMidnight(REVIEW_OPENS);
+export const REVIEW_OPENS_AT = chinaMidnight(REVIEW_OPENS);
 const COMPLETE_AT = chinaMidnight(`${REVIEW_YEAR + 1}-01-01`);
 const UNLINKED_AT = chinaMidnight(`${REVIEW_YEAR + 1}-02-01`);
 
 export function reviewWindow(now: number, env: ReviewEnv = {}): ReviewPhase {
 	if (now >= UNLINKED_AT) return "unlinked";
 	if (now >= COMPLETE_AT) return "complete";
-	if (now >= OPENS_AT) return "open";
+	if (now >= REVIEW_OPENS_AT) return "open";
 	return earlyAllowed(env) ? "open" : "soon";
 }
 
@@ -49,4 +49,24 @@ export function reviewYear(raw: string | null): number {
 	if (raw === null || !YEAR.test(raw)) return REVIEW_YEAR;
 	const year = Number(raw);
 	return year >= FIRST_REVIEW_YEAR && year <= REVIEW_YEAR ? year : REVIEW_YEAR;
+}
+
+export function reviewSecondsLeft(now: number): number {
+	return Math.max(0, Math.ceil((REVIEW_OPENS_AT - now) / 1000));
+}
+
+export type CountdownParts = {
+	days: number;
+	hours: number;
+	minutes: number;
+	seconds: number;
+};
+
+export function countdownParts(left: number): CountdownParts {
+	return {
+		days: Math.floor(left / 86400),
+		hours: Math.floor(left / 3600) % 24,
+		minutes: Math.floor(left / 60) % 60,
+		seconds: left % 60,
+	};
 }
