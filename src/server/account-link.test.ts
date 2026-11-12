@@ -85,6 +85,16 @@ test("Discord's own settings win over the TapTap account's", async () => {
 	assert.equal(kv.has(kvKey("notes", TAP)), false);
 });
 
+test("a practice list made under a TapTap sign-in follows the player to Discord", async () => {
+	const list =
+		'{"v":1,"items":[{"id":"A.B.0","rank":"IN","goal":"ap","at":1}]}';
+	kv.set(token(TAP), TOKEN);
+	kv.set(kvKey("webPracticeList", TAP), list);
+	assert.deepEqual(await linkTapToDiscord(TAP, DISCORD), { ok: true });
+	assert.equal(kv.get(kvKey("webPracticeList", DISCORD)), list);
+	assert.equal(kv.has(kvKey("webPracticeList", TAP)), false);
+});
+
 test("a Discord user holding another save refuses the link and keeps everything", async () => {
 	kv.set(token(TAP), TOKEN);
 	kv.set(token(DISCORD), OTHER);

@@ -4,14 +4,19 @@ import { Suspense } from "react";
 import { auth } from "@/auth";
 import { CardNav } from "@/components/CardNav";
 import { Desk } from "@/components/Desk";
+import { DifficultyTable } from "@/components/DifficultyTable";
 import { PlayerProfile } from "@/components/PlayerProfile";
 import { ProfileTimeline } from "@/components/ProfileTimeline";
+import { ProfileType } from "@/components/ProfileType";
 import { getMessages, signInHref } from "@/i18n/server";
+import { bareId } from "@/lib/chart-catalog";
 import { loadTagVotes } from "@/phi/lib/chart-tag-votes";
 import { loadSaveHistory } from "@/phi/lib/history";
+import { objectUrls } from "@/server/asset-links";
 import { loadCardDesk } from "@/server/card-desk";
 import { chartCatalog } from "@/server/charts";
 import { getDataHost } from "@/server/data-host";
+import { illKey } from "@/server/ill";
 import { withDiscordUid } from "@/server/logger";
 import { pageMetadata } from "@/server/og-meta";
 import { playerProfileView } from "@/server/profile-view";
@@ -56,9 +61,33 @@ export default async function ProfilePage() {
 					history.scoreHistory,
 				);
 		}
+		const profile = view.profile;
+		const tabled =
+			profile && !profile.insufficient && profile.basis !== "aps"
+				? profile.charts.map(({ id, song, rank, c, acc, diff }) => ({
+						id,
+						song,
+						rank,
+						c,
+						acc,
+						diff,
+					}))
+				: [];
+		const jackets: Record<string, string> = {};
+		if (tabled.length) {
+			const links = await objectUrls();
+			for (const chart of tabled) {
+				if (jackets[chart.id]) continue;
+				const url = links(illKey(bareId(chart.id), "low"));
+				if (url) jackets[chart.id] = url;
+			}
+		}
 		return (
 			<Desk {...loaded.desk} nav={<CardNav current="profile" />}>
 				<PlayerProfile view={view} />
+				{tabled.length ? (
+					<DifficultyTable charts={tabled} jackets={jackets} />
+				) : null}
 				{votes && loaded.bound.token ? (
 					<Suspense
 						fallback={
@@ -70,6 +99,11 @@ export default async function ProfilePage() {
 							token={loaded.bound.token}
 							votes={votes}
 						/>
+					</Suspense>
+				) : null}
+				{loaded.bound.token ? (
+					<Suspense fallback={null}>
+						<ProfileType save={loaded.bound.save} token={loaded.bound.token} />
 					</Suspense>
 				) : null}
 			</Desk>

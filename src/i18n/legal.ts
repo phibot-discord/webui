@@ -12,7 +12,7 @@ export type LegalDoc = {
 	sections: LegalSection[];
 };
 
-export const LEGAL_UPDATED = "2026-11-11";
+export const LEGAL_UPDATED = "2026-11-13";
 
 const GITHUB = "https://github.com/phibot-discord/webui";
 
@@ -415,6 +415,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 						"**Score history.** Snapshots of your scores and RKS over time, for the History and Info cards.",
 						"**Settings.** Your card options, such as layout, background and which extras to show.",
 						"**Manual scores**, if you type them in.",
+						"**Practice list**, if you use it: the charts you put on it and the goal for each.",
 						"**Share link**, if you make one, and whether you turned on **Allow compare** for it.",
 						"**Guess the song.** When you play the daily puzzle signed in: when you pressed Start, your guesses and the result. If you solve it with “Show me on the leaderboard” ticked, your display name, number of tries and time go on that day's leaderboard.",
 						"**Card images.** Drawn cards are cached so the same card is not drawn twice.",
@@ -422,7 +423,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 						"**Page views.** Vercel Analytics counts page views without cookies.",
 					],
 					"Cookies keep you signed in and remember your language and theme; short-lived ones carry a sign-in from one step to the next. Your browser also remembers small choices, such as a dismissed notice, and your Guess the song progress when you play practice puzzles or play signed out.",
-					"**Score downloads** (CSV or JSON from the More menu) are made when you ask and are not kept. Song pages, chart versions, targets, progress and the RKS trend are worked out from the data above and keep nothing new.",
+					"**Score downloads** (CSV or JSON from the More menu) are made when you ask and are not kept. Song pages, chart versions, targets, progress and the RKS trend are worked out from the data above and keep nothing new. The practice list on the Targets page is the one exception and is listed above.",
 				],
 			},
 			{
@@ -445,6 +446,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 						"**kyou.net.cn**, where players vote on chart tags. PhiBot copies the public vote counts once a day and works out your tag profile itself. Nothing about you is sent there.",
 						"**Vercel** hosts the site and its logs. **Cloudflare** stores your data (KV) and cached card images (R2).",
 						"**Anyone with your share link** can see the cards it shows. If you turn on Allow compare, they can also see every score in your save next to theirs. The RKS badge shows your player name, RKS and Challenge level to anyone who sees it.",
+						"**Anyone you send a dare link to** sees your player name and the one score that link carries. The link works for 30 days. PhiBot keeps no record of it, so it cannot be withdrawn sooner, not even by unbinding or asking for your data to be deleted.",
 						"**Everyone** can see the Guess the song leaderboard: the display name, tries and time of players who chose to be listed.",
 						"**Authorities**, only when the law requires it.",
 					],
@@ -455,7 +457,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 				title: "How long it is kept",
 				tldr: "Kept while you use PhiBot; unbinding deletes your token and save at once; Guess the song data goes after 60 days.",
 				body: [
-					"Your data stays while you use PhiBot. Unbinding deletes the session token and the cached save straight away. Score history, settings, manual scores and your share link stay until you clear them or ask for deletion. Turning sharing off also removes the compare setting, and unbinding turns comparing off. Guess the song runs and leaderboard entries are deleted after 60 days. Cached card images and logs are removed over time.",
+					"Your data stays while you use PhiBot. Unbinding deletes the session token and the cached save straight away. Unbinding on the site also deletes your practice list. Score history, settings, manual scores and your share link stay until you clear them or ask for deletion. Turning sharing off also removes the compare setting, and unbinding turns comparing off. Guess the song runs and leaderboard entries are deleted after 60 days. Cached card images and logs are removed over time. A dare link stops working 30 days after you made it.",
 				],
 			},
 			{
@@ -536,6 +538,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 						"**成绩历史**：成绩和 RKS 的历史快照，用于历史和信息成绩图。",
 						"**设置**：成绩图选项，例如版式、背景和显示哪些附加内容。",
 						"**手动成绩**：如果你手动录入了成绩。",
+						"**练习清单**：如果你使用了它，会保存你放进去的谱面和每张谱面的目标。",
 						"**分享链接**：如果你创建了分享链接，以及你是否为它打开了**允许对比**。",
 						"**猜曲绘**：登录后玩每日题时，保存你点击「开始」的时间、你的答案和结果。如果你勾选了「在排行榜上显示我」并猜中，你的显示名称、尝试次数和用时会出现在当天的排行榜上。",
 						"**成绩图图片**：生成的成绩图会被缓存，避免重复生成。",
@@ -543,7 +546,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 						"**页面访问**：Vercel Analytics 统计页面访问量，不使用 Cookie。",
 					],
 					"Cookie 用于保持登录、记住你的语言和主题；登录过程中还会用到短期 Cookie。浏览器也会记住一些小选择，例如已关闭的通知，以及你玩练习题或未登录时的猜曲绘进度。",
-					"**成绩下载**（在「更多」菜单中导出 CSV 或 JSON）在你请求时生成，不会保存。曲目页、谱面版本、推分目标、完成度和 RKS 走势都由上述数据计算得出，不会额外保存任何内容。",
+					"**成绩下载**（在「更多」菜单中导出 CSV 或 JSON）在你请求时生成，不会保存。曲目页、谱面版本、推分目标、完成度和 RKS 走势都由上述数据计算得出，不会额外保存任何内容。推分目标页面上的练习清单是唯一的例外，已在上面列出。",
 				],
 			},
 			{
@@ -566,6 +569,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 						"**kyou.net.cn**：玩家为谱面标签投票的网站。PhiBot 每天同步一次公开的投票数，并自行计算你的标签画像，不会向它发送任何关于你的信息。",
 						"**Vercel** 托管网站和日志，**Cloudflare** 存储你的数据（KV）和成绩图缓存（R2）。",
 						"**拿到你分享链接的人**可以看到链接里的成绩图。如果你打开了允许对比，他们还能把你存档中的每一项成绩与自己的并排查看。RKS 徽章会向看到它的人展示你的玩家名、RKS 和课题等级。",
+						"**收到你挑战链接的人**可以看到你的玩家名和链接里的那一个成绩。链接 30 天内有效。PhiBot 不保存这条链接，因此无法提前撤回，解绑或要求删除数据也不能让它提前失效。",
 						"**所有人**都能看到猜曲绘排行榜：选择上榜的玩家的显示名称、尝试次数和用时。",
 						"**有关部门**：仅在法律要求时。",
 					],
@@ -576,7 +580,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 				title: "保存多久",
 				tldr: "使用期间保留；解绑立即删除令牌和存档缓存；猜曲绘数据 60 天后删除。",
 				body: [
-					"你使用 PhiBot 期间数据会一直保留。解绑会立即删除会话令牌和存档缓存。成绩历史、设置、手动成绩和分享链接会保留到你清除或要求删除为止。关闭分享会同时删除对比设置，解绑会关闭对比。猜曲绘记录和排行榜条目会在 60 天后删除。成绩图缓存和日志会随时间清理。",
+					"你使用 PhiBot 期间数据会一直保留。解绑会立即删除会话令牌和存档缓存。在网站上解绑还会删除你的练习清单。成绩历史、设置、手动成绩和分享链接会保留到你清除或要求删除为止。关闭分享会同时删除对比设置，解绑会关闭对比。猜曲绘记录和排行榜条目会在 60 天后删除。成绩图缓存和日志会随时间清理。挑战链接在创建 30 天后失效。",
 				],
 			},
 			{
@@ -657,6 +661,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 						"**スコア履歴。** 履歴カードとプレイヤー情報カード用の、スコアと RKS の時系列スナップショット。",
 						"**設定。** レイアウト、背景、表示する追加機能など、カードのオプション。",
 						"**手入力のスコア。** 入力した場合のみ。",
+						"**練習リスト。** 使った場合のみ。リストに入れた譜面と、それぞれの目標です。",
 						"**共有リンク。** 作成した場合のみ。また、そのリンクで**比較を許可**をオンにしたかどうか。",
 						"**曲当てクイズ。** サインインして毎日の問題をプレイしたときの、スタートを押した時刻、推測、結果。「ランキングに表示する」にチェックを入れて正解した場合は、表示名、試行回数、所要時間がその日のランキングに載ります。",
 						"**カード画像。** 同じカードを二度描かないよう、描いたカードはキャッシュされます。",
@@ -664,7 +669,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 						"**ページビュー。** Vercel Analytics が Cookie を使わずにページビュー数を集計します。",
 					],
 					"Cookie は、サインイン状態の維持と、言語やテーマの記憶に使います。サインインの途中経過を次のステップへ引き継ぐ短期間の Cookie もあります。ブラウザには、閉じた通知などの小さな選択や、練習問題をプレイしたとき、またはサインインせずにプレイしたときの曲当てクイズの進行状況も保存されます。",
-					"**スコアのダウンロード**（「その他」メニューの CSV または JSON）は、ご依頼のときに作成され、保存されません。曲ページ、譜面バージョン、目標、進捗、RKS の推移は、上記のデータから計算されるもので、新たに保存されるものはありません。",
+					"**スコアのダウンロード**（「その他」メニューの CSV または JSON）は、ご依頼のときに作成され、保存されません。曲ページ、譜面バージョン、目標、進捗、RKS の推移は、上記のデータから計算されるもので、新たに保存されるものはありません。目標ページの練習リストだけは例外で、上の一覧に含まれています。",
 				],
 			},
 			{
@@ -687,6 +692,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 						"**kyou.net.cn。** プレイヤーが譜面タグに投票するサイトです。PhiBot は公開されている投票数を一日一回コピーし、タグプロフィールは自分で計算します。あなたに関する情報は送られません。",
 						"**Vercel** はサイトとそのログをホストし、**Cloudflare** はあなたのデータ（KV）とキャッシュされたカード画像（R2）を保存します。",
 						"**共有リンクを知っている人**は、そのリンクが示すカードを見られます。「比較を許可」をオンにした場合は、あなたのセーブデータにあるすべてのスコアを自分のスコアと並べて見ることもできます。RKS バッジは、見た人にあなたのプレイヤー名、RKS、チャレンジレベルを表示します。",
+						"**挑戦リンクを受け取った人**には、あなたのプレイヤー名とリンクに含まれる 1 件のスコアが見えます。リンクは 30 日間有効です。PhiBot はこのリンクを保存しないため、それより早く取り消すことはできず、連携の解除やデータ削除の依頼でも無効にはなりません。",
 						"**誰でも**曲当てクイズのランキングを見られます。掲載を選んだプレイヤーの表示名、試行回数、所要時間が表示されます。",
 						"**公的機関。** 法律で求められた場合に限ります。",
 					],
@@ -697,7 +703,7 @@ export const privacy: Record<Locale, LegalDoc> = {
 				title: "保存期間",
 				tldr: "PhiBot をお使いの間は保存されます。連携を解除するとトークンとセーブデータはすぐに削除され、曲当てクイズのデータは 60 日後に削除されます。",
 				body: [
-					"データは、PhiBot をお使いの間は保存されます。連携を解除すると、セッショントークンとキャッシュされたセーブデータはすぐに削除されます。スコア履歴、設定、手入力のスコア、共有リンクは、あなたが消去するか削除を依頼するまで残ります。共有をオフにすると比較の設定も削除され、連携を解除すると比較はオフになります。曲当てクイズのプレイ記録とランキングの記録は 60 日後に削除されます。キャッシュされたカード画像とログは、時間をかけて削除されます。",
+					"データは、PhiBot をお使いの間は保存されます。連携を解除すると、セッショントークンとキャッシュされたセーブデータはすぐに削除されます。サイトで連携を解除すると、練習リストも削除されます。スコア履歴、設定、手入力のスコア、共有リンクは、あなたが消去するか削除を依頼するまで残ります。共有をオフにすると比較の設定も削除され、連携を解除すると比較はオフになります。曲当てクイズのプレイ記録とランキングの記録は 60 日後に削除されます。キャッシュされたカード画像とログは、時間をかけて削除されます。挑戦リンクは作成から 30 日で無効になります。",
 				],
 			},
 			{

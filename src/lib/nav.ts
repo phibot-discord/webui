@@ -17,6 +17,8 @@ type NavItemId =
 	| "charts"
 	| "phira"
 	| "guess"
+	| "timing"
+	| "tiers"
 	| "compare"
 	| "files"
 	| "pv"
@@ -45,6 +47,8 @@ export const NAV_GROUPS: NavGroup[] = [
 			page("charts", "/charts"),
 			page("phira", "/phira", ["/phira", "/phira-mp"]),
 			page("guess", "/guess"),
+			page("timing", "/timing"),
+			page("tiers", "/tiers"),
 		],
 	},
 	{

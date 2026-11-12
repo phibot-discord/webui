@@ -11,6 +11,7 @@ import { SongTags } from "@/components/SongTags";
 import { SongYourScores, type YourScore } from "@/components/SongYourScores";
 import { localeTag } from "@/i18n/config";
 import { getMessages, signInLink } from "@/i18n/server";
+import { DARE_PARAM, dareAcc, dareGap } from "@/lib/dare";
 import { chartPoints } from "@/lib/past-self";
 import { songPath } from "@/lib/song-path";
 import { fill } from "@/phi/lib/card-i18n";
@@ -21,6 +22,7 @@ import type { Save } from "@/phi/lib/save";
 import type { SaveHistory } from "@/phi/lib/save-history";
 import { objectUrls } from "@/server/asset-links";
 import { loadBound } from "@/server/bound";
+import { readDare } from "@/server/dare";
 import { getDataHost } from "@/server/data-host";
 import { logger } from "@/server/logger";
 import { pageMetadata } from "@/server/og-meta";
@@ -37,7 +39,10 @@ import { songTags } from "@/server/song-tags";
 
 export const dynamic = "force-dynamic";
 
-type Params = { params: Promise<{ id: string }> };
+type Params = {
+	params: Promise<{ id: string }>;
+	searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
 function slugOf(raw: string): string {
 	try {
@@ -47,20 +52,38 @@ function slugOf(raw: string): string {
 	}
 }
 
-export async function generateMetadata({ params }: Params): Promise<Metadata> {
+async function dareParam(searchParams: Params["searchParams"]) {
+	const raw = (await searchParams)[DARE_PARAM];
+	return Array.isArray(raw) ? raw[0] : raw;
+}
+
+export async function generateMetadata({
+	params,
+	searchParams,
+}: Params): Promise<Metadata> {
 	const view = await songMetaView(slugOf((await params).id));
 	if (!view) return pageMetadata("songs", { noindex: true });
 	const { locale, m } = await getMessages();
+	const dare = readDare(view.id, await dareParam(searchParams));
 	return pageMetadata("songs", {
 		path: songPath(view.id),
-		title: view.title,
-		description: fill(m.songPage.description, {
-			title: view.title,
-			composer: view.composer || "—",
-			levels: view.levels
-				.map((l) => `${l.rank} ${l.label ?? l.constant.toFixed(1)}`)
-				.join(locale === "en" ? ", " : "、"),
-		}),
+		title: dare
+			? fill(m.dare.metaTitle, {
+					name: dare.name,
+					acc: dare.acc.toFixed(2),
+					title: view.title,
+					level: dare.rank,
+				})
+			: view.title,
+		description: dare
+			? m.dare.metaDescription
+			: fill(m.songPage.description, {
+					title: view.title,
+					composer: view.composer || "—",
+					levels: view.levels
+						.map((l) => `${l.rank} ${l.label ?? l.constant.toFixed(1)}`)
+						.join(locale === "en" ? ", " : "、"),
+				}),
 	});
 }
 
@@ -142,7 +165,7 @@ async function filesOf(
 	}
 }
 
-export default async function SongPage({ params }: Params) {
+export default async function SongPage({ params, searchParams }: Params) {
 	const slug = slugOf((await params).id);
 	const viewerJob = viewerData();
 	viewerJob.catch(() => undefined);
@@ -154,6 +177,25 @@ export default async function SongPage({ params }: Params) {
 	const t = m.songPage;
 	const filesJob = filesOf(view, localeTag(locale));
 	const yours = yourScores(view, await viewerJob);
+	const dareRaw = await dareParam(searchParams);
+	const dare = readDare(view.id, dareRaw);
+	let dareNote: string | undefined;
+	if (dare && yours.state === "ok") {
+		const mine = yours.rows.find((r) => r.rank === dare.rank);
+		if (mine) {
+			const cut = dareAcc(mine.acc);
+			const gap = dareGap(dare.acc, cut);
+			const best = fill(m.dare.yours, { acc: cut.toFixed(2) });
+			dareNote =
+				gap === 0
+					? `${best} ${m.dare.even}`
+					: `${best} ${fill(gap > 0 ? m.dare.ahead : m.dare.behind, {
+							gap: Math.abs(gap).toFixed(2),
+						})}`;
+		} else {
+			dareNote = m.dare.unplayed;
+		}
+	}
 	const [similar, files, votes] = await Promise.all([
 		view.scored
 			? songSimilar(
@@ -241,6 +283,37 @@ export default async function SongPage({ params }: Params) {
 					</div>
 				</div>
 			</header>
+			{dare ? (
+				<p className="callout song-dare" role="status">
+					{fill(m.dare.banner, {
+						name: dare.name,
+						acc: dare.acc.toFixed(2),
+						status: m.dare.statuses[dare.status],
+						level: dare.rank,
+					})}{" "}
+					{yours.state === "ok" ? (
+						dareNote
+					) : yours.state === "unbound" ? (
+						<>
+							{t.yoursNotBound}{" "}
+							<Link href="/me" prefetch={false}>
+								{m.nav.cards}
+							</Link>
+						</>
+					) : (
+						<Link
+							href={
+								await signInLink(
+									`${songPath(view.id)}?${new URLSearchParams({ [DARE_PARAM]: dareRaw ?? "" })}`,
+								)
+							}
+							prefetch={false}
+						>
+							{m.dare.signIn}
+						</Link>
+					)}
+				</p>
+			) : null}
 
 			<section className="song-section" aria-labelledby="song-levels">
 				<h2 id="song-levels">{t.levelsTitle}</h2>

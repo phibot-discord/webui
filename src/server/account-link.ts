@@ -11,6 +11,7 @@ import {
 import { type DataHost, getDataHost } from "./data-host";
 import { logger, withDiscordUid } from "./logger";
 import { leaveManualMode } from "./manual";
+import { PRACTICE_LIST } from "./practice-list";
 import { moveShare } from "./share";
 
 const TAP_LINK = (objectId: string) => kvKey("webTapLink", objectId);
@@ -115,6 +116,7 @@ export async function linkTapToDiscord(
 	}
 	await carry(host.db, NOTES, tapUser, discordId);
 	await carry(host.db, HISB30, tapUser, discordId);
+	await carry(host.db, PRACTICE_LIST, tapUser, discordId);
 	if (!tapToken && !discordToken)
 		await carry(host.db, MANUAL, tapUser, discordId);
 	await moveShare(tapUser, discordId);
@@ -132,7 +134,8 @@ export async function linkTapToDiscord(
 	// Only its binding goes: the token-keyed save is Discord's now
 	await host.rt.store.clearLocalCredentials(tapUser);
 	forgetBound(tapUser);
-	for (const key of [NOTES, HISB30, MANUAL]) await host.db.del(key(tapUser));
+	for (const key of [NOTES, HISB30, MANUAL, PRACTICE_LIST])
+		await host.db.del(key(tapUser));
 	logger.ok(`linked tap account ${objectId} to discord ${discordId}`);
 	return { ok: true };
 }

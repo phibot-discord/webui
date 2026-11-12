@@ -82,9 +82,11 @@ function axesOf(p: Pgti): Axis[] {
 export function PgtiCard({
 	pgti,
 	titleRef,
+	rolling,
 }: {
 	pgti: Pgti | null;
 	titleRef?: Ref<HTMLHeadingElement>;
+	rolling?: boolean;
 }) {
 	const { m } = useI18n();
 	const t = m.wrapped.pgti;
@@ -102,7 +104,7 @@ export function PgtiCard({
 			{pgti ? (
 				<>
 					<p className="pgti-sub">{t.sub}</p>
-					<PgtiType pgti={pgti} panel={`${id}-panel`} />
+					<PgtiType pgti={pgti} panel={`${id}-panel`} rolling={rolling} />
 				</>
 			) : (
 				<p className="pgti-none">{t.none}</p>
@@ -111,7 +113,15 @@ export function PgtiCard({
 	);
 }
 
-function PgtiType({ pgti, panel }: { pgti: Pgti; panel: string }) {
+function PgtiType({
+	pgti,
+	panel,
+	rolling,
+}: {
+	pgti: Pgti;
+	panel: string;
+	rolling?: boolean;
+}) {
 	const { m } = useI18n();
 	const t = m.wrapped.pgti;
 	const [pick, setPick] = useState(0);
@@ -192,8 +202,20 @@ function PgtiType({ pgti, panel }: { pgti: Pgti; panel: string }) {
 						{t.poles[shown.right]}
 					</span>
 				</div>
-				<p className="pgti-trait">{t.traits[shown.letter]}</p>
-				<p className="pgti-fact">{fill(t.facts[shown.axis], shown.vars)}</p>
+				<p className="pgti-trait">
+					{(rolling &&
+					(shown.letter === "M" || shown.letter === "G" || shown.letter === "K")
+						? t.rolling.traits[shown.letter]
+						: undefined) ?? t.traits[shown.letter]}
+				</p>
+				<p className="pgti-fact">
+					{fill(
+						rolling && shown.axis === "drive"
+							? t.rolling.drive
+							: t.facts[shown.axis],
+						shown.vars,
+					)}
+				</p>
 			</div>
 		</div>
 	);

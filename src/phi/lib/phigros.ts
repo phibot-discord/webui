@@ -21,6 +21,10 @@ export function encryptSaveEntry(data: Buffer) {
 	return Buffer.concat([cipher.update(data), cipher.final()]);
 }
 
+export function decryptSaveEntry(data: Buffer) {
+	return decrypt(data);
+}
+
 class ByteReader {
 	data: Buffer;
 	position: number;

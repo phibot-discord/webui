@@ -216,9 +216,18 @@ test("unbind turns compare off and keeps the share link", async () => {
 	assert.equal(kv.get(kvKey("webShare", "sharedSlug12")), "p6");
 });
 
+test("unbinding deletes the practice list", async () => {
+	kv.set(kvKey("userToken", "p7"), TOKEN);
+	kv.set(kvKey("webPracticeList", "p7"), '{"v":1,"items":[]}');
+	assert.deepEqual(await unbindAccount("p7"), { ok: true });
+	assert.equal(kv.has(kvKey("webPracticeList", "p7")), false);
+});
+
 test("unbinding with nothing bound is not_bound", async () => {
+	kv.set(kvKey("webPracticeList", "p5"), '{"v":1,"items":[]}');
 	assert.deepEqual(await unbindAccount("p5"), {
 		error: "not_bound",
 		status: 409,
 	});
+	assert.equal(kv.has(kvKey("webPracticeList", "p5")), true);
 });

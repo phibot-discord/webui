@@ -54,3 +54,45 @@ test("the search box holds no more text than the address keeps", () => {
 	assert.equal(kept, 100);
 	assert.ok(input.includes(` maxLength="${kept}"`), input);
 });
+
+test("the pick button is offered and disabled when nothing matches", () => {
+	const initial: ChartFilters = {
+		q: "",
+		levels: ["IN", "AT"],
+		cMin: "",
+		cMax: "",
+		tag: "",
+		chapter: "",
+		status: "all",
+		sort: { key: "c", desc: true },
+	};
+	const provider: ComponentProps<typeof CatalogProvider> = {
+		locale: "en",
+		messages: en,
+		setLocale: () => {},
+		children: null,
+	};
+	const html = renderToStaticMarkup(
+		createElement(
+			AppRouterContext.Provider,
+			{ value: {} as AppRouterInstance },
+			createElement(
+				SearchParamsContext.Provider,
+				{ value: new URLSearchParams() },
+				createElement(
+					CatalogProvider,
+					provider,
+					createElement(ChartBrowser, {
+						view: { songs: [], charts: [], tags: [], chapters: [] },
+						mine: null,
+						initial,
+					}),
+				),
+			),
+		),
+	);
+	const button =
+		html.match(/<button [^>]*>Pick one for me<\/button>/)?.[0] ?? "";
+	assert.ok(button, html);
+	assert.match(button, / disabled=""/);
+});

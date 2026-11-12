@@ -10,6 +10,8 @@ test("the sitemap lists these pages", () => {
 		"/score",
 		"/phira",
 		"/guess",
+		"/timing",
+		"/tiers",
 		"/versions",
 		"/status",
 		"/privacy",

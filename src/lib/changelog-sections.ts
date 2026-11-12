@@ -3,6 +3,110 @@ import type { ChangeRelease } from "./changelog";
 /** Every release's items, newest first, loaded only when the dialog opens */
 export const CHANGELOG_RELEASES: ChangeRelease[] = [
 	{
+		date: "2026-11-13",
+		sections: [
+			{
+				heading: { en: "New tools", zh: "新工具", ja: "新しいツール" },
+				items: [
+					{
+						en: "Timing test is a new page under Tools with two quick tests of your hands alone. Steadiness plays 32 clicks at a tempo you pick and tells you in milliseconds how evenly you tapped and whether you run early or late. Speed counts your taps for ten seconds and sets the result against the note density of the game's charts.",
+						zh: "「工具」菜单新增「手速与稳定度测试」页面，包含两个只考验双手的小测试。稳定度测试会按你选的速度播放 32 下节拍，告诉你点击的均匀程度（以毫秒计），以及你整体偏早还是偏晚。手速测试统计你 10 秒内的点击次数，并与游戏内谱面的物量密度作比较。",
+						ja: "「ツール」メニューに「タイミングテスト」のページを追加しました。手だけを試す 2 つの短いテストです。安定度では、選んだテンポで 32 回鳴るクリック音に合わせてタップし、タップのばらつきをミリ秒で、早めか遅めかの傾向とあわせて表示します。速さでは 10 秒間のタップ数を数え、ゲームの譜面のノーツ密度と比べます。",
+						href: "/timing",
+					},
+					{
+						en: "Tier lists is a new page under Tools: sort the charts of one level into rows from S to D, give the list a title, then share it as a link or download it as a picture. The list lives in the link, so nothing is saved on PhiBot. Signed in, you can fill it from your own scores.",
+						zh: "「工具」菜单新增「梯度表」页面：把同一等级的谱面分到 S 到 D 五行，起个标题，然后用链接分享或下载成图片。内容都在链接里，PhiBot 不保存任何东西。登录后还可以按自己的成绩自动填入。",
+						ja: "「ツール」メニューに「ティア表」のページを追加しました。ひとつのレベルの譜面を S から D の段に分け、タイトルを付けて、リンクで共有したり画像としてダウンロードしたりできます。内容はリンクの中にあり、PhiBot には何も保存されません。サインインしていれば、自分のスコアから自動で入れることもできます。",
+						href: "/tiers",
+					},
+					{
+						en: "Guess the song has a new By ear mode: hear the first second of a song and name it. Every wrong guess or skip gives a longer clue, up to 16 seconds. These are practice puzzles, so there is no daily puzzle or leaderboard for them.",
+						zh: "「猜曲绘」新增「听歌识曲」模式：听一首歌开头的 1 秒，说出它是哪首。每猜错或跳过一次，线索就会变长，最长 16 秒。这些都是练习题，没有每日题，也没有排行榜。",
+						ja: "「曲あてクイズ」に「耳で当てる」モードを追加しました。曲の最初の 1 秒を聞いて、曲名を当てます。間違えるかスキップするたびに手がかりが長くなり、最長で 16 秒になります。練習問題のみで、毎日の問題やランキングはありません。",
+						href: "/guess?ear=new",
+					},
+				],
+			},
+			{
+				heading: { en: "Chart browser", zh: "谱面一览", ja: "譜面ブラウザー" },
+				items: [
+					{
+						en: "Pick one for me draws a random chart from whatever your filters match, and avoids repeating its recent picks.",
+						zh: "「帮我选一张」会从当前筛选结果中随机选出一张谱面，并尽量不重复最近选过的。",
+						ja: "「おまかせで選ぶ」は、今の絞り込みに合う譜面からランダムに 1 つ選びます。最近選んだ譜面はなるべく繰り返しません。",
+						href: "/charts",
+					},
+					{
+						en: "Play these opens a jukebox that plays the matching charts one after another in a random order, either as 30-second highlights around each chart's hardest section or as whole charts.",
+						zh: "「连续播放」会打开点唱机，把符合筛选条件的谱面按随机顺序逐张播放：可以只播放每张谱面最难部分前后的 30 秒精彩片段，也可以播放整张谱面。",
+						ja: "「連続再生」を押すとジュークボックスが開き、条件に合う譜面をランダムな順番で次々に再生します。各譜面の最も難しい部分を中心にした 30 秒のハイライトか、譜面全体かを選べます。",
+					},
+				],
+			},
+			{
+				heading: { en: "Your scores", zh: "你的成绩", ja: "あなたのスコア" },
+				items: [
+					{
+						en: "Refresh save now tells you what it found: that the cloud still holds the save PhiBot already has, so you need to sync in the game first, or a one-line summary of what changed, such as your RKS and the number of new bests, full combos and APs.",
+						zh: "「刷新存档」现在会告诉你结果：云端还是 PhiBot 已有的那份存档（需要先在游戏内同步），或者用一句话概括变化，例如 RKS 以及新纪录、新增 FC 和 AP 的数量。",
+						ja: "「セーブデータを更新」が結果を知らせるようになりました。クラウドにあるのが PhiBot の持っているセーブデータと同じ場合（先にゲーム内で同期が必要です）はそのことを、変化があった場合は RKS や自己ベスト更新、新しい FC・AP の数を一行でまとめて表示します。",
+					},
+					{
+						en: "Targets has a practice list: add a chart from the targets table and it stays on the list with its goal, your accuracy now and how far you have come since adding it, and is marked as reached once a refreshed save shows it. The list holds 30 charts and is deleted when you unbind.",
+						zh: "「推分目标」新增练习清单：从目标表中把谱面加入清单后，它会连同目标、当前准确率和加入以来的进步一起保留；刷新存档后达成目标的谱面会被标记为已达成。清单最多保存 30 张谱面，解绑时会被删除。",
+						ja: "「目標」に練習リストを追加しました。目標の表から譜面を追加すると、目標、現在の精度、追加してからの伸びとともにリストに残り、更新したセーブデータで目標に届いていれば達成済みと表示されます。リストには 30 譜面まで入れられ、連携を解除すると削除されます。",
+						href: "/targets",
+					},
+					{
+						en: "Targets also has Challenge mode picks: for each level total, the three charts where your accuracy is highest and the rank colour those accuracies would add up to. It is an upper estimate, since challenge mode judges more strictly.",
+						zh: "「推分目标」还新增了课题模式选曲：针对每个等级总和，列出你准确率最高的三张谱面，以及这些准确率加起来能达到的段位颜色。课题模式判定更严格，所以这是一个偏高的估计。",
+						ja: "「目標」には「チャレンジモードの選曲」も追加しました。レベル合計ごとに、あなたの精度が最も高い 3 譜面と、その精度を合計すると届くランクの色を表示します。チャレンジモードは判定が厳しいため、高めの見積もりです。",
+					},
+					{
+						en: "Progress has Achievements: sixteen ladders worked out from your save, such as All Perfects, full combos, your highest AP and cleared chapters, each with where you are, the next step and a bar.",
+						zh: "「完成度」新增成就：根据存档算出的 16 个阶梯，例如 AP 数、FC 数、AP 的最高定数和全部通关的章节，每个都显示当前进度、下一步和进度条。",
+						ja: "「進捗」に実績を追加しました。AP 数、FC 数、AP した最高定数、すべてクリアしたチャプターなど、セーブデータから求めた 16 の段階があり、それぞれ現在の値、次の段階、バーを表示します。",
+						href: "/progress",
+					},
+					{
+						en: "Profile has a What suits you table: the charts behind your profile as illustration tiles, one level at a time, in five rows from the charts that suit you best to the ones that are hardest for you. It compares you with your own usual accuracy, never with other players.",
+						zh: "「画像」新增个人差表：按等级把画像所用的谱面以曲绘卡片的形式分成五行，从最适合你的到对你最难的。它只和你自己平时的准确率比较，不和其他玩家比较。",
+						ja: "「プロフィール」に「得意・苦手の表」を追加しました。プロフィールのもとになった譜面を、レベルごとにイラストのタイルで、最も得意な譜面から最も苦手な譜面まで 5 段に並べます。比べる相手は自分のふだんの精度だけで、ほかのプレイヤーとは比べません。",
+						href: "/profile",
+					},
+					{
+						en: "Your PGTI player type is on Profile all year, worked out over the last twelve months, with a button to copy it as text.",
+						zh: "你的 PGTI 玩家类型现在全年显示在「画像」页面上，按最近十二个月计算，并可一键复制为文字。",
+						ja: "プレイヤータイプ「PGTI」が一年を通して「プロフィール」に表示されるようになりました。直近 12 か月から求め、テキストとしてコピーするボタンもあります。",
+					},
+					{
+						en: "Trend has a Play calendar, a year of days coloured by how many scores improved on each, and On this day, which shows your RKS a year ago today with a link to compare with that day.",
+						zh: "「走势」新增游玩日历：用颜色深浅表示过去一年每天有多少成绩进步；还有「往年今日」，显示一年前今天的 RKS，并附上与那一天对比的链接。",
+						ja: "「推移」に「プレイカレンダー」を追加しました。過去 1 年の各日を、その日に伸びたスコアの数に応じた色で表示します。「過去の今日」では、1 年前の今日の RKS と、その日と比較するリンクを表示します。",
+						href: "/trend",
+					},
+				],
+			},
+			{
+				heading: { en: "Song pages", zh: "曲目页面", ja: "曲ページ" },
+				items: [
+					{
+						en: "The chart preview can repeat a section. Loop starts with the hardest 10 seconds; A and B, or the [ and ] keys, set a start and an end of your own, and L switches the loop on and off.",
+						zh: "谱面预览可以循环播放一段。「循环」默认从最难的 10 秒开始；用 A 和 B 按钮或 [ 和 ] 键可以自己设定起点和终点，L 键可以开关循环。",
+						ja: "譜面プレビューで一部分を繰り返し再生できるようになりました。「ループ」は最初、最も難しい 10 秒を繰り返します。A と B のボタン、または [ と ] のキーで開始と終了を自分で決められ、L キーでループを切り替えます。",
+						href: "/songs",
+					},
+					{
+						en: "Your scores on a song page have a Copy dare link button. The link carries that one score and your player name; whoever opens it sees it above the song and, once signed in, how their own best compares. The link works for 30 days, and PhiBot keeps no record of it.",
+						zh: "曲目页面「你的成绩」中新增「复制挑战链接」按钮。链接里只带有这一个成绩和你的玩家名；打开链接的人会在曲目上方看到它，登录后还能看到自己的最好成绩与之相差多少。链接 30 天内有效，PhiBot 不保存这条链接。",
+						ja: "曲ページの「あなたのスコア」に「挑戦リンクをコピー」ボタンを追加しました。リンクにはそのスコア 1 件とプレイヤー名だけが入ります。開いた人には曲の上にそのスコアが表示され、サインインすると自分のベストとの差もわかります。リンクは 30 日間有効で、PhiBot はこのリンクを保存しません。",
+					},
+				],
+			},
+		],
+	},
+	{
 		date: "2026-11-12",
 		sections: [
 			{

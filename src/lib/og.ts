@@ -27,6 +27,8 @@ const OG_PAGES = [
 	"versions",
 	"charts",
 	"guess",
+	"timing",
+	"tiers",
 	"manual",
 	"account",
 	"login",

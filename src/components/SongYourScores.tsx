@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { localeTag } from "@/i18n/config";
 import { useI18n } from "@/i18n/provider";
+import { DARE_DAYS } from "@/lib/dare";
 import { fetchRank, rankUrl } from "@/lib/rank-lookup";
 import { fill } from "@/phi/lib/card-i18n";
 
@@ -137,6 +138,32 @@ export function SongYourScores({
 }) {
 	const { m } = useI18n();
 	const t = m.songPage;
+	const d = m.dare;
+	const [busy, setBusy] = useState<string | null>(null);
+	const [note, setNote] = useState<{ rank: string; text: string } | null>(null);
+
+	async function dare(rank: string) {
+		setBusy(rank);
+		setNote(null);
+		try {
+			const res = await fetch("/api/dare", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ id, rank }),
+			});
+			if (!res.ok) throw new Error(String(res.status));
+			const { path } = (await res.json()) as { path: string };
+			await navigator.clipboard.writeText(
+				new URL(path, window.location.origin).href,
+			);
+			setNote({ rank, text: fill(d.copied, { days: DARE_DAYS }) });
+		} catch {
+			setNote({ rank, text: d.failed });
+		} finally {
+			setBusy(null);
+		}
+	}
+
 	return (
 		<div className="data-scroll">
 			<table className="data-table">
@@ -156,6 +183,7 @@ export function SongYourScores({
 							{t.rank}
 						</th>
 						<th scope="col">{t.history}</th>
+						<th scope="col">{d.col}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -185,6 +213,22 @@ export function SongYourScores({
 							</td>
 							<td>
 								<AccHistory points={row.history} />
+							</td>
+							<td>
+								<button
+									type="button"
+									className="btn btn-ghost btn-sm"
+									disabled={busy === row.rank}
+									onClick={() => void dare(row.rank)}
+								>
+									{d.button}
+								</button>
+								{note?.rank === row.rank ? (
+									<span className="field-hint" role="status">
+										{" "}
+										{note.text}
+									</span>
+								) : null}
 							</td>
 						</tr>
 					))}

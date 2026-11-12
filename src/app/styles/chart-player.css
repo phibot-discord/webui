@@ -160,6 +160,18 @@
 	fill: color-mix(in oklch, var(--danger) 22%, transparent);
 }
 
+.cp-density .cp-density-loop {
+	fill: color-mix(in oklch, var(--ink) 10%, transparent);
+}
+
+.cp-density .cp-density-loop[data-on="true"] {
+	fill: color-mix(in oklch, var(--primary) 30%, transparent);
+}
+
+.cp-loop {
+	display: flex;
+}
+
 .cp-seek {
 	width: 100%;
 	margin: 0;

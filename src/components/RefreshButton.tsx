@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "@/components/LocaleLink";
 import { SteadyButton } from "@/components/Tool";
 import { ToolAlert } from "@/components/ToolAlert";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/components/useActionCooldown";
 import { useI18n } from "@/i18n/provider";
 import { apiErrorText } from "@/lib/api-error";
+import type { RefreshSummary } from "@/lib/refresh-summary";
 import {
 	cooldownMsFromServer,
 	getRefreshUntil,
@@ -17,6 +19,7 @@ import {
 	persistCooldown,
 } from "@/lib/save-refresh";
 import { readJsonWithTapWait, tapWaitFailed } from "@/lib/tap-wait";
+import { fill } from "@/phi/lib/card-i18n";
 import { REFRESH_COOLDOWN_MS } from "@/server/cooldown";
 
 export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
@@ -24,6 +27,8 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 	const router = useRouter();
 	const [pending, setPending] = useState(false);
 	const [waitingTap, setWaitingTap] = useState(false);
+	const [note, setNote] = useState<string | null>(null);
+	const [linked, setLinked] = useState(false);
 	const { remaining, cooling, message, showError, clearError } =
 		useActionCooldown(cooldownMs, getRefreshUntil);
 
@@ -46,6 +51,7 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 	async function onRefresh() {
 		if (pending || cooling) return;
 		clearError();
+		setNote(null);
 		setPending(true);
 		setWaitingTap(false);
 		try {
@@ -69,6 +75,29 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 			}
 			persistCardReload();
 			persistCooldown(cooldownMsFromServer(data, res.headers));
+			const summary = (data as { summary?: RefreshSummary | null }).summary;
+			if (summary?.kind === "same") {
+				setNote(m.refresh.same);
+				setLinked(false);
+			} else if (summary?.kind === "changed") {
+				const parts: string[] = [];
+				const [from, to] = summary.rks;
+				if (from != null && to != null && from.toFixed(4) !== to.toFixed(4)) {
+					parts.push(
+						fill(m.refresh.sumRks, {
+							from: from.toFixed(4),
+							to: to.toFixed(4),
+						}),
+					);
+				}
+				if (summary.charts) {
+					parts.push(fill(m.refresh.sumCharts, { n: summary.charts }));
+				}
+				if (summary.fc) parts.push(fill(m.refresh.sumFc, { n: summary.fc }));
+				if (summary.ap) parts.push(fill(m.refresh.sumAp, { n: summary.ap }));
+				setNote(parts.length ? parts.join(" · ") : m.refresh.sumNone);
+				setLinked(summary.charts > 0);
+			}
 			window.setTimeout(() => router.refresh(), 0);
 		} catch {
 			showError(m.refresh.failed);
@@ -96,6 +125,18 @@ export function RefreshButton({ cooldownMs }: { cooldownMs: number }) {
 				{live}
 			</SteadyButton>
 			{message ? <ToolAlert message={message} onDismiss={clearError} /> : null}
+			{note && !message ? (
+				<ToolAlert tone="note" message={note} onDismiss={() => setNote(null)}>
+					{linked ? (
+						<>
+							{" "}
+							<Link href="/trend" prefetch={false}>
+								{m.refresh.seeChanges}
+							</Link>
+						</>
+					) : null}
+				</ToolAlert>
+			) : null}
 		</div>
 	);
 }

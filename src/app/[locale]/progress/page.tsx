@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { Achievements } from "@/components/Achievements";
 import { CardNav } from "@/components/CardNav";
 import { Desk } from "@/components/Desk";
 import { ProgressGrid } from "@/components/ProgressGrid";
@@ -11,7 +12,7 @@ import { chartCatalog } from "@/server/charts";
 import { getDataHost } from "@/server/data-host";
 import { withDiscordUid } from "@/server/logger";
 import { pageMetadata } from "@/server/og-meta";
-import { progressView } from "@/server/save-views";
+import { achievementsView, progressView } from "@/server/save-views";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,9 @@ export default async function ProgressPage() {
 			<Desk {...loaded.desk} nav={<CardNav current="progress" />}>
 				<ProgressGrid view={progressView(loaded.bound.save, catalog.list)} />
 				<SnapshotLinks view="progress" />
+				<Achievements
+					items={achievementsView(loaded.bound.save, catalog.list)}
+				/>
 			</Desk>
 		);
 	});

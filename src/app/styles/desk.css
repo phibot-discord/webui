@@ -232,6 +232,14 @@
 	line-height: 1.4;
 }
 
+.tool-note {
+	border-color: var(--line);
+}
+
+.tool-note p {
+	color: var(--ink);
+}
+
 .menu-list {
 	display: flex;
 	flex-direction: column;

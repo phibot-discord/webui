@@ -70,7 +70,7 @@ function save(puzzle: string, state: Saved) {
 	} catch {}
 }
 
-function SongGuessInput({
+export function SongGuessInput({
 	disabled,
 	taken,
 	onPick,

@@ -318,6 +318,8 @@ export const ja: ClientMessages = {
 		groups: { tools: "ツール", scores: "スコア", files: "ファイル" },
 		compare: "プレイヤー比較",
 		guess: "曲あてクイズ",
+		timing: "タイミングテスト",
+		tiers: "ティア表",
 		pv: "PV",
 		collection: "コレクション",
 		timeline: "ストーリー年表",
@@ -1137,6 +1139,13 @@ export const ja: ClientMessages = {
 		bypassHint:
 			"すべてのカードを最初から描画し直します。カードが古く見えるときに使ってください。",
 		dismiss: "閉じる",
+		same: "新しいセーブはありません。クラウドにあるのは PhiBot が持っているものと同じです。ゲーム内で同期してから、もう一度更新してください。",
+		sumRks: "RKS {from} → {to}",
+		sumCharts: "自己ベスト更新 {n} 譜面",
+		sumFc: "新規 FC {n} 譜面",
+		sumAp: "新規 AP {n} 譜面",
+		sumNone: "セーブは新しくなりましたが、新しいスコアはありません。",
+		seeChanges: "変化を見る",
 	},
 	share: {
 		menu: "共有リンク",

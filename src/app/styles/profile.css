@@ -247,3 +247,87 @@
 .pp-time tbody th {
 	white-space: nowrap;
 }
+
+.dt-rows {
+	display: grid;
+	gap: var(--space-3);
+	margin: var(--space-3) 0 0;
+}
+
+.dt-row {
+	display: grid;
+	grid-template-columns: 9rem 1fr;
+	gap: var(--space-3);
+	padding: var(--space-3);
+	border: 1px solid var(--line);
+	border-left-width: 4px;
+	border-radius: var(--radius-md);
+}
+
+.dt-row[data-tier="great"] {
+	border-left-color: var(--primary);
+}
+
+.dt-row[data-tier="good"] {
+	border-left-color: color-mix(in oklch, var(--primary) 55%, var(--line));
+}
+
+.dt-row[data-tier="hard"] {
+	border-left-color: color-mix(in oklch, var(--danger) 55%, var(--line));
+}
+
+.dt-row[data-tier="wall"] {
+	border-left-color: var(--danger);
+}
+
+.dt-row dt {
+	font-weight: 600;
+}
+
+.dt-row dd {
+	margin: 0;
+	min-width: 0;
+}
+
+.dt-tiles {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+	gap: var(--space-3);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.dt-tile {
+	display: grid;
+	gap: var(--space-1);
+	color: inherit;
+	text-decoration: none;
+}
+
+.dt-tile img {
+	width: 100%;
+	height: auto;
+	aspect-ratio: 32 / 17;
+	border-radius: var(--radius-sm);
+	object-fit: cover;
+	background: var(--surface-2);
+}
+
+.dt-name {
+	overflow: hidden;
+	font-size: var(--text-sm);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.dt-meta {
+	color: var(--muted);
+	font-size: var(--text-xs);
+}
+
+@media (max-width: 640px) {
+	.dt-row {
+		grid-template-columns: 1fr;
+	}
+}

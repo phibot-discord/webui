@@ -1,3 +1,8 @@
+import {
+	type RefreshSide,
+	type RefreshSummary,
+	refreshSummary,
+} from "@/lib/refresh-summary";
 import { kvKey } from "@/phi/lib/const";
 import type { Save } from "@/phi/lib/save";
 import { saveIdentity } from "@/phi/lib/saves";
@@ -44,6 +49,21 @@ export type BoundErr = {
 
 export function saveRevision(save: Save): string {
 	return saveIdentity(save.saveInfo);
+}
+
+function refreshSide(save: Save): RefreshSide {
+	const rks = save.saveInfo.summary?.rankingScore;
+	return {
+		rev: saveRevision(save),
+		rks: typeof rks === "number" ? rks : null,
+		records: save.getRecord().map((r) => ({
+			id: r.id,
+			rank: r.rank,
+			acc: r.acc,
+			score: r.score,
+			fc: r.fc,
+		})),
+	};
 }
 
 export function lastSyncedIso(save: Save): string | undefined {
@@ -142,19 +162,27 @@ async function bumpCardEpoch(
 	return epoch;
 }
 
-export async function refreshSave(
-	userId: string,
-): Promise<
-	| { ok: true; lastSynced?: string; epoch: string; cooldownMs: number }
+export async function refreshSave(userId: string): Promise<
+	| {
+			ok: true;
+			lastSynced?: string;
+			epoch: string;
+			cooldownMs: number;
+			summary: RefreshSummary | null;
+	  }
 	| BoundErr
 > {
 	return withDiscordUid(userId, () => refreshSaveFor(userId));
 }
 
-async function refreshSaveFor(
-	userId: string,
-): Promise<
-	| { ok: true; lastSynced?: string; epoch: string; cooldownMs: number }
+async function refreshSaveFor(userId: string): Promise<
+	| {
+			ok: true;
+			lastSynced?: string;
+			epoch: string;
+			cooldownMs: number;
+			summary: RefreshSummary | null;
+	  }
 	| BoundErr
 > {
 	const host = await getDataHost();
@@ -179,9 +207,23 @@ async function refreshSaveFor(
 		const epochJob = getCardEpoch(host.store, userId);
 		epochJob.catch(() => undefined);
 		await songInfo;
+		const before = await Promise.resolve()
+			.then(() =>
+				host.lib.loadSaveByToken(host.rt, host.db, token, { memo: true }),
+			)
+			.then(
+				(old) => (old ? refreshSide(old) : null),
+				() => null,
+			);
 		const save = await host.lib.updateSave(host.rt, host.db, userId, {
 			bound: token,
 		});
+		let summary: RefreshSummary | null = null;
+		try {
+			summary = refreshSummary(before, refreshSide(save));
+		} catch {
+			summary = null;
+		}
 		await noteTokenUser(userId, token);
 		const epoch = await epochJob;
 		return {
@@ -189,6 +231,7 @@ async function refreshSaveFor(
 			lastSynced: lastSyncedIso(save),
 			epoch,
 			cooldownMs: claimed.remainMs,
+			summary,
 		};
 	} catch (err) {
 		await host.store.del(coolKey);

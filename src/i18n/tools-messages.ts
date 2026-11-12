@@ -1,3 +1,4 @@
+import type { AchievementId } from "@/lib/achievements";
 import type { Pgti, PgtiFamily, PgtiStyle } from "@/lib/pgti";
 
 export type PgtiAxis = "aim" | "range" | "grip" | "pace" | "drive";
@@ -51,6 +52,37 @@ export type ToolsMessages = {
 		count: string;
 		none: string;
 		stuck: string;
+		empty: string;
+	};
+	practice: {
+		title: string;
+		lede: string;
+		empty: string;
+		goal: string;
+		goals: Record<"acc" | "fc" | "ap", string>;
+		now: string;
+		since: string;
+		reached: string;
+		remove: string;
+		removeLabel: string;
+		add: string;
+		added: string;
+		addLabel: string;
+		list: string;
+		full: string;
+		failed: string;
+		count: string;
+	};
+	challengePicks: {
+		title: string;
+		lede: string;
+		now: string;
+		sum: string;
+		charts: string;
+		total: string;
+		reaches: string;
+		below: string;
+		note: string;
 		empty: string;
 	};
 	progress: {
@@ -139,6 +171,80 @@ export type ToolsMessages = {
 			leaningHint: string;
 		};
 	};
+	achievements: {
+		title: string;
+		lede: string;
+		names: Record<AchievementId, string>;
+		lines: Record<AchievementId, string>;
+		next: string;
+		complete: string;
+		steps: string;
+		colors: string;
+	};
+	difficultyTable: {
+		title: string;
+		lede: string;
+		level: string;
+		tiers: Record<"great" | "good" | "even" | "hard" | "wall", string>;
+		count: string;
+		tile: string;
+		none: string;
+	};
+	timing: {
+		title: string;
+		lede: string;
+		mode: string;
+		modes: Record<"steady" | "speed", string>;
+		bpm: string;
+		start: string;
+		stop: string;
+		again: string;
+		pad: string;
+		countIn: string;
+		steadyHint: string;
+		speedHint: string;
+		tooFew: string;
+		spread: string;
+		lean: string;
+		early: string;
+		late: string;
+		onTime: string;
+		hits: string;
+		missed: string;
+		windows: string[];
+		windowsNote: string;
+		speed: string;
+		bestSecond: string;
+		density: string;
+		browse: string;
+		caveat: string;
+		noAudio: string;
+	};
+	tiers: {
+		title: string;
+		lede: string;
+		level: string;
+		levelOf: string;
+		name: string;
+		namePlaceholder: string;
+		unsorted: string;
+		unsortedEmpty: string;
+		how: string;
+		moveTo: string;
+		moveBack: string;
+		held: string;
+		tile: string;
+		fill: string;
+		fillHint: string;
+		clear: string;
+		copy: string;
+		copied: string;
+		image: string;
+		imageBusy: string;
+		imageFailed: string;
+		rowEmpty: string;
+		mark: string;
+	};
 	trend: {
 		title: string;
 		lede: string;
@@ -174,6 +280,37 @@ export type ToolsMessages = {
 			bestDay: string;
 			more: string;
 		};
+		calendar: {
+			title: string;
+			lede: string;
+			summary: string;
+			none: string;
+			cell: string;
+		};
+		onThisDay: {
+			title: string;
+			when: string[];
+			row: string;
+			rowNoRks: string;
+			charts: string;
+			compare: string;
+		};
+	};
+	dare: {
+		col: string;
+		button: string;
+		copied: string;
+		failed: string;
+		banner: string;
+		statuses: Record<"none" | "fc" | "ap", string>;
+		yours: string;
+		behind: string;
+		ahead: string;
+		even: string;
+		unplayed: string;
+		signIn: string;
+		metaTitle: string;
+		metaDescription: string;
 	};
 	songPage: {
 		back: string;
@@ -314,6 +451,17 @@ export type ToolsMessages = {
 		modeLabel: string;
 		dailyOf: string;
 		practiceLabel: string;
+		ear: string;
+		earLabel: string;
+		earLede: string;
+		earPlay: string;
+		earPlaying: string;
+		earClue: string;
+		earSkip: string;
+		earLoading: string;
+		earNoAudio: string;
+		earFailed: string;
+		earNew: string;
 		clue: string;
 		imageAlt: string;
 		inputLabel: string;
@@ -416,6 +564,10 @@ export type ToolsMessages = {
 		hardest: string;
 		hardestHint: string;
 		hardestNoise: string;
+		loop: string;
+		loopHint: string;
+		loopStart: string;
+		loopEnd: string;
 		back: string;
 		forward: string;
 		hitSounds: string;
@@ -497,6 +649,21 @@ export type ToolsMessages = {
 		more: string;
 		none: string;
 		tagsNote: string;
+		pick: string;
+		pickAgain: string;
+		pickHint: string;
+		picked: string;
+		jukePlay: string;
+		jukeTitle: string;
+		jukeNow: string;
+		jukeNext: string;
+		jukeClose: string;
+		jukeMode: string;
+		jukeModes: Record<"highlight" | "whole", string>;
+		jukeQueue: string;
+		jukeLoading: string;
+		jukeFailed: string;
+		jukeStopped: string;
 	};
 	formTargets: {
 		title: string;
@@ -603,6 +770,13 @@ export type ToolsMessages = {
 			style: string;
 			families: Record<PgtiFamily, PgtiGroup>;
 			styles: Record<PgtiStyle, PgtiGroup>;
+			rolling: {
+				traits: Record<"M" | "G" | "K", string>;
+				drive: string;
+				copy: string;
+				copied: string;
+				shareText: string;
+			};
 		};
 		prompt: {
 			ready: string;
@@ -731,6 +905,38 @@ export const toolsEn: ToolsMessages = {
 			"{n} other charts cannot raise your RKS to the next step, not even with an AP.",
 		empty: "Play a few charts first: there is nothing to work from yet.",
 	},
+	practice: {
+		title: "Practice list",
+		lede: "Charts you chose to work on, each with the result you are after. A chart is marked as reached once a refreshed save shows it.",
+		empty:
+			"Nothing here yet. Use Add on a target below to put a chart on this list.",
+		goal: "Goal",
+		goals: { acc: "{value}% or better", fc: "Full combo", ap: "All Perfect" },
+		now: "Now",
+		since: "Since added",
+		reached: "Reached",
+		remove: "Remove",
+		removeLabel: "Remove {song} {level} from the practice list",
+		add: "Add",
+		added: "On the list",
+		addLabel: "Add {song} {level} to the practice list",
+		list: "Practice list",
+		full: "The practice list holds {max} charts. Remove one first.",
+		failed: "That did not save. Try again.",
+		count: "{n} of {max}",
+	},
+	challengePicks: {
+		title: "Challenge mode picks",
+		lede: "For each level total, the three charts where your accuracy is highest, and the rank colour those accuracies would add up to.",
+		now: "Your rank now: {rank}",
+		sum: "Level total",
+		charts: "Your best three",
+		total: "Adds up to",
+		reaches: "Would reach",
+		below: "Below Green",
+		note: "This is an upper estimate: challenge mode judges more strictly than a normal play, so expect lower accuracy there. A chart's challenge score is its accuracy × 10,000 and the three are added. Green starts at 2,460,000, Blue at 2,700,000, Red at 2,850,000, Gold at 2,940,000, and Rainbow needs 3,000,000.",
+		empty: "Play three charts first.",
+	},
 	progress: {
 		title: "Progress",
 		lede: "How much of each difficulty you have cleared, full combo'd and All Perfect'd, by chart constant.",
@@ -831,6 +1037,128 @@ export const toolsEn: ToolsMessages = {
 				"Bold numbers are listed as a strength or weakness that day; faded ones are not.",
 		},
 	},
+	achievements: {
+		title: "Achievements",
+		lede: "Ladders worked out from your save. Each one shows where you are and the next step.",
+		names: {
+			ap: "All Perfect collector",
+			fc: "Full combo collector",
+			clear: "Cleared",
+			songs: "Sightseer",
+			rks: "Rated",
+			topShelf: "Top shelf",
+			highAp: "Highest All Perfect",
+			highFc: "Highest full combo",
+			fullSet: "Full set",
+			allAp: "Spotless",
+			chapters: "Chapter closer",
+			chapterFc: "Chapter polish",
+			nines: "Two nines",
+			floor: "No weak link",
+			challengeColor: "Challenge colours",
+			challengeSum: "Challenge total",
+		},
+		lines: {
+			ap: "Charts with an All Perfect",
+			fc: "Charts with a full combo",
+			clear: "Charts cleared",
+			songs: "Songs played at least once",
+			rks: "Your RKS",
+			topShelf: "All Perfects at constant 15.0 or higher",
+			highAp: "The highest constant you have All Perfected",
+			highFc: "The highest constant you have full combo'd",
+			fullSet: "Songs with a full combo on every difficulty",
+			allAp: "Songs with an All Perfect on every difficulty",
+			chapters: "Chapters with every chart cleared",
+			chapterFc: "Chapters with a full combo on every chart",
+			nines: "Charts at 99% or better",
+			floor: "The lowest accuracy among your best 27",
+			challengeColor: "Challenge mode colour, from Green to Rainbow",
+			challengeSum: "Challenge mode level total",
+		},
+		next: "{have} now, next step at {next}",
+		complete: "{have}: every step reached",
+		steps: "{done} of {total} steps",
+		colors: "Colour {n}",
+	},
+	difficultyTable: {
+		title: "What suits you",
+		lede: "The charts behind your profile, sorted by how your accuracy compares with what you usually score at that constant. It measures you against yourself, not against other players.",
+		level: "Level",
+		tiers: {
+			great: "Suits you best",
+			good: "Suits you",
+			even: "About as expected",
+			hard: "Harder for you",
+			wall: "Hardest for you",
+		},
+		count: "{n} charts",
+		tile: "{song} {level} {c}: {acc}%",
+		none: "None",
+	},
+	timing: {
+		title: "Timing test",
+		lede: "Two quick tests of your hands alone: how steady your taps are against a click, and how fast you can tap.",
+		mode: "Test",
+		modes: { steady: "Steadiness", speed: "Speed" },
+		bpm: "Tempo",
+		start: "Start",
+		stop: "Stop",
+		again: "Try again",
+		pad: "Tap here, or press any key",
+		countIn: "Four clicks to count in, then tap on every click.",
+		steadyHint: "Tap along with {beats} clicks at {bpm} beats a minute.",
+		speedHint:
+			"Tap as fast as you can for {seconds} seconds. Two fingers or two hands are fine.",
+		tooFew: "Too few taps landed on a click to measure. Try again.",
+		spread: "Steadiness: ±{ms} ms",
+		lean: "On average you tap {ms} ms {side}.",
+		early: "early",
+		late: "late",
+		onTime: "You tap right on the click on average.",
+		hits: "{n} of {total} clicks hit",
+		missed: "{n} missed",
+		windows: [
+			"Within 40 ms of your own average: {n}",
+			"Within 80 ms: {n}",
+			"Within 160 ms: {n}",
+		],
+		windowsNote:
+			"For scale: Phigros counts a note hit within 80 ms as Perfect, and within 40 ms in challenge mode.",
+		speed: "{n} taps a second",
+		bestSecond: "Best single second: {n} taps",
+		density:
+			"That is at least as fast as the average density of {n} of the game's {total} charts.",
+		browse: "Open the chart browser",
+		caveat:
+			"A browser and a phone add their own delay, so the early or late figure is not your in-game offset. The steadiness figure does not depend on that delay.",
+		noAudio: "This browser cannot play the click.",
+	},
+	tiers: {
+		title: "Tier lists",
+		lede: "Sort the charts of one level into rows from S to D, then share the list as a link or a picture. The list lives in the link; nothing is saved here.",
+		level: "Level",
+		levelOf: "Level {level} ({n})",
+		name: "Title",
+		namePlaceholder: "For example: level 16, by how much I enjoy them",
+		unsorted: "Not placed yet",
+		unsortedEmpty: "Every chart is placed.",
+		how: "Select a chart, then press the row it belongs to. Several charts can be selected at once.",
+		moveTo: "Put the selected charts in row {tier}",
+		moveBack: "Take the selected charts off the list",
+		held: "{n} selected",
+		tile: "{title} {level} {c}",
+		fill: "Fill from my scores",
+		fillHint: "Places the charts you have played by your accuracy, best in S.",
+		clear: "Clear",
+		copy: "Copy link",
+		copied: "Link copied",
+		image: "Download picture",
+		imageBusy: "Drawing the picture…",
+		imageFailed: "The picture could not be drawn in this browser.",
+		rowEmpty: "Empty",
+		mark: "Made on {host}",
+	},
 	trend: {
 		title: "RKS trend",
 		lede: "Your RKS each time PhiBot read your save, and the scores that went up.",
@@ -869,6 +1197,44 @@ export const toolsEn: ToolsMessages = {
 			bestDay: "Best day so far: RKS {gain}",
 			more: "Show {n} more",
 		},
+		calendar: {
+			title: "Play calendar",
+			lede: "The days in the last year on which a refreshed save showed better scores.",
+			summary:
+				"{days} active days, {charts} improved scores. Busiest: {date}, with {n}.",
+			none: "No improved scores in the last year yet.",
+			cell: "{date}: {n}",
+		},
+		onThisDay: {
+			title: "On this day",
+			when: [
+				"",
+				"A year ago today",
+				"Two years ago today",
+				"Three years ago today",
+			],
+			row: "{when} ({date}): RKS {rks}.",
+			rowNoRks: "{when} ({date}).",
+			charts: "{n} scores improved that day.",
+			compare: "Compare with that day",
+		},
+	},
+	dare: {
+		col: "Dare",
+		button: "Copy dare link",
+		copied: "Link copied. It works for {days} days.",
+		failed: "Could not make the link.",
+		banner: "{name} scored {acc}%{status} on {level}. Can you beat it?",
+		statuses: { none: "", fc: " (full combo)", ap: " (All Perfect)" },
+		yours: "Your best: {acc}%.",
+		behind: "{gap} to go.",
+		ahead: "You are ahead by {gap}.",
+		even: "You have matched it.",
+		unplayed: "You have not played this chart yet.",
+		signIn: "Sign in to see how you compare.",
+		metaTitle: "{name} dares you: {acc}% on {title} {level}",
+		metaDescription:
+			"Open the link to see the chart and how your own score compares.",
 	},
 	songPage: {
 		back: "Search songs",
@@ -1020,6 +1386,19 @@ export const toolsEn: ToolsMessages = {
 		modeLabel: "Puzzle",
 		dailyOf: "Daily puzzle, {date}",
 		practiceLabel: "Practice puzzle",
+		ear: "By ear",
+		earLabel: "By ear: practice puzzle",
+		earLede:
+			"Hear the start of a song and name it. Every wrong guess or skip gives you a longer clue.",
+		earPlay: "Play the clue",
+		earPlaying: "Playing…",
+		earClue: "Clue {n} of {total}: the first {seconds} s",
+		earSkip: "Skip to a longer clue",
+		earLoading: "Loading the clue…",
+		earNoAudio:
+			"This browser cannot play these clips. Try a recent Chrome, Edge or Firefox.",
+		earFailed: "The clue could not be loaded. Try again.",
+		earNew: "Another song",
 		clue: "Clue {n} of {total}",
 		imageAlt:
 			"Clue {n} of {total}: a close-up of an illustration, blurred and recoloured",
@@ -1137,6 +1516,11 @@ export const toolsEn: ToolsMessages = {
 			"Jump to the hardest 10 seconds ({n} notes): note count weighted by note type, chords and falling speed",
 		hardestNoise:
 			"Jump to the hardest 10 seconds ({n} notes, with noise fields): note count weighted by note type, chords and falling speed, plus the noise fields",
+		loop: "Loop",
+		loopHint:
+			"Repeat a section: the hardest 10 seconds until you set a start and an end of your own",
+		loopStart: "Start the loop here",
+		loopEnd: "End the loop here",
 		back: "Back 5 seconds",
 		forward: "Forward 5 seconds",
 		hitSounds: "Hit sounds",
@@ -1173,7 +1557,7 @@ export const toolsEn: ToolsMessages = {
 		fullscreen: "Full screen",
 		exitFullscreen: "Exit full screen",
 		canvas: "{title} {level} chart preview",
-		keys: "Space plays or pauses. Arrow keys skip 5 seconds. F toggles full screen.",
+		keys: "Space plays or pauses. Arrow keys skip 5 seconds. L repeats a section, [ and ] set its start and end. F toggles full screen.",
 	},
 	similar: {
 		title: "Similar charts",
@@ -1233,6 +1617,22 @@ export const toolsEn: ToolsMessages = {
 		none: "No chart matches these filters.",
 		tagsNote:
 			"Tags come from the chart-tag votes on kyou.net.cn: a chart has a tag when it gets at least 5% of the chart's votes. Notes per second divide the note count by the song length.",
+		pick: "Pick one for me",
+		pickAgain: "Pick another",
+		pickHint: "A random chart from the ones that match your filters",
+		picked: "Picked for you",
+		jukePlay: "Play these",
+		jukeTitle: "Jukebox",
+		jukeNow: "Now playing: {title} {level} {c}",
+		jukeNext: "Next",
+		jukeClose: "Close",
+		jukeMode: "Play",
+		jukeModes: { highlight: "Highlights (30 s)", whole: "Whole charts" },
+		jukeQueue: "{n} of {total}",
+		jukeLoading: "Loading the next chart…",
+		jukeFailed: "That chart could not be loaded. Skipping it.",
+		jukeStopped:
+			"Several charts in a row could not be loaded, so the jukebox stopped.",
 	},
 	formTargets: {
 		title: "Below your usual form",
@@ -1426,6 +1826,18 @@ export const toolsEn: ToolsMessages = {
 					line: "Shows up all year and swings hard.",
 				},
 				fireworks: { name: "Fireworks", line: "Rare, loud and bright." },
+			},
+			rolling: {
+				traits: {
+					M: "You kept at it through the last twelve months.",
+					G: "Your RKS climbed over the last twelve months.",
+					K: "You held your level over the last twelve months.",
+				},
+				drive: "RKS change in the last twelve months: {gain}",
+				copy: "Copy as text",
+				copied: "Copied",
+				shareText:
+					"My Phigros type is {code}, {name} ({family}, {style}). {url}",
 			},
 		},
 		prompt: {

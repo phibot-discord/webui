@@ -9,6 +9,7 @@ import {
 	useState,
 } from "react";
 import Link from "@/components/LocaleLink";
+import { PlayCalendar } from "@/components/PlayCalendar";
 import { SegRadio } from "@/components/SegRadio";
 import { useWidth } from "@/components/status/useWidth";
 import { Announce } from "@/components/Tool";
@@ -370,6 +371,7 @@ export function RksTrend({ view }: { view: TrendView }) {
 				</section>
 			)}
 
+			<PlayCalendar calendar={view.calendar} onThisDay={view.onThisDay} />
 			<MilestoneList view={view.milestones} songs={view.songs} />
 
 			<section className="trend-events" aria-labelledby={`${ids}-ev`}>

@@ -47,6 +47,13 @@ import {
 	VOLUME_KEY,
 	VOLUME_MAX,
 } from "@/lib/chart-player/host";
+import {
+	type Loop,
+	loopBand,
+	loopOf,
+	withEnd,
+	withStart,
+} from "@/lib/chart-player/loop";
 import type { AudioState, ChartPlayer } from "@/lib/chart-player/player";
 import { readLocal, writeLocal } from "@/lib/local-store";
 import { fill } from "@/phi/lib/card-i18n";
@@ -65,6 +72,7 @@ const SKIP = 5;
 const DENSITY_BINS = 160;
 const HARD_WINDOW = 10;
 const LEAD_IN = 1;
+const LOOP_END_SLACK = 0.05;
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5];
 const HIT_KINDS = ["tap", "drag", "flick"] as const;
 const DEFAULT_MIX = [1, 1, 1];
@@ -142,6 +150,10 @@ export function ChartPreview({
 	const [timing, setTiming] = useState<ChartPlayer["timing"]>(null);
 	const [canVideo, setCanVideo] = useState(false);
 	const [video, setVideo] = useState<VideoState>({ state: "idle" });
+	const [loop, setLoop] = useState<Loop | null>(null);
+	const [looping, setLooping] = useState(false);
+	const loopRef = useRef<Loop | null>(null);
+	loopRef.current = looping ? loop : null;
 	const videoAbort = useRef<AbortController | null>(null);
 	const settings = useRef({
 		hit: 1,
@@ -277,6 +289,11 @@ export function ChartPreview({
 	);
 
 	const onTime = useCallback((pos: number, dur: number) => {
+		const l = loopRef.current;
+		if (l && !dragging.current && pos >= Math.min(l[1], dur - LOOP_END_SLACK)) {
+			player.current?.seek(l[0]);
+			return;
+		}
 		const s = shown.current;
 		const bar = seekBar.current;
 		if (bar && !dragging.current && Math.abs(pos - s.bar) >= dur / 1200) {
@@ -342,6 +359,8 @@ export function ChartPreview({
 	const open = async (want: PreviewLevel, tree: PreviewVersion["tree"]) => {
 		setPhase("loading");
 		setTiming(null);
+		setLoop(null);
+		setLooping(false);
 		let p = player.current;
 		if (!p) {
 			const mod =
@@ -395,6 +414,42 @@ export function ChartPreview({
 		setRank(r);
 		const want = next.levels.find((l) => l.rank === r);
 		if (want && player.current) void open(want, next.tree);
+	};
+
+	const toggleLoop = () => {
+		const p = player.current;
+		if (!p) return;
+		if (looping) {
+			setLooping(false);
+			return;
+		}
+		const next =
+			loop ??
+			(hardest
+				? loopOf(hardest.start - LEAD_IN, hardest.start + HARD_WINDOW, duration)
+				: withStart(
+						null,
+						Number(seekBar.current?.value ?? 0),
+						HARD_WINDOW,
+						duration,
+					));
+		if (!next) return;
+		setLoop(next);
+		setLooping(true);
+		const at = Number(seekBar.current?.value ?? 0);
+		if (at < next[0] || at >= next[1]) p.seek(next[0]);
+	};
+
+	const markLoop = (edge: "start" | "end") => {
+		if (!player.current) return;
+		const at = Number(seekBar.current?.value ?? 0);
+		const next =
+			edge === "start"
+				? withStart(loop, at, HARD_WINDOW, duration)
+				: withEnd(loop, at, HARD_WINDOW, duration);
+		if (!next) return;
+		setLoop(next);
+		setLooping(true);
 	};
 
 	const makeVideo = async () => {
@@ -503,6 +558,15 @@ export function ChartPreview({
 					} else if (event.key === "ArrowRight") {
 						event.preventDefault();
 						p.skip(SKIP);
+					} else if (event.key === "l") {
+						event.preventDefault();
+						toggleLoop();
+					} else if (event.key === "[") {
+						event.preventDefault();
+						markLoop("start");
+					} else if (event.key === "]") {
+						event.preventDefault();
+						markLoop("end");
 					} else if (event.key === "f" && fullscreen.canFull) {
 						event.preventDefault();
 						fullscreen.toggleFull();
@@ -628,6 +692,13 @@ export function ChartPreview({
 								{strip.noise ? (
 									<path className="cp-density-noise" d={strip.noise} />
 								) : null}
+								{loop ? (
+									<path
+										className="cp-density-loop"
+										data-on={looping}
+										d={loopBand(loop, duration)}
+									/>
+								) : null}
 								<path d={strip.bars} />
 							</svg>
 						) : null}
@@ -676,6 +747,38 @@ export function ChartPreview({
 							{t.hardest}
 						</button>
 					) : null}
+					<div className="cp-loop">
+						<button
+							type="button"
+							className="btn btn-ghost cp-dense"
+							disabled={!ready}
+							aria-pressed={looping}
+							title={t.loopHint}
+							onClick={toggleLoop}
+						>
+							{t.loop}
+						</button>
+						<button
+							type="button"
+							className="btn btn-ghost cp-dense"
+							disabled={!ready}
+							aria-label={t.loopStart}
+							title={t.loopStart}
+							onClick={() => markLoop("start")}
+						>
+							A
+						</button>
+						<button
+							type="button"
+							className="btn btn-ghost cp-dense"
+							disabled={!ready}
+							aria-label={t.loopEnd}
+							title={t.loopEnd}
+							onClick={() => markLoop("end")}
+						>
+							B
+						</button>
+					</div>
 					<select
 						className="cp-speed"
 						value={speed}

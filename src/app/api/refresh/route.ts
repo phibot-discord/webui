@@ -19,6 +19,7 @@ export async function POST() {
 					lastSynced: result.lastSynced,
 					epoch: result.epoch,
 					cooldownMs: result.cooldownMs,
+					summary: result.summary,
 				};
 			},
 			"refresh_failed",

@@ -19,7 +19,8 @@ function save(over: {
 			},
 			PlayerId: "p",
 		},
-	} as Save;
+		getRecord: () => [],
+	} as unknown as Save;
 }
 
 test("saveRevision ignores signed query on the same game file", () => {
@@ -121,6 +122,7 @@ test("refresh hands its token to updateSave and reads the epoch during the TapTa
 	assert.ok(!("error" in out));
 	assert.equal(out.epoch, "1700000000000");
 	assert.equal(out.lastSynced, "2026-02-01T00:00:00.000Z");
+	assert.equal(out.summary, null);
 	assert.equal(log.filter((x) => x === "get:phi:userToken:r1").length, 1);
 
 	kv.delete("phi:webRefresh:r1");
@@ -128,6 +130,47 @@ test("refresh hands its token to updateSave and reads the epoch during the TapTa
 	const failed = await refreshSave("r1");
 	assert.ok("error" in failed && failed.error === "refresh_failed");
 	assert.ok(log.includes("del:phi:webRefresh:r1"), "cooldown released");
+});
+
+test("a refresh that fetches the save PhiBot already had says so", async () => {
+	const { refreshSave } = await import("./bound");
+	const TOKEN = "abcdefghijklmnopqrstuvwxy";
+	const kv = new Map<string, string>([["phi:userToken:r2", TOKEN]]);
+	const store = {
+		get: async (key: string) => kv.get(key),
+		set: async (key: string, value: string, opts?: { nx?: boolean }) => {
+			if (opts?.nx && kv.has(key)) return null;
+			kv.set(key, value);
+			return "OK";
+		},
+		ttlMs: async () => 120_000,
+		del: async (key: string) => {
+			kv.delete(key);
+			return 1;
+		},
+	};
+	(globalThis as Record<string, unknown>).__phiDataHost = Promise.resolve({
+		db: store,
+		store,
+		rt: { store: { isSessionTokenBanned: async () => false } },
+		lib: {
+			getToken: async (_rt: unknown, userId: string) =>
+				store.get(`phi:userToken:${userId}`),
+			loadSaveByToken: async () =>
+				save({
+					url: "https://cdn.example/a.zip",
+					iso: "2026-02-01T00:00:00.000Z",
+				}),
+			updateSave: async () =>
+				save({
+					url: "https://cdn.example/a.zip",
+					iso: "2026-02-01T00:00:00.000Z",
+				}),
+		},
+	});
+	const out = await refreshSave("r2");
+	assert.ok(!("error" in out));
+	assert.deepEqual(out.summary, { kind: "same" });
 });
 
 test("loadBound reads KV by default and uses the token/save memo only when the card route asks", async () => {

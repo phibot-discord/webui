@@ -1,9 +1,24 @@
+import { type Achievement, achievementsOf } from "@/lib/achievements";
+import { type ChallengePick, challengePicks } from "@/lib/challenge-picks";
 import { type ChartStatus, chartStatus } from "@/lib/chart-status";
 import { type FormTarget, formTargets } from "@/lib/form-targets";
 import { type Milestones, milestonesOf } from "@/lib/milestones";
+import {
+	type OnThisDay,
+	onThisDay,
+	type PlayCalendar,
+	playCalendar,
+} from "@/lib/play-calendar";
+import {
+	PRACTICE_MAX,
+	type PracticeItem,
+	practiceKey,
+	practiceReached,
+} from "@/lib/practice-list";
 import { type SimilarIndex, suggestFrom } from "@/lib/similar";
 import type { TagVotes } from "@/phi/lib/chart-tag-votes";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
+import { getInfo } from "@/phi/lib/get-info";
 import type { Save } from "@/phi/lib/save";
 import { openHistory, type SaveHistory } from "@/phi/lib/save-history";
 import { profileRecordsOf } from "@/phi/lib/tag-profile";
@@ -50,6 +65,8 @@ export type TrendView = {
 	events: TrendEvent[];
 	milestones: Milestones;
 	songs: SongNames;
+	calendar: PlayCalendar;
+	onThisDay: OnThisDay[];
 };
 
 const EVENTS_MAX = 300;
@@ -108,6 +125,51 @@ export function targetsView(
 			list,
 			rows.map((r) => r.id),
 		),
+	};
+}
+
+export type PracticeRow = PracticeItem & {
+	c: number | null;
+	acc: number | null;
+	fc: boolean;
+	ap: boolean;
+	done: boolean;
+};
+
+export type PracticeView = {
+	rows: PracticeRow[];
+	songs: SongNames;
+	max: number;
+};
+
+export function practiceView(
+	save: Save,
+	items: readonly PracticeItem[],
+	list: readonly ChartSummary[],
+): PracticeView {
+	const records = new Map(
+		save.getRecord().map((r) => [practiceKey(r.id, r.rank), r] as const),
+	);
+	const byId = new Map(list.map((s) => [s.id, s] as const));
+	const rows: PracticeRow[] = items.map((item) => {
+		const rec = records.get(practiceKey(item.id, item.rank));
+		return {
+			...item,
+			c: byId.get(item.id)?.charts[item.rank]?.[0] ?? null,
+			acc: rec ? Number(rec.acc.toFixed(4)) : null,
+			fc: Boolean(rec?.fc),
+			ap: (rec?.score ?? 0) >= 1_000_000,
+			done: practiceReached(item, rec),
+		};
+	});
+	rows.sort((a, b) => Number(a.done) - Number(b.done) || b.at - a.at);
+	return {
+		rows,
+		songs: namesFor(
+			list,
+			rows.map((r) => r.id),
+		),
+		max: PRACTICE_MAX,
 	};
 }
 
@@ -204,6 +266,32 @@ export function progressView(
 	};
 }
 
+export function achievementsView(
+	save: Save,
+	list: readonly ChartSummary[],
+): Achievement[] {
+	const chapterOf = new Map<string, string>();
+	const charts = progressView(save, list).rows.map(([id, , c, status, acc]) => {
+		let chapter = chapterOf.get(id);
+		if (chapter === undefined) {
+			const raw = getInfo.raw(id)?.chapter;
+			chapter = raw && raw !== "--" ? raw : "";
+			chapterOf.set(id, chapter);
+		}
+		return { id, c, status, acc, chapter };
+	});
+	const rks = save.saveInfo.summary?.rankingScore;
+	return achievementsOf({
+		charts,
+		rks: typeof rks === "number" ? rks : null,
+		challenge: Number(save.saveInfo.summary?.challengeModeRank) || 0,
+		best: save
+			.getRecord()
+			.slice(0, 27)
+			.map((r) => r.acc),
+	});
+}
+
 export function trendPoints(
 	history: Pick<SaveHistory, "rks">,
 	now?: { t: number; rks: number },
@@ -254,6 +342,7 @@ export function trendView(
 	save: Save,
 	history: Pick<SaveHistory, "rks" | "scoreHistory">,
 	list: readonly ChartSummary[],
+	now: number = Date.now(),
 ): TrendView {
 	const modified = save.saveInfo.modifiedAt?.iso;
 	const rks = save.saveInfo.summary?.rankingScore;
@@ -280,6 +369,31 @@ export function trendView(
 				...events.map((e) => e.id),
 				...milestones.items.flatMap((m) => ("id" in m ? [m.id] : [])),
 			]),
+		),
+		calendar: playCalendar(history.scoreHistory, now),
+		onThisDay: onThisDay(history.scoreHistory, history.rks, now),
+	};
+}
+
+export type ChallengeView = {
+	now: { color: number; sum: number } | null;
+	rows: ChallengePick[];
+	songs: SongNames;
+};
+
+export function challengeView(
+	save: Save,
+	list: readonly ChartSummary[],
+): ChallengeView {
+	const rows = challengePicks(save.getRecord().filter((r) => r.score > 0));
+	const rank = Number(save.saveInfo.summary?.challengeModeRank) || 0;
+	const color = Math.floor(rank / 100);
+	return {
+		now: color > 0 ? { color, sum: rank % 100 } : null,
+		rows,
+		songs: namesFor(
+			list,
+			new Set(rows.flatMap((r) => r.charts.map((c) => c.id))),
 		),
 	};
 }

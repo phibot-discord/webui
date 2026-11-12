@@ -9,6 +9,7 @@ import { type PlayerSummary, playerFromSave } from "./bound";
 import { type DataHost, getDataHost } from "./data-host";
 import { logger, withDiscordUid } from "./logger";
 import { clearManual, leaveManualMode } from "./manual";
+import { clearPracticeList } from "./practice-list";
 import { setCompareOptIn } from "./share";
 import { ensureSongInfo } from "./song-info";
 
@@ -471,6 +472,7 @@ async function unbindAccountFor(
 		if (!had && !(await clearManual(userId)))
 			return { error: "not_bound", status: 409 };
 		await setCompareOptIn(userId, false);
+		await clearPracticeList(userId);
 		return { ok: true };
 	} catch (err) {
 		logger.error("unbind failed", err);

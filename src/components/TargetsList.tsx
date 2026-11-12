@@ -1,9 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import Link from "@/components/LocaleLink";
 import { SegRadio } from "@/components/SegRadio";
 import { useI18n } from "@/i18n/provider";
+import { PRACTICE_MAX, practiceKey } from "@/lib/practice-list";
 import { songPath } from "@/lib/song-path";
 import { fill } from "@/phi/lib/card-i18n";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
@@ -18,18 +20,30 @@ import type { TargetsView } from "@/server/save-views";
 
 const STEP = 50;
 const SORTS: TargetSort[] = ["gap", "need", "constant", "ap"];
+const NONE: readonly string[] = [];
 
 const pct = (n: number) => `${n.toFixed(2)}%`;
 
-export function TargetsList({ view }: { view: TargetsView }) {
+export function TargetsList({
+	view,
+	kept = NONE,
+}: {
+	view: TargetsView;
+	kept?: readonly string[];
+}) {
 	const { m } = useI18n();
 	const t = m.targets;
+	const p = m.practice;
+	const router = useRouter();
 	const [levels, setLevels] = useState<Set<LevelKind>>(
 		() => new Set(["IN", "AT"]),
 	);
 	const [unplayed, setUnplayed] = useState(false);
 	const [sort, setSort] = useState<TargetSort>("gap");
 	const [shown, setShown] = useState(STEP);
+	const [adding, setAdding] = useState<string | null>(null);
+	const [note, setNote] = useState<"full" | "failed" | null>(null);
+	const onList = useMemo(() => new Set(kept), [kept]);
 
 	const all = useMemo(() => view.rows.map(targetOfRow), [view.rows]);
 	const list = useMemo(
@@ -60,6 +74,36 @@ export function TargetsList({ view }: { view: TargetsView }) {
 		});
 		setShown(STEP);
 	};
+
+	async function add(r: (typeof list)[number]) {
+		const key = practiceKey(r.id, r.rank);
+		setAdding(key);
+		setNote(null);
+		try {
+			const res = await fetch("/api/practice-list", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					op: "add",
+					id: r.id,
+					rank: r.rank,
+					goal: r.viaAp ? "ap" : "acc",
+					value: r.viaAp ? undefined : roundUp(r.need, 2),
+					from: r.acc ?? undefined,
+				}),
+			});
+			if (res.status === 409) {
+				setNote("full");
+				return;
+			}
+			if (!res.ok) throw new Error(String(res.status));
+			router.refresh();
+		} catch {
+			setNote("failed");
+		} finally {
+			setAdding(null);
+		}
+	}
 
 	const rest = list.length - shown;
 
@@ -129,6 +173,11 @@ export function TargetsList({ view }: { view: TargetsView }) {
 				})}
 			</p>
 
+			{note ? (
+				<p className="callout" role="status">
+					{note === "full" ? fill(p.full, { max: PRACTICE_MAX }) : p.failed}
+				</p>
+			) : null}
 			{list.length ? (
 				<div className="data-scroll">
 					<table className="data-table tgt-table">
@@ -151,6 +200,7 @@ export function TargetsList({ view }: { view: TargetsView }) {
 								<th scope="col" className="num">
 									{t.apGain}
 								</th>
+								<th scope="col">{p.list}</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -185,6 +235,26 @@ export function TargetsList({ view }: { view: TargetsView }) {
 												: "—"}
 										</td>
 										<td className="num">+{r.apGain.toFixed(4)}</td>
+										<td>
+											<button
+												type="button"
+												className="btn btn-ghost btn-sm"
+												disabled={
+													onList.has(practiceKey(r.id, r.rank)) ||
+													adding === practiceKey(r.id, r.rank)
+												}
+												aria-label={
+													onList.has(practiceKey(r.id, r.rank))
+														? undefined
+														: fill(p.addLabel, { song, level: r.rank })
+												}
+												onClick={() => void add(r)}
+											>
+												{onList.has(practiceKey(r.id, r.rank))
+													? p.added
+													: p.add}
+											</button>
+										</td>
 									</tr>
 								);
 							})}

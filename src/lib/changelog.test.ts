@@ -69,3 +69,14 @@ test("releases run newest first and the newest is this release", () => {
 		if (next) assert.ok(next.date < release.date, next.date);
 	}
 });
+
+test("a release names each section once, since the dialog keys sections by heading", () => {
+	for (const release of CHANGELOG_RELEASES) {
+		const headings = release.sections.map((section) => section.heading.en);
+		assert.deepEqual(
+			headings.filter((heading, i) => headings.indexOf(heading) !== i),
+			[],
+			release.date,
+		);
+	}
+});

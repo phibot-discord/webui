@@ -10,6 +10,8 @@ export const SITEMAP_PAGES = [
 	"/score",
 	"/phira",
 	"/guess",
+	"/timing",
+	"/tiers",
 	"/versions",
 	"/status",
 	"/privacy",

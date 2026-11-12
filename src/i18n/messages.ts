@@ -183,6 +183,8 @@ export type ClientMessages = ToolsMessages & {
 		groups: Record<"tools" | "scores" | "files", string>;
 		compare: string;
 		guess: string;
+		timing: string;
+		tiers: string;
 		pv: string;
 		collection: string;
 		timeline: string;
@@ -773,6 +775,13 @@ export type ClientMessages = ToolsMessages & {
 		bypassFailed: string;
 		bypassHint: string;
 		dismiss: string;
+		same: string;
+		sumRks: string;
+		sumCharts: string;
+		sumFc: string;
+		sumAp: string;
+		sumNone: string;
+		seeChanges: string;
 	};
 	share: {
 		menu: string;
@@ -1154,6 +1163,8 @@ export const en: ClientMessages = {
 		groups: { tools: "Tools", scores: "Scores", files: "Files" },
 		compare: "Compare players",
 		guess: "Guess the song",
+		timing: "Timing test",
+		tiers: "Tier lists",
 		pv: "PV",
 		collection: "Collection",
 		timeline: "Story timeline",
@@ -1959,6 +1970,13 @@ export const en: ClientMessages = {
 		bypassHint:
 			"Redraws every card from scratch. Use it if a card looks out of date.",
 		dismiss: "Dismiss",
+		same: "Nothing new: the cloud still holds the save PhiBot already has. Sync in the game, then refresh again.",
+		sumRks: "RKS {from} → {to}",
+		sumCharts: "New bests: {n}",
+		sumFc: "New full combos: {n}",
+		sumAp: "New APs: {n}",
+		sumNone: "A new save, but no new scores in it.",
+		seeChanges: "See what changed",
 	},
 	share: {
 		menu: "Share link",

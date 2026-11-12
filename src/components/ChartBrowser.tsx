@@ -10,6 +10,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { ChartJukebox, type JukeEntry } from "@/components/ChartJukebox";
 import Link from "@/components/LocaleLink";
 import type { Locale } from "@/i18n/config";
 import { useI18n } from "@/i18n/provider";
@@ -25,7 +26,9 @@ import {
 	STATUS_FILTERS,
 	type StatusFilter,
 } from "@/lib/chart-browse-query";
+import { pickKey, rememberPick } from "@/lib/chart-pick";
 import type { ChartStatus } from "@/lib/chart-status";
+import { shuffled } from "@/lib/jukebox";
 import { localePath } from "@/lib/locale-path";
 import { songPath } from "@/lib/song-path";
 import { fill } from "@/phi/lib/card-i18n";
@@ -106,6 +109,11 @@ export function ChartBrowser({
 	const [status, setStatus] = useState<StatusFilter>(initial.status);
 	const [sort, setSort] = useState<ChartSort>(initial.sort);
 	const [shown, setShown] = useState(STEP);
+	const [pickedKey, setPickedKey] = useState<string | null>(null);
+	const [juke, setJuke] = useState<{ id: number; queue: JukeEntry[] } | null>(
+		null,
+	);
+	const recent = useRef<string[]>([]);
 	const query = useDeferredValue(q);
 	const choices = useMemo(
 		() => filterChoices(view, mine !== null),
@@ -228,6 +236,28 @@ export function ChartBrowser({
 			return b.chart[2] - a.chart[2] || a.key.localeCompare(b.key);
 		});
 	}, [rows, query, levels, cMin, cMax, tag, chapter, status, mine, sort]);
+	const picked = useMemo(
+		() => (pickedKey ? (list.find((r) => r.key === pickedKey) ?? null) : null),
+		[list, pickedKey],
+	);
+	const pickOne = () => {
+		const key = pickKey(
+			list.map((r) => r.key),
+			recent.current,
+		);
+		if (!key) return;
+		recent.current = rememberPick(recent.current, key, list.length);
+		setPickedKey(key);
+	};
+	const playThese = () => {
+		if (!list.length) return;
+		setJuke((prev) => ({
+			id: (prev?.id ?? 0) + 1,
+			queue: shuffled(
+				list.map((r) => ({ key: r.key, id: r.song.id, rank: r.chart[1] })),
+			),
+		}));
+	};
 
 	const reset = () => setShown(STEP);
 	const toggleLevel = (rank: LevelKind) => {
@@ -407,12 +437,55 @@ export function ChartBrowser({
 				) : null}
 			</div>
 			{!mine ? <p className="field-hint">{t.signInHint}</p> : null}
-			<p className="field-hint" role="status">
-				{fill(t.count, {
-					shown: String(Math.min(shown, list.length)),
-					total: String(list.length),
-				})}
-			</p>
+			{juke ? (
+				<ChartJukebox
+					key={juke.id}
+					queue={juke.queue}
+					onClose={() => setJuke(null)}
+				/>
+			) : null}
+			<div className="cb-count">
+				<p className="field-hint" role="status">
+					{fill(t.count, {
+						shown: String(Math.min(shown, list.length)),
+						total: String(list.length),
+					})}
+				</p>
+				<div className="cb-actions">
+					<button
+						type="button"
+						className="btn btn-ghost"
+						disabled={!list.length}
+						title={t.pickHint}
+						onClick={pickOne}
+					>
+						{picked ? t.pickAgain : t.pick}
+					</button>
+					<button
+						type="button"
+						className="btn btn-ghost"
+						disabled={!list.length}
+						onClick={playThese}
+					>
+						{t.jukePlay}
+					</button>
+				</div>
+			</div>
+			{picked ? (
+				<p className="callout cb-picked" role="status">
+					<span className="muted">{t.picked}</span>
+					<span className={`chart-level chart-level-${picked.chart[1]}`}>
+						{picked.chart[1]}
+					</span>
+					<span>{picked.chart[2].toFixed(1)}</span>
+					<Link href={songPath(picked.song.id)} prefetch={false}>
+						{picked.song.title}
+					</Link>
+					{picked.mine ? (
+						<span className="muted">{picked.mine[1].toFixed(2)}%</span>
+					) : null}
+				</p>
+			) : null}
 			{list.length ? (
 				<>
 					<div className="data-scroll">
