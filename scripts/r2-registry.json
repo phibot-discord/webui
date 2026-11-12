@@ -198,6 +198,12 @@
 			"writer": "webui-scripts",
 			"script": "scripts/r2-registry.json",
 			"contents": "this registry"
+		},
+		{
+			"prefix": "robots.txt",
+			"writer": "webui-scripts",
+			"script": "scripts/r2-robots.txt",
+			"contents": "tells every crawler to stay off this host"
 		}
 	]
 }

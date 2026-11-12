@@ -10,6 +10,7 @@ const TYPES = {
 	ogg: "audio/ogg",
 	mp4: "video/mp4",
 	pez: "application/octet-stream",
+	txt: "text/plain; charset=utf-8",
 };
 const CONCURRENCY = 6;
 const TRIES = 4;
