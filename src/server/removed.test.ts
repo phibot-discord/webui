@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { assetTab, splitTree } from "../lib/assets";
 import { getInfo } from "../phi/lib/get-info";
-import { buildChartSnapshot, withSideTrees } from "./charts";
+import { buildChartSnapshot, withRemovedSongs, withSideTrees } from "./charts";
 import { parseRemovedManifest, removedRows, removedSummaries } from "./removed";
 
 const CSV_HEAD =
@@ -107,6 +107,41 @@ test("removed songs and charts join the browse catalog only", async () => {
 	} finally {
 		getInfo.setSide("removed", []);
 	}
+});
+
+test("the song list adds gone songs the tables lack and marks listed ones, never other removed levels", async () => {
+	await catalog();
+	const base = buildChartSnapshot("r1", new Map());
+	const before = structuredClone(base.list);
+	const songs = parseRemovedManifest({
+		...MANIFEST,
+		songs: [
+			...MANIFEST.songs,
+			{
+				id: "A.x",
+				song: "Song A",
+				composer: "X",
+				gone: true,
+				charts: { EZ: { label: "1", from: "1.6.5" } },
+			},
+		],
+	});
+	const list = withRemovedSongs(base.list, songs.slice(1), new Map());
+	assert.deepEqual(
+		list.map((s) => [s.id, s.gone ?? false, Boolean(s.removed)]),
+		[
+			["A.x.0", true, false],
+			["Gone.g.0", true, true],
+		],
+	);
+	assert.deepEqual(list[0]?.charts, base.list[0]?.charts);
+	assert.deepEqual(list[1]?.charts, { EZ: [0, 253, "3.6"] });
+	assert.deepEqual(
+		withRemovedSongs(base.list, songs.slice(0, 1), new Map()),
+		base.list,
+		"a removed Legacy chart adds nothing",
+	);
+	assert.deepEqual(base.list, before, "the scoring catalog is untouched");
 });
 
 test("removed/ is a side tree with a files tab of its own", () => {

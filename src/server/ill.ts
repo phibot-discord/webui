@@ -92,6 +92,9 @@ export function illKey(
 	tree: IllTree = "normal",
 	level?: string,
 ): string {
+	if (tree !== "normal" && tree !== "sp") {
+		return songIllPath(`${sidePrefix(tree)}/${SIDE_ILL_DIR}`, stem, kind);
+	}
 	return songIllPath(ILL_PREFIX, stem, kind, tree, level);
 }
 

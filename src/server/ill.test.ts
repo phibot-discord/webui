@@ -8,6 +8,7 @@ import {
 	fallbackKeyOf,
 	hydrateIlls,
 	illCacheBytes,
+	illKey,
 	pruneIllCache,
 	songIllPath,
 } from "./ill";
@@ -130,6 +131,25 @@ test("the 4/1 jackets stay in 4-1/original_ill/ beside the main tree's", () => {
 	);
 	assert.equal(fallbackKeyOf("4-1/jackets/ill/Oblivion.Daily.png"), undefined);
 	assert.equal(fallbackKeyOf("4-1/html/avatar/a.png"), undefined);
+});
+
+test("illKey gives the R2 key of a side tree's jacket under its own prefix", () => {
+	assert.equal(
+		illKey("テリトリーバトル.ツユ", "low", "removed"),
+		"removed/original_ill/illLow/テリトリーバトル.ツユ.png",
+	);
+	assert.equal(
+		illKey("Oblivion.Daily", "common", "fools", "IN"),
+		"4-1/original_ill/ill/Oblivion.Daily.png",
+	);
+	assert.equal(
+		illKey("Happy.Apollo", "low", "normal", "AT"),
+		"original_ill/illLow/AT/Happy.Apollo.png",
+	);
+	assert.equal(
+		illKey("Introduction", "low", "sp"),
+		"original_ill/SP/Introduction.png",
+	);
 });
 
 test("full jacket R2 miss falls back to illLow; unknown avatar to Introduction", () => {

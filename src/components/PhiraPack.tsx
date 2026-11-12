@@ -126,7 +126,7 @@ function PhiraMp({ onSay }: { onSay: (text: string) => void }) {
 export function PhiraPack({ initialId }: { initialId?: string }) {
 	const { m } = useI18n();
 	const t = m.phira;
-	const catalog = useChartCatalog(true);
+	const catalog = useChartCatalog("fools");
 	const ids = useId();
 	const labelId = `${ids}-label`;
 	const versionId = `${ids}-version`;

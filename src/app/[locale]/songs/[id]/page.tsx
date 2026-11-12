@@ -58,7 +58,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 			title: view.title,
 			composer: view.composer || "—",
 			levels: view.levels
-				.map((l) => `${l.rank} ${l.constant.toFixed(1)}`)
+				.map((l) => `${l.rank} ${l.label ?? l.constant.toFixed(1)}`)
 				.join(locale === "en" ? ", " : "、"),
 		}),
 	});
@@ -155,9 +155,14 @@ export default async function SongPage({ params }: Params) {
 	const filesJob = filesOf(view, localeTag(locale));
 	const yours = yourScores(view, await viewerJob);
 	const [similar, files, votes] = await Promise.all([
-		songSimilar(view, yours.state === "ok" ? playedIn(yours.save) : undefined),
+		view.scored
+			? songSimilar(
+					view,
+					yours.state === "ok" ? playedIn(yours.save) : undefined,
+				)
+			: {},
 		filesJob,
-		loadTagVotes().catch(() => undefined),
+		view.scored ? loadTagVotes().catch(() => undefined) : undefined,
 	]);
 	const tags = songTags(view, votes, locale);
 	const top = view.levels.at(-1)?.rank ?? "IN";
@@ -190,6 +195,9 @@ export default async function SongPage({ params }: Params) {
 				) : null}
 				<div className="song-id">
 					<h1>{view.title}</h1>
+					{view.gone ? (
+						<p className="song-gone">{fill(t.gone, { v: view.gone })}</p>
+					) : null}
 					<dl className="song-meta">
 						{meta.map(([k, v]) => (
 							<div key={k}>
@@ -206,14 +214,16 @@ export default async function SongPage({ params }: Params) {
 						>
 							{t.phira}
 						</Link>
-						<Link
-							className="btn btn-ghost"
-							href={`/score?chart=${encodeURIComponent(`${view.id}:${top}`)}`}
-							prefetch={false}
-						>
-							{t.score}
-						</Link>
-						{yours.state === "ok" ? (
+						{view.scored ? (
+							<Link
+								className="btn btn-ghost"
+								href={`/score?chart=${encodeURIComponent(`${view.id}:${top}`)}`}
+								prefetch={false}
+							>
+								{t.score}
+							</Link>
+						) : null}
+						{view.scored && yours.state === "ok" ? (
 							<Link
 								className="btn btn-ghost"
 								href={`/me/song?chart=${encodeURIComponent(view.id)}&level=${top}`}
@@ -264,7 +274,7 @@ export default async function SongPage({ params }: Params) {
 											</span>
 										</span>
 									</th>
-									<td className="num">{l.constant.toFixed(1)}</td>
+									<td className="num">{l.label ?? l.constant.toFixed(1)}</td>
 									<td className="num">{l.notes ?? "—"}</td>
 									<td className="num">
 										{l.kinds
@@ -286,7 +296,9 @@ export default async function SongPage({ params }: Params) {
 					cover={view.jacket}
 					top={top}
 					constants={Object.fromEntries(
-						view.levels.map((l) => [l.rank, l.constant]),
+						view.levels
+							.filter((l) => l.constant > 0)
+							.map((l) => [l.rank, l.constant]),
 					)}
 				/>
 			) : null}
@@ -295,44 +307,51 @@ export default async function SongPage({ params }: Params) {
 				<SongTags lists={tags.lists} top={top} date={tags.date} />
 			) : null}
 
-			<section className="song-section" aria-labelledby="song-yours">
-				<h2 id="song-yours">{t.yoursTitle}</h2>
-				{yours.state === "signed-out" ? (
-					<p className="callout">
-						{t.yoursSignedOut}{" "}
-						<Link href={await signInLink(songPath(view.id))} prefetch={false}>
-							{t.signIn}
-						</Link>
-					</p>
-				) : yours.state === "unbound" ? (
-					<p className="callout">
-						{t.yoursNotBound}{" "}
-						<Link href="/me" prefetch={false}>
-							{m.nav.cards}
-						</Link>
-					</p>
-				) : yours.rows.length ? (
-					<SongYourScores id={view.id} rows={yours.rows} />
-				) : (
-					<p className="callout">{t.yoursNone}</p>
-				)}
-			</section>
+			{view.scored ? (
+				<>
+					<section className="song-section" aria-labelledby="song-yours">
+						<h2 id="song-yours">{t.yoursTitle}</h2>
+						{yours.state === "signed-out" ? (
+							<p className="callout">
+								{t.yoursSignedOut}{" "}
+								<Link
+									href={await signInLink(songPath(view.id))}
+									prefetch={false}
+								>
+									{t.signIn}
+								</Link>
+							</p>
+						) : yours.state === "unbound" ? (
+							<p className="callout">
+								{t.yoursNotBound}{" "}
+								<Link href="/me" prefetch={false}>
+									{m.nav.cards}
+								</Link>
+							</p>
+						) : yours.rows.length ? (
+							<SongYourScores id={view.id} rows={yours.rows} />
+						) : (
+							<p className="callout">{t.yoursNone}</p>
+						)}
+					</section>
 
-			<RankCurve
-				signIn={
-					yours.state === "signed-out"
-						? await signInLink(songPath(view.id))
-						: undefined
-				}
-				id={view.id}
-				levels={view.levels.map((l) => l.rank)}
-				top={top}
-				mine={
-					yours.state === "ok"
-						? Object.fromEntries(yours.rows.map((r) => [r.rank, r.acc]))
-						: {}
-				}
-			/>
+					<RankCurve
+						signIn={
+							yours.state === "signed-out"
+								? await signInLink(songPath(view.id))
+								: undefined
+						}
+						id={view.id}
+						levels={view.levels.map((l) => l.rank)}
+						top={top}
+						mine={
+							yours.state === "ok"
+								? Object.fromEntries(yours.rows.map((r) => [r.rank, r.acc]))
+								: {}
+						}
+					/>
+				</>
+			) : null}
 
 			{Object.keys(similar).length ? (
 				<SimilarCharts
@@ -395,7 +414,13 @@ export default async function SongPage({ params }: Params) {
 				</section>
 			) : null}
 
-			<ChartVersions id={view.id} levels={view.levels} history={view.history} />
+			{view.scored ? (
+				<ChartVersions
+					id={view.id}
+					levels={view.levels}
+					history={view.history}
+				/>
+			) : null}
 
 			{view.aliases.length ? (
 				<section className="song-section" aria-labelledby="song-nicks">

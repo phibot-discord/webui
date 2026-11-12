@@ -4,7 +4,12 @@ import { getInfo } from "@/phi/lib/get-info";
 import { PHIRA_LEVELS } from "@/phi/lib/phira";
 import { type AliasIndex, ensureAliases } from "./aliases";
 import { foolsRows, loadFools } from "./fools";
-import { loadRemoved, removedRows } from "./removed";
+import {
+	loadRemoved,
+	type RemovedSong,
+	removedRows,
+	removedSummaries,
+} from "./removed";
 
 /** [constant, notes, label?]: a label stands in for the constant on charts that have none (4/1 specials) */
 export type ChartCell = [number, number | null, label?: string];
@@ -189,6 +194,47 @@ export async function chartCatalogWithFools(): Promise<
 		]),
 		aliases: base.aliases,
 	};
+}
+
+export function withRemovedSongs(
+	list: readonly ChartSummary[],
+	removed: readonly RemovedSong[],
+	aliases?: AliasIndex["byId"],
+): ChartSummary[] {
+	const gone = removed.filter((s) => s.gone);
+	const goneIds = new Set(gone.map((s) => s.id));
+	const have = new Set(list.map((s) => s.id));
+	return [
+		...list.map((s) => (goneIds.has(s.id) ? { ...s, gone: true as const } : s)),
+		...removedSummaries(
+			gone.filter((s) => !have.has(s.id)),
+			aliases,
+		),
+	];
+}
+
+let songsMemo:
+	| {
+			list: readonly ChartSummary[];
+			removed: readonly RemovedSong[];
+			snapshot: ChartSnapshot;
+	  }
+	| undefined;
+
+export async function songCatalog(): Promise<
+	ChartSnapshot & { aliases: AliasIndex }
+> {
+	const [base, removed] = await Promise.all([chartCatalog(), loadRemoved()]);
+	if (songsMemo?.list !== base.list || songsMemo.removed !== removed) {
+		const list = withRemovedSongs(base.list, removed, base.aliases.byId);
+		const json = JSON.stringify(list);
+		songsMemo = {
+			list: base.list,
+			removed,
+			snapshot: { rev: base.rev, list, json, etag: chartsEtag(json) },
+		};
+	}
+	return { ...songsMemo.snapshot, aliases: base.aliases };
 }
 
 export function chartCell(id: string, rank: string): ChartCell | undefined {

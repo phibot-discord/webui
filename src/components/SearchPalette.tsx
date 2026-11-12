@@ -83,7 +83,7 @@ export function SearchPalette({
 	useEffect(() => {
 		if (!open || list || failed) return;
 		let dead = false;
-		loadChartCatalog()
+		loadChartCatalog("songs")
 			.then((l) => {
 				if (!dead) setList(l);
 			})

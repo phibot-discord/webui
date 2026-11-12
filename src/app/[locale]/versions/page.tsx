@@ -24,7 +24,7 @@ import {
 import { fill } from "@/phi/lib/card-i18n";
 import { fCompute } from "@/phi/lib/fcompute";
 import { loadBound } from "@/server/bound";
-import { chartCatalog } from "@/server/charts";
+import { songCatalog } from "@/server/charts";
 import { getDataHost } from "@/server/data-host";
 import { pageMetadata } from "@/server/og-meta";
 import {
@@ -177,7 +177,7 @@ export default async function VersionsPage({
 	const [{ m, locale }, options, catalog, mine] = await Promise.all([
 		getMessages(),
 		versionOptions(),
-		chartCatalog(),
+		songCatalog(),
 		myRecords(),
 	]);
 	const t = m.versions;

@@ -27,7 +27,11 @@ import { Announce, useHydrated } from "@/components/Tool";
 import type { Locale } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
 import { useI18n } from "@/i18n/provider";
-import { CHART_LEVELS, type ChartSummary } from "@/lib/chart-catalog";
+import {
+	CHART_LEVELS,
+	type ChartSummary,
+	cellLabel,
+} from "@/lib/chart-catalog";
 import { localePath } from "@/lib/locale-path";
 import { songPath } from "@/lib/song-path";
 import { looseFold, rankSongs, type SongMatch } from "@/lib/song-search";
@@ -94,7 +98,9 @@ function viaLabel(t: Text, hit: SongMatch<ChartSummary>): string | undefined {
 }
 
 function hardest(song: ChartSummary) {
-	return [...CHART_LEVELS].reverse().find((rank) => song.charts[rank]);
+	return [...CHART_LEVELS]
+		.reverse()
+		.find((rank) => (song.charts[rank]?.[0] ?? 0) > 0);
 }
 
 export function SongLookup({
@@ -112,7 +118,7 @@ export function SongLookup({
 }) {
 	const { m, locale } = useI18n();
 	const t = m.songs;
-	const catalog = useChartCatalog();
+	const catalog = useChartCatalog("songs");
 	const urlQ = clip(useSearchParams().get("q"), maxLength);
 	const [query, setQuery] = useState(urlQ);
 	const [typed, setTyped] = useState(false);
@@ -411,13 +417,16 @@ function SongHit({
 						{song.song}
 					</Link>
 				</h3>
-				{song.composer || label ? (
+				{song.composer || label || song.gone ? (
 					<p className="song-hit-meta">
 						{song.composer ? (
 							<span>
 								<span className="sr-only">{t.composer}</span>
 								<span lang={langOf(song.composer)}>{song.composer}</span>
 							</span>
+						) : null}
+						{song.gone ? (
+							<span className="song-hit-gone">{t.removed}</span>
 						) : null}
 						{label ? <span className="song-hit-via">{label}</span> : null}
 					</p>
@@ -429,7 +438,7 @@ function SongHit({
 					return cell ? (
 						<li key={rank} className={`chart-level chart-level-${rank}`}>
 							<span>{rank}</span>
-							<span>{cell[0].toFixed(1)}</span>
+							<span>{cellLabel(cell)}</span>
 						</li>
 					) : null;
 				})}

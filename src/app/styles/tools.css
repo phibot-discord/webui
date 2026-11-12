@@ -431,6 +431,12 @@ td > .pg-badge:first-child {
 	overflow-wrap: anywhere;
 }
 
+.song-gone {
+	max-width: 40rem;
+	margin: 0 0 var(--space-4);
+	color: var(--muted);
+}
+
 .song-meta {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));

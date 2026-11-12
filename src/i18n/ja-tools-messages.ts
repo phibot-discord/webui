@@ -228,6 +228,7 @@ export const toolsJa: ToolsMessages = {
 		rankFailed: "利用不可",
 		notPlayed: "未プレイ",
 		jacketAlt: "{title} のイラスト",
+		gone: "この曲は現在のゲームにはありません。ここにある譜面はバージョン {v} のものです。",
 		levelJacket: "{level} のイラスト",
 		description:
 			"{composer} 作曲の {title}：譜面定数 {levels}、ノーツ数、譜面作者、そして譜面の過去バージョンすべて。",

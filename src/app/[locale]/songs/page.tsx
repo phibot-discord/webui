@@ -7,7 +7,7 @@ import {
 } from "@/components/SongLookup";
 import { rankSongs } from "@/lib/song-search";
 import { ALIAS_MAX_LEN } from "@/server/aliases";
-import { chartCatalog } from "@/server/charts";
+import { songCatalog } from "@/server/charts";
 import { pageMetadata } from "@/server/og-meta";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export default async function SongsPage({
 		songs: [],
 	}));
 	try {
-		const { list } = await chartCatalog();
+		const { list } = await songCatalog();
 		const all = q ? rankSongs(list, q, { limit: list.length }) : [];
 		initial = { q: q ?? "", total: all.length, hits: all.slice(0, SHOWN) };
 		examples = EXAMPLES.map((text) => ({

@@ -1,3 +1,4 @@
+import { REMOVED_PREFIX } from "@/lib/assets";
 import { bareId, CHART_LEVELS } from "@/lib/chart-catalog";
 import type { NoteKinds } from "@/lib/chart-stats";
 import { type ChartStatus, chartStatus } from "@/lib/chart-status";
@@ -8,23 +9,27 @@ import { songClips } from "@/lib/song-files";
 import { songPath, songSlug } from "@/lib/song-path";
 import { getInfo } from "@/phi/lib/get-info";
 import type { ObjectUrl } from "./asset-links";
-import { type ChartSummary, chartCatalog } from "./charts";
+import { type ChartSummary, chartCatalog, songCatalog } from "./charts";
 import { loadCollectionIndex } from "./collection";
 import { type SongHistory, songHistory } from "./history";
 import { illKey } from "./ill";
 import { loadIllLevels } from "./ill-levels";
 import { loadPv } from "./pv";
+import { loadRemoved, type RemovedSong } from "./removed";
+import { findSong as findRemoved } from "./side-tree";
 import { kindsOf, similarIndex } from "./similar";
 import {
 	type PreviewVersion,
 	type SongAssets,
 	songAssets,
+	type Tree,
 } from "./song-assets";
 import { loadTextsIndex } from "./texts";
 
 export type SongLevelView = {
 	rank: string;
 	constant: number;
+	label?: string;
 	notes: number | null;
 	charter: string;
 	kinds: NoteKinds | null;
@@ -48,42 +53,82 @@ export type SongPageView = {
 	jacket?: string;
 	jacketFull?: string;
 	levels: SongLevelView[];
+	scored: boolean;
+	gone?: string;
 	history?: Pick<SongHistory, "current" | "eras">;
 	preview?: PreviewVersion[];
 	files?: SongFilesData;
 };
 
 export type SongMetaView = Pick<SongPageView, "id" | "title" | "composer"> & {
-	levels: Pick<SongLevelView, "rank" | "constant">[];
+	levels: Pick<SongLevelView, "rank" | "constant" | "label">[];
 };
 
 export async function songPaths(): Promise<string[]> {
-	const { list } = await chartCatalog();
+	const { list } = await songCatalog();
 	return list.map((song) => songPath(song.id));
 }
 
-async function findSong(slug: string): Promise<ChartSummary | undefined> {
-	const { list } = await chartCatalog();
+type FoundSong = {
+	song: ChartSummary;
+	scored: boolean;
+	removed?: RemovedSong;
+};
+
+async function findSong(slug: string): Promise<FoundSong | undefined> {
+	const [{ list }, scored, removed] = await Promise.all([
+		songCatalog(),
+		chartCatalog(),
+		loadRemoved(),
+	]);
 	const want = songSlug(slug.trim());
-	return list.find((s) => songSlug(s.id) === want);
+	const song = list.find((s) => songSlug(s.id) === want);
+	if (!song) return undefined;
+	const row = song.gone ? findRemoved(removed, song.id) : undefined;
+	return {
+		song,
+		scored: scored.list.some((s) => s.id === song.id),
+		...(row ? { removed: row } : {}),
+	};
 }
 
 function composerOf(song: ChartSummary): string {
 	return song.composer || getInfo.raw(song.id)?.composer || "";
 }
 
+function labelConstant(label: string | undefined): number {
+	const n = Number(label);
+	return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function goneFrom(removed: RemovedSong): string {
+	return [...new Set(Object.values(removed.charts).map((c) => c.from))]
+		.filter(Boolean)
+		.join(" / ");
+}
+
 export async function songMetaView(
 	slug: string,
 ): Promise<SongMetaView | undefined> {
-	const song = await findSong(slug);
-	if (!song) return undefined;
+	const found = await findSong(slug);
+	if (!found) return undefined;
+	const { song } = found;
 	return {
 		id: song.id,
 		title: song.song,
 		composer: composerOf(song),
 		levels: CHART_LEVELS.flatMap((rank) => {
 			const cell = song.charts[rank];
-			return cell ? [{ rank, constant: cell[0] }] : [];
+			if (!cell) return [];
+			return found.scored
+				? [{ rank, constant: cell[0] }]
+				: [
+						{
+							rank,
+							constant: labelConstant(cell[2]),
+							...(cell[2] ? { label: cell[2] } : {}),
+						},
+					];
 		}),
 	};
 }
@@ -92,22 +137,39 @@ export async function songPageView(
 	slug: string,
 	links: ObjectUrl,
 ): Promise<SongPageView | undefined> {
-	const song = await findSong(slug);
-	if (!song) return undefined;
-	const info = getInfo.raw(song.id);
-	const sp = !getInfo.ori_info[song.id] && Boolean(getInfo.sp_info[song.id]);
-	const stem = bareId(song.id);
-	const historyJob = songHistory(song.id).catch(() => undefined);
+	const found = await findSong(slug);
+	if (!found) return undefined;
+	const { song, scored, removed } = found;
+	const info = scored ? getInfo.raw(song.id) : undefined;
+	const sp =
+		scored && !getInfo.ori_info[song.id] && Boolean(getInfo.sp_info[song.id]);
+	const stem = scored ? bareId(song.id) : (removed?.stem ?? bareId(song.id));
+	const historyJob = scored
+		? songHistory(song.id).catch(() => undefined)
+		: Promise.resolve(undefined);
 	const [history, perLevel, assets] = await Promise.all([
 		historyJob,
 		loadIllLevels().catch(() => new Map<string, string[]>()),
 		songAssets(song.id, links, historyJob).catch(() => undefined),
 	]);
-	const ownJackets = new Set(perLevel.get(song.id) ?? perLevel.get(stem) ?? []);
+	const ownJackets = new Set(
+		scored ? (perLevel.get(song.id) ?? perLevel.get(stem) ?? []) : [],
+	);
 	const levels: SongLevelView[] = [];
 	for (const rank of CHART_LEVELS) {
 		const cell = song.charts[rank];
 		if (!cell) continue;
+		if (!scored) {
+			levels.push({
+				rank,
+				constant: labelConstant(cell[2]),
+				...(cell[2] ? { label: cell[2] } : {}),
+				notes: cell[1],
+				charter: removed?.charts[rank]?.charter.trim() || "",
+				kinds: null,
+			});
+			continue;
+		}
 		const chart = info?.chart?.[rank];
 		levels.push({
 			rank,
@@ -120,17 +182,28 @@ export async function songPageView(
 				: {}),
 		});
 	}
-	const music = sp ? undefined : links(`music/${stem}.ogg`);
+	const tree: Tree = scored ? "current" : "removed";
+	const root = scored ? "" : `${REMOVED_PREFIX}/`;
+	const showArt = scored || removed?.jacket;
+	const jacket = showArt
+		? links(illKey(stem, "low", sp ? "sp" : scored ? "normal" : "removed"))
+		: undefined;
+	const jacketFull = showArt
+		? links(illKey(stem, "common", sp ? "sp" : scored ? "normal" : "removed"))
+		: undefined;
+	const music = sp ? undefined : links(`${root}music/${stem}.ogg`);
 	const fallback: PreviewVersion[] = music
 		? [
 				{
-					id: "current",
-					tree: "current" as const,
+					id: tree,
+					tree,
 					levels: levels.flatMap((l) => {
 						const chart = PREVIEW_LEVELS.has(l.rank)
-							? links(`chart/${stem}/${l.rank}.json`)
+							? links(`${root}chart/${stem}/${l.rank}.json`)
 							: undefined;
-						const cover = l.jacket ?? links(illKey(stem, "low"));
+						const cover =
+							l.jacket ?? (scored ? links(illKey(stem, "low")) : jacket);
+						const from = removed?.charts[l.rank]?.from;
 						return chart
 							? [
 									{
@@ -141,6 +214,7 @@ export async function songPageView(
 											music,
 											...(cover ? { cover } : {}),
 										},
+										...(!scored && from ? { from } : {}),
 									},
 								]
 							: [];
@@ -154,14 +228,16 @@ export async function songPageView(
 		slug: songSlug(song.id),
 		title: song.song,
 		composer: composerOf(song),
-		illustrator: info?.illustrator?.trim() || "",
+		illustrator: (info?.illustrator ?? removed?.illustrator)?.trim() || "",
 		chapter: info?.chapter?.trim() || "",
 		bpm: info?.bpm?.trim() || "",
 		length: info?.length?.trim() || "",
 		aliases: song.aliases ?? [],
-		jacket: links(illKey(stem, "low", sp ? "sp" : "normal")),
-		jacketFull: links(illKey(stem, "common", sp ? "sp" : "normal")),
+		...(jacket ? { jacket } : {}),
+		...(jacketFull ? { jacketFull } : {}),
 		levels,
+		scored,
+		...(removed ? { gone: goneFrom(removed) } : {}),
 		...(history?.eras.length
 			? { history: { current: history.current, eras: history.eras } }
 			: {}),

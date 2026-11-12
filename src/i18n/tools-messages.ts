@@ -206,6 +206,7 @@ export type ToolsMessages = {
 		rankFailed: string;
 		notPlayed: string;
 		jacketAlt: string;
+		gone: string;
 		levelJacket: string;
 		description: string;
 		history: string;
@@ -898,6 +899,7 @@ export const toolsEn: ToolsMessages = {
 		rankFailed: "Unavailable",
 		notPlayed: "Not played",
 		jacketAlt: "Illustration for {title}",
+		gone: "This song is no longer in the game. The charts here come from version {v}.",
 		levelJacket: "{level} illustration",
 		description:
 			"{title} by {composer}: chart constants {levels}, note counts, charters and every older version of its charts.",

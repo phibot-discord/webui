@@ -462,6 +462,7 @@ export type ClientMessages = ToolsMessages & {
 		viaId: string;
 		viaComposer: string;
 		viaFuzzy: string;
+		removed: string;
 		composer: string;
 		levels: string;
 		nicknames: string;
@@ -1563,6 +1564,7 @@ export const en: ClientMessages = {
 		viaId: "Song ID",
 		viaComposer: "Composer match",
 		viaFuzzy: "Close to “{text}”",
+		removed: "No longer in the game",
 		composer: "Composer:",
 		levels: "Levels and chart constants",
 		nicknames: "Nicknames",

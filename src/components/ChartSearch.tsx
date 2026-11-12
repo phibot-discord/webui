@@ -12,6 +12,7 @@ import {
 import type { Locale } from "@/i18n/config";
 import { useI18n } from "@/i18n/provider";
 import {
+	type CatalogKind,
 	CHART_LEVELS,
 	type ChartLevel,
 	type ChartSummary,
@@ -25,11 +26,11 @@ type CatalogState =
 	| { status: "ready"; list: ChartSummary[] }
 	| { status: "failed" };
 
-export function useChartCatalog(fools = false): CatalogState {
+export function useChartCatalog(kind: CatalogKind = "scored"): CatalogState {
 	const [state, setState] = useState<CatalogState>({ status: "loading" });
 	useEffect(() => {
 		let dead = false;
-		loadChartCatalog(fools)
+		loadChartCatalog(kind)
 			.then((list) => {
 				if (!dead) setState({ status: "ready", list });
 			})
@@ -39,7 +40,7 @@ export function useChartCatalog(fools = false): CatalogState {
 		return () => {
 			dead = true;
 		};
-	}, [fools]);
+	}, [kind]);
 	return state;
 }
 

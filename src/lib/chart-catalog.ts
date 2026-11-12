@@ -50,15 +50,23 @@ export function packLevelName(level: string): PackLevelName | undefined {
 		: { tag: "", label: level.replaceAll("_", " ") };
 }
 
-const pending: Record<"scored" | "fools", Promise<ChartSummary[]> | undefined> =
-	{ scored: undefined, fools: undefined };
+export type CatalogKind = "scored" | "fools" | "songs";
+
+const CATALOG_URL: Record<CatalogKind, string> = {
+	scored: "/api/charts",
+	fools: "/api/charts?fools=1",
+	songs: "/api/charts?songs=1",
+};
+
+const pending: Partial<Record<CatalogKind, Promise<ChartSummary[]>>> = {};
 
 /** `fools` adds the 4/1 specials, which have no constant: never for scoring */
-export function loadChartCatalog(fools = false): Promise<ChartSummary[]> {
-	const slot = fools ? "fools" : "scored";
+export function loadChartCatalog(
+	slot: CatalogKind = "scored",
+): Promise<ChartSummary[]> {
 	if (!pending[slot]) {
 		// "no-cache" revalidates with the ETag, so an unchanged catalog is a 304
-		pending[slot] = fetch(fools ? "/api/charts?fools=1" : "/api/charts", {
+		pending[slot] = fetch(CATALOG_URL[slot], {
 			cache: "no-cache",
 		})
 			.then(async (res) => {

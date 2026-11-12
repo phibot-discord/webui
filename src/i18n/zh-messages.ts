@@ -684,6 +684,7 @@ export const zh: ClientMessages = {
 		viaId: "曲目 ID",
 		viaComposer: "曲师匹配",
 		viaFuzzy: "与“{text}”相近",
+		removed: "已从游戏中移除",
 		composer: "曲师：",
 		levels: "难度与定数",
 		nicknames: "别名",

@@ -739,6 +739,7 @@ export const ja: ClientMessages = {
 		viaId: "曲 ID",
 		viaComposer: "作曲者が一致",
 		viaFuzzy: "「{text}」に近い",
+		removed: "ゲームから削除済み",
 		composer: "作曲者：",
 		levels: "難易度と譜面定数",
 		nicknames: "通称",

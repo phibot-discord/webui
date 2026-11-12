@@ -275,6 +275,11 @@
 	font-weight: 500;
 }
 
+.song-hit-gone {
+	color: var(--ink);
+	font-weight: 500;
+}
+
 .song-hit-levels {
 	grid-area: levels;
 	display: flex;

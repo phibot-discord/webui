@@ -222,6 +222,7 @@ export const toolsZh: ToolsMessages = {
 		rankFailed: "暂不可用",
 		notPlayed: "未玩",
 		jacketAlt: "{title} 的曲绘",
+		gone: "游戏里已经没有这首曲目，这里的谱面来自 {v} 版本。",
 		levelJacket: "{level} 曲绘",
 		description:
 			"{title}（{composer}）：谱面定数 {levels}、物量、谱师，以及各谱面的所有旧版本。",

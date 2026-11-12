@@ -187,7 +187,7 @@ export function AssetBrowser({
 	t: Messages["files"];
 }) {
 	const { m } = useI18n();
-	const catalog = useChartCatalog(true);
+	const catalog = useChartCatalog("fools");
 	const ids = useId();
 	const searchId = `${ids}-search`;
 	const panelId = `${ids}-panel`;
