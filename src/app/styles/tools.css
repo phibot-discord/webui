@@ -1547,6 +1547,12 @@ td > .pg-badge:first-child {
 	align-items: center;
 	justify-content: space-between;
 	gap: var(--space-2) var(--space-4);
+	max-width: 100%;
+	margin-bottom: var(--space-3);
+}
+
+.cb-count .field-hint {
+	margin: 0;
 }
 
 .cb-actions {
