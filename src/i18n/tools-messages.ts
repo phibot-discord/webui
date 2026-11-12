@@ -207,6 +207,8 @@ export type ToolsMessages = {
 		notPlayed: string;
 		jacketAlt: string;
 		gone: string;
+		special: string;
+		specialFrom: string;
 		levelJacket: string;
 		description: string;
 		history: string;
@@ -900,6 +902,10 @@ export const toolsEn: ToolsMessages = {
 		notPlayed: "Not played",
 		jacketAlt: "Illustration for {title}",
 		gone: "This song is no longer in the game. The charts here come from version {v}.",
+		special:
+			"A special event chart, outside the game's regular song list, so it has no scores.",
+		specialFrom:
+			"A special event chart, outside the game's regular song list, so it has no scores. It comes from version {v}.",
 		levelJacket: "{level} illustration",
 		description:
 			"{title} by {composer}: chart constants {levels}, note counts, charters and every older version of its charts.",

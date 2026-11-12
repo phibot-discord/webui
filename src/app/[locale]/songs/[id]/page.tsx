@@ -195,8 +195,14 @@ export default async function SongPage({ params }: Params) {
 				) : null}
 				<div className="song-id">
 					<h1>{view.title}</h1>
-					{view.gone ? (
-						<p className="song-gone">{fill(t.gone, { v: view.gone })}</p>
+					{view.side ? (
+						<p className="song-gone">
+							{view.side === "removed"
+								? fill(t.gone, { v: view.from ?? "" })
+								: view.from
+									? fill(t.specialFrom, { v: view.from })
+									: t.special}
+						</p>
 					) : null}
 					<dl className="song-meta">
 						{meta.map(([k, v]) => (

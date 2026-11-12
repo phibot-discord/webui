@@ -3,7 +3,7 @@ import { LEVEL, type LevelKind } from "@/phi/lib/const";
 import { getInfo } from "@/phi/lib/get-info";
 import { PHIRA_LEVELS } from "@/phi/lib/phira";
 import { type AliasIndex, ensureAliases } from "./aliases";
-import { foolsRows, loadFools } from "./fools";
+import { type FoolsSong, foolsRows, foolsSummaries, loadFools } from "./fools";
 import {
 	loadRemoved,
 	type RemovedSong,
@@ -22,6 +22,7 @@ export type ChartSummary = {
 	charts: Partial<Record<LevelKind | "SP", ChartCell>>;
 	removed?: Record<string, RemovedCell>;
 	gone?: true;
+	special?: true;
 	stem?: string;
 };
 
@@ -196,20 +197,31 @@ export async function chartCatalogWithFools(): Promise<
 	};
 }
 
-export function withRemovedSongs(
+export function withSideSongs(
 	list: readonly ChartSummary[],
-	removed: readonly RemovedSong[],
+	sides: { removed: readonly RemovedSong[]; fools: readonly FoolsSong[] },
 	aliases?: AliasIndex["byId"],
 ): ChartSummary[] {
-	const gone = removed.filter((s) => s.gone);
+	const gone = sides.removed.filter((s) => s.gone);
 	const goneIds = new Set(gone.map((s) => s.id));
 	const have = new Set(list.map((s) => s.id));
+	const removedRows = removedSummaries(
+		gone.filter((s) => !have.has(s.id)),
+		aliases,
+	);
+	for (const s of removedRows) have.add(s.id);
+	const specials = sides.fools.filter((s) => !have.has(s.id));
 	return [
 		...list.map((s) => (goneIds.has(s.id) ? { ...s, gone: true as const } : s)),
-		...removedSummaries(
-			gone.filter((s) => !have.has(s.id)),
-			aliases,
-		),
+		...removedRows,
+		...foolsSummaries(specials, aliases).map((row, i) => {
+			const by = specials[i]?.illustrator;
+			return {
+				...row,
+				...(by ? { illustrator: by } : {}),
+				special: true as const,
+			};
+		}),
 	];
 }
 
@@ -217,6 +229,7 @@ let songsMemo:
 	| {
 			list: readonly ChartSummary[];
 			removed: readonly RemovedSong[];
+			fools: readonly FoolsSong[];
 			snapshot: ChartSnapshot;
 	  }
 	| undefined;
@@ -224,13 +237,26 @@ let songsMemo:
 export async function songCatalog(): Promise<
 	ChartSnapshot & { aliases: AliasIndex }
 > {
-	const [base, removed] = await Promise.all([chartCatalog(), loadRemoved()]);
-	if (songsMemo?.list !== base.list || songsMemo.removed !== removed) {
-		const list = withRemovedSongs(base.list, removed, base.aliases.byId);
+	const [base, removed, fools] = await Promise.all([
+		chartCatalog(),
+		loadRemoved(),
+		loadFools(),
+	]);
+	if (
+		songsMemo?.list !== base.list ||
+		songsMemo.removed !== removed ||
+		songsMemo.fools !== fools
+	) {
+		const list = withSideSongs(
+			base.list,
+			{ removed, fools },
+			base.aliases.byId,
+		);
 		const json = JSON.stringify(list);
 		songsMemo = {
 			list: base.list,
 			removed,
+			fools,
 			snapshot: { rev: base.rev, list, json, etag: chartsEtag(json) },
 		};
 	}

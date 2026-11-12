@@ -48,7 +48,7 @@ export type SongLookupExample = { q: string; songs: string[] };
 
 export type SongRow = Pick<
 	ChartSummary,
-	"id" | "song" | "composer" | "charts" | "gone"
+	"id" | "song" | "composer" | "charts" | "gone" | "special"
 >;
 
 type Ranked = Omit<SongLookupInitial, "failed">;
@@ -395,8 +395,8 @@ export function SongLookup({
 }
 
 function AllSongs({ songs, t, id }: { songs: SongRow[]; t: Text; id: string }) {
-	const levels = CHART_LEVELS.filter((rank) =>
-		songs.some((s) => s.charts[rank]),
+	const levels = CHART_LEVELS.filter(
+		(rank) => rank !== "SP" && songs.some((s) => s.charts[rank]),
 	);
 	return (
 		<section className="songs-all" aria-labelledby={id}>
@@ -426,21 +426,43 @@ function AllSongs({ songs, t, id }: { songs: SongRow[]; t: Text; id: string }) {
 									<Link href={songPath(s.id)} prefetch={false}>
 										<span lang={langOf(s.song)}>{s.song}</span>
 									</Link>
-									{s.gone ? (
-										<span className="songs-all-gone">{t.removed}</span>
+									{s.gone || s.special ? (
+										<span className="songs-all-gone">
+											{s.gone ? t.removed : t.special}
+										</span>
 									) : null}
 								</th>
 								<td className="songs-all-composer">
 									<span lang={langOf(s.composer)}>{s.composer || "—"}</span>
 								</td>
-								{levels.map((rank) => {
-									const cell = s.charts[rank];
-									return (
-										<td key={rank} className="num">
-											{cell ? cellLabel(cell) : "—"}
-										</td>
-									);
-								})}
+								{levels.some((rank) => s.charts[rank]) ? (
+									levels.map((rank) => {
+										const cell = s.charts[rank];
+										return (
+											<td key={rank} className="num">
+												{cell ? cellLabel(cell) : "—"}
+											</td>
+										);
+									})
+								) : (
+									<td colSpan={levels.length} className="num">
+										{CHART_LEVELS.flatMap((rank) => {
+											const cell = s.charts[rank];
+											return cell
+												? [
+														<span key={rank} className="songs-all-extra">
+															<span
+																className={`chart-level chart-level-${rank}`}
+															>
+																{rank}
+															</span>
+															{cellLabel(cell)}
+														</span>,
+													]
+												: [];
+										})}
+									</td>
+								)}
 							</tr>
 						))}
 					</tbody>
@@ -483,7 +505,7 @@ function SongHit({
 						{song.song}
 					</Link>
 				</h3>
-				{song.composer || label || song.gone ? (
+				{song.composer || label || song.gone || song.special ? (
 					<p className="song-hit-meta">
 						{song.composer ? (
 							<span>
@@ -491,8 +513,10 @@ function SongHit({
 								<span lang={langOf(song.composer)}>{song.composer}</span>
 							</span>
 						) : null}
-						{song.gone ? (
-							<span className="song-hit-gone">{t.removed}</span>
+						{song.gone || song.special ? (
+							<span className="song-hit-gone">
+								{song.gone ? t.removed : t.special}
+							</span>
 						) : null}
 						{label ? <span className="song-hit-via">{label}</span> : null}
 					</p>

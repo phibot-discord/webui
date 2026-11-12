@@ -7,7 +7,7 @@ export type ChangeRelease = { date: string; sections: ChangeSection[] };
 export type Changelog = { version: string; date: string };
 
 export const CHANGELOG: Changelog = {
-	version: "2026-11-12.3",
+	version: "2026-11-12.4",
 	date: "2026-11-12",
 };
 

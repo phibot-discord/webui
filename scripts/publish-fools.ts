@@ -216,7 +216,12 @@ for (const special of SPECIALS) {
 			type: "application/octet-stream",
 			special: special.key,
 		});
-		charts[level] = { label, charter: meta.charter ?? "", notes };
+		charts[level] = {
+			label,
+			charter: meta.charter ?? "",
+			notes,
+			from: special.apk,
+		};
 	}
 	if (jacket) {
 		for (const [i, dir] of ["ill", "illLow", "illBlur"].entries()) {
@@ -237,6 +242,7 @@ for (const special of SPECIALS) {
 		stem,
 		song: sp.song,
 		composer: sp.composer ?? "",
+		illustrator: oneLine(sp.illustrator),
 		jacket,
 		charts,
 	});

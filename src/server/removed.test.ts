@@ -5,7 +5,8 @@ import { join } from "node:path";
 import test from "node:test";
 import { assetTab, splitTree } from "../lib/assets";
 import { getInfo } from "../phi/lib/get-info";
-import { buildChartSnapshot, withRemovedSongs, withSideTrees } from "./charts";
+import { buildChartSnapshot, withSideSongs, withSideTrees } from "./charts";
+import { parseFoolsManifest } from "./fools";
 import { parseRemovedManifest, removedRows, removedSummaries } from "./removed";
 
 const CSV_HEAD =
@@ -126,7 +127,11 @@ test("the song list adds gone songs the tables lack and marks listed ones, never
 			},
 		],
 	});
-	const list = withRemovedSongs(base.list, songs.slice(1), new Map());
+	const list = withSideSongs(
+		base.list,
+		{ removed: songs.slice(1), fools: [] },
+		new Map(),
+	);
 	assert.deepEqual(
 		list.map((s) => [s.id, s.gone ?? false, Boolean(s.removed)]),
 		[
@@ -137,11 +142,54 @@ test("the song list adds gone songs the tables lack and marks listed ones, never
 	assert.deepEqual(list[0]?.charts, base.list[0]?.charts);
 	assert.deepEqual(list[1]?.charts, { EZ: [0, 253, "3.6"] });
 	assert.deepEqual(
-		withRemovedSongs(base.list, songs.slice(0, 1), new Map()),
+		withSideSongs(
+			base.list,
+			{ removed: songs.slice(0, 1), fools: [] },
+			new Map(),
+		),
 		base.list,
 		"a removed Legacy chart adds nothing",
 	);
 	assert.deepEqual(base.list, before, "the scoring catalog is untouched");
+});
+
+test("special charts join the song list once, after the removed songs, with their illustrator and source version", async () => {
+	await catalog();
+	const base = buildChartSnapshot("r1", new Map());
+	const fools = parseFoolsManifest({
+		v: 1,
+		songs: [
+			{
+				id: "Christmas.0",
+				stem: "Christmas",
+				song: "Christmas",
+				composer: "c",
+				illustrator: " i ",
+				jacket: true,
+				charts: { SP: { label: "?", charter: "x", notes: 177, from: "1.2.4" } },
+			},
+			{ id: "A.x", song: "Song A", charts: { SP: { label: "?" } } },
+			{ id: "Gone.g", song: "Gone", charts: { SP: { label: "?" } } },
+		],
+	});
+	assert.equal(fools[0]?.illustrator, "i");
+	assert.equal(fools[0]?.charts.SP?.from, "1.2.4");
+	assert.equal(fools[1]?.illustrator, undefined);
+	const list = withSideSongs(
+		base.list,
+		{ removed: parseRemovedManifest(MANIFEST), fools },
+		new Map(),
+	);
+	assert.deepEqual(
+		list.map((s) => [s.id, s.gone ?? false, s.special ?? false]),
+		[
+			["A.x.0", false, false],
+			["Gone.g.0", true, false],
+			["Christmas.0", false, true],
+		],
+	);
+	assert.deepEqual(list[2]?.charts, { SP: [0, 177, "?"] });
+	assert.equal(list[2]?.illustrator, "i");
 });
 
 test("removed/ is a side tree with a files tab of its own", () => {

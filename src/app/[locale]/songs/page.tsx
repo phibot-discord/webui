@@ -18,14 +18,19 @@ const SHOWN = 20;
 const EXAMPLES = ["无限光", "ASA", "Ad"];
 
 function allSongs(list: readonly ChartSummary[]): SongRow[] {
-	const rows = list.map(({ id, song, composer, charts, gone }) => ({
+	const rows = list.map(({ id, song, composer, charts, gone, special }) => ({
 		id,
 		song,
 		composer,
 		charts,
 		...(gone ? { gone } : {}),
+		...(special ? { special } : {}),
 	}));
-	return [...rows.filter((s) => !s.gone), ...rows.filter((s) => s.gone)];
+	const rank = (s: SongRow) => (s.special ? 2 : s.gone ? 1 : 0);
+	return rows
+		.map((s, i) => ({ s, i }))
+		.sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i)
+		.map(({ s }) => s);
 }
 
 export function generateMetadata(): Promise<Metadata> {

@@ -26,6 +26,7 @@ type FoolsChart = {
 	label: string;
 	charter: string;
 	notes: number | null;
+	from?: string;
 };
 
 export type FoolsSong = {
@@ -33,6 +34,7 @@ export type FoolsSong = {
 	stem: string;
 	song: string;
 	composer: string;
+	illustrator?: string;
 	jacket: boolean;
 	charts: Partial<Record<PhiraLevel, FoolsChart>>;
 };
@@ -55,13 +57,17 @@ export function parseFoolsManifest(raw: unknown): FoolsSong[] {
 		const song = text(r.song).trim();
 		const charts: FoolsSong["charts"] = {};
 		for (const [level, c] of chartRows(r)) {
-			if (isPhiraLevel(level)) charts[level] = chartBase(c);
+			if (!isPhiraLevel(level)) continue;
+			const from = text(c.from).trim();
+			charts[level] = { ...chartBase(c), ...(from ? { from } : {}) };
 		}
 		if (!id || !song || !Object.keys(charts).length) continue;
+		const illustrator = text(r.illustrator).trim();
 		out.push({
 			...songIds(id, r.stem),
 			song,
 			composer: text(r.composer),
+			...(illustrator ? { illustrator } : {}),
 			jacket: r.jacket === true,
 			charts,
 		});

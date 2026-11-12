@@ -463,6 +463,7 @@ export type ClientMessages = ToolsMessages & {
 		viaComposer: string;
 		viaFuzzy: string;
 		removed: string;
+		special: string;
 		composer: string;
 		levels: string;
 		nicknames: string;
@@ -1569,6 +1570,7 @@ export const en: ClientMessages = {
 		viaComposer: "Composer match",
 		viaFuzzy: "Close to “{text}”",
 		removed: "No longer in the game",
+		special: "Special event chart",
 		composer: "Composer:",
 		levels: "Levels and chart constants",
 		nicknames: "Nicknames",
@@ -1580,7 +1582,8 @@ export const en: ClientMessages = {
 		examplesTitle: "Try a nickname",
 		examplesBody: "Nicknames find songs just like titles do. Pick one:",
 		allTitle: "All songs ({n})",
-		allBody: "Songs no longer in the game are listed last.",
+		allBody:
+			"Songs no longer in the game, then special event charts, are listed last.",
 		allSong: "Song",
 		allComposer: "Composer",
 		aboutTitle: "Where nicknames come from",

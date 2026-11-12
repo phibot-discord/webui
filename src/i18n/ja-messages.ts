@@ -740,6 +740,7 @@ export const ja: ClientMessages = {
 		viaComposer: "作曲者が一致",
 		viaFuzzy: "「{text}」に近い",
 		removed: "ゲームから削除済み",
+		special: "イベントの特殊譜面",
 		composer: "作曲者：",
 		levels: "難易度と譜面定数",
 		nicknames: "通称",
@@ -752,7 +753,7 @@ export const ja: ClientMessages = {
 		examplesBody:
 			"通称も曲名と同じように曲を見つけられます。1 つ選んでください：",
 		allTitle: "すべての曲（{n}）",
-		allBody: "ゲームから削除された曲は最後に並んでいます。",
+		allBody: "ゲームから削除された曲とイベントの特殊譜面は最後に並んでいます。",
 		allSong: "曲",
 		allComposer: "作曲者",
 		aboutTitle: "通称の出どころ",

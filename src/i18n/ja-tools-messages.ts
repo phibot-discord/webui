@@ -229,6 +229,10 @@ export const toolsJa: ToolsMessages = {
 		notPlayed: "未プレイ",
 		jacketAlt: "{title} のイラスト",
 		gone: "この曲は現在のゲームにはありません。ここにある譜面はバージョン {v} のものです。",
+		special:
+			"イベントの特殊譜面で、ゲームの通常の曲一覧には含まれないため、スコアはありません。",
+		specialFrom:
+			"イベントの特殊譜面で、ゲームの通常の曲一覧には含まれないため、スコアはありません。譜面はバージョン {v} のものです。",
 		levelJacket: "{level} のイラスト",
 		description:
 			"{composer} 作曲の {title}：譜面定数 {levels}、ノーツ数、譜面作者、そして譜面の過去バージョンすべて。",

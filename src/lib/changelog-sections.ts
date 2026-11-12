@@ -15,9 +15,9 @@ export const CHANGELOG_RELEASES: ChangeRelease[] = [
 						href: "/songs",
 					},
 					{
-						en: "Songs the game no longer has, such as テリトリーバトル, now show up in Songs search and in the search box, each with its own song page: illustration, the charts with their constant, notes and charter as of the last version that had them, chart preview, Phira packs and downloads. The page notes which version the charts come from. Scores, chart tags and similar charts are left out, since these songs can no longer be played. With nothing typed, Songs now lists every song, with removed songs last.",
-						zh: "游戏里已经没有的曲目（例如 テリトリーバトル）现在会出现在「曲目查询」和搜索框中，并各有自己的曲目页面：曲绘，最后收录它们的版本中的谱面定数、物量与谱师，谱面预览，Phira 谱面包与下载。页面会注明谱面来自哪个版本。由于这些曲目已经无法游玩，页面不显示成绩、谱面标签和相似谱面。未输入内容时，「曲目查询」会列出全部曲目，已移除的曲目排在最后。",
-						ja: "ゲームから削除された曲（テリトリーバトルなど）が「曲検索」と検索ボックスに表示されるようになり、それぞれに曲ページができました。イラスト、最後に収録されていたバージョンでの譜面の定数・ノーツ数・譜面制作者、譜面プレビュー、Phira パック、ダウンロードを確認できます。ページには譜面がどのバージョンのものかも表示されます。これらの曲はもうプレイできないため、スコア、譜面タグ、似ている譜面は表示しません。何も入力していないときは、「曲検索」にすべての曲が一覧表示され、削除された曲は最後に並びます。",
+						en: "Songs the game no longer has, such as テリトリーバトル, and special event charts, such as Christmas, now show up in Songs search and in the search box, each with its own song page: illustration, the charts with their constant, notes and charter as of the last version that had them, chart preview, Phira packs and downloads. The page notes which version the charts come from. Scores, chart tags and similar charts are left out, since these charts cannot be scored. With nothing typed, Songs now lists every song, with removed songs and special charts last.",
+						zh: "游戏里已经没有的曲目（例如 テリトリーバトル）和活动特殊谱面（例如 Christmas）现在会出现在「曲目查询」和搜索框中，并各有自己的曲目页面：曲绘，最后收录它们的版本中的谱面定数、物量与谱师，谱面预览，Phira 谱面包与下载。页面会注明谱面来自哪个版本。由于这些谱面无法计入成绩，页面不显示成绩、谱面标签和相似谱面。未输入内容时，「曲目查询」会列出全部曲目，已移除的曲目和特殊谱面排在最后。",
+						ja: "ゲームから削除された曲（テリトリーバトルなど）とイベントの特殊譜面（Christmas など）が「曲検索」と検索ボックスに表示されるようになり、それぞれに曲ページができました。イラスト、最後に収録されていたバージョンでの譜面の定数・ノーツ数・譜面制作者、譜面プレビュー、Phira パック、ダウンロードを確認できます。ページには譜面がどのバージョンのものかも表示されます。これらの譜面はスコアの対象にならないため、スコア、譜面タグ、似ている譜面は表示しません。何も入力していないときは、「曲検索」にすべての曲が一覧表示され、削除された曲と特殊譜面は最後に並びます。",
 						href: "/songs",
 					},
 				],

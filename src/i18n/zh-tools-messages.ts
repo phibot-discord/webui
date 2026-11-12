@@ -223,6 +223,9 @@ export const toolsZh: ToolsMessages = {
 		notPlayed: "未玩",
 		jacketAlt: "{title} 的曲绘",
 		gone: "游戏里已经没有这首曲目，这里的谱面来自 {v} 版本。",
+		special: "这是活动特殊谱面，不在游戏的常规曲目列表中，所以没有成绩。",
+		specialFrom:
+			"这是活动特殊谱面，不在游戏的常规曲目列表中，所以没有成绩。谱面来自 {v} 版本。",
 		levelJacket: "{level} 曲绘",
 		description:
 			"{title}（{composer}）：谱面定数 {levels}、物量、谱师，以及各谱面的所有旧版本。",
