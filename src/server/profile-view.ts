@@ -1,3 +1,4 @@
+import type { DiffChart } from "@/lib/difficulty-table";
 import type { TagAnalysis } from "@/phi/lib/b30-analysis";
 import { slotsStddev } from "@/phi/lib/b30-analysis";
 import { localizeChartTagLabels, type PhiLocale } from "@/phi/lib/card-i18n";
@@ -214,4 +215,17 @@ export function playerProfileView(
 		profile,
 		votesMissing: !votes,
 	};
+}
+
+export function diffChartsOf(profile: TagProfileView | null): DiffChart[] {
+	return profile && !profile.insufficient && profile.basis !== "aps"
+		? profile.charts.map(({ id, song, rank, c, acc, diff }) => ({
+				id,
+				song,
+				rank,
+				c,
+				acc,
+				diff,
+			}))
+		: [];
 }

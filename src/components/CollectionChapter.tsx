@@ -21,6 +21,7 @@ import { FilesLink } from "./FilesLink";
 import { TextGroups } from "./GameTexts";
 import { LangSwitch } from "./LangSwitch";
 import { RichText } from "./RichText";
+import { CollectionUnlocks, UnlockMark } from "./Unlocks";
 
 type ViewEntry = {
 	sub: number;
@@ -219,6 +220,7 @@ export function CollectionChapter({
 	lang,
 	siteLang,
 	t,
+	unlocks,
 }: {
 	chapters: ViewChapter[];
 	current: ViewChapter;
@@ -230,6 +232,7 @@ export function CollectionChapter({
 	lang: CollectionLang;
 	siteLang: CollectionLang;
 	t: Messages["collection"];
+	unlocks: Messages["unlocks"];
 }) {
 	const picked = lang === siteLang ? undefined : lang;
 	const at = chapters.findIndex((c) => c.id === current.id);
@@ -256,6 +259,15 @@ export function CollectionChapter({
 				currentId={current.id}
 				lang={picked}
 				t={t}
+				unlocks={unlocks}
+			/>
+			<CollectionUnlocks
+				items={items.flatMap((item) =>
+					item.entries.length
+						? [{ key: item.key, entries: item.entries.length }]
+						: [],
+				)}
+				t={unlocks}
 			/>
 			<FilesSwap>
 				<CollectionToc label={t.onThisPage} variant="popover" />
@@ -275,6 +287,11 @@ export function CollectionChapter({
 											</span>
 										</a>
 									</h2>
+									<UnlockMark
+										itemKey={item.key}
+										entries={item.entries.length}
+										t={unlocks}
+									/>
 									<FirstEntry entry={first} eager={first.art === lead} t={t} />
 									{clues.length ? (
 										<div className="coll-clues">

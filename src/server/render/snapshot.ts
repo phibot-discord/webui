@@ -4,6 +4,9 @@ import { clipEm, textEm } from "@/phi/lib/text-fit";
 export const SNAP_PROGRESS = "snap/progress";
 export const SNAP_TARGETS = "snap/targets";
 export const SNAP_WRAPPED = "snap/wrapped";
+export const SNAP_TYPE = "snap/type";
+export const SNAP_SUITS = "snap/suits";
+export const SNAP_ACHIEVEMENTS = "snap/achievements";
 export const SNAP_W = 1200;
 
 const LEVEL_COLOR: Record<string, string> = {
@@ -254,6 +257,256 @@ export function wrappedSnapHtml(d: WrappedSnap): string {
 	return page(
 		WRAPPED_CSS,
 		`${head({ ...d, player: clipped(d.player, 24) })}<div class="range">${escapeHtml(d.range)}</div>${body}<div class="note">${escapeHtml(d.note)}</div>${foot(d)}`,
+		d.lang,
+	);
+}
+
+const HEAD_FIT = `.who { height: 38px; line-height: 38px; }`;
+const FIT_SLACK = 4;
+
+export type TypeSnap = SnapHead & {
+	range: string;
+	letters: { letter: string; pole: string }[];
+	drive?: { letter: string; pole: string };
+	name: string;
+	groups: { label: string; name: string; line: string }[];
+	axes: { letter: string; label: string; trait: string; fact: string }[];
+	note: string;
+};
+
+const TY_CODE_H = 250;
+const TY_AXIS_H = 92;
+
+const TYPE_CSS = `${HEAD_FIT}
+.range { margin-top: 10px; height: 28px; font-size: 20px; color: #8790ab; white-space: nowrap; overflow: hidden; }
+.ty-code { display: flex; justify-content: center; align-items: center; height: ${TY_CODE_H}px; margin-top: 36px; }
+.ty-l { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 200px; height: ${TY_CODE_H}px; border-radius: 18px; background: #f4f6fc; color: #0b0d14; }
+.ty-gap { margin-left: 16px; }
+.ty-glyph { display: flex; align-items: center; justify-content: center; height: 160px; font-family: Aldrich, NotoSansSC, sans-serif; font-size: 150px; font-weight: 700; line-height: 1; }
+.ty-pole { display: flex; justify-content: center; width: 176px; height: 32px; margin-top: 10px; font-size: 22px; font-weight: 700; color: #4a505d; white-space: nowrap; overflow: hidden; }
+.ty-dash { width: 22px; height: 8px; margin: 0 16px; border-radius: 4px; background: #8790ab; }
+.ty-s { width: 140px; height: 180px; background: #8be3ff; }
+.ty-glyph-s { height: 112px; font-size: 104px; }
+.ty-pole-s { width: 124px; height: 26px; margin-top: 6px; font-size: 18px; }
+.ty-name { display: flex; justify-content: center; height: 74px; margin-top: 34px; font-size: 64px; font-weight: 700; line-height: 1.15; white-space: nowrap; overflow: hidden; }
+.ty-groups { display: flex; justify-content: space-between; margin-top: 30px; }
+.ty-group { display: flex; flex-direction: column; justify-content: center; width: 534px; height: 124px; padding: 0 28px; border: 1px solid #262c45; border-radius: 12px; background: #141a31; }
+.ty-group-label { font-size: 18px; font-weight: 700; color: #8790ab; white-space: nowrap; overflow: hidden; }
+.ty-group-name { margin-top: 2px; font-size: 30px; font-weight: 700; line-height: 1.3; white-space: nowrap; overflow: hidden; }
+.ty-group-line { margin-top: 2px; font-size: 19px; color: #c3cadf; white-space: nowrap; overflow: hidden; }
+.ty-axes { display: flex; flex-direction: column; margin-top: 24px; border-top: 1px solid #262c45; }
+.ty-axis { display: flex; align-items: center; height: ${TY_AXIS_H}px; border-bottom: 1px solid #1d2238; }
+.ty-chip { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; margin-right: 22px; border-radius: 10px; background: #1b2240; color: #8be3ff; font-family: Aldrich, NotoSansSC, sans-serif; font-size: 32px; font-weight: 700; }
+.ty-axis-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.ty-axis-label { font-size: 16px; font-weight: 700; line-height: 1.3; color: #8790ab; white-space: nowrap; overflow: hidden; }
+.ty-trait { margin-top: 2px; font-size: 22px; line-height: 1.3; color: #f4f6fc; white-space: nowrap; overflow: hidden; }
+.ty-fact { margin-top: 2px; font-size: 17px; line-height: 1.3; color: #aab2cc; white-space: nowrap; overflow: hidden; }
+.ty-note { height: 26px; margin-top: 20px; font-size: 17px; color: #8790ab; white-space: nowrap; overflow: hidden; }
+`;
+
+export function typeSnapHeight(d: Pick<TypeSnap, "axes">): number {
+	return (
+		PAD +
+		HEAD_H +
+		FIT_SLACK +
+		38 +
+		36 +
+		TY_CODE_H +
+		34 +
+		74 +
+		30 +
+		124 +
+		24 +
+		1 +
+		d.axes.length * TY_AXIS_H +
+		20 +
+		26 +
+		28 +
+		FOOT_H
+	);
+}
+
+export function typeSnapHtml(d: TypeSnap): string {
+	const letters = d.letters
+		.map(
+			(l, i) =>
+				`<div class="ty-l${i ? " ty-gap" : ""}"><div class="ty-glyph">${escapeHtml(l.letter)}</div><div class="ty-pole">${escapeHtml(clipped(l.pole, 7.8))}</div></div>`,
+		)
+		.join("");
+	const drive = d.drive
+		? `<div class="ty-dash"></div><div class="ty-l ty-s"><div class="ty-glyph ty-glyph-s">${escapeHtml(d.drive.letter)}</div><div class="ty-pole ty-pole-s">${escapeHtml(clipped(d.drive.pole, 6.6))}</div></div>`
+		: "";
+	const groups = d.groups
+		.map(
+			(g) =>
+				`<div class="ty-group"><div class="ty-group-label">${escapeHtml(clipped(g.label, 26))}</div><div class="ty-group-name">${escapeHtml(clipped(g.name, 15.5))}</div><div class="ty-group-line">${escapeHtml(clipped(g.line, 24.5))}</div></div>`,
+		)
+		.join("");
+	const axes = d.axes
+		.map(
+			(a) =>
+				`<div class="ty-axis"><div class="ty-chip">${escapeHtml(a.letter)}</div><div class="ty-axis-text"><div class="ty-axis-label">${escapeHtml(clipped(a.label, 60))}</div><div class="ty-trait">${escapeHtml(clipped(a.trait, 45))}</div><div class="ty-fact">${escapeHtml(clipped(a.fact, 58))}</div></div></div>`,
+		)
+		.join("");
+	return page(
+		TYPE_CSS,
+		`${head({ ...d, player: clipped(d.player, 24) })}<div class="range">${escapeHtml(clipped(d.range, 53))}</div><div class="ty-code">${letters}${drive}</div><div class="ty-name">${escapeHtml(clipped(d.name, 16.5))}</div><div class="ty-groups">${groups}</div><div class="ty-axes">${axes}</div><div class="ty-note">${escapeHtml(clipped(d.note, 62))}</div><div style="height:28px"></div>${foot(d)}`,
+		d.lang,
+	);
+}
+
+export type SuitsTile = {
+	title: string;
+	rank: string;
+	c: string;
+	acc: string;
+	jacket?: string;
+};
+
+export type SuitsSnap = SnapHead & {
+	level: number;
+	count: string;
+	tiers: { tier: string; label: string; tiles: SuitsTile[] }[];
+	none: string;
+};
+
+export const SUITS_PER_LINE = 6;
+const SUITS_TILE_H = 116;
+const SUITS_LINE_GAP = 12;
+const SUITS_EMPTY_H = 52;
+const SUITS_ROW_PAD = 14;
+const SUITS_ROW_GAP = 14;
+
+const TIER_COLOR: Record<string, string> = {
+	great: "#8be3ff",
+	good: "#5fb3d9",
+	even: "#aab2cc",
+	hard: "#e08a7e",
+	wall: "#ef5a4c",
+};
+
+const SUITS_CSS = `${HEAD_FIT}
+.count { margin-top: 10px; height: 28px; font-size: 20px; color: #8790ab; white-space: nowrap; overflow: hidden; }
+.dt { display: flex; flex-direction: column; margin-top: 28px; }
+.dt-row { display: flex; margin-bottom: ${SUITS_ROW_GAP}px; border: 1px solid #262c45; border-radius: 12px; background: #141a31; overflow: hidden; }
+.dt-bar { width: 6px; }
+.dt-label { display: flex; flex-direction: column; width: 172px; padding: ${SUITS_ROW_PAD}px 12px 0 18px; }
+.dt-name { font-size: 19px; font-weight: 700; line-height: 1.3; overflow: hidden; }
+.dt-lines { display: flex; flex-direction: column; padding-top: ${SUITS_ROW_PAD}px; }
+.dt-line { display: flex; height: ${SUITS_TILE_H}px; }
+.dt-line-gap { margin-top: ${SUITS_LINE_GAP}px; }
+.dt-tile { display: flex; flex-direction: column; width: 138px; height: ${SUITS_TILE_H}px; }
+.dt-tile-gap { margin-left: 12px; }
+.dt-jacket { width: 138px; height: 73px; border-radius: 6px; object-fit: cover; background: #1b2036; }
+.dt-title { height: 19px; margin-top: 6px; font-size: 14px; line-height: 19px; font-weight: 700; color: #f4f6fc; white-space: nowrap; overflow: hidden; }
+.dt-meta { display: flex; justify-content: space-between; align-items: center; height: 17px; margin-top: 1px; font-size: 12px; line-height: 17px; color: #aab2cc; white-space: nowrap; overflow: hidden; }
+.dt-c { display: flex; align-items: center; }
+.dt-rank { display: flex; align-items: center; height: 15px; margin-right: 5px; padding: 0 4px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #ffffff; }
+.dt-none { display: flex; height: ${SUITS_EMPTY_H}px; font-size: 19px; line-height: 1.3; color: #6c7493; }
+`;
+
+function suitsRowHeight(tiles: number): number {
+	const lines = Math.ceil(tiles / SUITS_PER_LINE);
+	const inner = lines
+		? lines * SUITS_TILE_H + (lines - 1) * SUITS_LINE_GAP
+		: SUITS_EMPTY_H;
+	return inner + 2 * SUITS_ROW_PAD + 2;
+}
+
+export function suitsSnapHeight(d: Pick<SuitsSnap, "tiers">): number {
+	const rows = d.tiers.reduce(
+		(sum, tier) => sum + suitsRowHeight(tier.tiles.length) + SUITS_ROW_GAP,
+		0,
+	);
+	return PAD + HEAD_H + FIT_SLACK + 38 + 28 + rows + 10 + FOOT_H;
+}
+
+function suitsTile(t: SuitsTile, gap: boolean): string {
+	const jacket = t.jacket
+		? `<img class="dt-jacket" src="${escapeHtml(t.jacket)}" alt="">`
+		: `<div class="dt-jacket"></div>`;
+	return `<div class="dt-tile${gap ? " dt-tile-gap" : ""}">${jacket}<div class="dt-title">${escapeHtml(clipped(t.title, 9.6))}</div><div class="dt-meta"><span class="dt-c"><span class="dt-rank" style="background:${LEVEL_COLOR[t.rank] ?? "#4a505d"}">${escapeHtml(t.rank)}</span>${escapeHtml(t.c)}</span><span>${escapeHtml(t.acc)}</span></div></div>`;
+}
+
+export function suitsSnapHtml(d: SuitsSnap): string {
+	const rows = d.tiers
+		.map((tier) => {
+			const color = TIER_COLOR[tier.tier] ?? "#aab2cc";
+			const lines: string[] = [];
+			for (let i = 0; i < tier.tiles.length; i += SUITS_PER_LINE) {
+				const line = tier.tiles
+					.slice(i, i + SUITS_PER_LINE)
+					.map((t, j) => suitsTile(t, j > 0))
+					.join("");
+				lines.push(
+					`<div class="dt-line${i ? " dt-line-gap" : ""}">${line}</div>`,
+				);
+			}
+			const body = lines.length
+				? lines.join("")
+				: `<div class="dt-none">${escapeHtml(d.none)}</div>`;
+			return `<div class="dt-row" style="height:${suitsRowHeight(tier.tiles.length)}px"><div class="dt-bar" style="background:${color}"></div><div class="dt-label"><div class="dt-name" style="color:${color}">${escapeHtml(tier.label)}</div></div><div class="dt-lines">${body}</div></div>`;
+		})
+		.join("");
+	return page(
+		SUITS_CSS,
+		`${head({ ...d, player: clipped(d.player, 24) })}<div class="count">${escapeHtml(d.count)}</div><div class="dt">${rows}</div><div style="height:10px"></div>${foot(d)}`,
+		d.lang,
+	);
+}
+
+export type AchievementsSnap = SnapHead & {
+	items: {
+		name: string;
+		line: string;
+		state: string;
+		steps: string;
+		share: number;
+		complete: boolean;
+	}[];
+};
+
+const AB_H = 132;
+const AB_GAP = 14;
+
+const ACHIEVEMENTS_CSS = `${HEAD_FIT}
+.ab { display: flex; flex-direction: column; margin-top: 28px; }
+.ab-row { display: flex; justify-content: space-between; height: ${AB_H}px; margin-bottom: ${AB_GAP}px; }
+.ab-card { display: flex; flex-direction: column; width: 534px; height: ${AB_H}px; padding: 16px 24px 0; border: 1px solid #262c45; border-radius: 12px; background: #141a31; }
+.ab-done { border-color: #4fc3f7; }
+.ab-blank { width: 534px; }
+.ab-top { display: flex; justify-content: space-between; align-items: center; height: 28px; }
+.ab-name { font-size: 21px; font-weight: 700; white-space: nowrap; overflow: hidden; }
+.ab-steps { font-size: 15px; color: #8790ab; white-space: nowrap; overflow: hidden; }
+.ab-line { height: 21px; font-size: 15px; line-height: 21px; color: #8790ab; white-space: nowrap; overflow: hidden; }
+.ab-state { height: 27px; margin-top: 6px; font-size: 19px; line-height: 27px; color: #f4f6fc; white-space: nowrap; overflow: hidden; }
+.ab-track { display: flex; height: 8px; margin-top: 10px; border-radius: 4px; background: #262c45; overflow: hidden; }
+.ab-fill { height: 8px; border-radius: 4px; background: #4fc3f7; }
+`;
+
+export function achievementsSnapHeight(
+	d: Pick<AchievementsSnap, "items">,
+): number {
+	const rows = Math.ceil(d.items.length / 2);
+	return PAD + HEAD_H + FIT_SLACK + 28 + rows * (AB_H + AB_GAP) + 8 + FOOT_H;
+}
+
+function achievementCard(item: AchievementsSnap["items"][number]): string {
+	const pct = Math.round(Math.min(1, Math.max(0, item.share)) * 1000) / 10;
+	return `<div class="ab-card${item.complete ? " ab-done" : ""}"><div class="ab-top"><span class="ab-name">${escapeHtml(clipped(item.name, 15.5))}</span><span class="ab-steps">${escapeHtml(clipped(item.steps, 9))}</span></div><div class="ab-line">${escapeHtml(clipped(item.line, 31.5))}</div><div class="ab-state">${escapeHtml(clipped(item.state, 25))}</div><div class="ab-track"><div class="ab-fill" style="width:${pct}%"></div></div></div>`;
+}
+
+export function achievementsSnapHtml(d: AchievementsSnap): string {
+	const rows: string[] = [];
+	for (let i = 0; i < d.items.length; i += 2) {
+		const [left, right] = [d.items[i], d.items[i + 1]];
+		rows.push(
+			`<div class="ab-row">${left ? achievementCard(left) : ""}${right ? achievementCard(right) : `<div class="ab-blank"></div>`}</div>`,
+		);
+	}
+	return page(
+		ACHIEVEMENTS_CSS,
+		`${head({ ...d, player: clipped(d.player, 24) })}<div class="ab">${rows.join("")}</div><div style="height:8px"></div>${foot(d)}`,
 		d.lang,
 	);
 }

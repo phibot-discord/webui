@@ -135,6 +135,26 @@ export type FilesMessages = {
 			{ name: string; lede: string }
 		>;
 	};
+	unlocks: {
+		total: string;
+		unread: string;
+		unreadOne: string;
+		onlyLocked: string;
+		chapterDone: string;
+		chapter: string;
+		itemLocked: string;
+		itemUnlocked: string;
+		itemEntries: string;
+		itemUnread: string;
+		avatars: string;
+		onlyMissing: string;
+		avatarsDone: string;
+		owned: string;
+		refresh: string;
+		refreshLink: string;
+		manual: string;
+		unreadable: string;
+	};
 	deduction: {
 		player: string;
 		stageHint: string;
@@ -438,6 +458,28 @@ export const filesEn: FilesMessages = {
 				lede: "The credits that scroll in Settings › About us.",
 			},
 		},
+	},
+	unlocks: {
+		total: "{n} of {total} items unlocked",
+		unread: "{n} entries unread",
+		unreadOne: "1 entry unread",
+		onlyLocked: "Only what's still locked",
+		chapterDone: "Everything in this chapter is unlocked.",
+		chapter: "{n} of {total} unlocked",
+		itemLocked: "Not unlocked",
+		itemUnlocked: "Unlocked",
+		itemEntries: "{n} of {total} entries unlocked",
+		itemUnread: "{n} unread",
+		avatars: "You have {n} of {total} avatars",
+		onlyMissing: "Only the ones you don't have",
+		avatarsDone: "You have every avatar.",
+		owned: "You have it",
+		refresh: "Refresh your save once to see what you have unlocked here.",
+		refreshLink: "Go to Your cards",
+		manual:
+			"Scores typed in by hand don't say what you have unlocked, so nothing is marked here.",
+		unreadable:
+			"The unlock data in your save couldn't be read, so nothing is marked here.",
 	},
 	deduction: {
 		player: "Deduction replay",
@@ -768,6 +810,26 @@ export const filesZh: FilesMessages = {
 				lede: "设置 › 关于我们 中滚动显示的制作人员名单。",
 			},
 		},
+	},
+	unlocks: {
+		total: "已解锁 {n} / {total} 件",
+		unread: "{n} 条未读",
+		unreadOne: "1 条未读",
+		onlyLocked: "只看未解锁的",
+		chapterDone: "本章的收藏品已全部解锁。",
+		chapter: "已解锁 {n} / {total}",
+		itemLocked: "未解锁",
+		itemUnlocked: "已解锁",
+		itemEntries: "已解锁 {n} / {total} 条",
+		itemUnread: "{n} 条未读",
+		avatars: "已获得 {n} / {total} 个头像",
+		onlyMissing: "只看未获得的",
+		avatarsDone: "你已获得全部头像。",
+		owned: "已获得",
+		refresh: "刷新一次存档后，这里会显示你的解锁情况。",
+		refreshLink: "前往「你的成绩」",
+		manual: "手动录入的成绩不包含解锁情况，因此这里不作标记。",
+		unreadable: "无法读取存档中的解锁数据，因此这里不作标记。",
 	},
 	deduction: {
 		player: "推演回放",

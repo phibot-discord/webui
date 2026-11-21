@@ -1,3 +1,4 @@
+import { parseUnlocks } from "@/lib/unlocks";
 import { runInBackground } from "@/server/background";
 import { logger, withDiscordUid } from "@/server/logger";
 import type { Kv } from "@/server/sdk";
@@ -272,6 +273,23 @@ function quiet<T>(job: Promise<T>): Promise<T> {
 	return job;
 }
 
+async function withUnlocks(
+	user: { buildRecord(): Promise<unknown>; unlocks?: unknown },
+	raw: string,
+): Promise<string | undefined> {
+	logger.info("save has no unlock data yet, downloading it once");
+	try {
+		await user.buildRecord();
+	} catch (err) {
+		logger.warn(
+			`unlock data not filled in: ${err instanceof Error ? err.message : err}`,
+		);
+		return undefined;
+	}
+	if (!parseUnlocks(user.unlocks)) return undefined;
+	return JSON.stringify({ ...JSON.parse(raw), unlocks: user.unlocks });
+}
+
 async function updateSaveFor(
 	rt: PhiRuntime,
 	db: Kv,
@@ -341,12 +359,38 @@ async function updateSaveFor(
 		forgetBound(userId, existing);
 		dropSave(rt, existing);
 	};
+	const stillBound = () =>
+		opts.token
+			? Promise.resolve(true)
+			: rt.store.getSessionToken(userId).then(
+					(raw) => asSessionToken(raw) === token,
+					() => true,
+				);
 	if (cached?.gameRecord && rev && rev === saveRev(cached.saveInfo)) {
 		logger.info(`save cache hit ${rev}${hop}${memHit ? " (mem)" : ""}`);
-		const save = new rt.Save(cached);
+		const filled =
+			cachedRaw && !parseUnlocks(cached.unlocks)
+				? await withUnlocks(user, cachedRaw)
+				: undefined;
+		const save = new rt.Save(filled ? JSON.parse(filled) : cached);
 		if (opts.token) await snapshotB30(db, userId, save);
+		const gone = filled ? unbound() || !(await stillBound()) : false;
+		const stored =
+			filled && !gone
+				? await db.set(SAVE(token), filled).then(
+						() => true,
+						(err: unknown) => {
+							logger.warn(
+								`unlock data not stored: ${err instanceof Error ? err.message : err}`,
+							);
+							return false;
+						},
+					)
+				: false;
 		await writeToken();
-		if (cachedRaw)
+		if (gone) blobMem.delete(token);
+		else if (filled && stored) remember(filled, true);
+		else if (cachedRaw)
 			remember(cachedRaw, Boolean(opts.token), memHit ? hot?.kvAt : undefined);
 		return save;
 	}
@@ -358,12 +402,7 @@ async function updateSaveFor(
 	);
 	await user.buildRecord();
 	// Re-read the binding before writing the blob back, or the token outlives an unbind during the download
-	const boundJob = opts.token
-		? Promise.resolve(true)
-		: rt.store.getSessionToken(userId).then(
-				(raw) => asSessionToken(raw) === token,
-				() => true,
-			);
+	const boundJob = stillBound();
 	const orphaned = async () => unbound() || !(await boundJob);
 	const payload = JSON.stringify({
 		session: user.session,
@@ -375,6 +414,7 @@ async function updateSaveFor(
 		gameuser: user.gameuser,
 		gamesettings: user.gamesettings,
 		Recordver: user.Recordver,
+		unlocks: user.unlocks,
 	});
 	const save = new rt.Save(user as unknown as SavePayload);
 	await Promise.all([

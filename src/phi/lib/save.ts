@@ -123,6 +123,7 @@ export type SavePayload = {
 			{ fc?: boolean | number; score?: number; acc?: number } | null | undefined
 		>
 	>;
+	unlocks?: unknown;
 };
 
 export class Save {
@@ -137,6 +138,7 @@ export class Save {
 	gameRecord: Record<string, (LevelRecordInfo | null)[]> = {};
 	sortedRecord?: LevelRecordInfo[];
 	declare moneyUnread?: true;
+	declare unlocks?: unknown;
 
 	constructor(data: SavePayload, ignore = false) {
 		this.session = data.session;
@@ -148,6 +150,7 @@ export class Save {
 			this.saveInfo.modifiedAt.iso = new Date(this.saveInfo.modifiedAt.iso);
 		}
 		this.Recordver = data.Recordver;
+		if (data.unlocks !== undefined) this.unlocks = data.unlocks;
 		this.gameProgress = data.gameProgress
 			? { money: [0, 0, 0, 0, 0], ...data.gameProgress }
 			: { money: [0, 0, 0, 0, 0] };

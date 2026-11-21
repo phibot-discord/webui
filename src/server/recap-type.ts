@@ -1,7 +1,9 @@
 import { type Pgti, pgtiOf } from "@/lib/pgti";
+import { pgtiWindow } from "@/lib/pgti-window";
 import { type WrappedTimeline, yearRange } from "@/lib/wrapped";
+import type { Save } from "@/phi/lib/save";
 import type { SaveHistory } from "@/phi/lib/save-history";
-import type { ChartSummary } from "./charts";
+import { type ChartSummary, chartCell } from "./charts";
 
 export function catalogConstants(list: readonly ChartSummary[]): number[] {
 	const constants: number[] = [];
@@ -34,4 +36,32 @@ export function recapPgti(input: {
 			end: timeline.rks.at(-1)?.value ?? null,
 		},
 	});
+}
+
+export type RollingOpts = {
+	constantOf?: (id: string, rank: string) => number | undefined;
+	now?: number;
+};
+
+export function rollingPgti(
+	save: Save,
+	history: Pick<SaveHistory, "rks" | "scoreHistory">,
+	list: readonly ChartSummary[],
+	opts: RollingOpts = {},
+): { pgti: Pgti; first: string; last: string } | null {
+	const clock = opts.now ?? Date.now();
+	const modified = new Date(
+		save.saveInfo.modifiedAt?.iso ?? Number.NaN,
+	).getTime();
+	const now = Number.isFinite(modified) ? Math.max(modified, clock) : clock;
+	const period = pgtiWindow(history.scoreHistory, history.rks, now);
+	if (!period) return null;
+	const pgti = pgtiOf({
+		history: history.scoreHistory,
+		constantOf: opts.constantOf ?? ((id, rank) => chartCell(id, rank)?.[0]),
+		constants: catalogConstants(list),
+		until: now,
+		...period,
+	});
+	return pgti ? { pgti, first: period.first, last: period.last } : null;
 }

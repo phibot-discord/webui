@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ChartJukebox, type JukeEntry } from "@/components/ChartJukebox";
 import Link from "@/components/LocaleLink";
 import { useI18n } from "@/i18n/provider";
-import { practiceKey } from "@/lib/practice-list";
+import { practiceKey, practiceQueue } from "@/lib/practice-list";
 import { songPath } from "@/lib/song-path";
 import { fill, signed } from "@/phi/lib/card-i18n";
 import type { PracticeView } from "@/server/save-views";
@@ -15,6 +16,20 @@ export function PracticeList({ view }: { view: PracticeView }) {
 	const router = useRouter();
 	const [busy, setBusy] = useState<string | null>(null);
 	const [failed, setFailed] = useState(false);
+	const [juke, setJuke] = useState<{ id: number; queue: JukeEntry[] } | null>(
+		null,
+	);
+	const empty = view.rows.length === 0;
+
+	useEffect(() => {
+		if (empty) setJuke(null);
+	}, [empty]);
+
+	const playThese = () => {
+		const queue = practiceQueue(view.rows);
+		if (!queue.length) return;
+		setJuke((prev) => ({ id: (prev?.id ?? 0) + 1, queue }));
+	};
 
 	async function remove(id: string, rank: string) {
 		setBusy(practiceKey(id, rank));
@@ -40,9 +55,21 @@ export function PracticeList({ view }: { view: PracticeView }) {
 			<p className="lede">{t.lede}</p>
 			{view.rows.length ? (
 				<>
-					<p className="field-hint">
-						{fill(t.count, { n: view.rows.length, max: view.max })}
-					</p>
+					<div className="cb-count">
+						<p className="field-hint">
+							{fill(t.count, { n: view.rows.length, max: view.max })}
+						</p>
+						<button type="button" className="btn btn-ghost" onClick={playThese}>
+							{m.charts.jukePlay}
+						</button>
+					</div>
+					{juke ? (
+						<ChartJukebox
+							key={juke.id}
+							queue={juke.queue}
+							onClose={() => setJuke(null)}
+						/>
+					) : null}
 					<div className="data-scroll prac-scroll">
 						<table className="data-table prac-table">
 							<thead>

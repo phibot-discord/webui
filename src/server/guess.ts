@@ -119,8 +119,15 @@ export function clueUrl(puzzle: string, step: number): string {
 }
 
 let poolMemo: { list: readonly ChartSummary[]; songs: GuessSong[] } | undefined;
+let poolOverride: GuessSong[] | undefined;
 
-async function guessPool(): Promise<GuessSong[]> {
+export function setGuessPoolForTest(songs?: GuessSong[]) {
+	if (process.env.PHI_TEST_SEAMS !== "1") return;
+	poolOverride = songs;
+}
+
+export async function guessPool(): Promise<GuessSong[]> {
+	if (poolOverride) return poolOverride;
 	const { list } = await chartCatalog();
 	if (poolMemo?.list !== list) poolMemo = { list, songs: poolOf(list) };
 	return poolMemo.songs;

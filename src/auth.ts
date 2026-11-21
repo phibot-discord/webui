@@ -93,3 +93,15 @@ export async function sessionUserId(): Promise<string | null> {
 	const id = session?.user?.id;
 	return id || null;
 }
+
+export async function sessionUser(): Promise<{
+	id: string;
+	name: string;
+} | null> {
+	if (sessionOverride !== undefined) {
+		return sessionOverride ? { id: sessionOverride, name: "" } : null;
+	}
+	const session = await auth();
+	const id = session?.user?.id;
+	return id ? { id, name: session?.user?.name ?? "" } : null;
+}

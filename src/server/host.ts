@@ -12,14 +12,23 @@ import {
 } from "./render/og-page";
 import type { PaintQuality } from "./render/paint-budget";
 import {
+	type AchievementsSnap,
+	achievementsSnapHtml,
 	type ProgressSnap,
 	progressSnapHtml,
+	SNAP_ACHIEVEMENTS,
 	SNAP_PROGRESS,
+	SNAP_SUITS,
 	SNAP_TARGETS,
+	SNAP_TYPE,
 	SNAP_W,
 	SNAP_WRAPPED,
+	type SuitsSnap,
+	suitsSnapHtml,
 	type TargetsSnap,
+	type TypeSnap,
 	targetsSnapHtml,
+	typeSnapHtml,
 	type WrappedSnap,
 	wrappedSnapHtml,
 } from "./render/snapshot";
@@ -164,6 +173,30 @@ async function bootRender(): Promise<WebHost> {
 			width: SNAP_W,
 			format: "png",
 			html: (raw) => wrappedSnapHtml(raw as WrappedSnap),
+		}),
+	);
+	app.template(
+		defineTemplate({
+			id: SNAP_TYPE,
+			width: SNAP_W,
+			format: "png",
+			html: (raw) => typeSnapHtml(raw as TypeSnap),
+		}),
+	);
+	app.template(
+		defineTemplate({
+			id: SNAP_SUITS,
+			width: SNAP_W,
+			format: "png",
+			html: (raw) => suitsSnapHtml(raw as SuitsSnap),
+		}),
+	);
+	app.template(
+		defineTemplate({
+			id: SNAP_ACHIEVEMENTS,
+			width: SNAP_W,
+			format: "png",
+			html: (raw) => achievementsSnapHtml(raw as AchievementsSnap),
 		}),
 	);
 

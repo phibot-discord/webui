@@ -84,6 +84,7 @@ export const nonCardRoutes = [
 	"/api/practice-list",
 	"/api/preview-source",
 	"/api/refresh",
+	"/api/search",
 	"/api/share",
 	"/api/session",
 	"/api/sim",

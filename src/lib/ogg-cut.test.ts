@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { oggCut, oggRate } from "./ogg-cut";
+import { oggCrc, oggCut, oggRate, oggReserial, oggSerial } from "./ogg-cut";
 
 function page(granule: number, payload: Uint8Array): Uint8Array {
 	const lacing: number[] = [];
@@ -190,4 +190,110 @@ test("a page with a broken header ends the reading at the last whole page", () =
 		end: sizes(head, a),
 		reached: false,
 	});
+});
+
+const REAL_FIRST_PAGE =
+	"4f67675300020000000000000000e3bb76190000000051b81694011e01766f72626973000000000244ac0000000000000000000000000000bb01";
+
+function hex(text: string): Uint8Array {
+	return Uint8Array.from(text.match(/../g) ?? [], (h) =>
+		Number.parseInt(h, 16),
+	);
+}
+
+const u32 = (bytes: Uint8Array, at: number) =>
+	new DataView(bytes.buffer, bytes.byteOffset).getUint32(at, true);
+
+function sealed(bytes: Uint8Array, serial: number): Uint8Array {
+	const out = bytes.slice();
+	const view = new DataView(out.buffer);
+	view.setUint32(14, serial, true);
+	view.setUint32(22, 0, true);
+	view.setUint32(22, oggCrc(out), true);
+	return out;
+}
+
+function starts(bytes: Uint8Array): number[] {
+	const out: number[] = [];
+	let at = 0;
+	while (at + 27 <= bytes.length) {
+		out.push(at);
+		const segments = bytes[at + 26] ?? 0;
+		let body = 0;
+		for (let i = 0; i < segments; i++) body += bytes[at + 27 + i] ?? 0;
+		at += 27 + segments + body;
+	}
+	return out;
+}
+
+function checksumOk(bytes: Uint8Array, from: number, to: number): boolean {
+	const copy = bytes.slice(from, to);
+	const stored = u32(copy, 22);
+	new DataView(copy.buffer).setUint32(22, 0, true);
+	return oggCrc(copy) === stored;
+}
+
+test("the checksum is the Ogg CRC-32 and matches a page written by an encoder", () => {
+	assert.equal(oggCrc(new TextEncoder().encode("123456789")), 0x89a1897f);
+	assert.equal(oggCrc(new Uint8Array(0)), 0);
+	const real = hex(REAL_FIRST_PAGE);
+	assert.equal(real.length, 58);
+	assert.equal(u32(real, 22), 0x9416b851);
+	assert.ok(checksumOk(real, 0, real.length));
+	assert.equal(oggSerial(real), 0x1976bbe3);
+});
+
+test("a new serial keeps every page readable, its payload as it was and its checksum right", () => {
+	const SOURCE = 0x0a0b0c0d;
+	const source = join(
+		sealed(page(0, vorbisHead()), SOURCE),
+		sealed(page(0, filler(20)), SOURCE),
+		sealed(page(22_050, filler(600)), SOURCE),
+		sealed(page(44_100, filler(100)), SOURCE),
+		sealed(page(66_150, filler(100)), SOURCE),
+	);
+	const before = source.slice();
+	const out = oggReserial(source, 0x1234abcd);
+	assert.ok(out);
+	assert.deepEqual(source, before);
+	assert.equal(out.length, source.length);
+	assert.equal(oggSerial(source), SOURCE);
+	assert.equal(oggSerial(out), 0x1234abcd);
+	assert.equal(oggRate(out), 44_100);
+	assert.deepEqual(oggCut(out, 1), oggCut(source, 1));
+	const at = starts(out);
+	assert.deepEqual(at, starts(source));
+	assert.equal(at.length, 5);
+	const header = new Set<number>();
+	at.forEach((from, i) => {
+		const to = at[i + 1] ?? out.length;
+		assert.equal(u32(out, from + 14), 0x1234abcd);
+		assert.ok(checksumOk(source, from, to));
+		assert.ok(checksumOk(out, from, to));
+		for (const k of [14, 15, 16, 17, 22, 23, 24, 25]) header.add(from + k);
+	});
+	const changed = [...out.keys()].filter((i) => out[i] !== source[i]);
+	assert.ok(changed.length > 0);
+	assert.ok(changed.every((i) => header.has(i)));
+});
+
+test("two streams in one file keep two different serials", () => {
+	const bytes = join(
+		sealed(page(0, vorbisHead()), 7),
+		sealed(page(0, opusHead()), 9),
+		sealed(page(44_100, filler(30)), 7),
+	);
+	const out = oggReserial(bytes, 100);
+	assert.ok(out);
+	const [a = 0, b = 0, c = 0] = starts(out);
+	assert.equal(u32(out, a + 14), 100);
+	assert.equal(u32(out, c + 14), 100);
+	assert.notEqual(u32(out, b + 14), 100);
+});
+
+test("bytes that are not Ogg get no serial", () => {
+	const text = new TextEncoder().encode("this is not an ogg stream at all, ok");
+	assert.equal(oggSerial(text), undefined);
+	assert.equal(oggReserial(text, 5), undefined);
+	assert.equal(oggReserial(new Uint8Array(0), 5), undefined);
 });

@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { ChallengePicks } from "@/components/ChallengePicks";
 import { Desk } from "@/components/Desk";
 import { FormTargets } from "@/components/FormTargets";
+import { NearMisses } from "@/components/NearMisses";
 import { PracticeList } from "@/components/PracticeList";
 import { SnapshotLinks } from "@/components/SnapshotLinks";
 import { TargetSuggestions } from "@/components/TargetSuggestions";
@@ -20,8 +21,10 @@ import { getPracticeList } from "@/server/practice-list";
 import {
 	challengeView,
 	formTargetsView,
+	nearMissesView,
 	practiceView,
 	suggestionsView,
+	targetSetOf,
 	targetsView,
 } from "@/server/save-views";
 import { similarIndex } from "@/server/similar";
@@ -47,14 +50,16 @@ export default async function TargetsPage() {
 		]);
 		if ("gate" in loaded) return loaded.gate;
 		const { save } = loaded.bound;
+		const set = targetSetOf(save, catalog.list);
 		return (
 			<Desk {...loaded.desk}>
 				<PracticeList view={practiceView(save, kept, catalog.list)} />
 				<TargetsList
-					view={targetsView(save, catalog.list)}
+					view={targetsView(save, catalog.list, set)}
 					kept={kept.map((k) => practiceKey(k.id, k.rank))}
 				/>
 				<SnapshotLinks view="targets" />
+				<NearMisses view={nearMissesView(save, catalog.list, set)} />
 				{votes ? (
 					<FormTargets {...formTargetsView(save, catalog.list, votes)} />
 				) : null}

@@ -38,6 +38,7 @@ export default async function ProgressPage() {
 				<Achievements
 					items={achievementsView(loaded.bound.save, catalog.list)}
 				/>
+				<SnapshotLinks view="achievements" />
 			</Desk>
 		);
 	});

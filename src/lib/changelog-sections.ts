@@ -3,6 +3,81 @@ import type { ChangeRelease } from "./changelog";
 /** Every release's items, newest first, loaded only when the dialog opens */
 export const CHANGELOG_RELEASES: ChangeRelease[] = [
 	{
+		date: "2026-11-21",
+		sections: [
+			{
+				heading: { en: "Your scores", zh: "你的成绩", ja: "あなたのスコア" },
+				items: [
+					{
+						en: "Targets has Near misses: your full combos that are only a few Goods away from an All Perfect, with the number of Goods and what the AP would add to your RKS, and the charts whose best play had exactly one Bad or Miss. Both are worked out from your best score and best accuracy, and a chart is left out when the two do not come from one play.",
+						zh: "「推分目标」新增「只差一点」：列出离 All Perfect 只差几个 Good 的 Full Combo 谱面（Good 的数量，以及 AP 后能增加多少 RKS），还有最佳成绩里恰好只有一个 Bad 或 Miss 的谱面。两者都由最高分和最高准确率推算；如果这两个数字不是出自同一次游玩，该谱面不会列出。",
+						ja: "「目標」に「あと一歩」を追加しました。All Perfect まで Good 数個のフルコンボ譜面（Good の数と、AP で増える RKS）と、ベストプレイの Bad / Miss がちょうど 1 つだった譜面を一覧にします。どちらもベストスコアとベスト精度から求めていて、2 つが同じプレイのものでない譜面は表示しません。",
+						href: "/targets",
+					},
+					{
+						en: "The practice list has a Play these button. It opens the jukebox on the charts whose goal you have not reached yet, so you can watch the hardest part of each one in turn.",
+						zh: "练习清单新增「连续播放」按钮：点唱机会依次播放你尚未达成目标的谱面，方便逐一观看每张谱面最难的部分。",
+						ja: "練習リストに「連続再生」ボタンを追加しました。まだ目標に届いていない譜面をジュークボックスで順番に再生し、それぞれの最も難しい部分を続けて見られます。",
+					},
+					{
+						en: "Three more pictures to save or post: your PGTI player type and the What suits you table of the level you picked, both on Profile, and your Achievements on Progress. Each has Open as image and Download image under it.",
+						zh: "新增三张可以保存或分享的图片：「画像」里的 PGTI 玩家类型和所选等级的个人差表，以及「完成度」里的成就。它们下方都有「以图片打开」和「下载图片」。",
+						ja: "保存や投稿に使える画像が 3 つ増えました。「プロフィール」の PGTI プレイヤータイプと、選んだレベルの「得意・苦手の表」、そして「進捗」の実績です。それぞれの下に「画像として開く」と「画像をダウンロード」があります。",
+						href: "/profile",
+					},
+				],
+			},
+			{
+				heading: { en: "Song pages", zh: "曲目页面", ja: "曲ページ" },
+				items: [
+					{
+						en: "The chart preview has a Copy link button. The link opens the song on the same level at the moment you were at, or with the section you were repeating set to repeat, so you can send someone straight to one part of a chart.",
+						zh: "谱面预览新增「复制链接」按钮。打开链接会回到同一难度、你当时所在的位置；如果当时正在循环某一段，这段循环也会一起带上。这样就能把别人直接带到谱面的某一部分。",
+						ja: "譜面プレビューに「リンクをコピー」ボタンを追加しました。リンクを開くと、同じ難易度で、コピーしたときの位置から始まります。ループ中だった場合はその区間のループも引き継がれるので、譜面の一部分をそのまま誰かに送れます。",
+						href: "/songs",
+					},
+				],
+			},
+			{
+				heading: { en: "Guess the song", zh: "猜曲绘", ja: "曲あてクイズ" },
+				items: [
+					{
+						en: "By ear now has a daily puzzle: one song a day for everyone, heard from its first 1, 2, 4, 7, 11 and 16 seconds, with a timer and a leaderboard of its own, ranked by tries and then by time. A skip counts as a try. As with the illustration puzzle, today's song needs a sign-in, while past days and practice are open to everyone.",
+						zh: "「听歌识曲」现在也有每日题：所有人每天同一首歌，依次听开头的 1、2、4、7、11、16 秒，带计时和独立的排行榜，先比尝试次数，再比用时。跳过也算一次尝试。和猜曲绘一样，当天的题目需要登录；往日的题目和练习题对所有人开放。",
+						ja: "「耳で当てる」にデイリー問題を追加しました。毎日全員に同じ 1 曲が出題され、曲の最初の 1、2、4、7、11、16 秒を順に聞いて当てます。タイマーと専用のランキングがあり、試行回数、次にタイムで順位が決まります。スキップも 1 回に数えます。イラストの問題と同じく、当日の問題にはサインインが必要で、過去の問題と練習は誰でも遊べます。",
+						href: "/guess?ear=daily",
+					},
+					{
+						en: "The page now has two rows of tabs: By illustration or By ear, then Daily or Practice.",
+						zh: "页面上的标签现在分成两行：先选「猜曲绘」或「听歌识曲」，再选「每日」或「练习」。",
+						ja: "ページのタブが 2 段になりました。「イラストで当てる」か「耳で当てる」を選び、次に「デイリー」か「練習」を選びます。",
+					},
+				],
+			},
+			{
+				heading: { en: "Search", zh: "搜索", ja: "検索" },
+				items: [
+					{
+						en: "Search (the magnifier in the header, or Ctrl/Cmd+K) now also finds the game's writing: Collection entries, story texts, loading tips, and the events and terms of the story timeline. Each result shows a line of the text around your words, and opening it takes you to that spot.",
+						zh: "搜索（页眉的放大镜，或 Ctrl/Cmd+K）现在还能搜到游戏里的文字：收藏品、剧情文本、加载提示，以及剧情时间线里的事件和设定词条。每条结果会显示匹配处前后的一行文字，打开后直接跳到对应位置。",
+						ja: "検索（ヘッダーの虫めがね、または Ctrl/Cmd+K）で、ゲーム内の文章も探せるようになりました。コレクション、ストーリーのテキスト、ローディングのヒント、ストーリー年表の出来事と用語が対象です。結果には一致した部分の前後が 1 行表示され、開くとその場所に移動します。",
+					},
+				],
+			},
+			{
+				heading: { en: "Collection", zh: "收藏品", ja: "コレクション" },
+				items: [
+					{
+						en: "Signed in, Collection shows what you have unlocked in the game: each item says how many of its entries are unlocked and how many you have not read yet, every chapter shows its count, and a switch narrows the page to what is still locked. Avatars under Other resources marks the ones you have in the same way. Refresh your save once to fill this in. Only you can see it.",
+						zh: "登录后，「收藏品」会显示你在游戏里的解锁情况：每件收藏品解锁了几条、还有几条没读，每个章节解锁了多少件，还可以只看尚未解锁的内容。「其他资源」里的头像也会同样标出你已拥有的。需要先刷新一次存档才会显示；这些内容只有你自己能看到。",
+						ja: "サインインすると、「コレクション」にゲーム内での解放状況が表示されます。各項目で解放した数とまだ読んでいない数、チャプターごとの数がわかり、未解放のものだけに絞り込むこともできます。「その他のリソース」のアバターにも、持っているものに同じように印が付きます。表示するには、一度セーブデータを更新してください。この内容はあなたにだけ表示されます。",
+						href: "/files?view=collection",
+					},
+				],
+			},
+		],
+	},
+	{
 		date: "2026-11-13",
 		sections: [
 			{

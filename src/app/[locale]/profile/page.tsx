@@ -19,7 +19,7 @@ import { getDataHost } from "@/server/data-host";
 import { illKey } from "@/server/ill";
 import { withDiscordUid } from "@/server/logger";
 import { pageMetadata } from "@/server/og-meta";
-import { playerProfileView } from "@/server/profile-view";
+import { diffChartsOf, playerProfileView } from "@/server/profile-view";
 
 export const dynamic = "force-dynamic";
 
@@ -61,18 +61,7 @@ export default async function ProfilePage() {
 					history.scoreHistory,
 				);
 		}
-		const profile = view.profile;
-		const tabled =
-			profile && !profile.insufficient && profile.basis !== "aps"
-				? profile.charts.map(({ id, song, rank, c, acc, diff }) => ({
-						id,
-						song,
-						rank,
-						c,
-						acc,
-						diff,
-					}))
-				: [];
+		const tabled = diffChartsOf(view.profile);
 		const jackets: Record<string, string> = {};
 		if (tabled.length) {
 			const links = await objectUrls();

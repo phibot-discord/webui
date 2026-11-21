@@ -7,6 +7,11 @@ const FIRST_GUESS_DAY = "2026-10-31";
 const PRACTICE = /^p-[A-Za-z0-9_-]{12,24}$/;
 
 export type PuzzleKind = "daily" | "practice";
+export type GuessGame = "jacket" | "ear";
+
+export function gameOf(raw: unknown): GuessGame {
+	return raw === "ear" ? "ear" : "jacket";
+}
 
 export function dayKey(at: Date = new Date()): string {
 	const parts = new Intl.DateTimeFormat("en-CA", {

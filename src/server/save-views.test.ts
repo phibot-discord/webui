@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Save } from "@/phi/lib/save";
+import { accuracyOf, exactScore } from "@/phi/lib/score-control";
 import { type SimBaseRecord, simulate } from "@/phi/lib/simulation";
 import type { ChartSummary } from "./charts";
 import {
+	nearMissesView,
 	progressView,
+	targetSetOf,
 	targetsView,
 	trendEvents,
 	trendPoints,
@@ -120,4 +123,64 @@ test("the targets view stores each needed accuracy rounded up to four decimals",
 		]).after;
 		assert.ok(reached >= view.goal, `${r.id} ${reached}`);
 	}
+});
+
+test("the near-misses view reads the catalog's note counts and carries the RKS an All Perfect would add", () => {
+	const near: ChartSummary[] = [
+		{
+			id: "a.0",
+			song: "Song A",
+			composer: "",
+			charts: { IN: [14.8, 1000], HD: [9.5, null] },
+		},
+		{ id: "b.0", song: "Song B", composer: "", charts: { AT: [16.2, 900] } },
+	];
+	const made = (
+		id: string,
+		rank: string,
+		difficulty: number,
+		perfect: number,
+		good: number,
+		combo: number,
+		notes: number,
+		fc: boolean,
+	) => ({
+		id,
+		rank,
+		difficulty,
+		fc,
+		score: Math.round(exactScore(perfect, good, combo, notes)),
+		acc: Math.fround(accuracyOf(perfect, good, notes)),
+	});
+	const rows = [
+		made("a.0", "IN", 14.8, 998, 2, 1000, 1000, true),
+		made("a.0", "HD", 9.5, 997, 2, 1000, 1000, true),
+		made("b.0", "AT", 16.2, 896, 3, 600, 900, false),
+		made("z.0", "IN", 15, 998, 2, 1000, 1000, true),
+	];
+	const save = {
+		saveInfo: {
+			PlayerId: "1",
+			modifiedAt: { iso: new Date(0) },
+			summary: { rankingScore: 3.9 },
+		},
+		getRecord: () => rows,
+	} as unknown as Save;
+	const set = targetSetOf(save, near);
+	const view = nearMissesView(save, near, set);
+	assert.deepEqual(
+		view.ap.map((r) => [r.id, r.rank, r.goods]),
+		[["a.0", "IN", 2]],
+	);
+	const gain = set.targets.find((t) => t.id === "a.0" && t.rank === "IN");
+	assert.ok(gain && gain.apGain > 0);
+	assert.equal(view.ap[0]?.gain, Number(gain.apGain.toFixed(4)));
+	assert.deepEqual(
+		view.breaks.map((r) => [r.id, r.rank, r.goods, r.combo, r.notes]),
+		[["b.0", "AT", 3, 600, 900]],
+	);
+	assert.equal(view.songs["a.0"], "Song A");
+	assert.equal(view.songs["b.0"], "Song B");
+	const bare = nearMissesView(save, near, { rks: 0, goal: 0, targets: [] });
+	assert.equal(bare.ap[0]?.gain, null);
 });

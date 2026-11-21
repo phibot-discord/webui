@@ -1,13 +1,23 @@
+import { dailyId, dayKey, puzzleKind } from "@/lib/guess";
 import { EAR_HEAD_BYTES, earAnswerKey, earSeconds } from "@/lib/guess-ear";
-import { oggCut } from "@/lib/ogg-cut";
+import { oggCut, oggReserial, oggSerial } from "@/lib/ogg-cut";
 import { evictOldest } from "@/phi/lib/lru";
-import { answerFor } from "./guess";
+import {
+	answerFor,
+	clueToken,
+	clueTokenOk,
+	guessPool,
+	pickAnswer,
+	seedBytes,
+} from "./guess";
 import { logger } from "./logger";
 import { publicObjectUrl } from "./r2";
 
 const HEADS_MAX = 6;
 const HEAD_TIMEOUT_MS = 15_000;
+const PROBE_SECONDS = 0.5;
 const heads = new Map<string, Promise<Uint8Array | undefined>>();
+let headLoad: HeadFetch | undefined;
 
 export type HeadFetch = (key: string) => Promise<Uint8Array | undefined>;
 
@@ -76,15 +86,36 @@ export function earAnswer(puzzle: string) {
 	return answerFor(earAnswerKey(puzzle));
 }
 
-export async function clipOf(
+async function headClip(
 	stem: string,
-	step: number,
-	load: HeadFetch = fetchHead,
+	seconds: number,
+	load: HeadFetch,
 ): Promise<Uint8Array | undefined> {
 	const head = await headOf(stem, load);
 	if (!head) return undefined;
-	const cut = oggCut(head, earSeconds(step));
+	const cut = oggCut(head, seconds);
 	return cut ? head.subarray(0, cut.end) : undefined;
+}
+
+export function clipOf(
+	stem: string,
+	step: number,
+	load: HeadFetch = headLoad ?? fetchHead,
+): Promise<Uint8Array | undefined> {
+	return headClip(stem, earSeconds(step), load);
+}
+
+export function earSerial(puzzle: string, key?: string): number {
+	return seedBytes(`serial:${earAnswerKey(puzzle)}`, key).readUInt32LE(0);
+}
+
+export function disguise(
+	clip: Uint8Array,
+	puzzle: string,
+	key?: string,
+): Uint8Array | undefined {
+	const want = earSerial(puzzle, key);
+	return oggReserial(clip, want === oggSerial(clip) ? (want ^ 1) >>> 0 : want);
 }
 
 export async function earClip(
@@ -92,7 +123,54 @@ export async function earClip(
 	step: number,
 ): Promise<Uint8Array | undefined> {
 	const answer = await earAnswer(puzzle);
-	return answer ? clipOf(answer.stem, step) : undefined;
+	const clip = answer ? await clipOf(answer.stem, step) : undefined;
+	return clip && puzzleKind(puzzle) === "daily" ? disguise(clip, puzzle) : clip;
+}
+
+export async function earProbe(
+	today: string = dayKey(),
+): Promise<Uint8Array | undefined> {
+	const [pool, answer] = await Promise.all([
+		guessPool(),
+		earAnswer(dailyId(today)),
+	]);
+	const song = pickAnswer(
+		`probe:${today}`,
+		pool.filter((s) => s.id !== answer?.id),
+	);
+	return song
+		? headClip(song.stem, PROBE_SECONDS, headLoad ?? fetchHead)
+		: undefined;
+}
+
+export function earClueToken(
+	puzzle: string,
+	step: number,
+	key?: string,
+): string {
+	return clueToken(earAnswerKey(puzzle), step, key);
+}
+
+export function earClueTokenOk(
+	puzzle: string,
+	step: number,
+	token: string,
+	key?: string,
+): boolean {
+	return clueTokenOk(earAnswerKey(puzzle), step, token, key);
+}
+
+export function earClueUrl(puzzle: string, step: number): string {
+	return `/api/guess/ear?${new URLSearchParams({
+		p: puzzle,
+		s: String(step),
+		k: earClueToken(puzzle, step),
+	})}`;
+}
+
+export function setEarHeadForTest(load?: HeadFetch) {
+	if (process.env.PHI_TEST_SEAMS !== "1") return;
+	headLoad = load;
 }
 
 export function resetEarForTest() {

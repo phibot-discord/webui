@@ -153,6 +153,28 @@ export const filesJa: FilesMessages = {
 			},
 		},
 	},
+	unlocks: {
+		total: "{total} 件中 {n} 件を解放済み",
+		unread: "未読 {n} 件",
+		unreadOne: "未読 1 件",
+		onlyLocked: "未解放のみ表示",
+		chapterDone: "このチャプターはすべて解放済みです。",
+		chapter: "{total} 件中 {n} 件を解放済み",
+		itemLocked: "未解放",
+		itemUnlocked: "解放済み",
+		itemEntries: "{total} 件中 {n} 件を解放済み",
+		itemUnread: "未読 {n} 件",
+		avatars: "アバター {total} 個中 {n} 個を入手済み",
+		onlyMissing: "未入手のみ表示",
+		avatarsDone: "すべてのアバターを入手済みです。",
+		owned: "入手済み",
+		refresh: "セーブデータを一度更新すると、ここに解放状況が表示されます。",
+		refreshLink: "「あなたのカード」へ",
+		manual:
+			"手入力したスコアには解放状況が含まれないため、ここには表示されません。",
+		unreadable:
+			"セーブデータの解放状況を読み取れなかったため、ここには表示されません。",
+	},
 	deduction: {
 		player: "推理シーンのリプレイ",
 		stageHint:

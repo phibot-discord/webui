@@ -2,6 +2,7 @@ import { text, v1Body } from "./parse";
 import { parseRichText } from "./richtext";
 
 export const COLLECTION_INDEX_KEY = "collection/index.json";
+export const OTHER_CHAPTER = "other";
 export const COLLECTION_LANGS = ["zh-CN", "zh-TW", "en", "ja", "ko"] as const;
 export type CollectionLang = (typeof COLLECTION_LANGS)[number];
 
@@ -301,7 +302,7 @@ export type SearchHit = {
 };
 
 /** `text` folded for matching, and for each folded character the index of the character it came from */
-function folded(text: string): { text: string; at: number[] } {
+export function folded(text: string): { text: string; at: number[] } {
 	let out = "";
 	const at: number[] = [];
 	let i = 0;
@@ -315,7 +316,7 @@ function folded(text: string): { text: string; at: number[] } {
 }
 
 /** `query` in `text`, matched against `fold` (its folded form); the position map is built only on a match */
-function find(
+export function find(
 	text: string,
 	fold: string,
 	query: string,
@@ -337,7 +338,7 @@ function find(
 	};
 }
 
-function plain(text: string): string {
+export function plain(text: string): string {
 	return parseRichText(text)
 		.map((segment) => segment.text)
 		.join("")

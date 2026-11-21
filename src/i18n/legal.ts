@@ -12,7 +12,7 @@ export type LegalDoc = {
 	sections: LegalSection[];
 };
 
-export const LEGAL_UPDATED = "2026-11-13";
+export const LEGAL_UPDATED = "2026-11-21";
 
 const GITHUB = "https://github.com/phibot-discord/webui";
 
@@ -412,12 +412,13 @@ export const privacy: Record<Locale, LegalDoc> = {
 					[
 						"**Account.** Your Discord user ID, name and avatar, or your TapTap name, avatar and Phigros cloud account ID, depending on how you sign in.",
 						"**Save access.** The session token for your Phigros cloud save, and a cached copy of the save so cards load quickly.",
+						"**Unlocks**, kept with the cached save: what your save lists as unlocked, meaning Collection items (how many entries are unlocked and how many you have read), avatars, songs and illustrations. Only you see them, on the Collection and Avatars pages, and they go when the cached save does.",
 						"**Score history.** Snapshots of your scores and RKS over time, for the History and Info cards.",
 						"**Settings.** Your card options, such as layout, background and which extras to show.",
 						"**Manual scores**, if you type them in.",
 						"**Practice list**, if you use it: the charts you put on it and the goal for each.",
 						"**Share link**, if you make one, and whether you turned on **Allow compare** for it.",
-						"**Guess the song.** When you play the daily puzzle signed in: when you pressed Start, your guesses and the result. If you solve it with “Show me on the leaderboard” ticked, your display name, number of tries and time go on that day's leaderboard.",
+						"**Guess the song.** When you play a daily puzzle signed in, by illustration or by ear (each is kept on its own): when you pressed Start, your guesses and skips, and the result. If you solve it with “Show me on the leaderboard” ticked, your display name, number of tries and time go on that puzzle's leaderboard for the day.",
 						"**Card images.** Drawn cards are cached so the same card is not drawn twice.",
 						"**Logs.** Server logs record requests and errors with your user ID, to find and fix problems.",
 						"**Page views.** Vercel Analytics counts page views without cookies.",
@@ -535,12 +536,13 @@ export const privacy: Record<Locale, LegalDoc> = {
 					[
 						"**账号**：根据登录方式，保存你的 Discord 用户 ID、名字和头像，或你的 TapTap 名字、头像和 Phigros 云端账号 ID。",
 						"**存档访问**：Phigros 云存档的会话令牌，以及一份存档缓存，让成绩图加载更快。",
+						"**解锁情况**：随存档缓存一起保存，是你的存档中记录的解锁内容，包括收藏品（每件解锁了几条、读过几条）、头像、曲目和曲绘。只有你自己能在收藏品和头像页面看到，存档缓存删除时一并删除。",
 						"**成绩历史**：成绩和 RKS 的历史快照，用于历史和信息成绩图。",
 						"**设置**：成绩图选项，例如版式、背景和显示哪些附加内容。",
 						"**手动成绩**：如果你手动录入了成绩。",
 						"**练习清单**：如果你使用了它，会保存你放进去的谱面和每张谱面的目标。",
 						"**分享链接**：如果你创建了分享链接，以及你是否为它打开了**允许对比**。",
-						"**猜曲绘**：登录后玩每日题时，保存你点击「开始」的时间、你的答案和结果。如果你勾选了「在排行榜上显示我」并猜中，你的显示名称、尝试次数和用时会出现在当天的排行榜上。",
+						"**猜曲绘与听歌识曲**：登录后玩任一每日题时，分别保存你点击「开始」的时间、你的答案（包括跳过）和结果。如果你勾选了「在排行榜上显示我」并猜中，你的显示名称、尝试次数和用时会出现在该题当天的排行榜上。",
 						"**成绩图图片**：生成的成绩图会被缓存，避免重复生成。",
 						"**日志**：服务器日志会记录请求和错误以及你的用户 ID，用于排查问题。",
 						"**页面访问**：Vercel Analytics 统计页面访问量，不使用 Cookie。",
@@ -658,12 +660,13 @@ export const privacy: Record<Locale, LegalDoc> = {
 					[
 						"**アカウント。** サインイン方法に応じて、Discord のユーザー ID、名前、アバター、または TapTap の名前、アバター、Phigros クラウドのアカウント ID。",
 						"**セーブデータへのアクセス。** Phigros クラウドセーブデータのセッショントークンと、カードをすばやく表示するためのセーブデータのキャッシュ。",
+						"**解放状況。** キャッシュされたセーブデータと一緒に保存される、セーブデータ上の解放状況です。コレクション（各項目で解放した数と読んだ数）、アバター、楽曲、イラストが含まれます。コレクションとアバターのページで、あなたにだけ表示され、キャッシュされたセーブデータと一緒に削除されます。",
 						"**スコア履歴。** 履歴カードとプレイヤー情報カード用の、スコアと RKS の時系列スナップショット。",
 						"**設定。** レイアウト、背景、表示する追加機能など、カードのオプション。",
 						"**手入力のスコア。** 入力した場合のみ。",
 						"**練習リスト。** 使った場合のみ。リストに入れた譜面と、それぞれの目標です。",
 						"**共有リンク。** 作成した場合のみ。また、そのリンクで**比較を許可**をオンにしたかどうか。",
-						"**曲当てクイズ。** サインインして毎日の問題をプレイしたときの、スタートを押した時刻、推測、結果。「ランキングに表示する」にチェックを入れて正解した場合は、表示名、試行回数、所要時間がその日のランキングに載ります。",
+						"**曲当てクイズ。** サインインしてデイリー問題（イラストで当てる・耳で当てる、それぞれ別々）をプレイしたときの、スタートを押した時刻、推測とスキップ、結果。「ランキングに表示する」にチェックを入れて正解した場合は、表示名、試行回数、所要時間がその問題のその日のランキングに載ります。",
 						"**カード画像。** 同じカードを二度描かないよう、描いたカードはキャッシュされます。",
 						"**ログ。** 問題を見つけて修正するため、サーバーログにリクエストとエラーがユーザー ID とともに記録されます。",
 						"**ページビュー。** Vercel Analytics が Cookie を使わずにページビュー数を集計します。",

@@ -5,6 +5,7 @@ import {
 	keyed,
 	type TextSection,
 	textAnchor,
+	tipAnchor,
 	type ViewTextGroup,
 } from "@/lib/texts";
 import { fill } from "@/phi/lib/card-i18n";
@@ -15,6 +16,7 @@ import { FilesSwap } from "./FilesFrame";
 import { FilesLink } from "./FilesLink";
 import { LangSwitch } from "./LangSwitch";
 import { RichText } from "./RichText";
+import { AvatarMark, AvatarUnlocks } from "./Unlocks";
 
 export type TextsSectionNav = { id: TextSection; name: string; count: number };
 
@@ -103,6 +105,7 @@ export function GameTexts({
 	crumbLabel,
 	tocLabel,
 	t,
+	unlocks,
 }: {
 	sections: TextsSectionNav[];
 	current: TextSection;
@@ -114,6 +117,7 @@ export function GameTexts({
 	crumbLabel: string;
 	tocLabel: string;
 	t: Messages["texts"];
+	unlocks: Messages["unlocks"];
 }) {
 	const picked = lang === siteLang ? undefined : lang;
 	return (
@@ -160,8 +164,8 @@ export function GameTexts({
 						</p>
 						{body.fallback ? <p className="coll-note">{t.fallback}</p> : null}
 						<ol className="texts-list" lang={body.lang}>
-							{keyed(body.lines, (l) => l).map(({ key, item: line }) => (
-								<li key={key}>
+							{keyed(body.lines, (l) => l).map(({ key, item: line }, n) => (
+								<li key={key} id={tipAnchor(n)}>
 									<RichText text={line} />
 								</li>
 							))}
@@ -170,24 +174,33 @@ export function GameTexts({
 				) : body.kind === "groups" ? (
 					<TextGroups groups={body.groups} t={t} />
 				) : (
-					<ul className="texts-avatars">
-						{body.avatars.map((avatar) => (
-							<li key={avatar.name}>
-								<figure>
-									{/* biome-ignore lint/performance/noImgElement: R2 object, loaded straight from the public domain */}
-									<img
-										src={avatar.src}
-										alt=""
-										width={96}
-										height={96}
-										loading="lazy"
-										decoding="async"
-									/>
-									<figcaption>{avatar.name}</figcaption>
-								</figure>
-							</li>
-						))}
-					</ul>
+					<>
+						<AvatarUnlocks
+							names={body.avatars.map((avatar) => avatar.name)}
+							t={unlocks}
+						/>
+						<ul className="texts-avatars">
+							{body.avatars.map((avatar) => (
+								<li key={avatar.name}>
+									<figure>
+										{/* biome-ignore lint/performance/noImgElement: R2 object, loaded straight from the public domain */}
+										<img
+											src={avatar.src}
+											alt=""
+											width={96}
+											height={96}
+											loading="lazy"
+											decoding="async"
+										/>
+										<figcaption>
+											{avatar.name}
+											<AvatarMark name={avatar.name} t={unlocks} />
+										</figcaption>
+									</figure>
+								</li>
+							))}
+						</ul>
+					</>
 				)}
 			</FilesSwap>
 		</article>

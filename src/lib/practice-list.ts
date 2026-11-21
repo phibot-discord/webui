@@ -98,6 +98,19 @@ export function withoutPracticeItem(
 	return list.filter((x) => practiceKey(x.id, x.rank) !== key);
 }
 
+export type PracticeQueueEntry = { key: string; id: string; rank: LevelKind };
+
+export function practiceQueue(
+	rows: readonly { id: string; rank: LevelKind; done: boolean }[],
+): PracticeQueueEntry[] {
+	const open = rows.filter((row) => !row.done);
+	return (open.length ? open : rows).map((row) => ({
+		key: practiceKey(row.id, row.rank),
+		id: row.id,
+		rank: row.rank,
+	}));
+}
+
 export function practiceReached(
 	item: PracticeItem,
 	record: PracticeRecord | undefined,

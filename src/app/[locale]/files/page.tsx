@@ -20,6 +20,7 @@ import {
 import { HiddenSong } from "@/components/HiddenSong";
 import { Pv } from "@/components/Pv";
 import { Timeline, timelineToc } from "@/components/Timeline";
+import { UnlocksProvider } from "@/components/Unlocks";
 import { type Locale, localeTag } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
 import { getMessages } from "@/i18n/server";
@@ -101,16 +102,18 @@ export default async function FilesPage({
 	const params = await searchParams;
 	const view = navView(parseView(params.view));
 	return (
-		<FilesFrame
-			nav={<FilesViews view={view} t={m.files} />}
-			loading={m.files.loading}
-		>
-			<Suspense
-				fallback={<FilesSkeletonBody view={view} loading={m.files.loading} />}
+		<UnlocksProvider>
+			<FilesFrame
+				nav={<FilesViews view={view} t={m.files} />}
+				loading={m.files.loading}
 			>
-				<FilesBody params={params} locale={locale} m={m} />
-			</Suspense>
-		</FilesFrame>
+				<Suspense
+					fallback={<FilesSkeletonBody view={view} loading={m.files.loading} />}
+				>
+					<FilesBody params={params} locale={locale} m={m} />
+				</Suspense>
+			</FilesFrame>
+		</UnlocksProvider>
 	);
 }
 
@@ -231,6 +234,7 @@ async function FilesBody({
 				lang={textLang}
 				siteLang={lang}
 				t={m.collection}
+				unlocks={m.unlocks}
 			/>,
 		);
 	}
@@ -294,6 +298,7 @@ async function FilesBody({
 				crumbLabel={m.files.breadcrumb}
 				tocLabel={m.collection.onThisPage}
 				t={m.texts}
+				unlocks={m.unlocks}
 			/>
 		);
 		if (body?.kind !== "groups" || body.groups.length < 2) return shell(page);

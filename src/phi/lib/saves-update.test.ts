@@ -9,6 +9,7 @@ import type { PhiRuntime } from "./runtime";
 import { Save } from "./save";
 import {
 	asSessionToken,
+	blobRegion,
 	clearUser,
 	getBoundToken,
 	getToken,
@@ -29,10 +30,28 @@ const saveInfo = {
 	PlayerId: "p",
 };
 
-function cachedSave(global = false) {
+const UNLOCKS = {
+	v: 1,
+	collection: { alpa: [2, 2] },
+	avatar: ["Glaciaxion"],
+	single: [],
+	illustration: [],
+};
+
+function cachedSave(global = false, unlocks: unknown = UNLOCKS) {
 	return JSON.stringify({
 		session: TOKEN,
 		global,
+		saveInfo,
+		gameRecord: { song: [] },
+		unlocks,
+	});
+}
+
+function blobBeforeUnlocks() {
+	return JSON.stringify({
+		session: TOKEN,
+		global: false,
 		saveInfo,
 		gameRecord: { song: [] },
 	});
@@ -60,6 +79,7 @@ function mockRt(opts: {
 		gameuser = undefined;
 		gamesettings = undefined;
 		Recordver = 1;
+		unlocks: unknown = UNLOCKS;
 		constructor(session: string, global = false) {
 			this.session = session;
 			this.global = global;
@@ -868,4 +888,131 @@ test("a remembered revision skips the KV read for 10 minutes, then a refresh rew
 	} finally {
 		Date.now = orig;
 	}
+});
+
+function kvDb(log: string[], blob: string) {
+	const kv = new Map<string, string>([[SAVE_KEY, blob]]);
+	const db: Kv = mockDb({ log });
+	db.get = async (key: string) => {
+		log.push(`kv:${key}`);
+		return kv.get(key);
+	};
+	db.set = async (key: string, value: string) => {
+		log.push(`set:${key}`);
+		kv.set(key, value);
+	};
+	return { kv, db };
+}
+
+test("a cached blob without unlock data downloads the save once and adds only that field", async () => {
+	const log: string[] = [];
+	const rt = mockRt({ log, getSaveInfo: async () => undefined });
+	const before = blobBeforeUnlocks();
+	const { kv, db } = kvDb(log, before);
+	const save = await updateSave(rt, db, "fill", { bound: TOKEN });
+	assert.ok(log.includes("download"));
+	assert.deepEqual(
+		log.filter((step) => step.startsWith("set:")),
+		[`set:${SAVE_KEY}`],
+		"no B30 snapshot, no history entry",
+	);
+	assert.equal(log.includes(`kv:${HISB30_KEY("fill")}`), false);
+	assert.equal(log.includes(`kv:${HISTORY_KEY}`), false);
+	const stored = kv.get(SAVE_KEY) ?? "";
+	assert.deepEqual(JSON.parse(stored), {
+		...JSON.parse(before),
+		unlocks: UNLOCKS,
+	});
+	assert.equal(blobRegion(stored), false);
+	assert.deepEqual(save.unlocks, UNLOCKS);
+	assert.equal(save.saveInfo.PlayerId, "p");
+	log.length = 0;
+	await updateSave(rt, db, "fill", { bound: TOKEN });
+	assert.equal(log.includes("download"), false, "filled in once");
+	resetSaveBlobMemForTest();
+	log.length = 0;
+	const again = await updateSave(rt, db, "fill", { bound: TOKEN });
+	assert.equal(
+		log.includes("download"),
+		false,
+		"another instance reads it from KV",
+	);
+	assert.deepEqual(again.unlocks, UNLOCKS);
+});
+
+test("an unreadable gameKey stays stored as such and is not downloaded again", async () => {
+	const log: string[] = [];
+	const rt = mockRt({ log, getSaveInfo: async () => undefined });
+	const { db } = kvDb(log, cachedSave(false, { v: 1, error: "format" }));
+	const save = await updateSave(rt, db, "unreadable", { bound: TOKEN });
+	assert.equal(log.includes("download"), false);
+	assert.equal(log.includes(`set:${SAVE_KEY}`), false);
+	assert.deepEqual(save.unlocks, { v: 1, error: "format" });
+});
+
+test("a fill-in whose download fails keeps the cached save, writes nothing and tries again next time", async () => {
+	const log: string[] = [];
+	const rt = mockRt({
+		log,
+		getSaveInfo: async () => undefined,
+		buildRecord: async () => {
+			throw new Error("下载存档失败 500");
+		},
+	});
+	const { db } = kvDb(log, blobBeforeUnlocks());
+	const save = await updateSave(rt, db, "fill-fail", { bound: TOKEN });
+	assert.equal(save.unlocks, undefined);
+	assert.equal(log.includes(`set:${SAVE_KEY}`), false);
+	log.length = 0;
+	await updateSave(rt, db, "fill-fail", { bound: TOKEN });
+	assert.ok(log.includes("download"));
+});
+
+test("a fill-in that cannot be stored still hands back the save and is tried again next time", async () => {
+	const log: string[] = [];
+	const rt = mockRt({ log, getSaveInfo: async () => undefined });
+	const { db } = kvDb(log, blobBeforeUnlocks());
+	db.set = async (key: string) => {
+		log.push(`set:${key}`);
+		throw new Error("kv down");
+	};
+	const save = await updateSave(rt, db, "fill-unstored", { bound: TOKEN });
+	assert.deepEqual(save.unlocks, UNLOCKS);
+	assert.ok(log.includes(`set:${SAVE_KEY}`));
+	log.length = 0;
+	await updateSave(rt, db, "fill-unstored", { bound: TOKEN });
+	assert.ok(log.includes("download"));
+});
+
+test("an unbind during the fill-in download writes neither the blob nor the memo back", async () => {
+	const log: string[] = [];
+	const rt = mockRt({
+		log,
+		getSaveInfo: async () => undefined,
+		buildRecord: async () => {
+			binding.bound = false;
+		},
+	});
+	const binding = liveBinding(rt, log);
+	const { db } = kvDb(log, blobBeforeUnlocks());
+	await updateSave(rt, db, "fill-gone", { bound: TOKEN });
+	assert.ok(log.includes("download"));
+	assert.equal(log.includes(`set:${SAVE_KEY}`), false);
+	log.length = 0;
+	await readSaveRaw(db, TOKEN, { memo: true });
+	assert.deepEqual(log, [`kv:${SAVE_KEY}`], "nothing memoised");
+});
+
+test("a changed save stores its unlock data with the new blob", async () => {
+	const log: string[] = [];
+	const rt = mockRt({
+		log,
+		saveUrl: "https://example.test/unlocks.zip",
+		getSaveInfo: async () => undefined,
+	});
+	const { kv, db } = kvDb(log, blobBeforeUnlocks());
+	await updateSave(rt, db, "changed-unlocks", { bound: TOKEN });
+	const stored = JSON.parse(kv.get(SAVE_KEY) ?? "{}");
+	assert.match(stored.saveInfo.gameFile.url, /unlocks\.zip/);
+	assert.deepEqual(stored.unlocks, UNLOCKS);
 });

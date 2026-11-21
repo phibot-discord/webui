@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { LevelKind } from "@/phi/lib/const";
 import {
 	PRACTICE_MAX,
 	type PracticeItem,
 	parsePracticeList,
 	practiceItem,
+	practiceQueue,
 	practiceReached,
 	withoutPracticeItem,
 	withPracticeItem,
@@ -176,4 +178,43 @@ test("an unplayed chart has reached nothing", () => {
 			),
 			false,
 		);
+});
+
+const row = (id: string, rank: LevelKind, done: boolean) => ({
+	id,
+	rank,
+	done,
+});
+
+test("the play queue holds the charts whose goal is not reached, in table order", () => {
+	const rows = [
+		row("A.0", "IN", false),
+		row("B.0", "AT", true),
+		row("C.0", "HD", false),
+	];
+	assert.deepEqual(practiceQueue(rows), [
+		{ key: "A.0:IN", id: "A.0", rank: "IN" },
+		{ key: "C.0:HD", id: "C.0", rank: "HD" },
+	]);
+});
+
+test("the play queue is the whole list once every goal is reached", () => {
+	const rows = [row("A.0", "IN", true), row("B.0", "AT", true)];
+	assert.deepEqual(
+		practiceQueue(rows).map((x) => x.key),
+		["A.0:IN", "B.0:AT"],
+	);
+});
+
+test("an empty list gives an empty play queue", () => {
+	assert.deepEqual(practiceQueue([]), []);
+});
+
+test("the same song at two levels gives two entries with distinct keys", () => {
+	const keys = practiceQueue([
+		row("A.0", "IN", false),
+		row("A.0", "AT", false),
+	]).map((x) => x.key);
+	assert.deepEqual(keys, ["A.0:IN", "A.0:AT"]);
+	assert.equal(new Set(keys).size, 2);
 });

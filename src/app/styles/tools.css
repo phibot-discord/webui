@@ -1026,6 +1026,7 @@ td > .pg-badge:first-child {
 	flex-wrap: wrap;
 	align-items: flex-end;
 	gap: var(--space-3);
+	margin-bottom: var(--space-6);
 }
 
 .guess-input {
@@ -1811,4 +1812,43 @@ td > .pg-badge:first-child {
 	flex-wrap: wrap;
 	gap: var(--space-2);
 	margin-top: var(--space-5);
+}
+
+.nm-section {
+	margin-top: var(--space-8);
+}
+
+.nm-section h3 {
+	margin: var(--space-6) 0 var(--space-2);
+	font-size: var(--text-md);
+}
+
+.guess-games {
+	margin: var(--space-4) 0 0;
+}
+
+.guess-games + .guess-modes {
+	margin-top: var(--space-2);
+}
+
+.guess-games a[aria-current="true"] {
+	border-bottom-color: var(--primary);
+	color: var(--ink);
+	font-weight: 600;
+}
+
+@media (forced-colors: active) {
+	.guess-games a[aria-current="true"] {
+		border-bottom-color: Highlight;
+	}
+}
+
+.ear-frame {
+	display: grid;
+	aspect-ratio: auto;
+	min-height: 10rem;
+}
+
+.guess-steps li[data-state="skip"] {
+	color: var(--muted);
 }

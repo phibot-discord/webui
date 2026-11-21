@@ -11,6 +11,7 @@ import { SongTags } from "@/components/SongTags";
 import { SongYourScores, type YourScore } from "@/components/SongYourScores";
 import { localeTag } from "@/i18n/config";
 import { getMessages, signInLink } from "@/i18n/server";
+import { readLink } from "@/lib/chart-player/link";
 import { DARE_PARAM, dareAcc, dareGap } from "@/lib/dare";
 import { chartPoints } from "@/lib/past-self";
 import { songPath } from "@/lib/song-path";
@@ -379,6 +380,7 @@ export default async function SongPage({ params, searchParams }: Params) {
 							.filter((l) => l.constant > 0)
 							.map((l) => [l.rank, l.constant]),
 					)}
+					link={readLink(await searchParams)}
 				/>
 			) : null}
 

@@ -269,3 +269,44 @@ html:has(.sp-dialog[open]) {
 		outline: 2px solid Highlight;
 	}
 }
+
+.sp-text {
+	display: grid;
+	flex: 1;
+	gap: 2px;
+	min-width: 0;
+}
+
+.sp-text-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-3);
+	min-width: 0;
+}
+
+.sp-cut {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sp-excerpt {
+	color: var(--muted);
+	font-size: var(--text-sm);
+}
+
+.sp-option mark {
+	padding: 0 1px;
+	border-radius: 2px;
+	background: color-mix(in srgb, var(--accent) 35%, transparent);
+	color: var(--ink);
+}
+
+@media (forced-colors: active) {
+	.sp-option mark {
+		background: Mark;
+		color: MarkText;
+	}
+}

@@ -7,6 +7,7 @@ import { collectionHref } from "@/lib/files-view";
 import { revealInRow, rowFade } from "@/lib/scroll";
 import { fill } from "@/phi/lib/card-i18n";
 import { FilesLink } from "./FilesLink";
+import { useChapterUnlocks } from "./Unlocks";
 
 export type ViewChapter = {
 	id: string;
@@ -22,13 +23,16 @@ export function CollectionNav({
 	currentId,
 	lang,
 	t,
+	unlocks,
 }: {
 	chapters: ViewChapter[];
 	currentId: string;
 	lang?: string;
 	t: Messages["collection"];
+	unlocks?: Messages["unlocks"];
 }) {
 	const list = useRef<HTMLUListElement>(null);
+	const counts = useChapterUnlocks();
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: runs again when the current chapter changes, read from the DOM
 	useLayoutEffect(() => {
@@ -72,11 +76,19 @@ export function CollectionNav({
 		<nav className="coll-chapters" aria-label={t.chaptersLabel}>
 			<ul className="coll-chips row-fade" ref={list}>
 				{chapters.map((chapter, at) => {
+					const own = unlocks ? counts?.[chapter.id] : undefined;
 					const tip = chapterTip(
 						chapter,
-						chapter.count === 1
-							? t.itemCountOne
-							: fill(t.itemCount, { n: chapter.count }),
+						[
+							chapter.count === 1
+								? t.itemCountOne
+								: fill(t.itemCount, { n: chapter.count }),
+							own && unlocks
+								? fill(unlocks.chapter, { n: own.unlocked, total: own.items })
+								: "",
+						]
+							.filter(Boolean)
+							.join(" · "),
 					);
 					const start = at > 0 && chapters[at - 1]?.kind !== chapter.kind;
 					const end = at >= chapters.length / 2;
@@ -93,6 +105,11 @@ export function CollectionNav({
 								aria-label={chipName(chapter.short, tip)}
 							>
 								{chapter.short}
+								{own ? (
+									<span className="coll-chip-own">
+										{own.unlocked}/{own.items}
+									</span>
+								) : null}
 								<span className="coll-chip-tip" aria-hidden="true">
 									<span>{tip}</span>
 								</span>

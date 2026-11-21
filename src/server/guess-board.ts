@@ -1,3 +1,4 @@
+import type { GuessGame } from "@/lib/guess";
 import {
 	applyGuess,
 	type BoardEntry,
@@ -16,20 +17,33 @@ export const BOARD_MEMO_MAX = 32;
 /** KV lists can lag a write by up to 60 s; this instance's own writes cover the gap */
 const RECENT_MS = 90_000;
 
-const RUN = (day: string, user: string) => kvKey("guessRun", day, user);
-const ENTRY = (day: string, user: string) => kvKey("guessEntry", day, user);
-const ENTRIES = (day: string) => `${kvKey("guessEntry", day)}:`;
+const SPACE: Record<GuessGame, string[]> = { jacket: [], ear: ["ear"] };
+const RUN = (game: GuessGame, day: string, user: string) =>
+	kvKey("guessRun", ...SPACE[game], day, user);
+const ENTRY = (game: GuessGame, day: string, user: string) =>
+	kvKey("guessEntry", ...SPACE[game], day, user);
+const ENTRIES = (game: GuessGame, day: string) =>
+	`${kvKey("guessEntry", ...SPACE[game], day)}:`;
 
 type EntryMeta = { n: string; t: number; ms: number; at: number };
 
-const locks = new Map<string, Promise<unknown>>();
-const boards = new Map<string, { at: number; entries: BoardEntry[] }>();
-const recent = new Map<
-	string,
-	Map<string, { entry: BoardEntry | null; at: number }>
->();
+type GameState = {
+	locks: Map<string, Promise<unknown>>;
+	boards: Map<string, { at: number; entries: BoardEntry[] }>;
+	recent: Map<string, Map<string, { entry: BoardEntry | null; at: number }>>;
+};
 
-function locked<T>(key: string, fn: () => Promise<T>): Promise<T> {
+const games: Record<GuessGame, GameState> = {
+	jacket: { locks: new Map(), boards: new Map(), recent: new Map() },
+	ear: { locks: new Map(), boards: new Map(), recent: new Map() },
+};
+
+function locked<T>(
+	game: GuessGame,
+	key: string,
+	fn: () => Promise<T>,
+): Promise<T> {
+	const { locks } = games[game];
 	const prev = locks.get(key) ?? Promise.resolve();
 	const job = prev.catch(() => undefined).then(fn);
 	const tail = job.catch(() => undefined);
@@ -41,9 +55,11 @@ function locked<T>(key: string, fn: () => Promise<T>): Promise<T> {
 }
 
 export function resetGuessBoardForTest() {
-	locks.clear();
-	boards.clear();
-	recent.clear();
+	for (const state of Object.values(games)) {
+		state.locks.clear();
+		state.boards.clear();
+		state.recent.clear();
+	}
 }
 
 function parseRun(raw: string | undefined): GuessRun | undefined {
@@ -75,18 +91,29 @@ function entryOf(user: string, meta: unknown): BoardEntry | undefined {
 		: undefined;
 }
 
-function freshLocal(day: string, user: string) {
-	const hit = recent.get(day)?.get(user);
+function freshLocal(game: GuessGame, day: string, user: string) {
+	const hit = games[game].recent.get(day)?.get(user);
 	return hit && Date.now() - hit.at <= RECENT_MS ? hit : undefined;
 }
 
-function noteLocal(day: string, user: string, entry: BoardEntry | null) {
+function noteLocal(
+	game: GuessGame,
+	day: string,
+	user: string,
+	entry: BoardEntry | null,
+) {
+	const { recent } = games[game];
 	const mine = recent.get(day) ?? new Map();
 	mine.set(user, { entry, at: Date.now() });
 	recent.set(day, mine);
 }
 
-function withLocal(day: string, listed: readonly BoardEntry[]): BoardEntry[] {
+function withLocal(
+	game: GuessGame,
+	day: string,
+	listed: readonly BoardEntry[],
+): BoardEntry[] {
+	const { recent } = games[game];
 	const mine = recent.get(day);
 	if (!mine) return [...listed];
 	const out = new Map(listed.map((e) => [e.user, e] as const));
@@ -103,27 +130,33 @@ function withLocal(day: string, listed: readonly BoardEntry[]): BoardEntry[] {
 	return [...out.values()];
 }
 
-export async function peekRun(day: string, user: string) {
+export async function peekRun(
+	day: string,
+	user: string,
+	game: GuessGame = "jacket",
+) {
 	const host = await getDataHost();
-	return parseRun(await host.db.get(RUN(day, user)));
+	return parseRun(await host.db.get(RUN(game, day, user)));
 }
 
 export function startRun(
 	day: string,
 	user: string,
 	now = Date.now(),
+	game: GuessGame = "jacket",
 ): Promise<GuessRun> {
-	return locked(`${day}:${user}`, async () => {
+	return locked(game, `${day}:${user}`, async () => {
 		const host = await getDataHost();
-		const had = parseRun(await host.db.get(RUN(day, user)));
+		const had = parseRun(await host.db.get(RUN(game, day, user)));
 		if (had) return had;
 		const run: GuessRun = { t0: now, guesses: [], status: "playing" };
-		await host.db.set(RUN(day, user), JSON.stringify(run), KEEP_MS);
+		await host.db.set(RUN(game, day, user), JSON.stringify(run), KEEP_MS);
 		return run;
 	});
 }
 
 async function writeEntry(
+	game: GuessGame,
 	day: string,
 	user: string,
 	name: string,
@@ -139,21 +172,26 @@ async function writeEntry(
 	};
 	try {
 		const host = await getDataHost();
-		await host.db.set(ENTRY(day, user), JSON.stringify(meta), KEEP_MS, meta);
+		await host.db.set(
+			ENTRY(game, day, user),
+			JSON.stringify(meta),
+			KEEP_MS,
+			meta,
+		);
 	} catch (err) {
 		logger.warn(
 			`guess board write: ${err instanceof Error ? err.message : err}`,
 		);
 		return false;
 	}
-	noteLocal(day, user, entryOf(user, meta) ?? null);
+	noteLocal(game, day, user, entryOf(user, meta) ?? null);
 	return true;
 }
 
-async function dropEntry(day: string, user: string) {
+async function dropEntry(game: GuessGame, day: string, user: string) {
 	const host = await getDataHost();
-	await host.db.del(ENTRY(day, user));
-	noteLocal(day, user, null);
+	await host.db.del(ENTRY(game, day, user));
+	noteLocal(game, day, user, null);
 }
 
 export function guessRun(opts: {
@@ -163,25 +201,35 @@ export function guessRun(opts: {
 	answer: string;
 	guess?: string;
 	giveUp?: boolean;
+	skip?: boolean;
 	rank: boolean;
 	now?: number;
+	game?: GuessGame;
 }): Promise<{ run: GuessRun; correct: boolean; ranked: boolean } | undefined> {
-	return locked(`${opts.day}:${opts.user}`, async () => {
+	const game = opts.game ?? "jacket";
+	return locked(game, `${opts.day}:${opts.user}`, async () => {
 		const host = await getDataHost();
-		const run = parseRun(await host.db.get(RUN(opts.day, opts.user)));
+		const run = parseRun(await host.db.get(RUN(game, opts.day, opts.user)));
 		if (!run) return undefined;
 		const now = opts.now ?? Date.now();
-		const next = applyGuess(run, opts.guess, opts.answer, now, opts.giveUp);
+		const next = applyGuess(
+			run,
+			opts.guess,
+			opts.answer,
+			now,
+			opts.giveUp,
+			opts.skip,
+		);
 		if (next.run !== run) {
 			await host.db.set(
-				RUN(opts.day, opts.user),
+				RUN(game, opts.day, opts.user),
 				JSON.stringify(next.run),
 				KEEP_MS,
 			);
 		}
 		const ranked =
 			next.correct && opts.rank
-				? await writeEntry(opts.day, opts.user, opts.name, next.run, now)
+				? await writeEntry(game, opts.day, opts.user, opts.name, next.run, now)
 				: false;
 		return { ...next, ranked };
 	});
@@ -192,21 +240,27 @@ export async function setRanked(
 	user: string,
 	name: string,
 	on: boolean,
+	game: GuessGame = "jacket",
 ): Promise<boolean> {
 	if (!on) {
-		await dropEntry(day, user);
+		await dropEntry(game, day, user);
 		return false;
 	}
-	const run = await peekRun(day, user);
+	const run = await peekRun(day, user, game);
 	if (run?.status !== "won") return false;
-	return writeEntry(day, user, name, run, Date.now());
+	return writeEntry(game, day, user, name, run, Date.now());
 }
 
-async function listed(day: string, fresh: boolean): Promise<BoardEntry[]> {
+async function listed(
+	game: GuessGame,
+	day: string,
+	fresh: boolean,
+): Promise<BoardEntry[]> {
+	const { boards } = games[game];
 	const hot = boards.get(day);
 	if (!fresh && hot && Date.now() - hot.at < BOARD_MEMO_MS) return hot.entries;
 	const host = await getDataHost();
-	const prefix = ENTRIES(day);
+	const prefix = ENTRIES(game, day);
 	const entries = (await host.db.list(prefix)).flatMap(({ key, meta }) => {
 		const entry = entryOf(key.slice(prefix.length), meta);
 		return entry ? [entry] : [];
@@ -217,11 +271,11 @@ async function listed(day: string, fresh: boolean): Promise<BoardEntry[]> {
 	return entries;
 }
 
-async function ownEntry(day: string, user: string) {
-	const local = freshLocal(day, user);
+async function ownEntry(game: GuessGame, day: string, user: string) {
+	const local = freshLocal(game, day, user);
 	if (local) return local.entry;
 	const host = await getDataHost();
-	const raw = await host.db.get(ENTRY(day, user));
+	const raw = await host.db.get(ENTRY(game, day, user));
 	if (!raw) return null;
 	try {
 		return entryOf(user, JSON.parse(raw)) ?? null;
@@ -230,14 +284,23 @@ async function ownEntry(day: string, user: string) {
 	}
 }
 
-export async function isRanked(day: string, user: string): Promise<boolean> {
-	return (await ownEntry(day, user)) !== null;
+export async function isRanked(
+	day: string,
+	user: string,
+	game: GuessGame = "jacket",
+): Promise<boolean> {
+	return (await ownEntry(game, day, user)) !== null;
 }
 
-export async function boardFor(day: string, viewer?: string, fresh = false) {
-	const entries = withLocal(day, await listed(day, fresh));
+export async function boardFor(
+	day: string,
+	viewer?: string,
+	fresh = false,
+	game: GuessGame = "jacket",
+) {
+	const entries = withLocal(game, day, await listed(game, day, fresh));
 	if (viewer && fresh) {
-		const own = await ownEntry(day, viewer);
+		const own = await ownEntry(game, day, viewer);
 		const rest = entries.filter((e) => e.user !== viewer);
 		return rankBoard(own ? [...rest, own] : rest, viewer);
 	}

@@ -1,5 +1,12 @@
 import { createCipheriv, createDecipheriv } from "node:crypto";
 import JSZip from "jszip";
+import { readGameKey } from "@/lib/game-key";
+import {
+	compactUnlocks,
+	type SaveUnlocks,
+	UNLOCKS_VERSION,
+	type UnlocksError,
+} from "@/lib/unlocks";
 import { logger } from "@/server/logger";
 import { fetchSaveFile } from "./save-host";
 import { bodyCode, tapFetch, tapRegion } from "./tapapi";
@@ -376,6 +383,34 @@ function readTolerant<T>(
 	}
 }
 
+const GAME_KEY_VERSIONS: readonly number[] = [3];
+
+export function readUnlocks(member: Buffer | undefined): SaveUnlocks {
+	const unread = (error: UnlocksError, why: string): SaveUnlocks => {
+		logger.warn(`save gameKey not read: ${why}`);
+		return { v: UNLOCKS_VERSION, error };
+	};
+	if (!member?.length) return unread("missing", "empty member");
+	const ver = member[0] ?? 0;
+	if (!GAME_KEY_VERSIONS.includes(ver))
+		return unread("version", `version ${ver}`);
+	try {
+		return compactUnlocks(readGameKey(openBlock(member.subarray(1))));
+	} catch (err) {
+		return unread("format", err instanceof Error ? err.message : String(err));
+	}
+}
+
+async function unlocksIn(zip: JSZip): Promise<SaveUnlocks> {
+	const file = zip.file("gameKey");
+	if (!file) {
+		logger.info("save has no gameKey member");
+		return { v: UNLOCKS_VERSION, error: "missing" };
+	}
+	const member = await file.async("nodebuffer").catch(() => undefined);
+	return member ? readUnlocks(member) : { v: UNLOCKS_VERSION, error: "format" };
+}
+
 type TapRegion = {
 	baseUrl: string;
 	headers: Record<string, string>;
@@ -534,6 +569,7 @@ export class PhigrosUser {
 	gameProgress: GameProgress | undefined;
 	gameuser: GameUser | undefined;
 	gamesettings: GameSettings | undefined;
+	unlocks: SaveUnlocks | undefined;
 	Recordver = 1;
 
 	constructor(session: string, global = false) {
@@ -612,6 +648,7 @@ export class PhigrosUser {
 			await entry("settings"),
 			(plain) => new GameSettings(plain),
 		);
+		this.unlocks = await unlocksIn(savezip);
 		this.gameProgress = gameProgress;
 		this.gameuser = gameuser;
 		this.gamesettings = gamesettings;

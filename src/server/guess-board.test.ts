@@ -212,3 +212,99 @@ test("the board memo keeps only the most recently listed days", async () => {
 	await boardFor(days[0]!);
 	assert.equal(lists, BOARD_MEMO_MAX + 2);
 });
+
+test("each game keeps its own runs, entries and key names", async () => {
+	await startRun(DAY, "u", 0);
+	assert.equal(await peekRun(DAY, "u", "ear"), undefined);
+	assert.equal(
+		await guessRun({
+			day: DAY,
+			user: "u",
+			name: "U",
+			answer: "e",
+			guess: "e",
+			rank: true,
+			game: "ear",
+		}),
+		undefined,
+	);
+	await startRun(DAY, "u", 500, "ear");
+	assert.deepEqual([...kv.keys()].sort(), [
+		"phi:guessRun:2026-10-31:u",
+		"phi:guessRun:ear:2026-10-31:u",
+	]);
+	await guessRun({
+		day: DAY,
+		user: "u",
+		name: "U",
+		answer: "a",
+		guess: "a",
+		rank: true,
+		now: 4_000,
+	});
+	assert.equal((await peekRun(DAY, "u", "ear"))?.status, "playing");
+	assert.equal((await boardFor(DAY)).total, 1);
+	assert.equal((await boardFor(DAY, undefined, false, "ear")).total, 0);
+	assert.equal(await isRanked(DAY, "u", "ear"), false);
+	await guessRun({
+		day: DAY,
+		user: "u",
+		name: "U",
+		answer: "e",
+		skip: true,
+		rank: true,
+		now: 6_000,
+		game: "ear",
+	});
+	await guessRun({
+		day: DAY,
+		user: "u",
+		name: "U",
+		answer: "e",
+		guess: "e",
+		rank: true,
+		now: 9_500,
+		game: "ear",
+	});
+	assert.ok(kv.has("phi:guessEntry:2026-10-31:u"));
+	assert.ok(kv.has("phi:guessEntry:ear:2026-10-31:u"));
+	const jacket = await boardFor(DAY, "u");
+	const ear = await boardFor(DAY, "u", false, "ear");
+	assert.deepEqual(
+		jacket.rows.map((r) => [r.tries, r.ms]),
+		[[1, 4_000]],
+	);
+	assert.deepEqual(
+		ear.rows.map((r) => [r.tries, r.ms]),
+		[[2, 9_000]],
+	);
+	await setRanked(DAY, "u", "U", false, "ear");
+	assert.equal(await isRanked(DAY, "u", "ear"), false);
+	assert.equal(await isRanked(DAY, "u"), true);
+	assert.equal((await boardFor(DAY, "u", true)).total, 1);
+	assert.equal((await boardFor(DAY, "u", true, "ear")).total, 0);
+});
+
+test("one game's board memo never answers for the other", async () => {
+	await boardFor(DAY);
+	assert.equal(lists, 1);
+	await boardFor(DAY, undefined, false, "ear");
+	assert.equal(lists, 2);
+	await boardFor(DAY);
+	await boardFor(DAY, undefined, false, "ear");
+	assert.equal(lists, 2);
+	await startRun(DAY, "late", 0, "ear");
+	await guessRun({
+		day: DAY,
+		user: "late",
+		name: "L",
+		answer: "e",
+		guess: "e",
+		rank: true,
+		now: 10,
+		game: "ear",
+	});
+	assert.equal((await boardFor(DAY)).total, 0);
+	assert.equal((await boardFor(DAY, undefined, false, "ear")).total, 1);
+	assert.equal(lists, 2);
+});

@@ -6,6 +6,7 @@ import {
 	isSessionAcceptedError,
 	PhigrosCloudError,
 	PhigrosUser,
+	readUnlocks,
 	Summary,
 } from "./phigros";
 import { Save, type SavePayload } from "./save";
@@ -188,8 +189,10 @@ const progressBytes = (
 const sealed = (plain: Buffer, version = 1) =>
 	Buffer.concat([Buffer.from([version]), encryptSaveEntry(plain)]);
 
-async function serveSave(overrides: Partial<Record<Member, Buffer>> = {}) {
-	const members: Record<Member, Buffer> = {
+async function serveSave(
+	overrides: Partial<Record<Member | "gameKey", Buffer>> = {},
+) {
+	const members: Partial<Record<Member | "gameKey", Buffer>> = {
 		gameProgress: sealed(progressBytes(PROGRESS), 3),
 		user: sealed(userBytes(USER)),
 		settings: sealed(settingsBytes(SETTINGS)),
@@ -745,4 +748,99 @@ test("an account answer without an objectId is not taken as acceptance", async (
 	assert.ok(err instanceof Error);
 	assert.match(err.message, /存档列表为空/);
 	assert.equal(isSessionAcceptedError(err), false);
+});
+
+const keyBytes = (keys: [name: string, bits: number, flags: number[]][]) =>
+	Buffer.concat([
+		varint(keys.length),
+		...keys.map(([name, bits, flags]) =>
+			Buffer.concat([
+				str(name),
+				Buffer.from([1 + flags.length, bits, ...flags]),
+			]),
+		),
+		Buffer.from([62, 1, 1, 1]),
+	]);
+
+const KEYS = keyBytes([
+	["alpa", 0b101, [2, 2]],
+	["shenqikuabao", 0b101, [3, 4]],
+	["675shijian", 0b100, [2]],
+	["Glaciaxion", 0b10000, [1]],
+	["Retribution ~ Cycle of Redemption ~ ", 0b1010, [1, 1]],
+]);
+
+const UNLOCKS = {
+	v: 1,
+	collection: { alpa: [2, 2], shenqikuabao: [4, 3], "675shijian": [2, 0] },
+	avatar: ["Glaciaxion"],
+	single: ["Retribution ~ Cycle of Redemption ~"],
+	illustration: ["Retribution ~ Cycle of Redemption ~"],
+};
+
+test("the gameKey member is kept in its compact form and a Save carries it", async () => {
+	await serveSave({ gameKey: sealed(KEYS, 3) });
+	const user = userWithSave();
+	await user.buildRecord();
+	assert.deepEqual(user.unlocks, UNLOCKS);
+	assertRecords(user.gameRecord);
+	const save = new Save(user as unknown as SavePayload);
+	assert.deepEqual(save.unlocks, UNLOCKS);
+	const stored = JSON.parse(
+		JSON.stringify({ ...(user as unknown as SavePayload), session: "s" }),
+	) as SavePayload;
+	assert.deepEqual(new Save(stored).unlocks, UNLOCKS);
+});
+
+test("a Save from a blob without unlock data has none", () => {
+	const save = new Save({
+		session: "s",
+		saveInfo: {
+			PlayerId: "p",
+			modifiedAt: { iso: new Date(0) },
+			summary: {
+				rankingScore: 1,
+				challengeModeRank: 0,
+				updatedAt: "2026-01-01",
+			},
+		},
+		gameRecord: {},
+	});
+	assert.equal(save.unlocks, undefined);
+	assert.equal("unlocks" in save, false);
+});
+
+test("a save without a gameKey member still reads, and says the member is missing", async () => {
+	await serveSave();
+	const user = userWithSave();
+	await user.buildRecord();
+	assert.deepEqual(user.unlocks, { v: 1, error: "missing" });
+	assertRecords(user.gameRecord);
+});
+
+test("an unknown gameKey version or a member that does not read leaves the rest of the save alone", async (t) => {
+	t.mock.method(console, "warn", () => {});
+	for (const [member, error] of [
+		[sealed(KEYS, 4), "version"],
+		[sealed(Buffer.from([5, 1, 0x61]), 3), "format"],
+		[Buffer.from([3, 1, 2, 3, 4, 5]), "format"],
+		[Buffer.alloc(0), "missing"],
+	] as const) {
+		await serveSave({ gameKey: member });
+		const user = userWithSave();
+		await user.buildRecord();
+		assert.deepEqual(user.unlocks, { v: 1, error });
+		assertRecords(user.gameRecord);
+	}
+});
+
+test("readUnlocks reads a sealed member and refuses what it cannot read", (t) => {
+	t.mock.method(console, "warn", () => {});
+	assert.deepEqual(readUnlocks(sealed(KEYS, 3)), UNLOCKS);
+	assert.deepEqual(readUnlocks(undefined), { v: 1, error: "missing" });
+	assert.deepEqual(readUnlocks(sealed(KEYS, 2)), { v: 1, error: "version" });
+	assert.deepEqual(readUnlocks(sealed(Buffer.from([1]), 3)), {
+		v: 1,
+		error: "format",
+	});
 });

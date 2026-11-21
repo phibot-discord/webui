@@ -4,6 +4,12 @@ import { type ChartStatus, chartStatus } from "@/lib/chart-status";
 import { type FormTarget, formTargets } from "@/lib/form-targets";
 import { type Milestones, milestonesOf } from "@/lib/milestones";
 import {
+	type NearAp,
+	type NearBreak,
+	type NearRecord,
+	nearMisses,
+} from "@/lib/near-misses";
+import {
 	type OnThisDay,
 	onThisDay,
 	type PlayCalendar,
@@ -19,6 +25,7 @@ import { type SimilarIndex, suggestFrom } from "@/lib/similar";
 import type { TagVotes } from "@/phi/lib/chart-tag-votes";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
 import { getInfo } from "@/phi/lib/get-info";
+import { isLevelKind } from "@/phi/lib/manual-score";
 import type { Save } from "@/phi/lib/save";
 import { openHistory, type SaveHistory } from "@/phi/lib/save-history";
 import { profileRecordsOf } from "@/phi/lib/tag-profile";
@@ -26,6 +33,7 @@ import {
 	roundUp,
 	type TargetChart,
 	type TargetRow,
+	type TargetSet,
 	targetsFor,
 } from "@/phi/lib/targets";
 import type { ChartSummary } from "./charts";
@@ -93,12 +101,19 @@ function namesFor(
 	return out;
 }
 
+export function targetSetOf(
+	save: Save,
+	list: readonly ChartSummary[],
+): TargetSet {
+	const { base } = simBaseOf({ save, token: "" });
+	return targetsFor(base.records, catalogCharts(list));
+}
+
 export function targetsView(
 	save: Save,
 	list: readonly ChartSummary[],
+	set: TargetSet = targetSetOf(save, list),
 ): TargetsView {
-	const { base } = simBaseOf({ save, token: "" });
-	const set = targetsFor(base.records, catalogCharts(list));
 	const rows: TargetRow[] = [];
 	let stuck = 0;
 	for (const t of set.targets) {
@@ -124,6 +139,53 @@ export function targetsView(
 		songs: namesFor(
 			list,
 			rows.map((r) => r.id),
+		),
+	};
+}
+
+export type NearApRow = NearAp & { gain: number | null };
+
+export type NearMissesView = {
+	ap: NearApRow[];
+	breaks: NearBreak[];
+	songs: SongNames;
+};
+
+export function nearMissesView(
+	save: Save,
+	list: readonly ChartSummary[],
+	set: TargetSet = targetSetOf(save, list),
+): NearMissesView {
+	const cells = new Map(list.map((s) => [s.id, s.charts] as const));
+	const records: NearRecord[] = [];
+	for (const r of save.getRecord()) {
+		if (!isLevelKind(r.rank)) continue;
+		const cell = cells.get(r.id)?.[r.rank];
+		if (!cell || !(cell[0] > 0)) continue;
+		records.push({
+			id: r.id,
+			rank: r.rank,
+			c: cell[0],
+			score: r.score,
+			acc: r.acc,
+			fc: r.fc,
+			notes: cell[1],
+		});
+	}
+	const found = nearMisses(records);
+	const gains = new Map(
+		set.targets.map((t) => [practiceKey(t.id, t.rank), t.apGain] as const),
+	);
+	const ap = found.ap.map((row) => {
+		const gain = gains.get(practiceKey(row.id, row.rank));
+		return { ...row, gain: gain == null ? null : Number(gain.toFixed(4)) };
+	});
+	return {
+		ap,
+		breaks: found.breaks,
+		songs: namesFor(
+			list,
+			[...ap, ...found.breaks].map((r) => r.id),
 		),
 	};
 }

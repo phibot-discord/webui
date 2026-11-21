@@ -1,8 +1,19 @@
 import { type Locale, localeTag } from "@/i18n/config";
 import { formatDay } from "@/i18n/datetime";
 import { catalogs } from "@/i18n/server";
-import type { PgtiCode } from "@/i18n/tools-messages";
+import type { PgtiAxis, PgtiCode, PgtiLetter } from "@/i18n/tools-messages";
+import {
+	achievementShare,
+	achievementValue,
+	orderAchievements,
+} from "@/lib/achievements";
+import {
+	DIFF_TIERS,
+	defaultLevel,
+	difficultyTable,
+} from "@/lib/difficulty-table";
 import { shanghaiDay } from "@/lib/past-self";
+import type { Pgti } from "@/lib/pgti";
 import { displayPlayerId } from "@/lib/player-display";
 import {
 	cellKey,
@@ -18,10 +29,12 @@ import {
 	wrappedTimelineOf,
 } from "@/lib/wrapped";
 import { fill } from "@/phi/lib/card-i18n";
+import type { TagVotes } from "@/phi/lib/chart-tag-votes";
 import { LEVEL, type LevelKind } from "@/phi/lib/const";
 import { getInfo } from "@/phi/lib/get-info";
 import type { Save } from "@/phi/lib/save";
 import type { SaveHistory } from "@/phi/lib/save-history";
+import type { ScoreHistoryRows } from "@/phi/lib/tag-profile";
 import {
 	roundUp,
 	shownGoal,
@@ -30,23 +43,40 @@ import {
 } from "@/phi/lib/targets";
 import type { ChartSummary } from "./charts";
 import { hydrateIlls } from "./ill";
-import { recapPgti } from "./recap-type";
+import { diffChartsOf, playerProfileView } from "./profile-view";
+import { type RollingOpts, recapPgti, rollingPgti } from "./recap-type";
 import {
+	type AchievementsSnap,
+	achievementsSnapHeight,
 	type ProgressSnap,
 	progressSnapHeight,
+	SNAP_ACHIEVEMENTS,
 	SNAP_PROGRESS,
+	SNAP_SUITS,
 	SNAP_TARGETS,
+	SNAP_TYPE,
 	SNAP_WRAPPED,
 	type SnapCell,
+	type SuitsSnap,
+	suitsSnapHeight,
 	type TargetsSnap,
+	type TypeSnap,
 	targetsSnapHeight,
+	typeSnapHeight,
 	type WrappedSnap,
 	wrappedSnapHeight,
 } from "./render/snapshot";
-import { progressView, targetsView } from "./save-views";
+import { achievementsView, progressView, targetsView } from "./save-views";
 import { exists } from "./vfs";
 
-const SNAP_VIEWS = ["progress", "targets", "review"] as const;
+const SNAP_VIEWS = [
+	"progress",
+	"targets",
+	"review",
+	"type",
+	"suits",
+	"achievements",
+] as const;
 export type SnapView = (typeof SNAP_VIEWS)[number];
 
 const TARGETS_SHOWN = 10;
@@ -238,5 +268,195 @@ export function wrappedSnap(
 		id: SNAP_WRAPPED,
 		data,
 		height: wrappedSnapHeight(data, data.pgti !== undefined),
+	};
+}
+
+export function snapLevel(raw: string | null): number | undefined | null {
+	if (raw === null || raw === "") return undefined;
+	return /^\d{1,2}$/.test(raw) ? Number(raw) : null;
+}
+
+const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(4)}`;
+
+function pgtiAxes(p: Pgti): {
+	axis: PgtiAxis;
+	letter: PgtiLetter;
+	vars: Record<string, string | number>;
+}[] {
+	return [
+		{ axis: "aim", letter: p.aim.letter, vars: { acc: p.aim.acc.toFixed(2) } },
+		{
+			axis: "range",
+			letter: p.range.letter,
+			vars: { played: p.range.played, total: p.range.total },
+		},
+		{
+			axis: "grip",
+			letter: p.grip.letter,
+			vars: { fc: p.grip.fc, total: p.grip.total },
+		},
+		{
+			axis: "pace",
+			letter: p.pace.letter,
+			vars: { months: p.pace.months, total: p.pace.total },
+		},
+		...(p.drive
+			? [
+					{
+						axis: "drive" as const,
+						letter: p.drive.letter,
+						vars: { gain: signed(p.drive.gain) },
+					},
+				]
+			: []),
+	];
+}
+
+export function typeSnap(
+	save: Save,
+	history: Pick<SaveHistory, "rks" | "scoreHistory">,
+	list: readonly ChartSummary[],
+	locale: Locale,
+	opts: RollingOpts = {},
+): { id: string; data: TypeSnap; height: number } | null {
+	const typed = rollingPgti(save, history, list, opts);
+	if (!typed) return null;
+	const { pgti, first, last } = typed;
+	const m = catalogs[locale];
+	const t = m.wrapped.pgti;
+	const axes = pgtiAxes(pgti);
+	const data: TypeSnap = {
+		...headOf(save, locale, t.title),
+		range: fill(m.wrapped.range, {
+			from: formatDay(first, locale),
+			to: formatDay(last, locale),
+		}),
+		letters: axes
+			.filter((a) => a.axis !== "drive")
+			.map((a) => ({ letter: a.letter, pole: t.poles[a.letter] })),
+		...(pgti.drive
+			? {
+					drive: {
+						letter: pgti.drive.letter,
+						pole: t.poles[pgti.drive.letter],
+					},
+				}
+			: {}),
+		name: t.names[pgti.code as PgtiCode],
+		groups: [
+			{
+				label: t.family,
+				name: t.families[pgti.family].name,
+				line: t.families[pgti.family].line,
+			},
+			{
+				label: t.style,
+				name: t.styles[pgti.style].name,
+				line: t.styles[pgti.style].line,
+			},
+		],
+		axes: axes.map((a) => ({
+			letter: a.letter,
+			label: `${t.axes[a.axis]} · ${t.poles[a.letter]}`,
+			trait:
+				(a.letter === "M" || a.letter === "G" || a.letter === "K"
+					? t.rolling.traits[a.letter]
+					: undefined) ?? t.traits[a.letter],
+			fact: fill(
+				a.axis === "drive" ? t.rolling.drive : t.facts[a.axis],
+				a.vars,
+			),
+		})),
+		note: t.sub,
+	};
+	return { id: SNAP_TYPE, data, height: typeSnapHeight(data) };
+}
+
+export async function suitsSnap(
+	save: Save,
+	list: readonly ChartSummary[],
+	votes: TagVotes | undefined,
+	locale: Locale,
+	level: number | undefined,
+	history: () => Promise<ScoreHistoryRows | undefined>,
+): Promise<{ id: string; data: SuitsSnap; height: number } | null> {
+	let view = playerProfileView(save, list, votes, locale);
+	if (view.profile?.basis === "aps") {
+		const rows = await history();
+		if (rows) view = playerProfileView(save, list, votes, locale, rows);
+	}
+	const levels = difficultyTable(diffChartsOf(view.profile));
+	const want = level ?? defaultLevel(levels);
+	const shown = levels.find((l) => l.level === want);
+	if (!shown) return null;
+	const m = catalogs[locale];
+	const t = m.difficultyTable;
+	const charts = DIFF_TIERS.flatMap((tier) => shown.tiers[tier]);
+	const paths = new Map(
+		charts.map((c) => [c.id, getInfo.getill(c.id, "low") || ""] as const),
+	);
+	const local = await hydrateIlls([...paths.values()].filter(Boolean)).catch(
+		() => new Map<string, string>(),
+	);
+	const jacketOf = (id: string) => {
+		const p = paths.get(id) ?? "";
+		const file = p ? (local.get(p) ?? p) : "";
+		return file && exists(file) ? file : undefined;
+	};
+	const data: SuitsSnap = {
+		...headOf(save, locale, `${t.title} · ${t.level} ${shown.level}`),
+		level: shown.level,
+		count: fill(t.count, { n: shown.count }),
+		tiers: DIFF_TIERS.map((tier) => ({
+			tier,
+			label: t.tiers[tier],
+			tiles: shown.tiers[tier].map((c) => {
+				const jacket = jacketOf(c.id);
+				return {
+					title: c.song,
+					rank: c.rank,
+					c: c.c.toFixed(1),
+					acc: `${c.acc.toFixed(2)}%`,
+					...(jacket ? { jacket } : {}),
+				};
+			}),
+		})),
+		none: t.none,
+	};
+	return { id: SNAP_SUITS, data, height: suitsSnapHeight(data) };
+}
+
+export function achievementsSnap(
+	save: Save,
+	list: readonly ChartSummary[],
+	locale: Locale,
+): { id: string; data: AchievementsSnap; height: number } {
+	const m = catalogs[locale];
+	const t = m.achievements;
+	const colors = { names: m.compare.challengeColors, other: t.colors };
+	const data: AchievementsSnap = {
+		...headOf(save, locale, t.title),
+		items: orderAchievements(achievementsView(save, list)).map((item) => {
+			const have = achievementValue(item.id, item.have, colors);
+			return {
+				name: t.names[item.id],
+				line: t.lines[item.id],
+				state:
+					item.next === null
+						? fill(t.complete, { have })
+						: fill(t.next, {
+								have,
+								next: achievementValue(item.id, item.next, colors),
+							}),
+				steps: fill(t.steps, { done: item.done, total: item.steps.length }),
+				share: achievementShare(item),
+				complete: item.next === null,
+			};
+		}),
+	};
+	return {
+		id: SNAP_ACHIEVEMENTS,
+		data,
+		height: achievementsSnapHeight(data),
 	};
 }

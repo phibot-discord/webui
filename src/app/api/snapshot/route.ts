@@ -1,6 +1,7 @@
 import { isLocale, negotiateLocale } from "@/i18n/config";
 import { cookieLocale } from "@/i18n/server";
 import { reviewYear } from "@/lib/review-window";
+import { loadTagVotes } from "@/phi/lib/chart-tag-votes";
 import { loadSaveHistory } from "@/phi/lib/history";
 import { authed } from "@/server/authed";
 import { loadBound } from "@/server/bound";
@@ -11,9 +12,13 @@ import { logger } from "@/server/logger";
 import { clientIp, rateLimit } from "@/server/rate-limit";
 import { reviewPhaseNow } from "@/server/review";
 import {
+	achievementsSnap,
 	isSnapView,
 	progressSnap,
+	snapLevel,
+	suitsSnap,
 	targetsSnap,
+	typeSnap,
 	wrappedSnap,
 } from "@/server/snapshot";
 
@@ -28,6 +33,9 @@ export async function GET(request: Request) {
 		const url = new URL(request.url);
 		const view = url.searchParams.get("view");
 		if (!isSnapView(view)) return localizedError(404, "unknown_card");
+		const level = snapLevel(url.searchParams.get("level"));
+		if (view === "suits" && level === null)
+			return localizedError(404, "unknown_card");
 		const limited = rateLimit({ userId, ip: clientIp(request.headers) });
 		if (!limited.ok)
 			return localizedRetryAfter(limited.retryAfter, "rate_limit");
@@ -44,20 +52,45 @@ export async function GET(request: Request) {
 			chartCatalog(),
 		]);
 		if ("error" in bound) return localizedError(bound.status, bound.error);
+		const history = () => loadSaveHistory(host.rt, host.db, bound.token);
+		const draw = async () => {
+			switch (view) {
+				case "progress":
+					return progressSnap(bound.save, catalog.list, locale);
+				case "targets":
+					return targetsSnap(bound.save, catalog.list, locale);
+				case "type":
+					return bound.manual || !bound.token
+						? null
+						: typeSnap(bound.save, await history(), catalog.list, locale);
+				case "suits":
+					return suitsSnap(
+						bound.save,
+						catalog.list,
+						await loadTagVotes().catch(() => undefined),
+						locale,
+						level ?? undefined,
+						async () =>
+							bound.token
+								? (await history().catch(() => undefined))?.scoreHistory
+								: undefined,
+					);
+				case "achievements":
+					return achievementsSnap(bound.save, catalog.list, locale);
+				default:
+					return wrappedSnap(
+						bound.save,
+						await history(),
+						catalog.list,
+						locale,
+						reviewYear(url.searchParams.get("year")),
+						bound.manual === true,
+					);
+			}
+		};
 		try {
-			const snap =
-				view === "progress"
-					? progressSnap(bound.save, catalog.list, locale)
-					: view === "targets"
-						? await targetsSnap(bound.save, catalog.list, locale)
-						: wrappedSnap(
-								bound.save,
-								await loadSaveHistory(host.rt, host.db, bound.token),
-								catalog.list,
-								locale,
-								reviewYear(url.searchParams.get("year")),
-								bound.manual === true,
-							);
+			const snap = await draw();
+			if (!snap) return localizedError(404, "unknown_card");
 			const img = await host.render(snap.id, snap.data, {
 				height: snap.height,
 				signal: AbortSignal.any([
@@ -66,12 +99,13 @@ export async function GET(request: Request) {
 				]),
 			});
 			const day = new Date().toISOString().slice(0, 10);
+			const name = "level" in snap.data ? `${view}-${snap.data.level}` : view;
 			return new Response(new Uint8Array(img.bytes), {
 				headers: {
 					"Content-Type": img.mime,
 					"Content-Length": String(img.bytes.byteLength),
 					"Cache-Control": "private, no-store",
-					"Content-Disposition": `${url.searchParams.get("download") === "1" ? "attachment" : "inline"}; filename="phibot-${view}-${day}.${img.ext}"`,
+					"Content-Disposition": `${url.searchParams.get("download") === "1" ? "attachment" : "inline"}; filename="phibot-${name}-${day}.${img.ext}"`,
 				},
 			});
 		} catch (err) {

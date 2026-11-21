@@ -48,6 +48,11 @@ import {
 	VOLUME_MAX,
 } from "@/lib/chart-player/host";
 import {
+	linkAddress,
+	PREVIEW_ANCHOR,
+	type PreviewLink,
+} from "@/lib/chart-player/link";
+import {
 	type Loop,
 	loopBand,
 	loopOf,
@@ -92,6 +97,16 @@ function pickRank(levels: PreviewLevel[], want: string): string {
 		: (levels.at(-1)?.rank ?? "");
 }
 
+function startRank(
+	levels: PreviewLevel[],
+	top: string,
+	want: string | undefined,
+): string {
+	return want && levels.some((l) => l.rank === want)
+		? want
+		: pickRank(levels, top);
+}
+
 function isField(target: EventTarget | null): boolean {
 	return (
 		target instanceof HTMLElement &&
@@ -109,20 +124,38 @@ export function ChartPreview({
 	cover,
 	top,
 	constants,
+	link,
 }: {
 	title: string;
 	versions: PreviewVersion[];
 	cover?: string;
 	top: string;
 	constants?: Record<string, number>;
+	link?: PreviewLink;
 }) {
 	const { m } = useI18n();
 	const t = m.chartPlayer;
 	const ids = useId();
-	const [versionId, setVersionId] = useState(() => versions[0]?.id ?? "");
+	const [versionId, setVersionId] = useState(
+		() =>
+			(versions.find((v) => v.id === link?.version) ?? versions[0])?.id ?? "",
+	);
 	const version = versions.find((v) => v.id === versionId) ?? versions[0];
 	const levels = version?.levels ?? [];
-	const [rank, setRank] = useState(() => pickRank(levels, top));
+	const [rank, setRank] = useState(() => startRank(levels, top, link?.rank));
+	const [linked, setLinked] = useState<PreviewLink | null>(() => {
+		if (!link) return null;
+		const shown: PreviewLink = {
+			...(link.rank === rank ? { rank } : {}),
+			...(link.at !== undefined ? { at: link.at } : {}),
+			...(link.loop ? { loop: link.loop } : {}),
+		};
+		return Object.keys(shown).length ? shown : null;
+	});
+	const linkedRef = useRef<PreviewLink | null>(null);
+	linkedRef.current = linked;
+	const [linkDone, setLinkDone] = useState(false);
+	const linkTimer = useRef<number | undefined>(undefined);
 	const level = levels.find((l) => l.rank === rank) ?? levels[0];
 	const versionLabel = (v: PreviewVersion) => {
 		if (v.tree === "current") return t.current;
@@ -175,6 +208,8 @@ export function ChartPreview({
 	const shown = useRef({ sec: -1, dur: -1, bar: -1 });
 	const fullscreen = useFullscreen(box);
 	const poster = level?.source.cover ?? cover;
+
+	useEffect(() => () => window.clearTimeout(linkTimer.current), []);
 
 	useEffect(() => {
 		const el = box.current;
@@ -312,15 +347,40 @@ export function ChartPreview({
 		}
 	}, []);
 
-	const onAudio = useCallback((state: AudioState) => {
-		setAudio(state);
-		if (state.kind === "loading") return;
-		const p = player.current;
-		if (p && autoplay.current && p.ready) {
-			autoplay.current = false;
-			p.play();
+	const applyLink = useCallback((p: ChartPlayer) => {
+		const want = linkedRef.current;
+		if (!want) return;
+		linkedRef.current = null;
+		setLinked(null);
+		const length = p.duration;
+		const range = want.loop ? loopOf(want.loop[0], want.loop[1], length) : null;
+		if (range) {
+			setLoop(range);
+			setLooping(true);
+			p.seek(range[0]);
+		} else if (want.at !== undefined && want.at < length - LOOP_END_SLACK) {
+			p.seek(want.at);
 		}
 	}, []);
+
+	const dropLink = () => {
+		linkedRef.current = null;
+		setLinked(null);
+	};
+
+	const onAudio = useCallback(
+		(state: AudioState) => {
+			setAudio(state);
+			if (state.kind === "loading") return;
+			const p = player.current;
+			if (p && autoplay.current && p.ready) {
+				autoplay.current = false;
+				applyLink(p);
+				p.play();
+			}
+		},
+		[applyLink],
+	);
 
 	const create = (mod: PlayerModule): ChartPlayer | null => {
 		const el = canvas.current;
@@ -396,11 +456,13 @@ export function ChartPreview({
 		await music;
 		if (autoplay.current && player.current === p) {
 			autoplay.current = false;
+			applyLink(p);
 			p.play();
 		}
 	};
 
 	const pick = (next: string) => {
+		dropLink();
 		setRank(next);
 		const want = levels.find((l) => l.rank === next);
 		if (want && player.current && version) void open(want, version.tree);
@@ -409,6 +471,7 @@ export function ChartPreview({
 	const pickVersion = (id: string) => {
 		const next = versions.find((v) => v.id === id);
 		if (!next) return;
+		dropLink();
 		setVersionId(id);
 		const r = pickRank(next.levels, rank);
 		setRank(r);
@@ -419,6 +482,7 @@ export function ChartPreview({
 	const toggleLoop = () => {
 		const p = player.current;
 		if (!p) return;
+		dropLink();
 		if (looping) {
 			setLooping(false);
 			return;
@@ -442,6 +506,7 @@ export function ChartPreview({
 
 	const markLoop = (edge: "start" | "end") => {
 		if (!player.current) return;
+		dropLink();
 		const at = Number(seekBar.current?.value ?? 0);
 		const next =
 			edge === "start"
@@ -498,6 +563,50 @@ export function ChartPreview({
 	const ready = phase === "ready";
 	const label = fill(t.canvas, { title, level: rank });
 	const loud = !muted && volume > 0;
+	const linkedNote =
+		linked && phase === "idle"
+			? fill(t.linked, {
+					what: [
+						linked.rank ? levelLabel(linked.rank) : "",
+						linked.loop
+							? fill(t.linkedLoop, {
+									from: clock(linked.loop[0]),
+									to: clock(linked.loop[1]),
+								})
+							: linked.at !== undefined
+								? fill(t.linkedAt, { at: clock(linked.at) })
+								: "",
+					]
+						.filter(Boolean)
+						.join(t.linkedSep),
+				})
+			: "";
+	const copyLink = async () => {
+		window.clearTimeout(linkTimer.current);
+		const here: PreviewLink = {
+			rank,
+			...(version && version.id !== versions[0]?.id
+				? { version: version.id }
+				: {}),
+			...(ready
+				? looping && loop
+					? { loop }
+					: { at: Number(seekBar.current?.value ?? 0) }
+				: {}),
+		};
+		try {
+			await navigator.clipboard.writeText(
+				linkAddress(
+					`${window.location.origin}${window.location.pathname}`,
+					here,
+				),
+			);
+			setLinkDone(true);
+			linkTimer.current = window.setTimeout(() => setLinkDone(false), 2000);
+		} catch {
+			setLinkDone(false);
+		}
+	};
 	const loadingText =
 		phase === "loading"
 			? t.loadingChart
@@ -506,7 +615,11 @@ export function ChartPreview({
 				: "";
 
 	return (
-		<section className="song-section" aria-labelledby={`${ids}-h`}>
+		<section
+			id={PREVIEW_ANCHOR}
+			className="song-section cp-section"
+			aria-labelledby={`${ids}-h`}
+		>
 			<h2 id={`${ids}-h`}>{t.title}</h2>
 			<p className="field-hint">{t.lede}</p>
 			{versions.length > 1 ? (
@@ -619,6 +732,7 @@ export function ChartPreview({
 								<Play size={18} weight="fill" aria-hidden />
 								{t.start}
 							</button>
+							{linkedNote ? <p className="cp-linked">{linkedNote}</p> : null}
 						</div>
 					) : null}
 					{phase === "failed" || phase === "nogl" ? (
@@ -643,7 +757,9 @@ export function ChartPreview({
 					) : null}
 				</div>
 				<p className="sr-only" aria-live="polite">
-					{phase === "failed" ? t.failed : loadingText}
+					{phase === "failed"
+						? t.failed
+						: loadingText || (linkDone ? t.linkCopied : "")}
 				</p>
 				<div className="cp-bar">
 					<button
@@ -779,6 +895,14 @@ export function ChartPreview({
 							B
 						</button>
 					</div>
+					<button
+						type="button"
+						className="btn btn-ghost cp-dense"
+						title={t.copyLinkHint}
+						onClick={() => void copyLink()}
+					>
+						{linkDone ? t.linkCopied : t.copyLink}
+					</button>
 					<select
 						className="cp-speed"
 						value={speed}

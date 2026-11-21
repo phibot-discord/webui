@@ -15,15 +15,25 @@ import { Check, Play, Timer, X } from "@/components/icons";
 import Link from "@/components/LocaleLink";
 import { Announce, SteadyButton } from "@/components/Tool";
 import { useI18n } from "@/i18n/provider";
-import { GUESS_STEPS, practiceId, shareText } from "@/lib/guess";
-import { type BoardRow, formatClock, type GuessRun } from "@/lib/guess-board";
+import {
+	GUESS_STEPS,
+	type GuessGame as GuessGameKind,
+	practiceId,
+	shareText,
+} from "@/lib/guess";
+import {
+	type BoardRow,
+	formatClock,
+	type GuessRun,
+	SKIPPED,
+} from "@/lib/guess-board";
 import { readLocal, writeLocal } from "@/lib/local-store";
 import { localePath } from "@/lib/locale-path";
 import { rankSongs } from "@/lib/song-search";
 import { fill } from "@/phi/lib/card-i18n";
 import type { GuessAnswer } from "@/server/guess";
 
-type Saved = {
+export type Saved = {
 	guesses: string[];
 	status: GuessRun["status"];
 	answer?: GuessAnswer;
@@ -32,7 +42,7 @@ type Saved = {
 	clue?: string;
 };
 
-type ServerReply = {
+export type ServerReply = {
 	run?: GuessRun | null;
 	now?: number;
 	answer?: GuessAnswer;
@@ -40,7 +50,7 @@ type ServerReply = {
 	clue?: string;
 };
 
-function fromRun(body: ServerReply & { run: GuessRun }): Saved {
+export function fromRun(body: ServerReply & { run: GuessRun }): Saved {
 	return {
 		guesses: body.run.guesses,
 		status: body.run.status,
@@ -53,9 +63,9 @@ function fromRun(body: ServerReply & { run: GuessRun }): Saved {
 
 const keyOf = (puzzle: string) => `phi-guess:v1:${puzzle}`;
 
-function load(puzzle: string): Saved {
+export function readSaved(key: string): Saved {
 	try {
-		const raw = readLocal(keyOf(puzzle));
+		const raw = readLocal(key);
 		if (raw) {
 			const parsed = JSON.parse(raw) as Saved;
 			if (Array.isArray(parsed.guesses)) return parsed;
@@ -64,10 +74,22 @@ function load(puzzle: string): Saved {
 	return { guesses: [], status: "playing" };
 }
 
-function save(puzzle: string, state: Saved) {
+export function writeSaved(key: string, state: Saved) {
 	try {
-		writeLocal(keyOf(puzzle), JSON.stringify(state));
+		writeLocal(key, JSON.stringify(state));
 	} catch {}
+}
+
+export function resultText(label: string, state: Saved, url: string): string {
+	const text = shareText({
+		label,
+		tries: state.guesses.length,
+		won: state.status === "won",
+		url,
+	});
+	return state.status === "won" && state.ms != null
+		? text.replace("\n", ` · ${formatClock(state.ms)}\n`)
+		: text;
 }
 
 export function SongGuessInput({
@@ -202,7 +224,7 @@ export function SongGuessInput({
 	);
 }
 
-function Clock({
+export function Clock({
 	t0,
 	offset,
 	ms,
@@ -223,14 +245,75 @@ function Clock({
 
 type Board = { rows: BoardRow[]; total: number; mine?: BoardRow };
 
-function GuessBoard({
+export function GuessSteps({
+	guesses,
+	won,
+	label,
+}: {
+	guesses: readonly string[];
+	won: boolean;
+	label: (id: string) => string;
+}) {
+	const { m } = useI18n();
+	return (
+		<ol className="guess-steps" aria-label={m.guess.guesses}>
+			{Array.from({ length: GUESS_STEPS }, (_, i) => {
+				const id = guesses[i];
+				const hit = won && i === guesses.length - 1;
+				const skipped = id === SKIPPED;
+				const mark =
+					id === undefined ? "empty" : hit ? "hit" : skipped ? "skip" : "miss";
+				return (
+					// biome-ignore lint/suspicious/noArrayIndexKey: six fixed slots, one per try
+					<li key={i} data-state={mark}>
+						{id === undefined ? (
+							<span className="sr-only">—</span>
+						) : (
+							<>
+								{hit ? (
+									<Check size={16} weight="bold" aria-hidden />
+								) : skipped ? null : (
+									<X size={16} weight="bold" aria-hidden />
+								)}
+								<span>{label(id)}</span>
+							</>
+						)}
+					</li>
+				);
+			})}
+		</ol>
+	);
+}
+
+export function GuessAnswerCard({ answer }: { answer: GuessAnswer }) {
+	const { m } = useI18n();
+	return (
+		<div className="guess-answer-card">
+			{answer.jacket ? (
+				// biome-ignore lint/performance/noImgElement: R2 object, loaded straight from the public domain
+				<img src={answer.jacket} alt="" width={320} height={169} />
+			) : null}
+			<div>
+				<p className="guess-answer-title">{answer.title}</p>
+				<p className="field-hint">{answer.composer}</p>
+				<Link href={answer.path} prefetch={false}>
+					{m.guess.openSong}
+				</Link>
+			</div>
+		</div>
+	);
+}
+
+export function GuessBoard({
 	day,
 	title,
 	version,
+	game = "jacket",
 }: {
 	day: string;
 	title: string;
 	version: number;
+	game?: GuessGameKind;
 }) {
 	const { m } = useI18n();
 	const t = m.guess;
@@ -238,9 +321,10 @@ function GuessBoard({
 	const [board, setBoard] = useState<Board | "failed">();
 	useEffect(() => {
 		const ac = new AbortController();
-		fetch(`/api/guess/board?day=${day}${version ? "&fresh=1" : ""}`, {
-			signal: ac.signal,
-		})
+		fetch(
+			`/api/guess/board?day=${day}${game === "ear" ? "&game=ear" : ""}${version ? "&fresh=1" : ""}`,
+			{ signal: ac.signal },
+		)
 			.then(async (res) => {
 				if (!res.ok) throw new Error(String(res.status));
 				setBoard((await res.json()) as Board);
@@ -249,7 +333,7 @@ function GuessBoard({
 				if (!ac.signal.aborted) setBoard("failed");
 			});
 		return () => ac.abort();
-	}, [day, version]);
+	}, [day, version, game]);
 	return (
 		<section className="song-section guess-board" aria-labelledby={`${ids}-t`}>
 			<h2 id={`${ids}-t`}>{title}</h2>
@@ -365,7 +449,7 @@ export function GuessGame({
 			return;
 		}
 		if (!remote) {
-			setState(load(puzzle));
+			setState(readSaved(keyOf(puzzle)));
 			setLoaded(true);
 			return;
 		}
@@ -410,7 +494,7 @@ export function GuessGame({
 		if (!remote) {
 			const next = { ...state, t0: Date.now() };
 			setState(next);
-			save(puzzle, next);
+			writeSaved(keyOf(puzzle), next);
 			return;
 		}
 		setPending(true);
@@ -458,7 +542,7 @@ export function GuessGame({
 						? { ms: Date.now() - state.t0 }
 						: {}),
 				};
-				save(puzzle, next);
+				writeSaved(keyOf(puzzle), next);
 			}
 			setState(next);
 			if (next.status === "won" && typeof body.ranked === "boolean") {
@@ -499,16 +583,11 @@ export function GuessGame({
 	}
 
 	async function copyResult() {
-		const text = shareText({
-			label: `${t.shareLabel} ${daily ? day : ""}`.trim(),
-			tries: state.guesses.length,
-			won: state.status === "won",
-			url: `${window.location.origin}/guess${daily ? "" : `?p=${puzzle}`}`,
-		});
-		const timed =
-			state.status === "won" && state.ms != null
-				? text.replace("\n", ` · ${formatClock(state.ms)}\n`)
-				: text;
+		const timed = resultText(
+			`${t.shareLabel} ${daily ? day : ""}`.trim(),
+			state,
+			`${window.location.origin}/guess${daily ? "" : `?p=${puzzle}`}`,
+		);
 		try {
 			await navigator.clipboard.writeText(timed);
 			setCopied(true);
@@ -579,30 +658,11 @@ export function GuessGame({
 						</div>
 					) : null}
 				</div>
-				<ol className="guess-steps" aria-label={t.guesses}>
-					{Array.from({ length: GUESS_STEPS }, (_, i) => {
-						const id = state.guesses[i];
-						const hit =
-							state.status === "won" && i === state.guesses.length - 1;
-						return (
-							// biome-ignore lint/suspicious/noArrayIndexKey: six fixed slots, one per try
-							<li key={i} data-state={id ? (hit ? "hit" : "miss") : "empty"}>
-								{id ? (
-									<>
-										{hit ? (
-											<Check size={16} weight="bold" aria-hidden />
-										) : (
-											<X size={16} weight="bold" aria-hidden />
-										)}
-										<span>{names.get(id) ?? id}</span>
-									</>
-								) : (
-									<span className="sr-only">—</span>
-								)}
-							</li>
-						);
-					})}
-				</ol>
+				<GuessSteps
+					guesses={state.guesses}
+					won={state.status === "won"}
+					label={(id) => names.get(id) ?? id}
+				/>
 
 				{remote ? (
 					<div className="guess-rank">
@@ -637,24 +697,7 @@ export function GuessGame({
 									: fill(t.won, { n: state.guesses.length })
 								: t.lost}
 						</p>
-						<div className="guess-answer-card">
-							{state.answer.jacket ? (
-								// biome-ignore lint/performance/noImgElement: R2 object, loaded straight from the public domain
-								<img
-									src={state.answer.jacket}
-									alt=""
-									width={320}
-									height={169}
-								/>
-							) : null}
-							<div>
-								<p className="guess-answer-title">{state.answer.title}</p>
-								<p className="field-hint">{state.answer.composer}</p>
-								<Link href={state.answer.path} prefetch={false}>
-									{t.openSong}
-								</Link>
-							</div>
-						</div>
+						<GuessAnswerCard answer={state.answer} />
 						<div className="tool-pop-actions">
 							<SteadyButton
 								className="btn-primary"

@@ -2,6 +2,8 @@ import { GUESS_STEPS } from "./guess";
 
 type RunStatus = "playing" | "won" | "lost";
 
+export const SKIPPED = "";
+
 export type GuessRun = {
 	t0: number;
 	guesses: string[];
@@ -31,13 +33,15 @@ export function applyGuess(
 	answer: string,
 	now: number,
 	giveUp = false,
+	skip = false,
 ): { run: GuessRun; correct: boolean } {
 	if (run.status !== "playing") return { run, correct: false };
-	const guesses =
-		guess && !run.guesses.includes(guess)
+	const guesses = skip
+		? [...run.guesses, SKIPPED]
+		: guess && !run.guesses.includes(guess)
 			? [...run.guesses, guess]
 			: run.guesses;
-	const correct = Boolean(guess) && guess === answer;
+	const correct = !skip && Boolean(guess) && guess === answer;
 	const status: RunStatus = correct
 		? "won"
 		: giveUp || guesses.length >= GUESS_STEPS

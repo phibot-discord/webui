@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from "react";
 import Link from "@/components/LocaleLink";
 import { SegRadio } from "@/components/SegRadio";
+import { SnapshotLinks } from "@/components/SnapshotLinks";
 import { useI18n } from "@/i18n/provider";
 import {
 	DIFF_TIERS,
@@ -92,6 +93,7 @@ export function DifficultyTable({
 					</div>
 				))}
 			</dl>
+			<SnapshotLinks view="suits" level={shown.level} />
 		</section>
 	);
 }

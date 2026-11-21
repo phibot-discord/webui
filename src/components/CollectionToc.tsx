@@ -17,13 +17,28 @@ type TocState = { items: TocItem[]; active: string | undefined };
 
 const TocContext = createContext<TocState>({ items: [], active: undefined });
 
+const NONE: ReadonlySet<string> = new Set();
+
+const TocHideContext = createContext<(ids: ReadonlySet<string>) => void>(
+	() => {},
+);
+
+export function useTocHide() {
+	return useContext(TocHideContext);
+}
+
 export function TocProvider({
-	items,
+	items: all,
 	children,
 }: {
 	items: TocItem[];
 	children: ReactNode;
 }) {
+	const [hidden, setHidden] = useState(NONE);
+	const items = useMemo(
+		() => (hidden.size ? all.filter((item) => !hidden.has(item.id)) : all),
+		[all, hidden],
+	);
 	const [active, setActive] = useState(items[0]?.id);
 
 	useEffect(() => {
@@ -61,7 +76,11 @@ export function TocProvider({
 	}, [items]);
 
 	const value = useMemo(() => ({ items, active }), [items, active]);
-	return <TocContext.Provider value={value}>{children}</TocContext.Provider>;
+	return (
+		<TocHideContext.Provider value={setHidden}>
+			<TocContext.Provider value={value}>{children}</TocContext.Provider>
+		</TocHideContext.Provider>
+	);
 }
 
 export function CollectionToc({

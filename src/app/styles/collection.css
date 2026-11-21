@@ -932,3 +932,54 @@
 		color: MarkText;
 	}
 }
+
+.unlock-head {
+	display: grid;
+	gap: var(--space-2);
+	margin: calc(var(--space-3) - var(--space-6)) 0 var(--space-4);
+}
+
+.unlock-head .field-hint {
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+.unlock-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0 var(--space-4);
+}
+
+.unlock-mark {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1);
+	margin: var(--space-2) 0 0;
+}
+
+.unlock-mark .pg-badge {
+	margin: 0;
+}
+
+.coll-chip-own {
+	margin-inline-start: var(--space-1);
+	color: var(--muted);
+	font-size: var(--text-xs);
+	font-weight: 400;
+	font-variant-numeric: tabular-nums;
+}
+
+.avatar-own {
+	display: inline-flex;
+	margin-inline-start: var(--space-1);
+	color: var(--primary);
+	vertical-align: -0.125em;
+}
+
+.doc:has(.unlock-only input:checked)
+	.coll-item:has(> .unlock-mark[data-state="all"]),
+.doc:has(.unlock-only input:checked) .texts-avatars > li:has(.avatar-own) {
+	display: none;
+}

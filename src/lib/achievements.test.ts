@@ -6,7 +6,10 @@ import {
 	type AchievementChart,
 	type AchievementId,
 	type AchievementInput,
+	achievementShare,
 	achievementsOf,
+	achievementValue,
+	orderAchievements,
 } from "./achievements";
 import type { ChartStatus } from "./chart-status";
 
@@ -169,4 +172,48 @@ test("unplayed charts never count towards two nines", () => {
 		],
 	});
 	assert.equal(pick(items, "nines").have, 1);
+});
+
+const ladder = (
+	id: AchievementId,
+	have: number,
+	steps: number[],
+): Achievement => {
+	const done = steps.filter((n) => have >= n).length;
+	return { id, have, steps, done, next: steps[done] ?? null };
+};
+
+test("a ladder's share is the way from the last step to the next", () => {
+	assert.equal(achievementShare(ladder("ap", 0, [10, 20])), 0);
+	assert.equal(achievementShare(ladder("ap", 5, [10, 20])), 0.5);
+	assert.equal(achievementShare(ladder("ap", 15, [10, 20])), 0.5);
+	assert.equal(achievementShare(ladder("ap", 30, [10, 20])), 1);
+});
+
+test("ladders are ordered by how close the next step is, finished ones last", () => {
+	const items = [
+		ladder("ap", 30, [10, 20]),
+		ladder("fc", 1, [10]),
+		ladder("clear", 9, [10]),
+		ladder("songs", 99, [5]),
+		ladder("nines", 5, [10]),
+	];
+	assert.deepEqual(
+		orderAchievements(items).map((a) => a.id),
+		["clear", "nines", "fc", "ap", "songs"],
+	);
+	assert.deepEqual(
+		items.map((a) => a.id),
+		["ap", "fc", "clear", "songs", "nines"],
+	);
+});
+
+test("ladder values are written the way each ladder counts", () => {
+	const colors = { names: ["", "Green", "Blue"], other: "Colour {n}" };
+	assert.equal(achievementValue("rks", 15.2, colors), "15.2000");
+	assert.equal(achievementValue("highAp", 15.75, colors), "15.8");
+	assert.equal(achievementValue("floor", 98.5, colors), "98.50%");
+	assert.equal(achievementValue("challengeColor", 2, colors), "Blue");
+	assert.equal(achievementValue("challengeColor", 7, colors), "Colour 7");
+	assert.equal(achievementValue("ap", 12, colors), "12");
 });

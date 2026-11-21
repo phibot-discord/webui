@@ -7,6 +7,7 @@ import {
 	formatClock,
 	type GuessRun,
 	rankBoard,
+	SKIPPED,
 } from "./guess-board";
 
 const start: GuessRun = { t0: 1_000, guesses: [], status: "playing" };
@@ -78,4 +79,26 @@ test("clock and names", () => {
 	assert.equal(formatClock(3_723_000), "1:02:03.0");
 	assert.equal(boardName("  "), "Player");
 	assert.equal([...boardName("名".repeat(40))].length, 24);
+});
+
+test("a skip uses a try every time and never wins", () => {
+	const one = applyGuess(start, undefined, "b.0", 2_000, false, true);
+	assert.equal(one.correct, false);
+	assert.deepEqual(one.run.guesses, [SKIPPED]);
+	const two = applyGuess(one.run, undefined, "b.0", 3_000, false, true).run;
+	assert.deepEqual(two.guesses, [SKIPPED, SKIPPED]);
+	assert.equal(
+		applyGuess(two, "b.0", "b.0", 4_000, false, true).correct,
+		false,
+	);
+	const won = applyGuess(two, "b.0", "b.0", 5_000);
+	assert.equal(won.run.status, "won");
+	assert.equal(won.run.guesses.length, 3);
+	assert.equal(won.run.ms, 4_000);
+	let run = start;
+	for (let i = 0; i < 6; i++) {
+		run = applyGuess(run, undefined, "x", 2_000, false, true).run;
+	}
+	assert.equal(run.status, "lost");
+	assert.equal(run.guesses.length, 6);
 });

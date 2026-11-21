@@ -7,8 +7,8 @@ import { GuessGame } from "@/components/GuessGame";
 import Link from "@/components/LocaleLink";
 import { formatDay } from "@/i18n/datetime";
 import { getMessages, localeHref, signInLink } from "@/i18n/server";
-import { dailyId, dayKey, practiceId, puzzleKind } from "@/lib/guess";
-import { EAR_PARAM } from "@/lib/guess-ear";
+import { dayKey, practiceId } from "@/lib/guess";
+import { guessHref, guessView } from "@/lib/guess-view";
 import { fill } from "@/phi/lib/card-i18n";
 import { pageMetadata } from "@/server/og-meta";
 
@@ -23,18 +23,12 @@ export default async function GuessPage({
 }: {
 	searchParams: Promise<{ p?: string | string[]; ear?: string | string[] }>;
 }) {
-	const query = await searchParams;
-	const raw = query.p;
-	const asked = (Array.isArray(raw) ? raw[0] : raw)?.trim() ?? "";
-	if (asked === "new") {
-		redirect(await localeHref(`/guess?p=${practiceId((n) => randomBytes(n))}`));
-	}
-	const rawEar = query[EAR_PARAM];
-	const ear = (Array.isArray(rawEar) ? rawEar[0] : rawEar)?.trim() ?? "";
-	if (ear === "new") {
+	const today = dayKey();
+	const view = guessView(await searchParams, today);
+	if ("redirect" in view) {
 		redirect(
 			await localeHref(
-				`/guess?${EAR_PARAM}=${practiceId((n) => randomBytes(n))}`,
+				`/guess?${view.redirect}=${practiceId((n) => randomBytes(n))}`,
 			),
 		);
 	}
@@ -43,87 +37,99 @@ export default async function GuessPage({
 		sessionUserId(),
 	]);
 	const t = m.guess;
-	const today = dayKey();
-	const byEar = ear !== "" && puzzleKind(ear, today) === "practice";
-	const kind = asked ? puzzleKind(asked, today) : undefined;
-	const puzzle = kind ? asked : dailyId(today);
-	const daily = !kind || kind === "daily";
-	const day = daily ? puzzle.slice(2) : "";
+	const { game, puzzle, daily, day, live } = view;
+	const byEar = game === "ear";
 	const label = daily
-		? fill(t.dailyOf, { date: formatDay(day, locale) })
-		: t.practiceLabel;
+		? fill(byEar ? t.earDailyOf : t.dailyOf, { date: formatDay(day, locale) })
+		: byEar
+			? t.earLabel
+			: t.practiceLabel;
+	const boardTitle =
+		day === today
+			? t.boardTitle
+			: fill(t.boardTitleDay, { date: formatDay(day || today, locale) });
+	const signInHref = await signInLink(
+		byEar ? guessHref("ear", true) : daily ? "/guess" : `/guess?p=${puzzle}`,
+	);
 	return (
 		<main id="content" className="page guess-page">
 			<h1>{t.title}</h1>
 			<p className="lede">{byEar ? t.earLede : t.lede}</p>
-			<nav className="files-views guess-modes" aria-label={t.modeLabel}>
+			<nav className="files-views guess-games" aria-label={t.gameLabel}>
 				<ul>
 					<li>
 						<Link
-							href="/guess"
+							href={guessHref("jacket", daily)}
 							prefetch={false}
-							aria-current={
-								!byEar && daily && day === today ? "page" : undefined
-							}
+							aria-current={byEar ? undefined : "true"}
 						>
-							{t.daily}
+							{t.picture}
 						</Link>
 					</li>
 					<li>
 						<Link
-							href="/guess?p=new"
+							href={guessHref("ear", daily)}
 							prefetch={false}
-							aria-current={!byEar && !daily ? "page" : undefined}
-						>
-							{t.practice}
-						</Link>
-					</li>
-					<li>
-						<Link
-							href={`/guess?${EAR_PARAM}=new`}
-							prefetch={false}
-							aria-current={byEar ? "page" : undefined}
+							aria-current={byEar ? "true" : undefined}
 						>
 							{t.ear}
 						</Link>
 					</li>
 				</ul>
 			</nav>
+			<nav className="files-views guess-modes" aria-label={t.modeLabel}>
+				<ul>
+					<li>
+						<Link
+							href={guessHref(game, true)}
+							prefetch={false}
+							aria-current={live ? "page" : undefined}
+						>
+							{t.daily}
+						</Link>
+					</li>
+					<li>
+						<Link
+							href={guessHref(game, false)}
+							prefetch={false}
+							aria-current={daily ? undefined : "page"}
+						>
+							{t.practice}
+						</Link>
+					</li>
+				</ul>
+			</nav>
 			{byEar ? (
-				<EarGame key={ear} puzzle={ear} />
+				<EarGame
+					key={puzzle}
+					puzzle={puzzle}
+					daily={daily}
+					live={live}
+					label={label}
+					boardTitle={boardTitle}
+					signedIn={Boolean(viewer)}
+					signInHref={signInHref}
+				/>
 			) : (
-				<>
-					<GuessGame
-						key={puzzle}
-						puzzle={puzzle}
-						daily={daily}
-						live={daily && day === today}
-						label={label}
-						boardTitle={
-							day === today
-								? t.boardTitle
-								: fill(t.boardTitleDay, {
-										date: formatDay(day || today, locale),
-									})
-						}
-						signedIn={Boolean(viewer)}
-						signInHref={
-							await signInLink(daily ? "/guess" : `/guess?p=${puzzle}`)
-						}
-					/>
-					<section
-						className="song-section guess-how"
-						aria-labelledby="guess-how"
-					>
-						<h2 id="guess-how">{t.howTitle}</h2>
-						<ul>
-							{t.how.map((line) => (
-								<li key={line}>{line}</li>
-							))}
-						</ul>
-					</section>
-				</>
+				<GuessGame
+					key={puzzle}
+					puzzle={puzzle}
+					daily={daily}
+					live={live}
+					label={label}
+					boardTitle={boardTitle}
+					signedIn={Boolean(viewer)}
+					signInHref={signInHref}
+				/>
 			)}
+			<section className="song-section guess-how" aria-labelledby="guess-how">
+				<h2 id="guess-how">{t.howTitle}</h2>
+				<ul>
+					{(byEar ? t.earHow : t.how).map((line) => (
+						<li key={line}>{line}</li>
+					))}
+				</ul>
+			</section>
 		</main>
 	);
 }

@@ -79,6 +79,10 @@ export function textAnchor(id: string): string {
 	return `t-${id.replace(/[^A-Za-z0-9_-]+/g, "-")}`;
 }
 
+export function tipAnchor(n: number): string {
+	return `tip-${n + 1}`;
+}
+
 /** `texts/index.json` names each PV's caption group; the sections it lists are no longer shown */
 export function parseTextsIndex(raw: unknown): TextsIndex | undefined {
 	const body = v1Body(raw);

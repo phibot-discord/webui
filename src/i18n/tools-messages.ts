@@ -1,5 +1,6 @@
 import type { AchievementId } from "@/lib/achievements";
 import type { Pgti, PgtiFamily, PgtiStyle } from "@/lib/pgti";
+import type { TextKind } from "@/lib/text-search";
 
 export type PgtiAxis = "aim" | "range" | "grip" | "pace" | "drive";
 
@@ -462,6 +463,12 @@ export type ToolsMessages = {
 		earNoAudio: string;
 		earFailed: string;
 		earNew: string;
+		gameLabel: string;
+		picture: string;
+		earDailyOf: string;
+		earSkipped: string;
+		earShareLabel: string;
+		earHow: string[];
 		clue: string;
 		imageAlt: string;
 		inputLabel: string;
@@ -601,6 +608,13 @@ export type ToolsMessages = {
 		exitFullscreen: string;
 		canvas: string;
 		keys: string;
+		copyLink: string;
+		copyLinkHint: string;
+		linkCopied: string;
+		linked: string;
+		linkedAt: string;
+		linkedLoop: string;
+		linkedSep: string;
 	};
 	similar: {
 		title: string;
@@ -678,11 +692,30 @@ export type ToolsMessages = {
 		none: string;
 		profileLink: string;
 	};
+	nearMisses: {
+		title: string;
+		lede: string;
+		apTitle: string;
+		apNone: string;
+		breakTitle: string;
+		breakNone: string;
+		song: string;
+		level: string;
+		constant: string;
+		score: string;
+		acc: string;
+		goods: string;
+		combo: string;
+		apGain: string;
+	};
 	snapshot: {
 		open: string;
 		download: string;
 		progress: string;
 		targets: string;
+		type: string;
+		suits: string;
+		achievements: string;
 		progressLegend: string;
 		goal: string;
 	};
@@ -796,6 +829,9 @@ export type ToolsMessages = {
 		resultsOne: string;
 		none: string;
 		loading: string;
+		searching: string;
+		texts: Record<TextKind, string>;
+		textMore: string;
 		keys: string;
 	};
 	versions: {
@@ -1399,6 +1435,18 @@ export const toolsEn: ToolsMessages = {
 			"This browser cannot play these clips. Try a recent Chrome, Edge or Firefox.",
 		earFailed: "The clue could not be loaded. Try again.",
 		earNew: "Another song",
+		gameLabel: "Game",
+		picture: "By illustration",
+		earDailyOf: "By ear: daily puzzle, {date}",
+		earSkipped: "Skipped",
+		earShareLabel: "PhiBot Guess by ear",
+		earHow: [
+			"Everyone gets the same daily song, and it is not the song of the daily illustration puzzle. Practice songs are random and never run out.",
+			"The clues are the first 1, 2, 4, 7, 11 and 16 seconds of the song. A wrong guess or a skip takes you to the next clue, and both count as a try.",
+			"Today's song needs a sign-in. Your run is kept on PhiBot from the moment you press Start, so the clock can't be restarted. Before the clock starts, PhiBot checks that your browser can play the clips.",
+			"Practice songs and past dailies are open to everyone. Past dailies are kept in this browser only.",
+			"Only today's song is ranked: fewer tries first, then the faster time.",
+		],
 		clue: "Clue {n} of {total}",
 		imageAlt:
 			"Clue {n} of {total}: a close-up of an illustration, blurred and recoloured",
@@ -1450,7 +1498,7 @@ export const toolsEn: ToolsMessages = {
 		boardYou: "You",
 		boardMine: "You are #{rank} of {total}.",
 		boardMore: "{n} players solved it.",
-		wonIn: "Got it in {n} tries, {time}.",
+		wonIn: "Got it on try {n}, in {time}.",
 	},
 	rankCurve: {
 		title: "Accuracy and rank",
@@ -1558,6 +1606,14 @@ export const toolsEn: ToolsMessages = {
 		exitFullscreen: "Exit full screen",
 		canvas: "{title} {level} chart preview",
 		keys: "Space plays or pauses. Arrow keys skip 5 seconds. L repeats a section, [ and ] set its start and end. F toggles full screen.",
+		copyLink: "Copy link",
+		copyLinkHint:
+			"Copy a link to this level and this moment: the looped section if Loop is on, otherwise the current position",
+		linkCopied: "Copied",
+		linked: "Linked: {what}",
+		linkedAt: "starts at {at}",
+		linkedLoop: "loops {from} to {to}",
+		linkedSep: ", ",
 	},
 	similar: {
 		title: "Similar charts",
@@ -1647,12 +1703,32 @@ export const toolsEn: ToolsMessages = {
 		none: "None of your charts sit far enough below your usual form to change your RKS.",
 		profileLink: "Open your profile",
 	},
+	nearMisses: {
+		title: "Near misses",
+		lede: "Worked out from the best score and the best accuracy of each chart. Charts where the two do not come from one play are left out.",
+		apTitle: "Closest to All Perfect",
+		apNone: "None of your full combos is within {n} Goods of an All Perfect.",
+		breakTitle: "One break from a full combo",
+		breakNone:
+			"No chart has a best play with exactly one Bad or Miss and a few Goods.",
+		song: "Song",
+		level: "Level",
+		constant: "Constant",
+		score: "Score",
+		acc: "Acc",
+		goods: "Goods",
+		combo: "Longest combo",
+		apGain: "Gain if AP",
+	},
 	snapshot: {
 		open: "Open as image",
 		download: "Download image",
 		progress:
 			"An image of this grid with clears, FCs and APs per level, for sharing.",
 		targets: "An image of your ten closest targets, for sharing.",
+		type: "An image of your type, for sharing.",
+		suits: "An image of this table at the level you picked, for sharing.",
+		achievements: "An image of your achievements, for sharing.",
 		progressLegend:
 			"Each cell: charts cleared out of charts, with FC and AP counts. The bar shows the cleared share.",
 		goal: "next {goal}",
@@ -1848,8 +1924,8 @@ export const toolsEn: ToolsMessages = {
 	},
 	search: {
 		open: "Search",
-		label: "Search songs and pages",
-		placeholder: "Song, nickname, composer or page",
+		label: "Search songs, pages and story texts",
+		placeholder: "Song, nickname, page or story text",
 		close: "Close",
 		songs: "Songs",
 		pages: "Pages",
@@ -1858,6 +1934,14 @@ export const toolsEn: ToolsMessages = {
 		resultsOne: "1 result",
 		none: "Nothing matches.",
 		loading: "Loading songs…",
+		searching: "Searching the story texts…",
+		texts: {
+			collection: "Collection",
+			story: "Story texts",
+			tips: "Loading tips",
+			timeline: "Story timeline",
+		},
+		textMore: "See all {n} results in the Collection",
 		keys: "↑ ↓ to move · Enter to open · Esc to close",
 	},
 	versions: {

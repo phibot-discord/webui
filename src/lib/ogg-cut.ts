@@ -1,9 +1,23 @@
-type OggPage = { end: number; data: number; granule: number };
+type OggPage = { start: number; end: number; data: number; granule: number };
 
 const CAPTURE = [0x4f, 0x67, 0x67, 0x53];
 const HEADER = 27;
 const NO_GRANULE = -1;
 const OPUS_RATE = 48_000;
+const SERIAL = 14;
+const CHECKSUM = 22;
+
+const CRC_TABLE = (() => {
+	const table = new Uint32Array(256);
+	for (let i = 0; i < 256; i++) {
+		let r = i << 24;
+		for (let bit = 0; bit < 8; bit++) {
+			r = r & 0x80000000 ? (r << 1) ^ 0x04c11db7 : r << 1;
+		}
+		table[i] = r >>> 0;
+	}
+	return table;
+})();
 
 function readPages(bytes: Uint8Array): OggPage[] {
 	const pages: OggPage[] = [];
@@ -23,6 +37,7 @@ function readPages(bytes: Uint8Array): OggPage[] {
 		const low = view.getUint32(0, true);
 		const high = view.getUint32(4, true);
 		pages.push({
+			start: at,
 			end,
 			data,
 			granule:
@@ -73,4 +88,42 @@ export function oggCut(
 		if (page.granule >= want) return { end, reached: true };
 	}
 	return audio ? { end, reached: false } : undefined;
+}
+
+export function oggCrc(bytes: Uint8Array): number {
+	let crc = 0;
+	for (const b of bytes) {
+		crc = ((crc << 8) ^ (CRC_TABLE[((crc >>> 24) ^ b) & 0xff] ?? 0)) >>> 0;
+	}
+	return crc;
+}
+
+export function oggSerial(bytes: Uint8Array): number | undefined {
+	const first = readPages(bytes)[0];
+	if (!first) return undefined;
+	return new DataView(
+		bytes.buffer,
+		bytes.byteOffset + first.start + SERIAL,
+		4,
+	).getUint32(0, true);
+}
+
+export function oggReserial(
+	bytes: Uint8Array,
+	serial: number,
+): Uint8Array | undefined {
+	const pages = readPages(bytes);
+	const first = pages[0];
+	if (!first) return undefined;
+	const out = bytes.slice();
+	const view = new DataView(out.buffer, out.byteOffset, out.length);
+	const shift = (view.getUint32(first.start + SERIAL, true) ^ serial) >>> 0;
+	for (const page of pages) {
+		const at = page.start;
+		const own = view.getUint32(at + SERIAL, true);
+		view.setUint32(at + SERIAL, (own ^ shift) >>> 0, true);
+		view.setUint32(at + CHECKSUM, 0, true);
+		view.setUint32(at + CHECKSUM, oggCrc(out.subarray(at, page.end)), true);
+	}
+	return out;
 }

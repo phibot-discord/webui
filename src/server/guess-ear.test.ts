@@ -1,11 +1,21 @@
 import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
-import { clipOf, readCapped, resetEarForTest } from "./guess-ear";
+import { oggCrc, oggCut, oggSerial } from "@/lib/ogg-cut";
+import { clueToken } from "./guess";
+import {
+	clipOf,
+	disguise,
+	earClueToken,
+	earClueTokenOk,
+	earSerial,
+	readCapped,
+	resetEarForTest,
+} from "./guess-ear";
 
 const RATE = 44_100;
 const HALF = RATE / 2;
 
-function page(granule: number, payload: Uint8Array): Uint8Array {
+function page(granule: number, payload: Uint8Array, serial = 0): Uint8Array {
 	const lacing: number[] = [];
 	let left = payload.length;
 	while (left >= 255) {
@@ -18,9 +28,11 @@ function page(granule: number, payload: Uint8Array): Uint8Array {
 	const view = new DataView(out.buffer);
 	view.setUint32(6, granule % 4_294_967_296, true);
 	view.setUint32(10, Math.floor(granule / 4_294_967_296), true);
+	view.setUint32(14, serial, true);
 	out[26] = lacing.length;
 	out.set(lacing, 27);
 	out.set(payload, 27 + lacing.length);
+	view.setUint32(22, oggCrc(out), true);
 	return out;
 }
 
@@ -33,10 +45,13 @@ function vorbisHead(): Uint8Array {
 	return out;
 }
 
-function song(): { bytes: Uint8Array; ends: Map<number, number> } {
-	const pages = [page(0, vorbisHead()), page(0, new Uint8Array(16).fill(3))];
+function song(serial = 0): { bytes: Uint8Array; ends: Map<number, number> } {
+	const pages = [
+		page(0, vorbisHead(), serial),
+		page(0, new Uint8Array(16).fill(3), serial),
+	];
 	for (let g = HALF; g <= 20 * RATE; g += HALF) {
-		pages.push(page(g, new Uint8Array(300).fill(9)));
+		pages.push(page(g, new Uint8Array(300).fill(9), serial));
 	}
 	const bytes = new Uint8Array(pages.reduce((n, p) => n + p.length, 0));
 	const ends = new Map<number, number>();
@@ -145,4 +160,62 @@ test("a response longer than the cap is read only up to the cap", async () => {
 		1000,
 	);
 	assert.deepEqual(short, new Uint8Array(10).fill(5));
+});
+
+function pageStarts(bytes: Uint8Array): number[] {
+	const out: number[] = [];
+	let at = 0;
+	while (at + 27 <= bytes.length) {
+		out.push(at);
+		const segments = bytes[at + 26] ?? 0;
+		let body = 0;
+		for (let i = 0; i < segments; i++) body += bytes[at + 27 + i] ?? 0;
+		at += 27 + segments + body;
+	}
+	return out;
+}
+
+function checksumsOk(bytes: Uint8Array): boolean {
+	const starts = pageStarts(bytes);
+	return starts.every((from, i) => {
+		const copy = bytes.slice(from, starts[i + 1] ?? bytes.length);
+		const view = new DataView(copy.buffer);
+		const stored = view.getUint32(22, true);
+		view.setUint32(22, 0, true);
+		return oggCrc(copy) === stored;
+	});
+}
+
+test("a daily clip carries a serial of its own puzzle and stays a valid stream", () => {
+	const { bytes } = song(0x5150);
+	const clip = bytes.subarray(0, oggCut(bytes, 2)?.end);
+	const a = disguise(clip, "d-2026-11-03", "k");
+	const again = disguise(clip, "d-2026-11-03", "k");
+	const other = disguise(clip, "d-2026-11-04", "k");
+	assert.ok(a && again && other);
+	assert.deepEqual(a, again);
+	assert.equal(oggSerial(a), earSerial("d-2026-11-03", "k"));
+	assert.notEqual(oggSerial(a), 0x5150);
+	assert.notEqual(oggSerial(a), oggSerial(other));
+	assert.notDeepEqual(a.subarray(0, 64), clip.subarray(0, 64));
+	assert.ok(checksumsOk(a));
+	assert.deepEqual(pageStarts(a), pageStarts(clip));
+	assert.deepEqual(oggCut(a, 1), oggCut(clip, 1));
+	const clash = song(earSerial("d-2026-11-03", "k")).bytes;
+	const moved = disguise(clash, "d-2026-11-03", "k");
+	assert.ok(moved);
+	assert.notEqual(oggSerial(moved), oggSerial(clash));
+	assert.ok(checksumsOk(moved));
+});
+
+test("clue tokens by ear are tied to the puzzle and the step, and the illustration's do not open them", () => {
+	const token = earClueToken("d-2026-11-03", 2, "k");
+	assert.ok(earClueTokenOk("d-2026-11-03", 2, token, "k"));
+	assert.ok(!earClueTokenOk("d-2026-11-03", 2, "", "k"));
+	assert.ok(!earClueTokenOk("d-2026-11-03", 3, token, "k"));
+	assert.ok(!earClueTokenOk("d-2026-11-04", 2, token, "k"));
+	assert.ok(!earClueTokenOk("d-2026-11-03", 2, token, "other"));
+	const picture = clueToken("d-2026-11-03", 2, "k");
+	assert.notEqual(picture, token);
+	assert.ok(!earClueTokenOk("d-2026-11-03", 2, picture, "k"));
 });

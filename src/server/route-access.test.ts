@@ -38,6 +38,7 @@ const PUBLIC_ROUTES = [
 	"api/phira/extras",
 	"api/preview-source",
 	"api/public/[slug]/card/[kind]",
+	"api/search",
 	"api/session",
 	"render/deduction/font",
 ];

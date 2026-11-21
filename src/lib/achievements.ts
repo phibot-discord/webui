@@ -1,3 +1,4 @@
+import { fill } from "@/phi/lib/card-i18n";
 import type { ChartStatus } from "./chart-status";
 
 export const ACHIEVEMENT_IDS = [
@@ -120,4 +121,41 @@ export function achievementsOf(input: AchievementInput): Achievement[] {
 		const done = steps.filter((n) => have >= n - EPS).length;
 		return { id, have, steps, done, next: steps[done] ?? null };
 	});
+}
+
+export function achievementShare(item: Achievement): number {
+	if (item.next === null) return 1;
+	const from = item.done > 0 ? (item.steps[item.done - 1] ?? 0) : 0;
+	return Math.min(1, Math.max(0, (item.have - from) / (item.next - from)));
+}
+
+export function orderAchievements(
+	items: readonly Achievement[],
+): Achievement[] {
+	return [
+		...items
+			.filter((item) => item.next !== null)
+			.sort((a, b) => achievementShare(b) - achievementShare(a)),
+		...items.filter((item) => item.next === null),
+	];
+}
+
+export function achievementValue(
+	id: AchievementId,
+	n: number,
+	colors: { names: readonly string[]; other: string },
+): string {
+	switch (id) {
+		case "rks":
+			return n.toFixed(4);
+		case "highAp":
+		case "highFc":
+			return n.toFixed(1);
+		case "floor":
+			return `${n.toFixed(2)}%`;
+		case "challengeColor":
+			return colors.names[n] || fill(colors.other, { n });
+		default:
+			return n.toFixed(0);
+	}
 }

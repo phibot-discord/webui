@@ -14,6 +14,7 @@ import {
 	chapterShort,
 	entryText,
 	fileItems,
+	OTHER_CHAPTER,
 	parseProperties,
 	type SearchHit,
 	searchCollection,
@@ -70,7 +71,6 @@ import { loadRemoved } from "./removed";
 import { loadStoryGroups, loadTextsIndex, viewTextGroups } from "./texts";
 
 const DEFAULT_CHAPTER = "c1";
-const OTHER_CHAPTER = "other";
 
 function langFirst<T extends { key?: string }>(list: T[], lang: string): T[] {
 	return [
