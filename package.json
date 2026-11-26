@@ -21,7 +21,8 @@
 		"verify": "pnpm typecheck && pnpm lint && pnpm test",
 		"fmt": "biome format --write",
 		"drawings": "node tools/drawings/build.mjs",
-		"icons": "node tools/icons/build.mjs"
+		"icons": "node tools/icons/build.mjs",
+		"cf-errors": "node --import tsx scripts/cf-error-pages.ts"
 	},
 	"dependencies": {
 		"@takumi-rs/core": "2.19.0",
