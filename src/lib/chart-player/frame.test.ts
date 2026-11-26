@@ -139,12 +139,24 @@ test("a hold drops its head once started and vanishes at its end", () => {
 	assert.equal(frame(lines, 2).rows.filter((r) => r[0] === K_HOLD).length, 0);
 });
 
-test("a line with negative alpha hides its notes and itself", () => {
-	const { kinds } = frame(
-		[line({ judgeLineDisappearEvents: flat(-1), notesAbove: [note(1, 64)] })],
-		0.5,
-	);
-	assert.deepEqual(kinds, []);
+test("a line with negative alpha hides itself and keeps its notes", () => {
+	for (const alpha of [-1, -0.05, -1e-8]) {
+		const { kinds } = frame(
+			[
+				line({
+					judgeLineDisappearEvents: flat(alpha),
+					notesAbove: [
+						note(1, 64),
+						note(2, 64),
+						note(4, 64),
+						note(3, 64, { holdTime: 32 }),
+					],
+				}),
+			],
+			0.5,
+		);
+		assert.deepEqual(kinds, [K_HOLD, K_HOLD, K_DRAG, K_TAP, K_FLICK]);
+	}
 });
 
 test("an invisible line still carries its notes", () => {

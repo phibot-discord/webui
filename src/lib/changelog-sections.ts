@@ -3,6 +3,22 @@ import type { ChangeRelease } from "./changelog";
 /** Every release's items, newest first, loaded only when the dialog opens */
 export const CHANGELOG_RELEASES: ChangeRelease[] = [
 	{
+		date: "2026-11-26",
+		sections: [
+			{
+				heading: { en: "Fixes", zh: "修复", ja: "修正" },
+				items: [
+					{
+						en: "The chart preview was leaving out the notes on some hidden judge lines and showing only their hit effects. They now fall as they do in the game. This affected What do you want more than a Happy ending? (IN), 心の記憶 (HD) and the start of Bloom (HD).",
+						zh: "谱面预览之前会漏掉部分隐藏判定线上的音符，只显示打击特效。现在这些音符会和游戏里一样正常落下。受影响的谱面有 What do you want more than a Happy ending?（IN）、心の記憶（HD）和 Bloom（HD）的开头。",
+						ja: "譜面プレビューで、一部の見えない判定線にあるノーツが表示されず、ヒットエフェクトだけが出ていた問題を修正しました。ゲームと同じようにノーツが流れてきます。対象は What do you want more than a Happy ending?（IN）、心の記憶（HD）、Bloom（HD）の冒頭です。",
+						href: "/songs/WhatdoyouwantmorethanaHappyending-Apo11oHALOprogramft%E5%AE%89%E6%9C%88%E5%90%8D%E8%8E%89%E5%AD%90%E5%A4%A7%E7%80%AC%E8%89%AF%E3%81%82%E3%81%84?lv=IN&t=73.5#song-preview",
+					},
+				],
+			},
+		],
+	},
+	{
 		date: "2026-11-21",
 		sections: [
 			{

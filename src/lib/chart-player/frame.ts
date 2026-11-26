@@ -68,7 +68,6 @@ export class FrameBuilder {
 	private readonly ly: Float64Array;
 	private readonly lc: Float64Array;
 	private readonly ls: Float64Array;
-	private readonly la: Float64Array;
 	private readonly lf: Float64Array;
 	private readonly off: Int32Array;
 	private readonly ids: Int32Array;
@@ -86,7 +85,6 @@ export class FrameBuilder {
 		this.ly = new Float64Array(lines);
 		this.lc = new Float64Array(lines);
 		this.ls = new Float64Array(lines);
-		this.la = new Float64Array(lines);
 		this.lf = new Float64Array(lines);
 		const off = new Int32Array(lines * 4 + 1);
 		for (let i = 0; i < n; i++) {
@@ -149,7 +147,7 @@ export class FrameBuilder {
 
 	build(t: number): number {
 		const { chart } = this;
-		const { lx, ly, lc, ls, la, lf } = this;
+		const { lx, ly, lc, ls, lf } = this;
 		this.n = 0;
 		for (let i = 0; i < chart.lines; i++) {
 			const x = segValue(chart.move, i, t, 0);
@@ -162,7 +160,6 @@ export class FrameBuilder {
 			const s = Math.sin(r);
 			lc[i] = c;
 			ls[i] = s;
-			la[i] = a;
 			lf[i] = floorAt(chart.speed, i, t);
 			if (a > 0) {
 				this.put(
@@ -191,7 +188,6 @@ export class FrameBuilder {
 			const { kind, head } = pass;
 			const hh = (kind === DRAG ? DRAG_HH : TAP_HH) * scale;
 			for (let li = 0; li < chart.lines; li++) {
-				if (la[li]! < 0) continue;
 				const b = li * 4 + kind;
 				const lo = off[b]!;
 				const hi = off[b + 1]!;
