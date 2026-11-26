@@ -69,7 +69,9 @@ export default async function KindPage({
 		const { desk } = loaded;
 
 		const q = await searchParams;
-		const counted = kind === "b30" || kind === "x30" || kind === "fc30";
+		const counted =
+			kind === "b30" || kind === "x30" || kind === "fc30" || kind === "ct30";
+		const tagged = counted && kind !== "ct30";
 		const player = desk.title;
 		const rks = desk.rks;
 
@@ -85,7 +87,7 @@ export default async function KindPage({
 					initialQuality={parsePaintQuality(q.quality ?? notes.cardQuality)}
 					persist
 					tagProfile={
-						counted ? { on: notes.showTagAnalysis !== false } : undefined
+						tagged ? { on: notes.showTagAnalysis !== false } : undefined
 					}
 					recordStats={
 						counted ? { on: notes.showRecordStats !== false } : undefined
@@ -101,7 +103,7 @@ export default async function KindPage({
 						q.style ??
 							(isStyledKind(kind) ? notes.cardStyle?.[kind] : undefined),
 					)}
-					initialPeer={counted ? b30AvgKindOf(notes) : undefined}
+					initialPeer={tagged ? b30AvgKindOf(notes) : undefined}
 					initialRankScope={rankScopeOf(notes)}
 					initialRankBandShow={rankBandShowOf(notes)}
 					initialPeerWait={notes.peerWait === true}

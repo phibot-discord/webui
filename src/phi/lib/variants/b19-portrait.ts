@@ -94,7 +94,7 @@ const SHARP_MAX_H = 6460;
 
 const COPY = {
 	en: {
-		kindTitle: { b30: "BEST 30", x30: "x30", fc30: "FC30" },
+		kindTitle: { b30: "BEST 30", x30: "x30", fc30: "FC30", ct30: "CT30" },
 		rks: "RKS",
 		statsRows: ["Clear", "FC", "Phi"],
 		legendScore: "Score · Acc",
@@ -102,6 +102,7 @@ const COPY = {
 		legendScoreRank: "Score · Acc · Rank",
 		legendRks: "RKS · Push",
 		legendRksOnly: "RKS",
+		legendGap: "Over RKS · Push",
 		overflow: "OVERFLOW",
 		overflowNoteB30: "Not counted in RKS",
 		overflowNote: "Beyond the top 30",
@@ -119,7 +120,7 @@ const COPY = {
 		tip: "TIP",
 	},
 	zh: {
-		kindTitle: { b30: "B30 成绩", x30: "性30", fc30: "FC30" },
+		kindTitle: { b30: "B30 成绩", x30: "性30", fc30: "FC30", ct30: "越30" },
 		rks: "RKS",
 		statsRows: ["通过", "FC", "Phi"],
 		legendScore: "分数 · ACC",
@@ -127,6 +128,7 @@ const COPY = {
 		legendScoreRank: "分数 · ACC · 名次",
 		legendRks: "RKS · 推分",
 		legendRksOnly: "RKS",
+		legendGap: "越级 · 推分",
 		overflow: "溢出",
 		overflowNoteB30: "以下成绩不计入 RKS",
 		overflowNote: "前 30 名以外",
@@ -144,7 +146,7 @@ const COPY = {
 		tip: "提示",
 	},
 	ja: {
-		kindTitle: { b30: "BEST 30", x30: "x30", fc30: "FC30" },
+		kindTitle: { b30: "BEST 30", x30: "x30", fc30: "FC30", ct30: "CT30" },
 		rks: "RKS",
 		statsRows: ["クリア", "FC", "Phi"],
 		legendScore: "スコア · Acc",
@@ -152,6 +154,7 @@ const COPY = {
 		legendScoreRank: "スコア · Acc · 順位",
 		legendRks: "RKS · 必要 Acc",
 		legendRksOnly: "RKS",
+		legendGap: "RKS 差 · 必要 Acc",
 		overflow: "枠外",
 		overflowNoteB30: "RKS に含まれない",
 		overflowNote: "上位 30 位以下",
@@ -191,6 +194,7 @@ type Row = {
 	accAvg?: unknown;
 	accRank?: unknown;
 	accRanks?: unknown;
+	cross?: unknown;
 };
 
 export type ChartRowView = {
@@ -625,7 +629,7 @@ function chartRow(
 		score: scoreText,
 		digits: scoreDigits(scoreText),
 		acc: accText,
-		rks: fixed(row.rks, 4),
+		rks: str(row.cross) || fixed(row.rks, 4),
 		push,
 		pushMuted,
 		peer: peerText,
@@ -644,7 +648,8 @@ export function buildRows(
 	const hasPhi = Array.isArray(data.phi);
 	const phi = hasPhi ? (data.phi as (Row | undefined)[]) : [];
 	const best = Array.isArray(data.b19_list) ? (data.b19_list as Row[]) : [];
-	const showPush = kind === "b30";
+	const crossList = kind === "ct30";
+	const showPush = kind === "b30" || crossList;
 	if (hasPhi) {
 		for (let i = 0; i < Math.max(3, phi.length); i++) {
 			const row = phi[i];
@@ -657,7 +662,7 @@ export function buildRows(
 		}
 	}
 	// Same cut as the classic card: B27 after the P rows, else the top 30
-	const limit = hasPhi ? 27 : 30;
+	const limit = crossList ? Number.POSITIVE_INFINITY : hasPhi ? 27 : 30;
 	best.forEach((row, i) => {
 		if (!row || typeof row !== "object") return;
 		if (i === limit)
@@ -966,6 +971,7 @@ export function modeChips(raw: unknown): string[] {
 	for (const copy of [cardCopy("en"), cardCopy("zh"), cardCopy("ja")]) {
 		modes.add(copy.fcMode);
 		modes.add(copy.x30Mode);
+		modes.add(copy.ctMode);
 	}
 	return raw
 		.map((s) => String(s ?? "").trim())
@@ -1122,8 +1128,15 @@ export function buildView(data: CardData, ctx: VariantContext) {
 				: charts.some((row) => row.peer)
 					? vt.legendScorePeer
 					: vt.legendScore,
-			legendRks: kind === "b30" ? vt.legendRks : vt.legendRksOnly,
+			legendRks:
+				kind === "b30"
+					? vt.legendRks
+					: kind === "ct30"
+						? vt.legendGap
+						: vt.legendRksOnly,
 			noCharts: !charts.length,
+			noChartsText:
+				kind === "ct30" ? cardCopy(ctx.locale).ctEmpty : vt.noCharts,
 			tip: portraitTip(data.tips, ctx.catalog?.tips),
 		},
 	};

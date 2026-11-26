@@ -575,7 +575,7 @@ async function buildCardData(
 	const { userId, kind, save, token, nnum, locale, notes, style, song } = prep;
 	const catalog = host.catalog;
 	const themeKey = notes.theme || "default";
-	if (kind === "b30" || kind === "x30" || kind === "fc30") {
+	if (kind === "b30" || kind === "x30" || kind === "fc30" || kind === "ct30") {
 		const data = await b19Card(host.rt, save, host.db, userId, catalog, {
 			nnum,
 			mode: kind,

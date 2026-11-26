@@ -121,6 +121,20 @@ function fakeSave(rev: string) {
 				pushRks: 16.0412,
 			};
 		},
+		getCrossTier(n: number) {
+			const rows = copy(bestRows.slice(30, 33)).map((row, i) => ({
+				...row,
+				num: i + 1,
+				cross: "+0.19",
+				suggest: "无法推分",
+			}));
+			return {
+				b19_list: rows.slice(0, n),
+				total: rows.length,
+				line: 16.0412,
+				pushRks: 16.0412,
+			};
+		},
 		async getStats() {
 			return [];
 		},
@@ -442,4 +456,67 @@ test("a stored RKS that is not a number gives the goal's RKS", async () => {
 		},
 	);
 	assert.equal(data.Rks, "16.0412");
+});
+
+test("ct30 lists the cross-tier rows with a count chip and no analysis or peer lookups", async () => {
+	await seedVotes();
+	posts.length = 0;
+	for (const locale of ["en", "zh"] as const) {
+		const save = fakeSave(`rev-ct30-${locale}`);
+		const { db } = memoryDb();
+		const reads: string[] = [];
+		const get = db.get;
+		db.get = async (key: string) => {
+			reads.push(key);
+			return get(key);
+		};
+		const data = await b19Card(
+			rt as never,
+			save as never,
+			db,
+			"u1",
+			catalog as never,
+			{
+				nnum: 33,
+				mode: "ct30",
+				locale,
+				showTagAnalysis: true,
+				notes: { ...notes, b30AvgKind: "rank" },
+			},
+		);
+		const t = cardCopy(locale);
+		assert.deepEqual(data.spInfo, [t.ctMode, t.ctCount.replace("{n}", "3")]);
+		assert.equal(data.phi, undefined);
+		assert.deepEqual(
+			(data.b19_list as { cross?: string; suggest?: string }[]).map((r) => [
+				r.cross,
+				r.suggest,
+			]),
+			Array.from({ length: 3 }, () => ["+0.19", t.noPush]),
+		);
+		assert.equal(data.b30Analysis, null);
+		assert.equal(data.rksStddev, 0);
+		assert.equal(data.Rks, "16.0412");
+		assert.deepEqual(data.missing, []);
+		assert.equal(data.renderPartial, false);
+		assert.ok(!reads.some((key) => key.startsWith("phi:lb:")), reads.join());
+	}
+	assert.deepEqual(posts, []);
+	const empty = fakeSave("rev-ct30-empty");
+	empty.getCrossTier = () => ({
+		b19_list: [],
+		total: 0,
+		line: 16.0412,
+		pushRks: 16.0412,
+	});
+	const none = await b19Card(
+		rt as never,
+		empty as never,
+		memoryDb().db,
+		"u1",
+		catalog as never,
+		{ nnum: 33, mode: "ct30", locale: "en", notes },
+	);
+	assert.deepEqual(none.spInfo, ["CT30"]);
+	assert.deepEqual(none.b19_list, []);
 });

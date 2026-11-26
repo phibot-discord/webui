@@ -53,6 +53,7 @@ export const zh: ClientMessages = {
 			info: { name: "信息", blurb: "名字、RKS、玩家信息" },
 			x30: { name: "x30", blurb: "算上 1 Good 时最好的谱" },
 			fc30: { name: "fc30", blurb: "Full Combo 最好的谱" },
+			ct30: { name: "越30", blurb: "打过但还没吃下的越级谱面" },
 			song: {
 				name: "单曲排名",
 				blurb: "你在一张谱面上的准确率，在 phib19.top 的记录里排第几",
@@ -296,6 +297,7 @@ export const zh: ClientMessages = {
 		info: "信息",
 		x30: "x30",
 		fc30: "fc30",
+		ct30: "越30",
 		song: "单曲排名",
 	},
 	score: {
@@ -1000,6 +1002,7 @@ export const zh: ClientMessages = {
 			b30: "B30",
 			x30: "x30（1 Good）",
 			fc30: "fc30（Full Combo）",
+			ct30: "越30（越级）",
 			hisb30: "成绩历史",
 			info: "玩家信息",
 			song: "单曲排名",

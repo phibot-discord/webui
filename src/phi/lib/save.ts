@@ -1,4 +1,5 @@
 import { logger } from "@/server/logger";
+import { crossGapText, crossTier } from "./cross-tier";
 import { fCompute } from "./fcompute";
 import { getInfo } from "./get-info";
 import { LevelRecordInfo } from "./level-record";
@@ -325,6 +326,32 @@ export class Save {
 			b19_list.push(x);
 		}
 		return { phi, b19_list, com_rks: sum_rks / 30, pushRks: push.rks };
+	}
+
+	getCrossTier(num: number) {
+		const push = pushTargets(this.gameRecord);
+		const picks = crossTier(this.getRecord(), push.rks);
+		const b19_list = picks.slice(0, num).map(({ record, gap }, i) => {
+			const value = push.values.get(pushKey(record.id, record.rank));
+			const row: LevelRecordInfo = {
+				fc: record.fc,
+				score: record.score,
+				acc: record.acc,
+				id: record.id,
+				rank: record.rank,
+				Rating: record.Rating,
+				rks: record.rks,
+				difficulty: record.difficulty,
+				song: record.song,
+				num: i + 1,
+				suggest: pushText(value),
+				illustration: getInfo.getill(record.id, "low", record.rank),
+				cross: crossGapText(gap),
+			};
+			if (value != null) row.suggestType = pushType(value);
+			return row;
+		});
+		return { b19_list, total: picks.length, line: push.rks, pushRks: push.rks };
 	}
 
 	async getStats() {

@@ -514,3 +514,28 @@ test("line segments the old markup could not express are left out of the path", 
 	);
 	assert.match(none, /<line x1="0%" y1="0%" x2="1e-7%" y2="50%">/);
 });
+
+test("ct30 puts the gap in the rank badge, draws no overflow divider and notes an empty list", () => {
+	const rows = Array.from({ length: 32 }, (_, i) =>
+		song({ num: i + 1, cross: "+0.19" }),
+	);
+	const html = compile("b19/b19", b19({ cardKind: "ct30", b19_list: rows }));
+	assert.equal((html.match(/<p>\+0\.19<\/p>/g) ?? []).length, 32);
+	assert.ok(!html.includes("OVER FLOW"));
+	assert.equal((html.match(/class="song b_song"/g) ?? []).length, 32);
+	assert.ok(!html.includes("cross-empty"));
+	const empty = compile("b19/b19", b19({ cardKind: "ct30", b19_list: [] }));
+	assert.ok(
+		empty.includes(
+			`<div class="cross-empty"><p>${cardCopy("en").ctEmpty}</p></div>`,
+		),
+	);
+	const plain = Array.from({ length: 32 }, (_, i) => song({ num: i + 1 }));
+	const b30 = compile("b19/b19", b19({ b19_list: plain }));
+	assert.ok(b30.includes("OVER FLOW"));
+	assert.equal((b30.match(/class="song b_song"/g) ?? []).length, 30);
+	assert.equal((b30.match(/<p>15\.5000<\/p>/g) ?? []).length, 32);
+	assert.ok(!b30.includes("cross-empty"));
+	const x30 = compile("b19/b19", b19({ cardKind: "x30", b19_list: [] }));
+	assert.ok(!x30.includes("cross-empty"));
+});

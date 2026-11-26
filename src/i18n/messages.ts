@@ -36,6 +36,7 @@ export type ClientMessages = ToolsMessages & {
 			| "info"
 			| "x30"
 			| "fc30"
+			| "ct30"
 			| "song"
 			| "tags"
 			| "simulate"
@@ -196,6 +197,7 @@ export type ClientMessages = ToolsMessages & {
 		info: string;
 		x30: string;
 		fc30: string;
+		ct30: string;
 		song: string;
 	};
 	score: {
@@ -718,7 +720,10 @@ export type ClientMessages = ToolsMessages & {
 		ready: string;
 		failed: string;
 		alt: string;
-		titles: Record<"b30" | "x30" | "fc30" | "hisb30" | "info" | "song", string>;
+		titles: Record<
+			"b30" | "x30" | "fc30" | "ct30" | "hisb30" | "info" | "song",
+			string
+		>;
 		songChart: string;
 		songSearch: string;
 		songLevel: string;
@@ -913,6 +918,11 @@ export const en: ClientMessages = {
 			info: { name: "Info", blurb: "Name, RKS, player card." },
 			x30: { name: "x30", blurb: "Best if a 1-Good still counts." },
 			fc30: { name: "fc30", blurb: "Best Full Combo charts." },
+			ct30: {
+				name: "ct30",
+				blurb:
+					"Charts above your RKS that you played but could not make count.",
+			},
 			song: {
 				name: "Song rank",
 				blurb:
@@ -1176,6 +1186,7 @@ export const en: ClientMessages = {
 		info: "Info",
 		x30: "x30",
 		fc30: "fc30",
+		ct30: "ct30",
 		song: "Song rank",
 	},
 	score: {
@@ -1903,6 +1914,7 @@ export const en: ClientMessages = {
 			b30: "B30",
 			x30: "x30 (1-Good)",
 			fc30: "fc30 (Full Combo)",
+			ct30: "CT30 (cross-tier)",
 			hisb30: "Score history",
 			info: "Player info",
 			song: "Song rank",

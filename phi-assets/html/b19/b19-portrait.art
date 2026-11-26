@@ -151,7 +151,7 @@
 		{{/if}}
 		{{/each}}
 		{{if pv.noCharts}}
-		<div class="b19p-none"><p>{{vt.noCharts}}</p></div>
+		<div class="b19p-none"><p>{{pv.noChartsText}}</p></div>
 		{{/if}}
 	</section>
 

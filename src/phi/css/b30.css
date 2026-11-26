@@ -345,3 +345,18 @@
 .songinfo .line {
 	display: none !important;
 }
+
+.cross-empty {
+	flex: 1 1 100%;
+	margin: 6px 35px 24px;
+	padding: 20px 28px;
+	background-color: rgba(0, 0, 0, 0.55);
+	border-left: 6px solid #ffffff;
+	box-sizing: border-box;
+}
+.cross-empty p {
+	margin: 0;
+	font-size: 22px;
+	line-height: 1.4;
+	color: #ffffff;
+}

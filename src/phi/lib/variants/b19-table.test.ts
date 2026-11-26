@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { cardCopy } from "../card-i18n";
 import { textEm } from "../text-fit";
 import { lineEm } from "./b19-common";
 import {
@@ -174,6 +175,8 @@ test("chipTexts localizes the server mode labels and keeps the rest", () => {
 	assert.deepEqual(chipTexts(["FC30", " "], zh), ["FC30"]);
 	assert.deepEqual(chipTexts(["ACC 限制为 99%"], zh), ["ACC 限制为 99%"]);
 	assert.deepEqual(chipTexts(undefined, en), []);
+	assert.deepEqual(chipTexts(["越30", "越级 4 张"], zh, "ct30"), ["越级 4 张"]);
+	assert.deepEqual(chipTexts(["CT30"], en), ["CT30"]);
 });
 
 test("avgLabel names the peer column after the b30AvgKind in use", () => {
@@ -716,4 +719,70 @@ test("prepareTable in rank mode: Rank column label, no population note", () => {
 		{ kind: "b30", locale: "en" },
 	);
 	assert.equal(plain.hasAvg, false);
+});
+
+test("tableItems for ct30: push on, the gap in the RKS column, no cut and no fill note", () => {
+	const long = Array.from({ length: 35 }, (_, i) =>
+		chart(i, { cross: "+0.19" }),
+	);
+	const { items, hasPush, mainCount } = tableItems(
+		{ b19_list: long },
+		"ct30",
+		en,
+		"Can't push",
+		"Nothing above",
+	);
+	assert.equal(hasPush, true);
+	assert.equal(mainCount, 35);
+	assert.ok(!items.some((it) => it.type !== "row"));
+	const rows = rowsOf(items);
+	assert.equal(rows.length, 35);
+	assert.equal(rows[34]!.rankNum, "35");
+	assert.equal(rows[0]!.rks, "+0.19");
+	assert.equal(rows[0]!.push, "99.7000%");
+	assert.ok(rows.every((r) => !r.cls.includes("is-over")));
+	const short = tableItems(
+		{ b19_list: [chart(1, { cross: "+0.09" })] },
+		"ct30",
+		en,
+		"",
+	).items;
+	assert.deepEqual(
+		short.map((it) => it.type),
+		["row"],
+	);
+	assert.deepEqual(
+		tableItems({ b19_list: [] }, "ct30", en, "", "Nothing above").items,
+		[{ type: "note", text: "Nothing above" }],
+	);
+});
+
+test("prepareTable for ct30 names the gap column and drops only the mode chip", () => {
+	for (const locale of ["en", "zh", "ja"] as const) {
+		const copy = tableCopy(locale);
+		const t = cardCopy(locale);
+		const view = prepareTable(
+			{
+				cardKind: "ct30",
+				spInfo: [t.ctMode, "4 above RKS"],
+				b19_list: [],
+				gameuser: { rks: 16.7 },
+			},
+			{ kind: "b30", locale },
+		);
+		assert.equal(view.kind, "ct30");
+		assert.equal(view.title, copy.title.ct30);
+		assert.equal(view.desc, copy.desc.ct30);
+		assert.equal(view.copy.colRks, copy.colGap);
+		assert.deepEqual(view.chips, ["4 above RKS"]);
+		assert.equal(view.hasPush, true);
+		assert.deepEqual(view.items, [{ type: "note", text: t.ctEmpty }]);
+		assert.equal(view.analysis, null);
+	}
+	const b30 = prepareTable(
+		{ cardKind: "b30", b19_list: [] },
+		{ kind: "b30", locale: "en" },
+	);
+	assert.equal(b30.copy.colRks, "RKS");
+	assert.deepEqual(b30.items, [{ type: "note", text: en.noRows }]);
 });

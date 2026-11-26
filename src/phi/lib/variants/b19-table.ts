@@ -44,11 +44,12 @@ const AVG_MIN_PX = 10;
 
 const COPY = {
 	en: {
-		title: { b30: "Best 30", x30: "x30", fc30: "FC30" },
+		title: { b30: "Best 30", x30: "x30", fc30: "FC30", ct30: "CT30" },
 		desc: {
 			b30: "3 Phi charts + Best 27 make up your RKS",
 			x30: "",
 			fc30: "",
+			ct30: "Played charts above your RKS that are not in your B30, hardest first.",
 		},
 		saved: "Save date",
 		rks: "RKS",
@@ -56,6 +57,7 @@ const COPY = {
 		mode: {
 			x30: "x30",
 			fc30: "FC30",
+			ct30: "CT30",
 			ap: "All Perfect Mode",
 		},
 		statClear: "Clear",
@@ -67,6 +69,7 @@ const COPY = {
 		colScore: "Score",
 		colAcc: "Acc",
 		colRks: "RKS",
+		colGap: "Over RKS",
 		colPush: "Push acc",
 		avgAll: "peer avg",
 		avgB30: "B30 avg",
@@ -92,11 +95,12 @@ const COPY = {
 		generated: "Generated",
 	},
 	zh: {
-		title: { b30: "Best 30 成绩", x30: "性30", fc30: "FC30" },
+		title: { b30: "Best 30 成绩", x30: "性30", fc30: "FC30", ct30: "越30" },
 		desc: {
 			b30: "3 个 Phi 谱面 + 最佳 27 构成你的 RKS",
 			x30: "",
 			fc30: "",
+			ct30: "打过、定数高于 RKS 但没进 B30 的谱面，按定数从高到低。",
 		},
 		saved: "存档时间",
 		rks: "RKS",
@@ -104,6 +108,7 @@ const COPY = {
 		mode: {
 			x30: "性30",
 			fc30: "FC30",
+			ct30: "越30",
 			ap: "All Perfect 模式",
 		},
 		statClear: "通过",
@@ -115,6 +120,7 @@ const COPY = {
 		colScore: "分数",
 		colAcc: "ACC",
 		colRks: "RKS",
+		colGap: "越级",
 		colPush: "推分 ACC",
 		avgAll: "玩家均值",
 		avgB30: "B30 均值",
@@ -140,11 +146,12 @@ const COPY = {
 		generated: "生成于",
 	},
 	ja: {
-		title: { b30: "Best 30", x30: "x30", fc30: "FC30" },
+		title: { b30: "Best 30", x30: "x30", fc30: "FC30", ct30: "CT30" },
 		desc: {
 			b30: "Phi 3 譜面 + Best 27 で RKS が決まります",
 			x30: "",
 			fc30: "",
+			ct30: "プレイ済みで定数が RKS より高く、B30 に入っていない譜面。定数の高い順。",
 		},
 		saved: "保存日",
 		rks: "RKS",
@@ -152,6 +159,7 @@ const COPY = {
 		mode: {
 			x30: "x30",
 			fc30: "FC30",
+			ct30: "CT30",
 			ap: "All Perfect モード",
 		},
 		statClear: "クリア",
@@ -163,6 +171,7 @@ const COPY = {
 		colScore: "スコア",
 		colAcc: "Acc",
 		colRks: "RKS",
+		colGap: "RKS 差",
 		colPush: "必要 Acc",
 		avgAll: "全体平均",
 		avgB30: "B30 平均",
@@ -209,6 +218,7 @@ type LooseRow = {
 	accAvg?: unknown;
 	accRank?: unknown;
 	accRanks?: unknown;
+	cross?: unknown;
 };
 
 const GRADES = new Set(["phi", "FC", "V", "S", "A", "B", "C", "F", "NEW"]);
@@ -391,6 +401,7 @@ const MODE_LABELS = [
 		return [
 			[t.x30Mode, "x30"],
 			[t.fcMode, "fc30"],
+			[t.ctMode, "ct30"],
 			[t.apMode, "ap"],
 		] as const;
 	}),
@@ -493,7 +504,7 @@ function songRow(
 		score: score.rest,
 		acc: `${acc.toFixed(4)}%`,
 		accAp: acc >= 100,
-		rks: num(row.rks).toFixed(4),
+		rks: str(row.cross) || num(row.rks).toFixed(4),
 		push: pushable ? suggest : "",
 		pushTier: pushable ? pushTier(suggest) : "",
 		pushText: pushable ? "" : opts.noPush,
@@ -537,20 +548,22 @@ export function tableItems(
 	kind: TableKind,
 	copy: TableCopy,
 	noPush: string,
+	noRows = copy.noRows,
 ): {
 	items: TableItem[];
 	rows: LooseRow[];
 	hasPush: boolean;
 	mainCount: number;
 } {
+	const crossList = kind === "ct30";
 	const hasPhi = kind === "b30" && Array.isArray(data.phi);
-	const hasPush = kind === "b30";
+	const hasPush = kind === "b30" || crossList;
 	const titleW = hasPush ? TITLE_W.push : TITLE_W.wide;
 	const phi = hasPhi ? (data.phi as unknown[]).slice(0, 3) : [];
 	const best = (Array.isArray(data.b19_list) ? data.b19_list : []).filter(
 		(r): r is LooseRow => Boolean(r && typeof r === "object"),
 	);
-	const cutoff = hasPhi ? 27 : 30;
+	const cutoff = crossList ? Number.POSITIVE_INFINITY : hasPhi ? 27 : 30;
 	const items: TableItem[] = [];
 	const rows: LooseRow[] = [];
 	if (hasPhi) {
@@ -603,8 +616,8 @@ export function tableItems(
 			}),
 		);
 	});
-	if (!best.length) items.push({ type: "note", text: copy.noRows });
-	else if (best.length < cutoff)
+	if (!best.length) items.push({ type: "note", text: noRows });
+	else if (!crossList && best.length < cutoff)
 		items.push({
 			type: "note",
 			text: fill(copy.filled, { n: best.length, cap: cutoff }),
@@ -775,7 +788,7 @@ export function pushKey(items: TableItem[], copy: TableCopy) {
 }
 
 function tableKind(kind: string): TableKind {
-	return kind === "x30" || kind === "fc30" ? kind : "b30";
+	return kind === "x30" || kind === "fc30" || kind === "ct30" ? kind : "b30";
 }
 
 export function prepareTable(
@@ -804,6 +817,7 @@ export function prepareTable(
 		kind,
 		copy,
 		t.noPush,
+		kind === "ct30" ? t.ctEmpty : copy.noRows,
 	);
 	const hasAvg = rows.some(
 		(r) => rankLines(r).length || (r.accAvg != null && r.accAvg !== ""),
@@ -811,7 +825,7 @@ export function prepareTable(
 	const hasPhi = kind === "b30" && Array.isArray(data.phi);
 	return {
 		kind,
-		copy,
+		copy: kind === "ct30" ? { ...copy, colRks: copy.colGap } : copy,
 		title: copy.title[kind],
 		desc: copy.desc[kind],
 		chips: chipTexts(data.spInfo, copy, kind),

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { cardCopy } from "../card-i18n";
 import type { Catalog } from "../catalog";
 import { textEm } from "../text-fit";
 import { lineEm } from "./b19-common";
@@ -62,7 +63,10 @@ function chart(i: number, extra: Record<string, unknown> = {}) {
 const charts = (rows: RowView[]) =>
 	rows.filter((r): r is ChartRowView => r.type === "chart");
 
-const ctx = (kind: "b30" | "x30" | "fc30", locale: "en" | "zh" = "en") => ({
+const ctx = (
+	kind: "b30" | "x30" | "fc30" | "ct30",
+	locale: "en" | "zh" | "ja" = "en",
+) => ({
 	kind,
 	locale,
 	catalog: {} as Catalog,
@@ -596,6 +600,7 @@ test("modeChips drops the x30 / fc30 mode labels: the title names the mode", () 
 		"5",
 	]);
 	assert.deepEqual(modeChips(["x30", " "]), []);
+	assert.deepEqual(modeChips(["CT30", "越30", "4 above RKS"]), ["4 above RKS"]);
 	assert.deepEqual(modeChips(null), []);
 });
 
@@ -940,4 +945,49 @@ test("variant.prepare merges the view into the template data", async () => {
 	>;
 	assert.equal(out.tips, "hi");
 	assert.ok(out.pv && out.vt);
+});
+
+test("buildRows: ct30 shows push and the gap, with no overflow cut", () => {
+	const best = Array.from({ length: 35 }, (_, i) =>
+		chart(i, { cross: "+0.19" }),
+	);
+	const rows = buildRows({ b19_list: best }, "ct30", en);
+	assert.ok(!rows.some((r) => r.type === "overflow"));
+	const list = charts(rows);
+	assert.equal(list.length, 35);
+	assert.equal(list[0]!.rks, "+0.19");
+	assert.equal(list[0]!.push, "99.7000%");
+	assert.ok(list.every((r) => !r.over && !r.gold));
+	assert.equal(list[34]!.label, "#35");
+	const b30 = charts(buildRows({ b19_list: [chart(0)] }, "b30", en));
+	assert.equal(b30[0]!.rks, "15.0000");
+});
+
+test("buildView for ct30: its title, the gap legend, the count chip and the empty note", () => {
+	for (const locale of ["en", "zh", "ja"] as const) {
+		const vt = portraitCopy(locale);
+		const t = cardCopy(locale);
+		const { pv } = buildView(
+			{
+				spInfo: [t.ctMode, "4 above RKS"],
+				b19_list: [],
+				gameuser: { rks: 16.7 },
+				rksStddev: 0.5,
+			},
+			ctx("ct30", locale),
+		);
+		assert.equal(pv.title, vt.kindTitle.ct30);
+		assert.equal(pv.legendRks, vt.legendGap);
+		assert.deepEqual(
+			pv.chips.map((c) => c.lines.join(" ")),
+			["4 above RKS"],
+		);
+		assert.equal(pv.sd, "");
+		assert.equal(pv.noCharts, true);
+		assert.equal(pv.noChartsText, t.ctEmpty);
+		assert.equal(pv.analysis, null);
+	}
+	const fc = buildView({ b19_list: [] }, ctx("fc30")).pv;
+	assert.equal(fc.noChartsText, en.noCharts);
+	assert.equal(fc.legendRks, en.legendRksOnly);
 });

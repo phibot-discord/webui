@@ -5,6 +5,7 @@ export const CARD_KINDS = [
 	"info",
 	"x30",
 	"fc30",
+	"ct30",
 	"song",
 ] as const;
 export type CardKind = (typeof CARD_KINDS)[number];

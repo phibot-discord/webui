@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	cardCopy,
+	fill,
 	localizeChartTagDescription,
 	localizeChartTagLabels,
 	localizeChartTagName,
@@ -126,4 +127,19 @@ test("the classic card's mode chips are the short card titles", () => {
 	assert.equal(en.x30Mode, "x30");
 	assert.equal(en.fcMode, "FC30");
 	assert.equal(zh.apMode, "All Perfect 模式");
+});
+
+test("ct30 has a mode label, a count chip and an empty note in every locale", () => {
+	const expected = {
+		en: ["CT30", "4 above RKS"],
+		zh: ["越30", "越级 4 张"],
+		ja: ["CT30", "RKS 超え 4 譜面"],
+	};
+	for (const locale of ["en", "zh", "ja"] as const) {
+		const t = cardCopy(locale);
+		assert.deepEqual([t.ctMode, fill(t.ctCount, { n: 4 })], expected[locale]);
+		assert.ok(t.ctEmpty.trim());
+	}
+	assert.notEqual(cardCopy("zh").ctEmpty, cardCopy("en").ctEmpty);
+	assert.notEqual(cardCopy("ja").ctEmpty, cardCopy("en").ctEmpty);
 });

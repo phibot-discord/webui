@@ -6,6 +6,17 @@ export const CHANGELOG_RELEASES: ChangeRelease[] = [
 		date: "2026-11-26",
 		sections: [
 			{
+				heading: { en: "Your scores", zh: "你的成绩", ja: "あなたのスコア" },
+				items: [
+					{
+						en: "A new card, CT30 (cross-tier), lists the charts you have played whose constant is above your RKS but that are not in your B30, hardest first. Each row shows how far the constant is above your RKS and the accuracy that would raise your RKS. Plays under 70% or over 99.8% are left out, and Charts sets how many rows it shows.",
+						zh: "新增「越30」成绩图：列出你打过、定数高于 RKS 却没进 B30 的谱面，按定数从高到低排列。每行显示定数比你的 RKS 高多少，以及推分需要的 ACC。ACC 低于 70% 或高于 99.8% 的成绩不列入，显示多少行由「谱面数」决定。",
+						ja: "新しいカード「CT30（格上）」を追加しました。プレイ済みで、定数があなたの RKS より高いのに B30 に入っていない譜面を、定数の高い順に並べます。各行には定数が RKS をどれだけ上回っているかと、RKS を上げるのに必要な精度が表示されます。精度 70% 未満と 99.8% 超えのプレイは含まれず、表示する行数は「譜面数」で選べます。",
+						href: "/me/ct30",
+					},
+				],
+			},
+			{
 				heading: { en: "Fixes", zh: "修复", ja: "修正" },
 				items: [
 					{

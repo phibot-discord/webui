@@ -4,6 +4,7 @@ export const CARD_STYLES = {
 	b30: ["classic", "table", "portrait"],
 	x30: ["classic", "table", "portrait"],
 	fc30: ["classic", "table", "portrait"],
+	ct30: ["classic", "table", "portrait"],
 	hisb30: ["classic", "timeline", "summary"],
 	info: ["classic", "table", "portrait"],
 } as const;

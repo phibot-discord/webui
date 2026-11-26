@@ -856,3 +856,92 @@ test("a save with no records has a header of 0", async () => {
 		assert.equal(headerRks(0, 0).toFixed(4), "0.0000");
 	});
 });
+
+test("getCrossTier lists charts above the RKS outside the B27, as copies of the cached records", () => {
+	const charts: Chart[] = [
+		...Array.from({ length: 27 }, (_, i): Chart => [`B${i}.b.0`, "IN", 14]),
+		["Q1.q.0", "IN", 16],
+		["Q2.q.0", "IN", 15],
+		["Q3.q.0", "IN", 15],
+		["Hi.h.0", "IN", 13],
+		["Lo.l.0", "IN", 12],
+		["Sub.s.0", "IN", 15.5],
+		["Edge.e.0", "IN", 13.5],
+	];
+	const plays: Play[] = [
+		...Array.from({ length: 27 }, (_, i): Play => [`B${i}.b.0`, "IN", 99.5]),
+		["Q3.q.0", "IN", 92],
+		["Q1.q.0", "IN", 80],
+		["Q2.q.0", "IN", 85],
+		["Hi.h.0", "IN", 99.9],
+		["Lo.l.0", "IN", 90],
+		["Sub.s.0", "IN", 65],
+		["Edge.e.0", "IN", 99.8],
+	];
+	withCatalog(charts, () => {
+		const save = new Save(scoredPayload(plays));
+		save.getB19(99);
+		const cached = save.getRecord();
+		const q1 = cached.find((r) => r.id === "Q1.q.0");
+		assert.ok(q1);
+		q1.accAvg = "Avg: 90%";
+		const before = cached.map((r) => ({ ...r }));
+		const result = save.getCrossTier(33);
+		const line = (27 * fCompute.rks(99.5, 14)) / 30;
+		assert.ok(Math.abs(result.line - line) < 1e-9, `${result.line}`);
+		assert.equal(result.pushRks, result.line);
+		assert.equal(result.total, 4);
+		assert.deepEqual(
+			result.b19_list.map((r) => [r.id, r.num, r.cross]),
+			[
+				["Q1.q.0", 1, "+3.68"],
+				["Q2.q.0", 2, "+2.68"],
+				["Q3.q.0", 3, "+2.68"],
+				["Edge.e.0", 4, "+1.18"],
+			],
+		);
+		const records: SimBaseRecord[] = cached.map((r) => [
+			r.id,
+			r.rank as LevelKind,
+			r.acc,
+			r.difficulty,
+		]);
+		const { targets } = targetsFor(records);
+		for (const row of result.b19_list) {
+			const t = targets.find((x) => x.id === row.id && x.rank === row.rank);
+			const want =
+				t?.need == null
+					? "无法推分"
+					: t.viaAp
+						? "100.0000%"
+						: `${roundUp(t.need, 4).toFixed(4)}%`;
+			assert.equal(row.suggest, want, row.id);
+			assert.equal(row.accAvg, undefined, row.id);
+			assert.ok(!cached.includes(row), row.id);
+		}
+		assert.equal(save.getRecord(), cached);
+		assert.deepEqual(
+			cached.map((r) => ({ ...r })),
+			before,
+		);
+		const cut = save.getCrossTier(2);
+		assert.equal(cut.total, 4);
+		assert.deepEqual(
+			cut.b19_list.map((r) => r.id),
+			["Q1.q.0", "Q2.q.0"],
+		);
+	});
+});
+
+test("getCrossTier is empty when every chart above the RKS is in the B27", () => {
+	const charts: Chart[] = Array.from(
+		{ length: 20 },
+		(_, i): Chart => [`S${i}.s.0`, "IN", 12 + i / 10],
+	);
+	const plays = charts.map(([id, rank]): Play => [id, rank, 95]);
+	withCatalog(charts, () => {
+		const result = new Save(scoredPayload(plays)).getCrossTier(99);
+		assert.deepEqual(result.b19_list, []);
+		assert.equal(result.total, 0);
+	});
+});

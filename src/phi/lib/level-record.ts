@@ -20,6 +20,7 @@ export class LevelRecordInfo {
 	accKind?: string;
 	cpToOld?: { type: string; dif: string; rks: string };
 	date?: Date;
+	declare cross?: string;
 
 	constructor(
 		data: { fc?: boolean | number; score?: number; acc?: number },

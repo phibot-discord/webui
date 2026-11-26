@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { signInDiscord } from "@/auth-actions";
 import {
 	ArrowRight,
+	ArrowUpRight,
 	BookOpenText,
 	Calculator,
 	ChartLineUp,
@@ -56,6 +57,7 @@ const ICONS: Record<LookupKind | ExploreKind, typeof ArrowRight> = {
 	info: IdentificationCard,
 	x30: Crosshair,
 	fc30: Medal,
+	ct30: ArrowUpRight,
 	song: Ranking,
 	tags: Tag,
 	simulate: Flask,

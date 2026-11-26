@@ -68,6 +68,10 @@ export const ja: ClientMessages = {
 			info: { name: "情報", blurb: "名前、RKS、プレイヤーカード。" },
 			x30: { name: "x30", blurb: "Good 1 個までなら数える場合のベスト。" },
 			fc30: { name: "fc30", blurb: "フルコンボ譜面のベスト。" },
+			ct30: {
+				name: "ct30",
+				blurb: "RKS より上で、まだ B30 に届いていない譜面。",
+			},
 			song: {
 				name: "曲別順位",
 				blurb:
@@ -331,6 +335,7 @@ export const ja: ClientMessages = {
 		info: "情報",
 		x30: "x30",
 		fc30: "fc30",
+		ct30: "ct30",
 		song: "曲別順位",
 	},
 	score: {
@@ -1073,6 +1078,7 @@ export const ja: ClientMessages = {
 			b30: "B30",
 			x30: "x30（1 Good）",
 			fc30: "fc30（フルコンボ）",
+			ct30: "CT30（格上）",
 			hisb30: "スコア履歴",
 			info: "プレイヤー情報",
 			song: "曲別順位",

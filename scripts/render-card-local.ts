@@ -1,5 +1,5 @@
 // Offline card render from data/raw-save.json; rerun `pnpm codegen` after template edits
-//   node --import tsx scripts/render-card-local.ts <b30|x30|fc30|hisb30|info|song> [out.jpg]
+//   node --import tsx scripts/render-card-local.ts <b30|x30|fc30|ct30|hisb30|info|song> [out.jpg]
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { LevelRecordInfo } from "../src/phi/lib/level-record";
@@ -272,7 +272,7 @@ if (KIND === "info") {
 	data = {
 		...(await b19Card(rt, save, db, "local", catalog, {
 			nnum: Number(process.env.COUNT || 33),
-			mode: KIND as "b30" | "x30" | "fc30",
+			mode: KIND as "b30" | "x30" | "fc30" | "ct30",
 			locale,
 			showTagAnalysis: process.env.TAGS === "1",
 			notes,

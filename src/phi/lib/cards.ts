@@ -145,7 +145,7 @@ export async function b19Card(
 	extra: {
 		nnum?: number;
 		spInfo?: string[];
-		mode?: "b30" | "x30" | "fc30" | "p30";
+		mode?: "b30" | "x30" | "fc30" | "ct30" | "p30";
 		accMin?: number;
 		locale?: PhiLocale | string;
 		showTagAnalysis?: boolean;
@@ -209,6 +209,11 @@ export async function b19Card(
 			false,
 		);
 		spInfo.push(t.x30Mode);
+	} else if (extra.mode === "ct30") {
+		const ct = save.getCrossTier(nnum);
+		save_b19 = ct;
+		spInfo.push(t.ctMode);
+		if (ct.total > 0) spInfo.push(fill(t.ctCount, { n: ct.total }));
 	} else {
 		const b19 = save.getB19(nnum);
 		save_b19 = b19;
@@ -237,22 +242,25 @@ export async function b19Card(
 	]);
 	// P1–P3 + B1–B27 of the displayed list: the histogram and the header ± SD share them
 	const slots = getB30AnalysisRecords(save_b19);
+	const crossList = extra.mode === "ct30";
 	const [b30Analysis, avgResult] = await Promise.all([
-		b30AnalysisFor(
-			slots,
-			Array.isArray(save_b19.phi),
-			notes,
-			nnum,
-			locale,
-			save,
-			async () =>
-				!save.session || save.session.startsWith("manual:")
-					? undefined
-					: (await loadSaveHistory(rt, db, save.session)).scoreHistory,
-			(id, level) =>
-				Number(rt.getInfo.ori_info[id]?.chart?.[level]?.difficulty) ||
-				undefined,
-		),
+		crossList
+			? null
+			: b30AnalysisFor(
+					slots,
+					Array.isArray(save_b19.phi),
+					notes,
+					nnum,
+					locale,
+					save,
+					async () =>
+						!save.session || save.session.startsWith("manual:")
+							? undefined
+							: (await loadSaveHistory(rt, db, save.session)).scoreHistory,
+					(id, level) =>
+						Number(rt.getInfo.ori_info[id]?.chart?.[level]?.difficulty) ||
+						undefined,
+				),
 		avgJob,
 	]);
 	localizeSuggestFields(
@@ -299,9 +307,11 @@ export async function b19Card(
 		stats,
 		spInfo,
 		locale,
-		rksStddev: slotsStddev(slots, {
-			excludePhi: notes.stddevExcludeP3 === true,
-		}),
+		rksStddev: crossList
+			? 0
+			: slotsStddev(slots, {
+					excludePhi: notes.stddevExcludeP3 === true,
+				}),
 		b30Analysis,
 		renderPartial: missing.length > 0,
 		missing,
