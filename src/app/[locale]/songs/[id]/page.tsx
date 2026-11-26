@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { preconnect } from "react-dom";
 import { sessionUserId } from "@/auth";
 import { ChartPreview } from "@/components/ChartPreview";
 import { ChartVersions } from "@/components/ChartVersions";
@@ -175,6 +176,8 @@ export default async function SongPage({ params, searchParams }: Params) {
 		getMessages(),
 	]);
 	if (!view) notFound();
+	if (view.jacket && /^https?:\/\//.test(view.jacket))
+		preconnect(new URL(view.jacket).origin);
 	const t = m.songPage;
 	const filesJob = filesOf(view, localeTag(locale));
 	const yours = yourScores(view, await viewerJob);
@@ -233,6 +236,7 @@ export default async function SongPage({ params, searchParams }: Params) {
 							alt={fill(t.jacketAlt, { title: view.title })}
 							width={512}
 							height={270}
+							fetchPriority="high"
 						/>
 					</a>
 				) : null}

@@ -4,6 +4,7 @@ import { parseCollectionLang } from "@/lib/collection";
 import { parseParam } from "@/lib/files-view";
 import { objectUrls } from "@/server/asset-links";
 import { buildDeduction } from "@/server/deduction";
+import "@/app/styles/deduction.css";
 
 export const dynamic = "force-dynamic";
 

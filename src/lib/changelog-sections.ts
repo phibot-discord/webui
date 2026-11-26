@@ -17,6 +17,21 @@ export const CHANGELOG_RELEASES: ChangeRelease[] = [
 				],
 			},
 			{
+				heading: { en: "Speed", zh: "速度", ja: "速度" },
+				items: [
+					{
+						en: "Pages load faster, most of all on phones and slow connections.",
+						zh: "页面打开更快了，在手机上和网络较慢时尤其明显。",
+						ja: "ページの読み込みが速くなりました。スマートフォンや回線が遅いときほど効果があります。",
+					},
+					{
+						en: "Pages no longer jump while their content is loading.",
+						zh: "页面在内容加载时不会再跳动了。",
+						ja: "内容の読み込み中にページがずれて動かなくなりました。",
+					},
+				],
+			},
+			{
 				heading: { en: "Fixes", zh: "修复", ja: "修正" },
 				items: [
 					{

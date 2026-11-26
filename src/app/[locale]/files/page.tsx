@@ -58,6 +58,13 @@ import { pageMetadata } from "@/server/og-meta";
 import { ensureSongInfo } from "@/server/song-info";
 import { loadStoryGroups, loadTips, viewTextGroups } from "@/server/texts";
 import { buildTimelineView } from "@/server/timeline";
+import "@/app/styles/assets.css";
+import "@/app/styles/files.css";
+import "@/app/styles/pv.css";
+import "@/app/styles/collection.css";
+import "@/app/styles/c9s6.css";
+import "@/app/styles/deduction.css";
+import "@/app/styles/timeline.css";
 
 export const dynamic = "force-dynamic";
 

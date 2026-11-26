@@ -719,6 +719,9 @@ export function ChartPreview({
 									src={`${poster}${poster.includes("?") ? "&" : "?"}cors=1`}
 									crossOrigin="anonymous"
 									alt=""
+									loading="lazy"
+									decoding="async"
+									fetchPriority="low"
 								/>
 							) : null}
 							<button

@@ -23,6 +23,7 @@ import { illKey } from "@/server/ill";
 import { withDiscordUid } from "@/server/logger";
 import { reviewPhaseNow, reviewView } from "@/server/review";
 import { generateMetadata as missingMetadata } from "../not-found";
+import "@/app/styles/review.css";
 
 export const dynamic = "force-dynamic";
 

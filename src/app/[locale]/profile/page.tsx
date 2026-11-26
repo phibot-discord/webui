@@ -20,6 +20,7 @@ import { illKey } from "@/server/ill";
 import { withDiscordUid } from "@/server/logger";
 import { pageMetadata } from "@/server/og-meta";
 import { diffChartsOf, playerProfileView } from "@/server/profile-view";
+import "@/app/styles/review.css";
 
 export const dynamic = "force-dynamic";
 

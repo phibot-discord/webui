@@ -10,6 +10,7 @@ import {
 	segmentPath,
 	stripLocale,
 } from "@/lib/locale-path";
+import { servesStaticLanding } from "@/lib/static-landing";
 import { withDiscordUid } from "@/server/logger";
 
 const SIGNED_IN_ONLY = /^\/(?:me|account)(?:\/|$)/;
@@ -39,14 +40,24 @@ export async function proxy(req: NextRequest) {
 		if (want !== "en")
 			return redirectTo(req, localePath(pathname + search, want));
 	}
-	const pass = () => {
+	const pass = (to?: string) => {
 		const headers = new Headers(req.headers);
 		headers.set(LOCALE_HEADER, locale);
-		if (locale !== "en") return NextResponse.next({ request: { headers } });
+		if (!to && locale !== "en")
+			return NextResponse.next({ request: { headers } });
 		const url = req.nextUrl.clone();
-		url.pathname = segmentPath(pathname, "en");
+		url.pathname = to ?? segmentPath(pathname, "en");
 		return NextResponse.rewrite(url, { request: { headers } });
 	};
+	if (
+		servesStaticLanding({
+			method: req.method,
+			bare,
+			search: req.nextUrl.searchParams,
+			cookies: req.cookies.getAll().map((c) => c.name),
+		})
+	)
+		return pass(segmentPath("/home", locale));
 	if (!SIGNED_IN_ONLY.test(bare)) return pass();
 	const session = await auth();
 	return withDiscordUid(session?.user?.id, () => {

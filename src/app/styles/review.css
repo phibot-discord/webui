@@ -1698,31 +1698,6 @@
 	font-weight: 700;
 }
 
-.recap-prompt-cards {
-	position: relative;
-	grid-row: span 2;
-	inline-size: 2.4rem;
-	block-size: 3.2rem;
-}
-
-.recap-prompt-cards i {
-	position: absolute;
-	inset: 0;
-	border-radius: 0.4rem;
-	background: light-dark(oklch(0.89 0.075 232), oklch(0.37 0.095 242));
-	box-shadow: 0 0 0 1px color-mix(in oklch, var(--ink) 18%, transparent);
-}
-
-.recap-prompt-cards i:nth-child(1) {
-	background: light-dark(oklch(0.89 0.085 22), oklch(0.42 0.115 20));
-	transform: rotate(-12deg) translateX(-4px);
-}
-
-.recap-prompt-cards i:nth-child(2) {
-	background: light-dark(oklch(0.91 0.13 92), oklch(0.45 0.1 86));
-	transform: rotate(8deg) translateX(4px);
-}
-
 .recap-page > * {
 	margin-inline: auto;
 }

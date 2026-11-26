@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { JsonLd } from "@/components/JsonLd";
 import { LandingView } from "@/components/LandingView";
 import { localeHref } from "@/i18n/server";
-import { homeMetadata } from "@/server/og-meta";
+import { homeMetadata, siteJsonLd } from "@/server/og-meta";
+import "@/app/styles/landing.css";
 
 export const dynamic = "error";
 
@@ -10,5 +12,10 @@ export function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-	return <LandingView next={await localeHref("/me")} live />;
+	return (
+		<>
+			<JsonLd data={await siteJsonLd()} />
+			<LandingView next={await localeHref("/me")} live />
+		</>
+	);
 }

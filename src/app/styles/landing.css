@@ -243,11 +243,6 @@
 }
 
 .level-chip {
-	padding: 2px 8px;
-	border-radius: var(--radius-xs);
-	font-family: var(--mono);
-	font-size: var(--text-label);
-	font-weight: 600;
 	letter-spacing: 0.02em;
 }
 
@@ -673,6 +668,10 @@ html[lang="zh-CN"] .closing-title {
 		animation: land-in 300ms ease-out backwards;
 	}
 
+	.hero-copy > :is(.hero-eyebrow, .hero-title, .hero-lede, .hero-lede-swap) {
+		animation-name: land-rise;
+	}
+
 	.hero-title {
 		animation-delay: 100ms;
 	}
@@ -713,9 +712,14 @@ html[lang="zh-CN"] .closing-title {
 	}
 }
 
+@keyframes land-rise {
+	from {
+		translate: 0 12px;
+	}
+}
+
 @media (forced-colors: active) {
 	.badge,
-	.level-chip,
 	.lookup-icon,
 	.feature-icon {
 		border: 1px solid CanvasText;

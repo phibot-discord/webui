@@ -7,6 +7,7 @@ import { SignInToast } from "@/components/SignInToast";
 import { localeHref } from "@/i18n/server";
 import { bounced, safeNext } from "@/lib/safe-next";
 import { homeMetadata, siteJsonLd } from "@/server/og-meta";
+import "@/app/styles/landing.css";
 
 export const dynamic = "force-dynamic";
 

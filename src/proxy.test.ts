@@ -63,24 +63,70 @@ test("the proxy skips API routes, renders, build output and files", () => {
 	}
 });
 
+const SIGNED_IN = { cookie: "authjs.session-token=abc" };
+
 test("a bare page is served from the English segment", async () => {
 	for (const [path, want] of [
 		["/songs", "/en/songs"],
-		["/", "/en"],
 		["/files?view=timeline", "/en/files?view=timeline"],
 	] as const) {
 		const res = await send(path);
 		assert.equal(isRewrite(res), true, path);
 		assert.equal(target(getRewrittenUrl(res)), want, path);
 	}
+	const home = await send("/", "GET", SIGNED_IN);
+	assert.equal(target(getRewrittenUrl(home)), "/en");
 });
 
 test("a Chinese or Japanese page is neither rewritten nor redirected", async () => {
-	for (const path of ["/zh/songs", "/ja"]) {
-		const res = await send(path);
+	for (const [path, headers] of [
+		["/zh/songs", {}],
+		["/ja/tags", {}],
+		["/ja", SIGNED_IN],
+	] as const) {
+		const res = await send(path, "GET", headers);
 		assert.equal(isRewrite(res), false, path);
 		assert.equal(getRedirectUrl(res), null, path);
 	}
+});
+
+test("the landing without a session is served from the prerendered home page", async () => {
+	for (const [path, want] of [
+		["/", "/en/home"],
+		["/zh", "/zh/home"],
+		["/ja", "/ja/home"],
+		["/?_rsc=abc", "/en/home"],
+	] as const) {
+		const res = await send(path);
+		assert.equal(isRewrite(res), true, path);
+		assert.equal(new URL(getRewrittenUrl(res) ?? "").pathname, want, path);
+	}
+	const head = await send("/", "HEAD");
+	assert.equal(target(getRewrittenUrl(head)), "/en/home");
+});
+
+test("the landing with a session, a query or a POST stays dynamic", async () => {
+	const cases = [
+		["/", "GET", SIGNED_IN, "/en"],
+		["/", "GET", { cookie: "__Secure-authjs.session-token.0=abc" }, "/en"],
+		["/?next=%2Fx", "GET", {}, "/en?next=%2Fx"],
+		["/?asked=1", "GET", {}, "/en?asked=1"],
+		["/", "POST", {}, "/en"],
+	] as const;
+	for (const [path, method, headers, want] of cases) {
+		const res = await send(path, method, headers);
+		assert.equal(target(getRewrittenUrl(res)), want, `${method} ${path}`);
+	}
+	const zh = await send("/zh?next=%2Fzh%2Fme");
+	assert.equal(isRewrite(zh), false);
+});
+
+test("locale redirects still come before the static landing", async () => {
+	const zh = await send("/", "GET", { cookie: "phi-locale=zh" });
+	assert.equal(target(getRedirectUrl(zh)), "/zh");
+	const en = await send("/en");
+	assert.equal(en.status, 308);
+	assert.equal(target(getRedirectUrl(en)), "/");
 });
 
 test("an address that starts with the English segment redirects to the bare address", async () => {

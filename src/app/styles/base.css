@@ -21,7 +21,7 @@ body {
 body {
 	font-family:
 		var(--font-display), ui-sans-serif, system-ui, "Segoe UI", "PingFang SC",
-		"Hiragino Sans GB", "Microsoft YaHei", var(--font-cjk), sans-serif;
+		"Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 	font-size: var(--text-base);
 	line-height: var(--leading);
 	-webkit-font-smoothing: antialiased;
@@ -32,7 +32,7 @@ body {
 html[lang="zh-CN"] body {
 	font-family:
 		var(--font-display), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
-		var(--font-cjk), ui-sans-serif, system-ui, sans-serif;
+		ui-sans-serif, system-ui, sans-serif;
 }
 
 html[lang="zh-CN"] h1,
@@ -71,7 +71,8 @@ a {
 		.plan-table-wrap,
 		.tl-chips,
 		.tl-jump-list,
-		.tl-tabs ul
+		.tl-tabs ul,
+		.asset-tabs
 	)
 	:focus-visible {
 	outline-offset: -2px;
